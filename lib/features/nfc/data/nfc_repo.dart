@@ -60,6 +60,9 @@ class NfcRepo {
     String? tagKey,
     String? tagKind,
     int? nowMs,
+    String? descText,
+    int? color,
+    String? targetSub,
   }) async {
     final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
     for (var attempt = 0; attempt < 2; attempt++) {
@@ -72,6 +75,9 @@ class NfcRepo {
         tagKey: tagKey,
         tagKind: tagKind,
         createdAt: now,
+        descText: descText,
+        color: color,
+        targetSub: targetSub,
       );
       try {
         await db.insert(_t, card.toRow(),
@@ -87,6 +93,10 @@ class NfcRepo {
   }
 
   /// 改名 / 换目标（C3：改数据**不重写标签** ⇒ 本方法不碰 `written_at`）。
+  ///
+  /// ⚠ 批1b 起管理屏**不走本方法**——两形态弹层要的是「只写卡片字段」与
+  /// 「只写目标字段」两条互不串味的通路（[updateCardInfo]／[updateTarget]），
+  /// 本方法保留给批2 触发链等「一次性改一组字段」的调用方。
   Future<void> update(String id, {String? name, String? targetKind, String? targetRef}) async {
     final sets = <String, Object?>{};
     if (name != null) sets['name'] = name;
@@ -94,6 +104,48 @@ class NfcRepo {
     if (targetRef != null) sets['target_ref'] = targetRef;
     if (sets.isEmpty) return;
     await db.update(_t, sets, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// **只写卡片字段**（「卡片信息」形态的保存 · 批1b §4）。
+  ///
+  /// 三列**全量落写**（不是「非空才写」）：描述要能被清空、颜色恒有值，
+  /// 传 null 就是「清空」，故不设 `??` 兜底。**本方法绝不碰目标三列**——
+  /// N15 的两向语义（只改卡片不动目标）由这里钉死。
+  Future<void> updateCardInfo(
+    String id, {
+    required String name,
+    required String? descText,
+    required int color,
+  }) {
+    return db.update(
+      _t,
+      {'name': name, 'desc_text': descText, 'color': color},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// **只写目标字段**（「绑定目标」形态的保存 · 批1b §4）。
+  ///
+  /// 同 [updateCardInfo] 的口径：三列全量落写（换大类时 `target_sub` 必须能被
+  /// 清回 null，否则会留下「打卡的习惯名挂在计时分类上」的脏数据）。
+  /// **本方法绝不碰卡片三列**，也不碰 `written_at`/`tag_key`（C3：改数据零贴卡）。
+  Future<void> updateTarget(
+    String id, {
+    required String targetKind,
+    required String? targetRef,
+    required String? targetSub,
+  }) {
+    return db.update(
+      _t,
+      {
+        'target_kind': targetKind,
+        'target_ref': targetRef,
+        'target_sub': targetSub,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   /// 删卡（C7：**不进回收站**，真 DELETE）。原标签变「未绑定」，可重绑（见 B8）。

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
 
+import '../../core/database/app_database.dart';
 import '../../core/providers.dart';
 import '../../features/habit/data/habit_repository.dart';
 import '../../features/habit/domain/habit.dart';
@@ -90,4 +92,25 @@ final habitLinkageProvider = Provider<void>((ref) {
   final due = d.dueToday(t);
   final done = due.where((h) => d.okOn(h, k)).length;
   return (done, due.length, due.isEmpty ? 0 : (done * 100 / due.length).round());
+}
+
+/// 习惯条目（id＋名 · **原名不加工**）——跨模块「挑一条习惯」用（批1b 起：
+/// NFC 卡片「打卡」目标选择器消费）。
+///
+/// 与 [habitSyncFromTitle] 同源（同一个 `HabitRepository.allHabits()`：未删除，
+/// 含归档——归档≠删除，归档习惯仍可被绑定）。**名字的原样给出**：要不要剥装饰符
+/// 是消费方的事（NFC 模块零 emoji 是它的硬要求，见 `nfc_mounts.dart`），
+/// 本文件不做任何展示层加工。
+Future<List<HabitOption>> habitOptionList([Database? db]) async {
+  final repo = HabitRepository(db ?? AppDatabase.instance.db);
+  final list = await repo.allHabits();
+  return [for (final h in list) HabitOption(id: h.id, name: h.name)];
+}
+
+/// 一个习惯条目（跨模块只读视图）。
+class HabitOption {
+  const HabitOption({required this.id, required this.name});
+
+  final String id;
+  final String name;
 }

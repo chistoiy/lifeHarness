@@ -5,7 +5,8 @@ import 'package:lifeharness/features/nfc/data/nfc_repo.dart';
 import 'package:lifeharness/features/nfc/domain/nfc_card.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// NFC 卡片批1 · 数据层守护（工单 §2 F1-1 / F1-2 / C31 / C33 / B18 / B28）。
+/// NFC 卡片批1／批1b · 数据层守护（工单 §2 F1-1 / F1-2 / C31 / C33 / B18 / B28；
+/// 批1b §2 三列与 v48→v49 迁移）。
 ///
 /// 6109 实锤的铁律：迁移批必跑 S6（version=migrations 最高键+1）＋
 /// S7（真升级路径，禁只测 onCreate——测试库走 onCreate 全量 DDL，升级路径平时零覆盖）。
@@ -13,7 +14,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   databaseFactory = databaseFactoryFfiNoIsolate;
 
-  group('NFC v47→v48 迁移与 schema', () {
+  group('NFC 迁移与 schema（v49 基线）', () {
     test('S6 version 常量 = migrations 最高键 + 1（漏改 version＝升级静默失效）',
         () {
       final maxKey = DbSchema.migrations.keys.reduce((a, b) => a > b ? a : b);
@@ -23,8 +24,9 @@ void main() {
               '${maxKey + 1} 以上时该迁移永不执行（6109 日记全断同源）');
     });
 
-    test('S7 真升级 v47 库 → v48：nfc_cards 建出且九列齐全', () async {
-      const name = 'nfctest_upgrade_v47to48.db';
+    test('S7 真升级 v47 库 → v49：nfc_cards 建出且十三列齐全（批1b 三列含内）',
+        () async {
+      const name = 'nfctest_upgrade_v47to49.db';
       await databaseFactory.deleteDatabase(name);
       final old = await databaseFactory.openDatabase(name);
       await old.execute('CREATE TABLE journal_entries (id INTEGER PRIMARY KEY)');
@@ -48,7 +50,7 @@ void main() {
 
       final cols = await upgraded
           .rawQuery('PRAGMA table_info(${DbSchema.tNfcCards})');
-      // F1-1 十列逐条点名（C31 的 written_at 是最容易被漏的一列）。
+      // 十列（批1）＋ 批1b 三列逐条点名。
       expect(cols.map((c) => c['name']),
           containsAll(<String>[
             'id',
@@ -61,8 +63,76 @@ void main() {
             'last_used_at',
             'use_count',
             'written_at',
+            'desc_text',
+            'color',
+            'target_sub',
           ]));
       await upgraded.close();
+    });
+
+    test('真升级 v48 库 → v49：批1b 三列 ALTER 补上（批1 已装机的库走这条）',
+        () async {
+      const name = 'nfctest_upgrade_v48to49.db';
+      await databaseFactory.deleteDatabase(name);
+      final old = await databaseFactory.openDatabase(name);
+      // 批1 的库：v48 口径的 nfc_cards（无三新列）。
+      for (final sql in DbSchema.migrations[47]!) {
+        await old.execute(sql);
+      }
+      await old.execute('PRAGMA user_version = 48');
+      await old.close();
+
+      final upgraded = await databaseFactory.openDatabase(name,
+          options: OpenDatabaseOptions(
+            version: DbSchema.version,
+            onUpgrade: (d, from, to) async {
+              for (var v = from; v < to; v++) {
+                for (final sql in DbSchema.migrations[v] ?? const <String>[]) {
+                  await d.execute(sql);
+                }
+              }
+            },
+          ));
+      final cols = (await upgraded
+              .rawQuery('PRAGMA table_info(${DbSchema.tNfcCards})'))
+          .map((c) => c['name'])
+          .toList();
+      expect(cols, containsAll(<String>['desc_text', 'color', 'target_sub']),
+          reason: '批1 已装机的库升上来若缺这三列，管理屏读写当场全挂');
+      // 老卡三列取默认 NULL＝无色无描述无二级参数（升级不丢既有语义）。
+      await upgraded.insert(DbSchema.tNfcCards, {
+        'id': 'oldcard00001',
+        'name': '旧卡',
+        'target_kind': 'nav',
+        'target_ref': 'ledger',
+        'created_at': 1,
+        'use_count': 0,
+      });
+      final row = (await upgraded.query(DbSchema.tNfcCards)).first;
+      expect(row['desc_text'], isNull);
+      expect(row['color'], isNull);
+      expect(row['target_sub'], isNull);
+      await upgraded.close();
+    });
+
+    test('老库 44→49 直升不撞 duplicate column（老口径建表 + 新列 ALTER 的拆分闸）',
+        () async {
+      // v45/v47 实锤教训：若 mig[47] 的建表语句里带上批1b 三列，
+      // 老库直升会先 CREATE（已含三列）再 ALTER ADD（同列）⇒ duplicate column 崩。
+      // 本刀直接按老库路径跑：mig[47] → mig[48]，一步不许抛。
+      final db = await databaseFactory.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.migrations[47]!) {
+        await db.execute(sql);
+      }
+      for (final sql in DbSchema.migrations[48]!) {
+        await db.execute(sql);
+      }
+      final cols = (await db.rawQuery('PRAGMA table_info(${DbSchema.tNfcCards})'))
+          .map((c) => c['name'])
+          .toList();
+      expect(cols, containsAll(<String>['desc_text', 'color', 'target_sub']));
+      expect(cols.toSet().length, cols.length, reason: '出现重名列＝列被加了两次');
+      await db.close();
     });
 
     test('onCreate 全量 DDL 同样建出 nfc_cards（双写 DDL 闸）', () async {
@@ -73,6 +143,11 @@ void main() {
       final tables = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type = 'table'");
       expect(tables.map((r) => r['name']), contains(DbSchema.tNfcCards));
+      final cols = (await db.rawQuery('PRAGMA table_info(${DbSchema.tNfcCards})'))
+          .map((c) => c['name'])
+          .toList();
+      // 新装库与升级库的列集必须一致（少一列＝两条路径行为分叉）。
+      expect(cols, containsAll(<String>['desc_text', 'color', 'target_sub']));
       await db.close();
     });
 
@@ -331,6 +406,220 @@ void main() {
       expect(byKey!.id, 'bbbbbbbbbbbb', reason: '撞车后应以新行为准');
       final oldRow = await repo.byId(old.id);
       expect(oldRow!.tagKey, isNull, reason: '旧行的 key 应被清空，不留双份');
+    });
+  });
+
+  group('批1b 三列（desc_text / color / target_sub · 工单 §2）', () {
+    late Database db;
+    late NfcRepo repo;
+
+    setUp(() async {
+      db = await databaseFactory.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      repo = NfcRepo(db);
+    });
+
+    tearDown(() async => db.close());
+
+    test('建卡带三列 → 读回逐列保真（含 desc 列名不是保留字 `desc`）', () async {
+      final c = await repo.create(
+        name: '床头阅读卡',
+        targetKind: NfcTargetKind.readBook,
+        targetRef: 'bk1',
+        descText: '睡前读两页',
+        color: 4,
+      );
+      final got = await repo.byId(c.id);
+      expect(got!.descText, '睡前读两页');
+      expect(got.color, 4);
+      expect(got.colorIndex, 4);
+      expect(got.targetSub, isNull);
+
+      // 打卡卡：二级参数落 target_sub（**不新增 target_kind 枚举值**）。
+      final h = await repo.create(
+          name: '晨跑卡',
+          targetKind: NfcTargetKind.nav,
+          targetRef: kNfcRefHabit,
+          targetSub: '晨间跑步 30min');
+      final hg = await repo.byId(h.id);
+      expect(hg!.isHabitTarget, isTrue);
+      expect(hg.targetSub, '晨间跑步 30min');
+      expect(hg.targetKind, NfcTargetKind.nav, reason: '打卡是 nav 下的动作，不是新枚举值');
+    });
+
+    test('颜色越界/未设一律兜回 0（脏数据不炸色板索引）', () async {
+      final a = await repo.create(name: 'A', targetKind: NfcTargetKind.nav, targetRef: 'inbox');
+      expect((await repo.byId(a.id))!.colorIndex, 0, reason: 'null ⇒ 0');
+      final b = await repo.create(
+          name: 'B', targetKind: NfcTargetKind.nav, targetRef: 'inbox', color: 99);
+      expect((await repo.byId(b.id))!.colorIndex, 0, reason: '越界 ⇒ 0');
+      expect(kNfcColors.length, kNfcColorCount);
+      expect(kNfcColorNames.length, kNfcColorCount);
+    });
+
+    test('备份恢复按 id UPSERT 时三列一并保真（C8-V3：换机后卡片样子不变）', () async {
+      await repo.upsertFromBackup(<String, Object?>{
+        'id': 'cccccccccccc',
+        'name': '玄关卡',
+        'target_kind': 'nav',
+        'target_ref': 'care',
+        'target_sub': '2/diaper',
+        'tag_key': null,
+        'tag_kind': null,
+        'created_at': 1700000000000,
+        'last_used_at': null,
+        'use_count': 0,
+        'written_at': null,
+        'desc_text': '出门换尿布',
+        'color': 3,
+      });
+      final got = await repo.byId('cccccccccccc');
+      expect(got!.descText, '出门换尿布');
+      expect(got.color, 3);
+      expect(got.targetSub, '2/diaper');
+      expect(got.isCareTarget, isTrue);
+    });
+  });
+
+  group('批1b 两形态写入（N15 两向语义：只改目标不动卡片／只改卡片不动目标）', () {
+    late Database db;
+    late NfcRepo repo;
+
+    setUp(() async {
+      db = await databaseFactory.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      repo = NfcRepo(db);
+    });
+
+    tearDown(() async => db.close());
+
+    test('updateTarget 只写目标三列：卡片名/描述/颜色纹丝不动', () async {
+      final c = await repo.create(
+        name: '书桌学习卡',
+        targetKind: NfcTargetKind.timerCat,
+        targetRef: '1',
+        descText: '坐下就计时',
+        color: 0,
+      );
+      await repo.updateTarget(c.id,
+          targetKind: NfcTargetKind.nav, targetRef: kNfcRefHabit, targetSub: '晨间跑步');
+      final got = await repo.byId(c.id);
+      expect(got!.targetKind, NfcTargetKind.nav);
+      expect(got.targetRef, kNfcRefHabit);
+      expect(got.targetSub, '晨间跑步');
+      expect(got.name, '书桌学习卡', reason: '绑定目标形态不该动卡片名');
+      expect(got.descText, '坐下就计时', reason: '绑定目标形态不该动描述');
+      expect(got.color, 0, reason: '绑定目标形态不该动颜色');
+    });
+
+    test('updateCardInfo 只写卡片三列：目标三列纹丝不动', () async {
+      final c = await repo.create(
+        name: '旧名',
+        targetKind: NfcTargetKind.nav,
+        targetRef: kNfcRefHabit,
+        targetSub: '晨间跑步',
+      );
+      await repo.updateCardInfo(c.id, name: '改名后的卡', descText: '新描述', color: 3);
+      final got = await repo.byId(c.id);
+      expect(got!.name, '改名后的卡');
+      expect(got.descText, '新描述');
+      expect(got.color, 3);
+      expect(got.targetRef, kNfcRefHabit, reason: '卡片信息形态不该动目标');
+      expect(got.targetSub, '晨间跑步', reason: '卡片信息形态不该动二级参数');
+    });
+
+    test('换大类时 target_sub 必须能被清回 null（不留「打卡的习惯名挂在计时分类上」）',
+        () async {
+      final c = await repo.create(
+        name: '卡',
+        targetKind: NfcTargetKind.nav,
+        targetRef: kNfcRefHabit,
+        targetSub: '晨间跑步',
+      );
+      await repo.updateTarget(c.id,
+          targetKind: NfcTargetKind.timerCat, targetRef: '2', targetSub: null);
+      final got = await repo.byId(c.id);
+      expect(got!.targetSub, isNull, reason: '全量落写（不是「非空才写」）才清得掉');
+      expect(got.isHabitTarget, isFalse);
+    });
+
+    test('两形态写入都不碰写入态与标签（C3：改数据零贴卡）', () async {
+      final c = await repo.create(name: '卡', targetKind: NfcTargetKind.nav, targetRef: 'inbox');
+      await repo.markWritten(c.id, tagKey: ndefTagKeyOf(c.id), tagKind: NfcTagKind.ndef);
+      final before = await repo.byId(c.id);
+      await repo.updateCardInfo(c.id, name: '新名', descText: null, color: 2);
+      await repo.updateTarget(c.id,
+          targetKind: NfcTargetKind.readBook, targetRef: 'bk9', targetSub: null);
+      final after = await repo.byId(c.id);
+      expect(after!.writtenAt, before!.writtenAt);
+      expect(after.tagKey, before.tagKey);
+      expect(after.tagKind, before.tagKind);
+    });
+  });
+
+  group('批1b 域层纯判定（标签口径 / 二级参数 / 装饰符剥离）', () {
+    NfcCard card(String kind, String? ref, {String? sub}) => NfcCard(
+          id: 'aaaaaaaaaaaa',
+          name: '卡',
+          targetKind: kind,
+          targetRef: ref,
+          targetSub: sub,
+          createdAt: 0,
+        );
+
+    test('目标类名逐条：打卡/呵护宝宝不再笼统显示「快捷动作」', () {
+      expect(card(NfcTargetKind.nav, 'ledger').targetKindLabel, '快捷动作');
+      expect(card(NfcTargetKind.nav, kNfcRefHabit, sub: '跑步').targetKindLabel, '打卡');
+      expect(card(NfcTargetKind.nav, kNfcRefCare, sub: '1/nurse').targetKindLabel, '呵护宝宝');
+      expect(card(NfcTargetKind.timerCat, '1').targetKindLabel, '计时');
+      expect(card(NfcTargetKind.readBook, 'b1').targetKindLabel, '阅读');
+      expect(card(NfcTargetKind.nav, null).targetKindLabel, isNull,
+          reason: '未绑定的卡不显类名');
+      expect(card(NfcTargetKind.nav, kNfcRefHabit, sub: '跑步').targetKindIcon, 'habit');
+      expect(card(NfcTargetKind.nav, kNfcRefCare, sub: '1/nurse').targetKindIcon, 'care');
+    });
+
+    test('目标标签全文（列表主行逐字口径）', () {
+      expect(nfcTargetLabelOf(card(NfcTargetKind.timerCat, '1'), targetName: '学习'),
+          '计时 · 学习');
+      expect(nfcTargetLabelOf(card(NfcTargetKind.readBook, 'b1'), targetName: '活着'),
+          '阅读 · 活着');
+      expect(
+          nfcTargetLabelOf(card(NfcTargetKind.nav, kNfcRefHabit, sub: '晨间跑步 30min')),
+          '打卡 · 晨间跑步 30min');
+      expect(
+          nfcTargetLabelOf(card(NfcTargetKind.nav, kNfcRefCare, sub: '1/nurse'),
+              targetName: '小满 · 母乳亲喂'),
+          '呵护宝宝 · 小满 · 母乳亲喂');
+      // 动作类＝动作名本身（不加「快捷动作 · 」前缀），动作名同源桌面动作表。
+      expect(nfcTargetLabelOf(card(NfcTargetKind.nav, 'ledger')), '记一笔');
+      expect(nfcTargetLabelOf(card(NfcTargetKind.nav, '已退役动作')), '未绑定');
+      expect(nfcTargetLabelOf(card(NfcTargetKind.nav, null)), '未绑定');
+    });
+
+    test('二级参数拼装与拆解（脏数据不猜、按失效处理）', () {
+      expect(nfcCareSubOf(3, 'diaper'), '3/diaper');
+      expect(nfcCareSubParse('3/diaper'), (3, 'diaper'));
+      expect(nfcCareSubParse(null), isNull);
+      expect(nfcCareSubParse(''), isNull);
+      expect(nfcCareSubParse('3'), isNull);
+      expect(nfcCareSubParse('/diaper'), isNull);
+      expect(nfcCareSubParse('abc/diaper'), isNull);
+      expect(nfcCareSubParse('3/'), isNull);
+    });
+
+    test('装饰符剥离：习惯名与引用他模块数据一律零 emoji', () {
+      expect(nfcStripEmoji('🏃 晨间跑步 30min'), '晨间跑步 30min');
+      expect(nfcStripEmoji('📖读书'), '读书');
+      expect(nfcStripEmoji('  喝水💧  '), '喝水');
+      expect(nfcStripEmoji('晨跑'), '晨跑');
+      // 剥完为空＝回落原名（空 chip 不可点也不可辨；三处同源不会「选得上却判失效」）。
+      expect(nfcHabitDisplayName('🏃'), '🏃');
+      expect(nfcHabitDisplayName('🏃 晨跑'), '晨跑');
     });
   });
 

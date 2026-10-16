@@ -3,6 +3,7 @@ import 'package:lifeharness/core/backup/backup_service.dart';
 import 'package:lifeharness/core/backup/db_overview.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/shared/linkage/export_units.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// NFC 卡片批1 · **备份三处登记**守护（工单 §2 末段 · 冻结档 C8-V3 / §6.1 · 变异刀3 靶点）。
 ///
@@ -59,6 +60,36 @@ void main() {
       final unit = exportUnitById('nfc')!;
       expect(unit.timeFilterable, isFalse,
           reason: '卡片表不是流水；若误设 timeRoots，导出面板会显示一个语义不明的筛选项');
+    });
+
+    test('③ 批1b 三列随本表进备份包（desc_text/color/target_sub 缺一＝换机后卡片变样）',
+        () async {
+      // 备份的 db 腿是整表读（`SELECT *` 口径），故新列是否入包＝表里有没有这三列。
+      // 这条断言钉的是「加列批必须同步到备份面」：漏了列，换机恢复后卡片没有
+      // 描述/颜色/二级参数，打卡卡与呵护宝宝卡会当场变「未选条目」。
+      TestWidgetsFlutterBinding.ensureInitialized();
+      databaseFactory = databaseFactoryFfiNoIsolate;
+      final db = await databaseFactory.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      await db.insert(DbSchema.tNfcCards, {
+        'id': 'backup000001',
+        'name': '玄关卡',
+        'target_kind': 'nav',
+        'target_ref': 'care',
+        'target_sub': '1/nurse',
+        'created_at': 1,
+        'use_count': 0,
+        'desc_text': '出门喂奶',
+        'color': 2,
+      });
+      final row = (await db.query(DbSchema.tNfcCards)).first;
+      expect(row.keys, containsAll(<String>['desc_text', 'color', 'target_sub']));
+      expect(row['desc_text'], '出门喂奶');
+      expect(row['color'], 2);
+      expect(row['target_sub'], '1/nurse');
+      await db.close();
     });
   });
 }

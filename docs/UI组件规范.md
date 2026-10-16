@@ -237,10 +237,10 @@
 - 构成＝**横向分组 tab 六组**：架面（默认视图·桌面列数）／排序（默认排序六档·新增插入位）／笔记（识图取文＝灰态·默认带时间点·剪贴板识别）／计时（形态胶囊/全屏·悬浮条·倍速折算·结束即弹记进度·晚间补记提醒）／更新提醒（新集·新专·续作与 DLC＝**三行灰态**）／数据（导入向导直达＋导出 MD/JSON 灰态）。
 - 铁口径＝① **逐行当场生效**：defaultView/sortDefault 吃进架（`mOpenShelf`），wallCols＝架面网格内联轨道，newPos＝新建条目落位，**speedFold 与统计屏口径 chip 双向同源**，timerUI 分派胶囊/全屏两条真路径，floatBar 控悬浮条显隐，autoAsk 控结束弹层，autoPos/clipAuto 控笔记弹层时间点预填与粘贴钮显隐，dailyQ＝工作台「今天还没有计时」提示行（应用内，不占系统通知＝实现批）；② 能力未开放＝**灰态点不动、零说明文案**（更新提醒三行·导出两枚·识图）；③ 死键不铺＝`media.deskTexture`／`media.cardLiftPx`／`media.spineCols`／`media.longPress`（微拟物已否＋动作面 LH-S34 固定＝工单 §0.5），存储位置/服务集成＝壳层「数据与同步」职责，模块屏不重复；④ 键一律走 `settings` 表 KV `media.*` 前缀，不散落 SharedPreferences（计划 §七 存储行）。
 
-### LH-C24 NFC 卡片行（NFC 卡片模块 · 2026-10-16 批1 已交付）
-- 原型：`prototype/index.html` `#nfcList`（`renderNfcList`；数据＝`NFC_CARDS`；入口行 `#nfcEntry`）；Flutter `lib/features/nfc/presentation/nfc_page.dart` `_cardRow`（批1 已交付）。
-- 构成＝`set-ic` 图标块（**图标随目标类自动取**：导航／计时／阅读三种，不可自定义）＋名称（单行省略）＋副文案「`目标` · 用过 N 次 · 最后使用」＋右侧写入态（未写入＝`写入` 小钮／已写入＝灰字「已写入」）；点行体出编辑层。
-- 铁口径＝① 副文案里的目标名走**同源**（导航类＝动作表；计时类＝分类表；阅读类＝书目），**禁各写一份**；② 目标已失效（分类/书/动作任一查不到）→ 副文案改「已失效」（琥珀色），行仍可点进编辑层换目标；③ **有状态卡（计时/阅读）目标进行中时，副文案前加「● 计时中」（品牌色）**，判据同源（`activeTiming()?.catId` / `runningSession()?.bookId`），**卡片表不存计时态**；④ 底部分隔线 1px，行垂直内边距 10dp；⑤ 列表不使用语义色（不按目标类着色）；⑥ 行数／屏内计数／「我的」入口计数**三处同源**。
+### LH-C24 NFC 卡片行（NFC 卡片模块 · 2026-10-17 批1b 双节点）
+- 原型：`prototype/index.html` `#nfcList`（`renderNfcList`；数据＝`NFC_CARDS`；入口行 `#nfcEntry`）；Flutter `lib/features/nfc/presentation/nfc_page.dart` `_cardRow`（批1b 已交付）。
+- 构成＝**一行一条目两节点**：左＝**绑定目标**（目标色浅底块：主行＝目标标签 `计时 · 学习`／`阅读 · 书名`／`打卡 · 习惯名`／`呵护宝宝 · 宝宝 · 类型`／动作名本身，副行＝「用过 N 次 · 最后时间」；点＝**绑定目标**形态）— 中＝链条图标（线性 · 禁 emoji）— 右＝**卡片**（目标色实底块：主行＝卡片名，副行＝描述，无描述时回落写入态；点＝**卡片信息**形态）。
+- 铁口径＝① 目标名与有效性**同源**（导航类＝动作表；计时类＝分类表；阅读类＝书目；打卡＝习惯名（剥离装饰符后）；呵护宝宝＝宝宝档案＋记录类型），**禁各写一份**——批1b 起一律走 `shared/linkage/nfc_mounts.dart` 的 `nfcTargetStates` 批量口（一次读三张表，不在列表里逐行查库）；② 目标已失效（分类/书/动作/习惯/宝宝任一查不到）→ 左节点主行**整行替换**为「已失效」（语义色），行仍可点进换目标；③ **有状态卡（计时/阅读）目标进行中时，左节点主行前加「● 计时中」**，判据同源（`activeTiming()?.catId` / `runningSession()?.bookId`），**卡片表不存计时态**（批2 接真值）；④ 写入钮**不在行内**（撤到卡片信息形态；删除也在那一层）；⑤ 行数／屏内计数／「我的」入口计数**三处同源**；⑥ 左右节点色取**卡片身份色**（`NfcCard.colorIndex` → 域层 `kNfcColors` 六色，左浅右实），与主题色无关、不随明暗变。
 
 ## 三、LH-S 弹层类（sheet 家族）
 
@@ -319,14 +319,20 @@
 | 状态依据 | `已转正式目录`＝`folder != kSystemOpenFolder`（先判）；`已回写原文件`＝`wb_at != null && wb_at >= updated_at`（DB v43 新列，**回写成功才落、`setWrittenAt` 不许顺手刷 `updated_at`**）；否则＝`仅应用内`。回写后又改正文必须退回仅应用内，否则就是骗人 |
 | 回归钉子 | `test/note_open_history_test.dart`（17 例＝v43 三检·round-trip·单列更新不刷 updated_at·三态含边界与词表·取数排序与软删排除·转入保留来源·清空只软删未转入）＋`test/note_open_history_ui_test.dart`（5 例＝固定行在场与不重复·空态·三态行与钮位·两步清空·转入走既有弹层）；变异三刀＝摘 `wb_at` 判定／摘「仍在临时夹」过滤／不排除固定夹，各红其位 |
 
-### LH-S41 新建/编辑卡片弹层（NFC 卡片模块 · 2026-10-15 原型定稿）
+### LH-S41 卡片弹层（NFC 卡片模块 · 2026-10-17 批1b 两形态五段大类）
 | 项 | 值 |
 |---|---|
-| 原型锚点 | `prototype/index.html` `sheetNfcEdit`（`nfcNew`／`nfcEdit(id)`／`nfcBind(id)`／`nfcRenderEdit`／`nfcPickTarget`／`nfcSaveEdit`；目标容器 `#nfcTargetBox`） |
-| 代码锚点 | `features/nfc/presentation/nfc_sheets.dart` `showNfcEditSheet`（批1 已交付；函数名与原型 `showNfcCardSheet` 有出入，按实现逐字为准） |
-| 规格 | **三态一容器**：标题「新建卡片」/「编辑卡片」/「绑定这张卡」（绑定态多一行卡号提示「这张卡还没绑定 · 卡号 XXXX」）；字段＝名称（必填·硬限 12 字）＋**目标三区块**（**扁平单选、不嵌套二级弹层**）＝快捷动作 7 枚／计时分类（分类表，多级显示父级路径）／阅读书目（书架，显示在读数）；区块内无数据时**整块隐藏并给一行灰字**（如「书架里还没有书」）；**编辑态**在目标区之下多两行＝「写入卡片」＋「删除卡片」（红线）；**无图标选择器** |
-| 铁口径 | ① 名称留空＝**当场**在框下出红字「起个名字」并保持层打开，**不做静默默认名**；② 新建保存 → 关闭本层并**自动进写卡层**（不写卡也可取消，卡片保持「未写入」）；③ 绑定态保存＝**只落记录、不写标签**（卡号已在卡上），并标记「已写入」；④ 编辑态改名/换目标**即时落库**，不触发写卡；⑤ 三区块**互斥单选**（选区恒为 1），**禁写两个目标列** |
-| 回归钉子 | `tools/nfc_proto_check.js` N4/N5/N6/N12（三区块 7/6/3·互斥单选·留空拒收·新建→自动续写卡·绑定态不写标签） |
+| 原型锚点 | `prototype/index.html` `sheetNfcEdit`（`nfcNew`／`nfcEdit(id)`／`nfcEditCard(id)`／`nfcEditTarget(id)`／`nfcBind(id)`／`nfcRenderEdit`／`nfcTabTo`／`nfcRenderTargetBox`／`nfcSaveEdit`；目标容器 `#nfcTargetBox`） |
+| 代码锚点 | `features/nfc/presentation/nfc_sheets.dart` `showNfcEditSheet(mode:)` ＋ `NfcEditMode{full,card,target}`（批1b 已交付；批1 的 `showNfcCardSheet` 命名作废） |
+| 规格 | **两形态 ＋ 五段大类**：形态＝**卡片信息**（名称必填 ≤12／默认描述选填 ≤16／6 色色板／绑定目标**只读摘要**／写入卡片／删除卡片）｜**绑定目标**（**只显示五段大类目标区**）｜新建/绑定＝全量（两块一次填完）。标题四态＝新建卡片／编辑卡片／卡片信息／绑定目标（绑定态另加一行卡号提示「这张卡还没绑定 · 卡号 XXXX」）。目标区＝**五段横向 tab · 顺序固定**：`快捷动作 ｜ 打卡 ｜ 呵护宝宝 ｜ 计时分类 ｜ 阅读书目`，**一次只显示一区** |
+| 铁口径 | ① **两形态各写各的字段**（N15 两向）：卡片信息形态保存只写 `name/desc_text/color`，绑定目标形态只写 `target_kind/target_ref/target_sub`（两向都不碰 `written_at`/`tag_key` · C3）；② 名称留空＝**当场**在框下出红字「起个名字」并保持层打开，不做静默默认名（绑定目标形态不校验名称）；③ 唯一选中目标恒为一份 `{kind, ref, sub}`，**切 tab 不改变已选**（各区各自记住上次选择），切离书目区自动收起下拉；④ **凡带二级选择的目标一律提升为横向大类**，不再塞进「快捷动作」做二级——打卡＝习惯条目（名字剥装饰符后存 `target_sub`）／呵护宝宝＝宝宝档案→记录类型（`<babyId>/<kindId>`）／计时分类＝一级→子级联动（选子类后**父子双高亮**，**再点同一子类＝退回父级**，无次级给「该分类无次级 · 可直接保存」）／阅读书目＝收起一行＋搜索框＋可滚列表（无匹配给「没有匹配的书」）；⑤ 写入/删除都在卡片信息形态，删除走确认层（「删除后原卡片会变成未绑定」） |
+| 回归钉子 | `tools/nfc_proto_check.js` N4/N5/N12/N15（五段 tab·两级联动·书目搜索·两向保存）；`test/nfc_card_dao_test.dart`（`updateCardInfo`/`updateTarget` 两向与 `target_sub` 可清空）；变异三刀＝摘新列 ALTER／两向写串味／摘装饰符剥离，各红其位 |
+
+### LH-S43 贴卡设置层（NFC 卡片模块 · 2026-10-17 批1b）
+- 原型：`prototype/index.html` `sheetNfcSet`（`nfcPref('confirm'|'prompt')`；入口＝屏右上角齿轮）；Flutter `features/nfc/presentation/nfc_sheets.dart` `showNfcSettingsSheet`（批1b 已交付）。
+- 构成＝标题「贴卡设置」＋副行「贴卡时的行为与提示」＋开关行组（标题＋一行说明＋右侧开关）＋「完成」钮。
+- 铁口径＝① 入口**只在屏右上角齿轮**，屏内不再有「贴卡行为」卡（原卡撤掉，屏底三行灰字仍在原位）；② 两开关**默认态与语义不变**（`nfc.confirmBeforeRun` 默认关／`nfc.promptUnbound` 默认开 · C5/B17）；③ **总闸 `nfc.enabled` 保留在设置层最上方**（C42：默认开·关时完全静默·层级「总闸 ＞ 明细」）——⚠ 原型 `sheetNfcSet` 漏画该开关，实现按「需求 > 原型」保留，批1b 已记（见工单 §9）；④ 切换**即时落偏好**，无 loading、无二次确认；总闸关时在下方补一行「总闸已关，贴卡不会有任何反应」。
+- 回归钉子：`tools/nfc_proto_check.js` N14（两开关默认态＋已从屏内收进设置层＋屏内无残留＋零 emoji）。
 
 ### LH-S42 写卡等待弹层（NFC 卡片模块 · 2026-10-15 原型定稿）
 | 项 | 值 |

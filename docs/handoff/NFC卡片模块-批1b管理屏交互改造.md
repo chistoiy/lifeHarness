@@ -1,6 +1,6 @@
 # NFC 卡片模块 · 批1b 管理屏交互改造（原型已过门 · 待实现）
 
-> **状态**：原型已改完并经产品过门（2026-10-17 00:5x）·**实现侧未动工**
+> **状态**：原型已改完并经产品过门（2026-10-17 00:5x）· **实现已落地**（2026-10-17 · 见 §9）
 > **上游**：`docs/handoff/NFC卡片模块-冻结版开发方案-20261015.md`（V3 冻结档·C 条目体系）
 > ＋`docs/handoff/NFC卡片模块-批1数据层与管理屏.md`（批1 已收口 `b4e98058`）
 > **可执行规格**：原型 `prototype/index.html` 的 nfc 段 ＋ `tools/nfc_proto_check.js` **15 条断言**（N1~N15）
@@ -109,3 +109,26 @@
 - 不做写卡状态机与贴卡触发分发（属**批2**）；本轮只动管理屏与数据层。
 - 不引入 emoji 装饰（NFC 模块零 emoji 硬要求，含引用其他模块数据时）。
 - 不改 UI 组件规范以外的既有交互口径；`docs/UI组件规范.md` LH-S41 需按本轮形态同步（弹层锚点与两形态口径）。
+
+## §9 实现落地记录（2026-10-17 · 零原型改动）
+
+- **数据层**：DB **v48→v49** 加三列（`desc_text`/`color`/`target_sub`）。基础 DDL 升为 v49 全量口径、
+  `mig[47]` 拆出 **v48 老口径**语句表（`nfcMig47Statements`）——不拆则老库直升先建含新列的表、
+  再 ALTER 同列 ⇒ duplicate column（v45/v47 既有教训）。`NfcCard` 补三字段；域层加标签全文
+  （`nfcTargetLabelOf`）、二级参数拼拆、装饰符剥离（`nfcStripEmoji`/`nfcHabitDisplayName`）、六色表。
+- **仓库层**：`NfcRepo.updateCardInfo`（只写卡片三列）／`updateTarget`（只写目标三列·`target_sub` 可清空）
+  ——N15 两向语义钉在数据层，不靠 UI 自觉；两向都不碰 `written_at`/`tag_key`（C3）。
+- **出口层**：`nfcCategoryTree`（两级结构）／`nfcHabitOptions`（经 `habit_mounts.habitOptionList`，不直连习惯表）／
+  `nfcBabyOptions`＋`nfcCareKindOptions`（**新建** `lib/shared/linkage/maternity_mounts.dart`）／
+  `nfcHabitExists`＋`nfcBabyCareExists`（失效判定）／`nfcTargetStates`（列表与摘要的批量解析口，一次读三张表）。
+- **表现层**：`nfc_sheets.dart` 改两形态＋五段大类＋色板＋描述＋设置层（`showNfcSettingsSheet`）；
+  `nfc_page.dart` 改双节点行（左目标浅底／右卡片实底／中链条），屏内「贴卡行为」卡撤到右上角齿轮，
+  写入与删除收进卡片信息形态。`UI组件规范.md` LH-C24／LH-S41 重写、新增 LH-S43（设置层）。
+- **测试**：`nfc_card_dao_test` 19→32 例（含 v47→v49 真升级、v48→v49 补列、老库直升不撞列）、
+  `nfc_linkage_test` 5→15 例、`backup_scope_test` 6→7 例；批1 常驻 34 例全绿不回归；
+  变异三刀（摘新列 ALTER／两向写串味／摘装饰符剥离）各红其位；原型闸 `nfc_proto_check` 15/15 不回归。
+- **两处实现口径说明（待产品复核）**：
+  ① 原型 `sheetNfcSet` 只画了两开关，**冻结档 C42 的总闸 `nfc.enabled`（批1 已交付）漏画** ⇒
+  按「需求 > 原型」在设置层最上方**保留总闸**（层级仍是「总闸 ＞ 明细」），其余形态照原型；
+  ② 「记录类型」取**母婴内置 12 类**（`kEventBaseKeys` 剔 `custom`，同 `care_stats_page` 口径），
+  非原型演示用的 3 类 mock（`milk/sleep/dia`）——真模块无「喂奶」单键，奶类是母乳亲喂/瓶喂母乳/配方奶三条。

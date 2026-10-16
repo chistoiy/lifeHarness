@@ -71,7 +71,10 @@ class DbSchema {
   // （新模块只建表零搬数据；标签只存编号 C1，名称/目标全在本机表 ⇒ 改数据零贴卡；
   //  written_at 为写入态唯一判据 C31；id 12 位 base62 随机 C33）。同 v45/v47 教训，
   //  版本常量与 migrations 最高键必须同批同步（上一行 ⚠ 有 6109 实锤前例）。
-  static const int version = 48;
+  // 49：NFC 卡片批1b（2026-10-17）——migrations[48]（48→49）给 nfc_cards 加三列
+  // （desc_text/color/target_sub，纯 ALTER 加列零搬数据）；基础 DDL 同步升为 v49
+  // 全量口径（三列追加在列尾），mig[47] 改用 v48 老口径语句表防直升撞列。
+  static const int version = 49;
  
 
   
@@ -359,8 +362,9 @@ class DbSchema {
     // 批8a media_goals 建表：已在 mediaSchemaStatements 尾部（mig[37]/mig[39] 同段重放，互不撞）。
     // V1.62 思维导图批1 两新表：迁移段与本处同源一份语句表（schema/mindmap.dart 段注）。
     ...mm.mindmapSchemaStatements,
-    // V1.68 NFC 卡片批1：nfc_cards 一张表；与 mig[47] 同源引一份（schema/nfc.dart 段注）。
-    ...nf.nfcCreateStatements,
+    // V1.68 NFC 卡片批1：nfc_cards 一张表；批1b 起基础 DDL 走 v49 全量口径
+    // （含 desc_text/color/target_sub 三列），mig[47] 走 v48 老口径（见 schema/nfc.dart 段注）。
+    ...nf.nfcSchemaStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart

@@ -16,6 +16,9 @@
 //
 // v47→v48 迁移（mig[47]）与基础 DDL **同源引一份语句表**（本模块只建表零搬数据，
 // 无 v45 那种"老口径不带新列"的历史包袱，故无须拆两份）。
+// —— 上面这行是批1 的原始口径，**批1b 起作废**：加列批必然踩「老口径带新列 ⇒
+// 直升撞 duplicate column」，故拆 `nfcSchemaStatements`（v49 全量）/`nfcMig47Statements`
+// （v48 口径）两份，理由与拆法见下方两处段注。
 
 const String tNfcCards = 'nfc_cards';
 
@@ -54,8 +57,38 @@ class NfcTagKind {
   static const String uid = 'uid';
 }
 
-/// 建表语句（**基础 DDL 与 mig[47] 同源**）。
-const List<String> nfcCreateStatements = <String>[
+/// 建表语句·**v49 全量口径**（onCreate 走这份：新装库一步到位）。
+///
+/// 批1b 三列（`desc_text`/`color`/`target_sub`）**追加在列尾**，与 `mig[48]`
+/// 的 ALTER 追加顺序一致 ⇒ 新装库与老库升上来的库列序也相同。
+const List<String> nfcSchemaStatements = <String>[
+  '''
+  CREATE TABLE IF NOT EXISTS $tNfcCards (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    target_kind TEXT NOT NULL,
+    target_ref TEXT,
+    tag_key TEXT UNIQUE,
+    tag_kind TEXT,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
+    use_count INTEGER NOT NULL DEFAULT 0,
+    written_at INTEGER,
+    desc_text TEXT,
+    color INTEGER,
+    target_sub TEXT
+  )
+  ''',
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_nfc_tag_key ON $tNfcCards(tag_key)',
+  'CREATE INDEX IF NOT EXISTS idx_nfc_created ON $tNfcCards(created_at)',
+];
+
+/// v47→v48 老口径建表语句（**只 mig[47] 用**·十列，不含批1b 三列）。
+///
+/// ⚠ 与 `nfcSchemaStatements` 拆两份是 v45/v47 既有教训（mindmap 批2 因老口径
+/// 带新列 ⇒ 老库直升撞 duplicate column 当场崩）：老库 44→49 直升会先跑本份
+/// 建表、再跑 mig[48] 加列，本份若已带那三列就必炸。
+const List<String> nfcMig47Statements = <String>[
   '''
   CREATE TABLE IF NOT EXISTS $tNfcCards (
     id TEXT PRIMARY KEY,
@@ -74,11 +107,25 @@ const List<String> nfcCreateStatements = <String>[
   'CREATE INDEX IF NOT EXISTS idx_nfc_created ON $tNfcCards(created_at)',
 ];
 
+/// 48（NFC 批1b）：给 `nfc_cards` 加三列（纯 ALTER 加列零搬数据，老卡三列取
+/// 默认 NULL＝无色无描述无二级参数，**升级不丢任何既有语义**）。
+///
+/// · `desc_text`＝卡片默认描述（选填 ≤16 字）。**列名不用 `desc`**——SQLite 保留字。
+/// · `color`＝卡片颜色索引（0~5，色表在域层常量）。
+/// · `target_sub`＝二级参数：打卡＝习惯名；呵护宝宝＝`<babyId>/<kindId>`；其余 NULL。
+const List<String> nfcAddColumnStatements = <String>[
+  'ALTER TABLE $tNfcCards ADD COLUMN desc_text TEXT',
+  'ALTER TABLE $tNfcCards ADD COLUMN color INTEGER',
+  'ALTER TABLE $tNfcCards ADD COLUMN target_sub TEXT',
+];
+
 /// 本域承接的版本迁移条目（聚合于 `DbSchema.migrations`·键互斥）。
 /// 键语义＝仓内循环 `for v=from; v<to; migrations[v]` ⇒ **键 47 ＝「47→48 升级语句」**。
-/// 48（NFC 批1 · 冻结档 F1-1）：建 `nfc_cards` 一张表（新模块只建表零搬数据）。
-/// IF NOT EXISTS 保证重放不撞；**老口径语句表一字不加**——老库 44→48 直升不撞 duplicate column
-/// （v45/v47 既有教训：mindmap 批2 因老口径带新列导致直升崩，详见 schema/mindmap.dart 段注）。
+/// 47（NFC 批1 · 冻结档 F1-1）：建 `nfc_cards` 一张表（新模块只建表零搬数据）。
+/// IF NOT EXISTS 保证重放不撞；**老口径语句表一字不加**（见 [nfcMig47Statements] 段注）。
+/// 48（NFC 批1b）：三列 ALTER——同批 `DbSchema.version` 必须同步到 49，
+/// 漏改 version ⇒ 真机 onUpgrade 不触发（批1 S6 实锤同源，守护在 `nfc_card_dao_test`）。
 final Map<int, List<String>> mig = {
-  47: [...nfcCreateStatements],
+  47: [...nfcMig47Statements],
+  48: [...nfcAddColumnStatements],
 };
