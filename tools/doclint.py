@@ -237,6 +237,36 @@ if _bl > BACKLOG_LINES_MAX:
 #       它 60 KB 且每轮收口都在长（测试口径/流水线细则先写这里），自 2026-09-25 起无人拦。）
 PLAN_BYTES_MAX = 71680              # 70 KiB（棘轮＝2026-10-14 实测 60202 × 1.15 取整）
 _gate("守护十七", "docs/开发计划书.md", os.path.getsize("docs/开发计划书.md"), PLAN_BYTES_MAX)
+# ---- 守护十九：收口必归档（治理四轮 T1·2026-10-16 立）----
+# 起因：2026-10-02 治理二轮做过一次同款流转（26 份→4 活 22 闭环，tools/gov2_move_tickets.py），
+# 但**没有任何闸管「收口了要归档」**——两周内 docs/handoff/ 又从 4 份积回 50 份，其中 17 份
+# 末次提交主题就写着「收口/闭环/验收通过」却仍占着交接层，无人发现（不会被提醒的件才是真隐患）。
+# 本闸＝工单生命周期的「双向核」：交接层实施工单 ⇔ 活单名单，两边必须严格相等。
+#   · 交接层出现名单外的实施工单 → 红（要么它真已收口该归档，要么该登进名单当活单）
+#   · 名单里的文件不在交接层     → 红（已归档却忘从名单摘，或活单被误删）
+# 名单与 tmp/gov4_move_tickets.py 的 ACTIVE 同源，改一处必两处同改。
+TICKET_PFX19 = ("交棒话术-", "真机逐屏验收清单-", "拍板记录-", "悬浮胶囊增强批-")
+ACTIVE_TICKETS19 = {
+    "交棒话术-20261015-备份导出余量时间维度与子集部分恢复.md",
+    "交棒话术-20261011-笔记模块结构与手感优化.md",
+    "交棒话术-20261011-底栏双指收起态.md",
+    "交棒话术-20261008-健康批7仪表盘今日健康卡.md",
+    "交棒话术-20261009-影音游批9导入矩阵与导出尾项.md",
+    "交棒话术-20261004-笔记本地导入导出与系统打开方式.md",
+    "交棒话术-20261005-UX审计真机批-贴底行吞点击与工装转正.md",
+    "悬浮胶囊增强批-20261014.md",
+}
+_ho = "docs/handoff"
+_on_disk = {f for f in os.listdir(_ho)
+            if f.endswith(".md") and f.startswith(TICKET_PFX19)} if os.path.isdir(_ho) else set()
+_unlisted = sorted(_on_disk - ACTIVE_TICKETS19)
+_missing = sorted(ACTIVE_TICKETS19 - _on_disk)
+print("守护十九 工单生命周期：交接层实施工单 %d 份 / 活单名单 %d 份" % (len(_on_disk), len(ACTIVE_TICKETS19)))
+for _u in _unlisted:
+    g.append("守护十九：交接层有未登记的实施工单 %s——已收口请 git mv 入 docs/archive/ 并改指引用；"
+              "仍活跃请把文件名加进 doclint 守护十九 ACTIVE_TICKETS19" % _u)
+for _m in _missing:
+    g.append("守护十九：活单名单里的 %s 不在 docs/handoff/——已归档请从名单摘掉；否则红" % _m)
 for x in y:
     print("体量黄灯（达上限 90%）: " + x)
 if g:
@@ -274,7 +304,7 @@ try:
         print("守护十八 红灯（索引卡缺/过期/孤儿）：跑 `node tools/proto_cards_check.js --write` 重生成后复跑本闸")
         sys.exit(1)
 except FileNotFoundError:
-    print("WARN 未找到 node，读侧索引卡体检跳过（本机应有 node，出现此行请先查 PATH）")
+    print("WARN 未找到 node，索引卡体检跳过（本机应有 node，出现此行请先查 PATH）")
 # ---- T13 档③ 硬零闸：代码自造表情只许在白名单文件（须写理由），新增即红灯 ----
 try:
     re3 = subprocess.run(["node", os.path.join(ROOT, "tools", "emoji_triage.js"), "--check"],

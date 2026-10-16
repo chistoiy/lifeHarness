@@ -3,7 +3,7 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 立·2026-10-14 并入体量治理）：硬闸＝doclint 守护七调 `python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤14KiB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符）；**黄线＝上限 90%，到线即当轮瘦身；上限随瘦身棘轮只降不升**（口径＝`AGENTS.md`「文档体量治理」）。溢出细节留 `docs/handoff/` 工单、历史整段沉 `docs/archive/`；收尾改本文件一律走 `tools/status_set.py`（`--rotate`→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`；治理口径＝`docs/archive/治理方案-20261013-规则与上下文与记忆治理.md`（已闭档）。
 
-- **本批＝** **读侧索引卡批（治理 §4-6 尾巴·纯 JSON/Node 零 Dart·不装机）**：在册 15 份专版索引卡补齐（7 新建＋8 刷新·存量 8 张偏差合计 −62 万字符）；新建 `tools/proto_cards_check.js` 接进 doclint 作**守护十八**（缺卡/卡过期/孤儿卡三类红），口径与 `govcut_card.js` 逐字同源；闸＝CARDS CLEAN 15/15＋变异双刀红其位（size+1／删卡）。doclint 残留 2 红＝他线已删 v2 系旧原型致 AGENTS/旧工单死链，归并行会话。细节＝工单 §2/§4
+- **本批＝** **治理四轮T1·工单生命周期第二次流转 ＋ doclint 守护十九「收口必归档」**（纯文档治理·零 Dart）：17 份闭环工单 `git mv` 入 `docs/archive/`（三条判据同时成立才归档·逐份留痕 `tmp/gov4_move_tickets.py`）＋现行文档 12 份路径改写。起因＝2026-10-02 治理二轮做过同款流转但**无闸管「收口了要归档」**，两周内 handoff 由 4 份积回 50 份。新闸＝交接层实施工单 ⇔ 活单名单**双向核**。闸＝8 份活单⇔8 份名单配平＋变异双刀红其位＋doclint 零死链。**存量挂账**＝INDEX 132 行超预算 130（HEAD 同数·非本批·正解是瘦身专项待立项）。细节＝治理档 §5
 - **上一批＝** **高保真体量整改批6b（归还 `size_budget` 登记项·三刀·纯 Dart 不装机）**：`read_sheets_b2` 1806→716／`book_form_page` 1623→893／`book_detail` 1582→1019，各拆同库 part 删登记项还默认面；闸＝三件套＋`feature_size_budget`＋`dark_surface_guard` 绿·变异两刀红其位·doclint PASS；细节＝工单§3批6b
 
 ## 基线（八项，其余不写）
