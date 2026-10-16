@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/database/schema/nfc.dart' show NfcTargetKind;
 import '../../../core/providers.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import '../../../shared/linkage/nfc_mounts.dart';
 import '../data/nfc_repo.dart';
 import '../domain/nfc_card.dart';
 import 'nfc_sheets.dart';
+import 'nfc_write_sheet.dart';
 
 /// 「NFC 卡片」管理屏（原型 `p-sub-nfc`，家＝壳 `index.html`；本屏 Flutter 侧）。
 ///
@@ -42,6 +44,10 @@ class _NfcSettingsPageState extends ConsumerState<NfcSettingsPage> {
   Map<String, NfcTargetState> _states = const <String, NfcTargetState>{};
   bool _loading = true;
 
+  /// 当前正在计时的分类 id / 正在阅读的书 id（B30：从各模块库读回·非卡片表）。
+  int? _runningCatId;
+  String? _runningBookId;
+
   SettingsRepository get _prefs => ref.read(settingsRepositoryProvider);
 
   @override
@@ -55,10 +61,23 @@ class _NfcSettingsPageState extends ConsumerState<NfcSettingsPage> {
     final list = await _repo.listAll();
     // 目标名与有效性**一次批量解析**（列表里逐行查库＝每行三次查询）。
     final states = await nfcTargetStates(list);
+    // 进行中态：与列表同一次读回（B30：状态从各模块库读·卡片表不存）。
+    // 无库环境（widget 用例）会抛 MissingPluginException ⇒ 降级为「无进行中」。
+    int? runCat;
+    String? runBook;
+    try {
+      final running = await nfcRunningTargets();
+      runCat = running.$1;
+      runBook = running.$2;
+    } catch (_) {
+      // catch-ok: 测试/无库环境读不到进行中 ⇒ 全部按「未计时」显示。
+    }
     if (!mounted) return;
     setState(() {
       _cards = list;
       _states = states;
+      _runningCatId = runCat;
+      _runningBookId = runBook;
       _loading = false;
     });
   }
@@ -93,14 +112,39 @@ class _NfcSettingsPageState extends ConsumerState<NfcSettingsPage> {
     return '用过 ${c.useCount} 次 · $when';
   }
 
-  /// 进行中态（C23「● 计时中」）。**批2 触发链**才有真值源
-  /// （`activeTiming()` / `runningSession()` 同源回显）；批1b 只保留注入点，
-  /// 不假装能判定（卡片表**不存计时态** · B30）。
-  bool _runningOf(NfcCard c) => false;
+  /// 进行中态（C23「● 计时中」）。
+  ///
+  /// 真值源＝**各模块库**（`activeTiming()` 的 catId / `runningSession()` 的 bookId），
+  /// 卡片表**不存计时态**（B30）——故本屏只缓存「当前正在跑的分类/书 id」，与列表
+  /// 同一次 [_load] 读回（`_runningCatId`/`_runningBookId`），不逐行查库。
+  bool _runningOf(NfcCard c) {
+    if (c.targetKind == NfcTargetKind.timerCat) {
+      final id = int.tryParse(c.targetRef ?? '');
+      return id != null && id == _runningCatId;
+    }
+    if (c.targetKind == NfcTargetKind.readBook) {
+      final id = (c.targetRef ?? '').trim();
+      return id.isNotEmpty && id == _runningBookId;
+    }
+    return false;
+  }
 
   Future<void> _openEdit({NfcCard? card, NfcEditMode mode = NfcEditMode.full}) async {
-    final changed = await showNfcEditSheet(context, card: card, mode: mode);
+    NfcCard? created;
+    final changed = await showNfcEditSheet(
+      context,
+      card: card,
+      mode: mode,
+      onCreated: (c) => created = c,
+    );
+    if (!mounted) return;
     if (changed == true) await _load();
+    // C16：新建态保存后**自动进写卡层**（一步走完「建卡→写卡」；想先写后绑可走
+    // B8 贴未绑定卡）。写卡层关掉后再刷一次列表，把「已写入」态带回来。
+    if (created != null && mounted) {
+      await showNfcWriteSheet(context, card: created!, repo: _repo);
+      if (mounted) await _load();
+    }
   }
 
   Future<void> _openSettings() => showNfcSettingsSheet(context, prefs: _prefs);

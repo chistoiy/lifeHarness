@@ -11,6 +11,7 @@ import 'core/platform/open_intent.dart'
     show classifyOpenIntent, kOpenUnsupportedToast, takeOpenFile;
 import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
+import 'features/nfc/data/nfc_trigger.dart' show nfcHandleLaunch, nfcTriggerDepsOf;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
 import 'shared/linkage/desktop_mounts.dart';
 import 'shared/linkage/desktop_widget_mounts.dart';
@@ -108,7 +109,9 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       final navCtx = aiRootNavKey.value?.currentState?.context;
       if (navCtx == null || !navCtx.mounted) return;
       if (route.isNfc) {
-        // NFC 归属 NFC 模块批1；本批只保证不吞不炸（不解释 cardId）。
+        // NFC 卡片模块批2：贴卡触发链（冻结档 §4.4）。总闸/去抖/查表/失效/确认/执行
+        // 全在 nfc_trigger 内；本处只负责组装 ref/host（C32/B31：自取，不接受外部 context）。
+        await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
         return;
       }
       // 目标路由查不到 → 走 unknownRouteFallback（B4），不抛 GoException。

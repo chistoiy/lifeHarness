@@ -338,7 +338,7 @@
 | 项 | 值 |
 |---|---|
 | 原型锚点 | `prototype/index.html` `sheetNfcWrite`（`nfcOpenWrite`／`nfcWriteSim`／`nfcWriteClose`；演示开关＝控制台 `nfcWriteSim('ok'\|'readonly'\|'nonndef'\|'capacity'\|'broken'\|'occupied'\|'occupiedOwn'\|'nfcOff')`） |
-| 代码锚点 | **批2 才实现**（批1 未开工） |
+| 代码锚点 | `lib/features/nfc/presentation/nfc_write_sheet.dart` `showNfcWriteSheet`（批2 2026-10-17 已交付；状态机＝`lib/features/nfc/domain/nfc_write_state.dart`，通道＝`lib/features/nfc/data/nfc_tag_io.dart`） |
 | 规格 | 呼吸圆环（1.6s `ease-in-out`，**本模块唯一允许的循环动画**，离层即停）＋**单行状态位**（`#nfcWriteState`，同一行位替换，不堆历史）＋副行提示；「取消」常驻；失败态出「重试」（只读档文案＝「换卡」）；占用态出二次确认块（普通占用＝「覆盖后原内容会消失」＋取消/覆盖写入；**本机另一张卡＝只可取消**） |
 | 状态机（唯一真相） | `waiting`（30s 无卡＝关层**不 toast**）→ `reading` → 只读＝`err_readonly`／非 NDEF＝`err_nonndef`／已有内容＝`occupied`／本机他卡＝`occupied_own`／空白＝`writing` → `done`（对勾 200ms，1.2s 后自动关层并回写「已写入」）／失败＝`err_capacity`／`err_broken`／`err_nfc_off` |
 | 回归钉子 | `tools/nfc_proto_check.js` N6（七态齐：占用二态·非 NDEF·只读换卡·容量·中断·成功回写）；批3 加 UID 轨（仅前台·C25） |
@@ -347,6 +347,11 @@
 - 原型：`prototype/index.html` `#nfcWriteState`＋`#nfcWriteHint`（文案表 `NFC_STATE_TEXT`）。
 - 铁口径＝① 文案用「卡片/贴到手机背面/写入」人话，**禁 NDEF/tag/线圈/UID/readerMode 等工程词**；② 失败文案恒为**一句结论＋一句怎么办**，不弹 toast；③ 成功/失败/占用在**同一行位**替换（不新增行、不堆历史）；④ 状态变化须进 `Semantics(liveRegion:true)` 供 TalkBack 播报。
 - 回归钉子：`tools/nfc_proto_check.js` N6（`nfcWriteState` 七态文案）／`test/nfc_write_state_test.dart`（**批2 建**）。
+
+### LH-L18 贴卡回执行（NFC 卡片模块 · 2026-10-17 批2）
+- 原型：无独立屏（贴卡触发链回执，原型 `nfcSim` 内 `toast` 模拟）；Flutter `lib/features/nfc/data/nfc_trigger.dart`（触发判定）＋`lib/shared/linkage/nfc_mounts.dart` `nfcToggleTimer`/`nfcToggleRead`（有状态回执）。
+- 铁口径＝① **只有有状态卡（计时分类／阅读书目）给回执**，`nav.*` 快捷动作**不给 toast**（C22：与桌面模块口径一致）；② 回执四文案逐字：「开始「学习」计时」／「已结束「学习」· 42 分钟」／「开始阅读《书名》」／「《书名》已结束 · 23 分钟」；③ 阅读结束**复用 `endReadPillTimer`**（toast ＋ 按 `read.autoAsk` 弹记进度·单源红线，不自造结束路径）；④ 触发后**不跳屏不弹层**（autoAsk 记进度弹层除外）；⑤ 去抖窗口内第二次出「刚刚触发过，等一下」、**第三次起静默**（B43）；⑥ 总闸 `nfc.enabled` 关 ⇒ 完全静默无任何回执（C42）。
+- 回归钉子：`test/nfc_trigger_test.dart`（总闸／去抖分级／id 校验／未命中／失效／确认／执行两制）／`test/nfc_target_test.dart`（toggle 判据三分支）。
 
 ## 四、LH-K 控件类
 

@@ -99,6 +99,18 @@ class MainActivity : FlutterActivity() {
             enqueueLaunch(intent.data!!)
             return
         }
+        // NFC 卡片模块批2（冻结档 §4.4 · C36/C37）：标签里的 `lh://nfc/<cardId>` 由系统
+        // 以 NDEF_DISCOVERED 派发（Manifest 的 host=nfc filter 保证 scheme/host 已匹配）。
+        // **与上面 ACTION_VIEW 共用同一出口 enqueueLaunch**——原生的活只到「解析出 cardId
+        // 投进 pendingLaunch」，总闸/去抖/查表/执行全归 Dart（C42/B35/B43），原生一字不判业务。
+        // ⚠ 常量值取自 `NfcAdapter.ACTION_NDEF_DISCOVERED`（＝"android.nfc.action.NDEF_DISCOVERED"）；
+        //   用字面量而非 import NfcAdapter，避免为读一个字符串引整个 nfc 包。
+        if (intent.action == ACTION_NDEF_DISCOVERED &&
+            intent.data?.scheme == LH_SCHEME
+        ) {
+            enqueueLaunch(intent.data!!)
+            return
+        }
         val uri: Uri? = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data
             Intent.ACTION_SEND ->
@@ -217,6 +229,21 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        // NFC 卡片模块批2（工单 §0 第 3 条）：系统 NFC 设置页跳转。
+        // B2「系统 NFC 未开启 → 主钮『去设置』」是需求硬项，而 url_launcher 打不开
+        // 系统设置页；先例＝本文件 requestOverlayPermission（同为系统设置页跳转）。
+        // 通道只此一个方法，**不含任何业务**——NFC 业务一律在 Dart 侧。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, "lh/nfc"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openSettings" -> {
+                    openNfcSettings()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
         // 桌面模块批1：动态快捷方式（长按菜单）＋ 铺到桌面。
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "lh/desktop"
@@ -272,10 +299,24 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /// NFC 卡片模块批2：跳系统 NFC 设置页（B2 的「去设置」）。
+    /// 部分 ROM 没有 `ACTION_NFC_SETTINGS` 页，回落无线与网络设置；都没有则静默
+    /// （调用方保持原态，用户可自行去系统设置开）。
+    private fun openNfcSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS))
+            } catch (_: Exception) {
+                // 无设置页可跳：不动原态，不崩。
+            }
+        }
+    }
+
     /// 批B：跳系统「显示在其他应用上层」授权页（Android 11+ 无弹窗式授权，
     /// 走系统设置页；授权结果由 Dart 侧在 resumed 后经 canDrawOverlays 复探）。
-    private fun requestOverlayPermission() {
-        try {
+    private fun requestOverlayPermission() {        try {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             )
@@ -777,6 +818,14 @@ class MainActivity : FlutterActivity() {
         // ===== 桌面模块批1（2026-10-15）· 与 Dart 侧 desktop_actions.dart 同源 =====
         /** 自有 scheme（Manifest 注册的就是它；禁第二处字面量）。 */
         const val LH_SCHEME = "lh"
+
+        /**
+         * NFC 卡片模块批2：NDEF 标签派发的 action 字符串。
+         *
+         * 值＝`NfcAdapter.ACTION_NDEF_DISCOVERED`，**与 Manifest 那条 intent-filter
+         * 逐字一致**（`android.nfc.action.NDEF_DISCOVERED`）。用字面量避免引 nfc 包。
+         */
+        const val ACTION_NDEF_DISCOVERED = "android.nfc.action.NDEF_DISCOVERED"
 
         /**
          * 白名单：`lh://<ns>/<key>` 的 path 段 → 动作 id。

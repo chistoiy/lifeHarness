@@ -1,11 +1,22 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/database/schema.dart';
 import '../../core/database/schema/nfc.dart' show NfcTargetKind;
+import '../../features/calendar/data/time_block_dao.dart' show TimeBlockDao;
+import '../../features/calendar/presentation/calendar_providers.dart'
+    show dayBlocksProvider, monthTimingDaysProvider, timeBlockDaoProvider,
+        timingBlockProvider;
 import '../../features/nfc/domain/nfc_card.dart';
+import '../../features/read/data/read_repository.dart' show ReadRepository;
+import '../../features/read/presentation/read_providers.dart'
+    show booksProvider, readRepositoryProvider, readTickProvider;
+import '../widgets/ui_kit.dart' show AppToast;
 import 'habit_mounts.dart';
 import 'maternity_mounts.dart';
+import 'timer_bar_overlay.dart' show endReadPillTimer;
 
 /// NFC 卡片 ⇄ 时间/阅读/习惯/母婴 挂载出口（批1 · 冻结档 §6.1 · 守 R1；批1b 扩四口）。
 ///
@@ -394,4 +405,128 @@ Future<Map<String, NfcTargetState>> nfcTargetStates(
 Future<NfcTargetState> nfcTargetStateOf(NfcCard card, [Database? db]) async {
   final m = await nfcTargetStates([card], db);
   return m[card.id] ?? const NfcTargetState(alive: false);
+}
+
+// ==================== 批2c 有状态 toggle 转发口 ====================
+// 口径（工单 §5 · 冻结档 C32/C19/C22）：
+// · **内部自取 ref/host，不接受外部传 context**（先例＝`sys_pill_sync.dart`）；
+// · 时间侧判据＝`activeTiming()?.catId == target_ref`；阅读侧＝`runningSession()?.bookId == target_ref`；
+// · 结束阅读**必须复用 `endReadPillTimer`**（toast ＋ 按 `read.autoAsk` 弹记进度·单源红线 C22-V3）；
+// · 回执四文案逐字（C22）：「开始「学习」计时」／「已结束「学习」· 42 分钟」／
+//   「开始阅读《书名》」／「《书名》已结束 · 23 分钟」；
+// · **触发后不跳屏不弹层**（阅读结束的 autoAsk 记进度弹层除外）。
+//
+// 本文件是 linkage 层（不受 R1 约束），可 import 时间/阅读模块。§6.2「只引一个 NFC 插件」
+// 与本层无关——本层不碰任何插件。
+
+/// 读「当前正在跑的计时分类 / 阅读书」这对真值（管理屏「● 计时中」同源回显·B30/C23）。
+///
+/// 返回 `(计时中的分类 id, 正在读的书 id)`；无则各自为 null。
+/// **与卡片表无关**——计时态只存在于各模块库（B30：卡片表不存计时态）。
+Future<(int?, String?)> nfcRunningTargets([Database? db]) async {
+  final d = db ?? AppDatabase.instance.db;
+  final t = await TimeBlockDao(d).activeTiming();
+  final s = await ReadRepository(d).runningSession();
+  return (t?.catId, s?.bookId);
+}
+
+/// toggle 应该做「开始」还是「结束」（C19 同一次贴卡反向操作 · 工单 §5 判据）。
+enum NfcToggleAction { start, end }
+
+/// 时间卡 toggle 判据（**纯函数**·可单测）：当前计时中的分类 id 与目标相等 ⇒ 结束，否则开始。
+///
+/// 判据＝`activeTiming()?.catId == target_ref`（工单 §5 逐字）。
+/// 「跑的是别的分类」＝开始（`startTiming` 自带先收口上一段·B20）。
+NfcToggleAction nfcTimerToggleAction({int? runningCatId, required int targetCatId}) =>
+    runningCatId == targetCatId ? NfcToggleAction.end : NfcToggleAction.start;
+
+/// 阅读卡 toggle 判据（**纯函数**·可单测）：当前在读书 id 与目标相等 ⇒ 结束，否则开始。
+///
+/// 判据＝`runningSession()?.bookId == target_ref`（工单 §5 逐字）。
+NfcToggleAction nfcReadToggleAction({String? runningBookId, required String targetBookId}) =>
+    runningBookId == targetBookId ? NfcToggleAction.end : NfcToggleAction.start;
+
+/// 时间侧 toggle：贴时间卡 ⇒ 该分类计时中则结束、否则开始（C19 同一次贴卡反向操作）。
+///
+/// 返回 true＝已执行（开始或结束），false＝目标不可用（分类已删／未绑定）。
+/// 计时不足 1 分钟照常结束（B22：不做最短门槛）。
+Future<bool> nfcToggleTimer(
+  WidgetRef ref,
+  BuildContext host, {
+  required String? catId,
+  required String catName,
+}) async {
+  final id = int.tryParse(catId ?? '');
+  if (id == null) return false;
+  // 目标仍在册才执行（删了走失效分支·C24；这里再兜一层防外部直接调）。
+  if (!await nfcCategoryExists(id)) return false;
+
+  final dao = ref.read(timeBlockDaoProvider);
+  final running = await dao.activeTiming();
+  final now = DateTime.now();
+  final nowMin = now.hour * 60 + now.minute;
+
+  final action =
+      nfcTimerToggleAction(runningCatId: running?.catId, targetCatId: id);
+  if (action == NfcToggleAction.end) {
+    // 该分类正在计时 ⇒ 结束。
+    await dao.endTiming(running!.id, nowMin);
+    ref.invalidate(timingBlockProvider);
+    ref.invalidate(dayBlocksProvider(now));
+    ref.invalidate(monthTimingDaysProvider((now.year, now.month)));
+    final mins = (nowMin - running.startMin) < 0
+        ? (1440 - running.startMin + nowMin)
+        : (nowMin - running.startMin);
+    if (host.mounted) {
+      AppToast.show(host, '已结束「$catName」· $mins 分钟');
+    }
+    return true;
+  }
+
+  // 未在跑（或跑的是别的分类）⇒ 开始；`startTiming` 自带「先收口上一段」（B20）。
+  await dao.startTiming(now, nowMin, catId: id, catName: catName, note: catName);
+  ref.invalidate(timingBlockProvider);
+  ref.invalidate(dayBlocksProvider(now));
+  ref.invalidate(monthTimingDaysProvider((now.year, now.month)));
+  if (host.mounted) {
+    AppToast.show(host, '开始「$catName」计时');
+  }
+  return true;
+}
+
+/// 阅读侧 toggle：贴阅读卡 ⇒ 该书阅读中则结束、否则开始（C19）。
+///
+/// 结束**复用 `endReadPillTimer`**（单源红线·C22-V3）：不自造结束路径、不为对齐文案
+/// 改该函数。开始走 `startSession` 既有规则（先结束在跑会话·B20）。
+/// 返回 true＝已执行，false＝书不可用（已删／未绑定）。
+Future<bool> nfcToggleRead(
+  WidgetRef ref,
+  BuildContext host, {
+  required String? bookId,
+}) async {
+  final id = (bookId ?? '').trim();
+  if (id.isEmpty) return false;
+  if (!await nfcBookExists(id)) return false;
+
+  final repo = ref.read(readRepositoryProvider);
+  final running = await repo.runningSession();
+  final action =
+      nfcReadToggleAction(runningBookId: running?.bookId, targetBookId: id);
+  if (action == NfcToggleAction.end) {
+    // 正在读这本 ⇒ 结束（单源：复用胶囊结束路径，含 toast ＋ autoAsk 弹层）。
+    // endReadPillTimer 内部自会 `host.mounted` 复查（单源红线，不改它）。
+    if (!host.mounted) return true;
+    await endReadPillTimer(host, ref, id);
+    return true;
+  }
+
+  // 未在跑（或跑的是别的书）⇒ 开始（startSession 自带先结束在跑会话）。
+  await repo.startSession(id);
+  ref.read(readTickProvider.notifier).state++;
+  if (host.mounted) {
+    final books = ref.read(booksProvider).valueOrNull ?? const [];
+    final title = books.where((b) => b.id == id).firstOrNull?.title ?? '阅读';
+    AppToast.show(host, '开始阅读《$title》');
+  }
+  return true;
 }

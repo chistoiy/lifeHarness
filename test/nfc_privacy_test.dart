@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
 
 /// NFC 卡片批1 · 隐私守护（F1-1b · 冻结档 C11：卡号不入日志正文，
 /// **UID 指纹与 `tag_key` 原文永不进任何日志（含 debug 级）**）。

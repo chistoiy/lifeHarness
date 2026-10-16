@@ -11,6 +11,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/nfc_repo.dart';
 import '../domain/nfc_card.dart';
+import 'nfc_write_sheet.dart';
 
 /// 弹层形态（批1b §4 · 原型 `nfcEditMode`）。
 ///
@@ -29,12 +30,17 @@ enum NfcEditMode { full, card, target }
 /// 一份 `{kind, ref, sub}`（[NfcCard.targetSub] 承接二级参数）。
 ///
 /// 返回值：`true`＝有落库（调用方据此刷新列表），`null`＝取消。
+///
+/// [onCreated]＝**新建态保存成功**后回调（批2 C16：保存后自动进写卡层）。回调在
+/// 本层 `pop` 之后由调用方触发——写卡层要挂在下层弹层之上，从正在关闭的路由里
+/// 直接开新弹层会拿到失效的 `context`。
 Future<bool?> showNfcEditSheet(
   BuildContext context, {
   NfcCard? card,
   String? bindTagKey,
   NfcEditMode mode = NfcEditMode.full,
   NfcRepo? repo,
+  void Function(NfcCard created)? onCreated,
 }) {
   return showModalBottomSheet<bool>(
     context: context,
@@ -44,6 +50,7 @@ Future<bool?> showNfcEditSheet(
       bindTagKey: bindTagKey,
       mode: mode,
       repo: repo,
+      onCreated: onCreated,
     ),
   );
 }
@@ -63,6 +70,7 @@ class _NfcEditSheet extends StatefulWidget {
     this.bindTagKey,
     this.mode = NfcEditMode.full,
     this.repo,
+    this.onCreated,
   });
 
   final NfcCard? card;
@@ -74,6 +82,9 @@ class _NfcEditSheet extends StatefulWidget {
 
   /// 测试注入缝（widget 用例不碰真磁盘库）。
   final NfcRepo? repo;
+
+  /// 新建态保存成功回调（批2：调用方据此续开写卡层 · C16）。
+  final void Function(NfcCard created)? onCreated;
 
   @override
   State<_NfcEditSheet> createState() => _NfcEditSheetState();
@@ -95,6 +106,11 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
   bool _saving = false;
   bool _nameError = false;
   bool _bookOpen = false;
+
+  /// 本层存活期间是否写过卡（批2：写完把「写入卡片」行右值就地改「已写入」——
+  /// 与原型 `nfcWriteSim('done')` 同步改 `#nfcEditWrote` 同款；卡片对象是旧快照，
+  /// 不能只看 `widget.card.isWritten`）。
+  bool _wrote = false;
 
   /// 卡片信息形态的目标摘要（既有卡的目标名，异步解析）。
   String _targetSummary = '—';
@@ -267,10 +283,11 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
     });
     final desc = _desc.text.trim();
     final (kind, ref, sub) = _target;
+    NfcCard? created;
     try {
       final card = widget.card;
       if (card == null) {
-        await _repo.create(
+        created = await _repo.create(
           name: name,
           targetKind: kind,
           targetRef: ref,
@@ -289,7 +306,11 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
               targetKind: kind, targetRef: ref, targetSub: sub);
         }
       }
-      if (mounted) Navigator.pop(context, true);
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      // C16：新建态保存后自动进写卡层（由调用方在**本层关闭之后**续开，
+      // 见 showNfcEditSheet 的 onCreated 段注）。
+      if (created != null) widget.onCreated?.call(created);
     } catch (_) {
       // catch-ok: 本地写库失败已在下面给用户一句「保存失败 · 请重试」；错误本身
       // （表结构/磁盘满）属开发期问题，无可执行的运行时动作，不进日志面。
@@ -457,13 +478,22 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
                         trailing: Text(
                           widget.card!.isReadOnlyTag
                               ? '只读卡'
-                              : (widget.card!.isWritten ? '已写入' : '未写入'),
+                              : ((_wrote || widget.card!.isWritten)
+                                  ? '已写入'
+                                  : '未写入'),
                           style: TextStyle(
                               fontSize: 11.5, color: scheme.onSurfaceVariant),
                         ),
-                        onTap: () {
-                          // 写卡流程属批2；批1b 只给一句明说，不假装能写。
-                          AppToast.show(context, '写入卡片将在下一批开放');
+                        onTap: () async {
+                          // 写卡层（批2 · 冻结档 §4.3）：挂在本层之上，关掉后本层保留
+                          // （B39：用户可能还没填完名称；写完也不自动退出/清空本层）。
+                          final wrote = await showNfcWriteSheet(
+                            context,
+                            card: widget.card!,
+                            repo: _repo,
+                          );
+                          if (!mounted || !wrote) return;
+                          setState(() => _wrote = true);
                         },
                       ),
                       Divider(height: 1, color: scheme.outlineVariant),

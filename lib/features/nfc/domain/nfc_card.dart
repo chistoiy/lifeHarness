@@ -340,6 +340,28 @@ bool isValidNfcCardId(String id) {
 /// NDEF 标签的 `tag_key` 全文（`ndef:<id>`）——C1：标签里就写这一串。
 String ndefTagKeyOf(String cardId) => 'ndef:$cardId';
 
+/// 标签里写的那条 NDEF URI（C1：`lh://nfc/<cardId>`·**标签只存编号**）。
+///
+/// 批2 写卡层构造 NDEF 记录时取本函数，**禁在写卡层手拼字面量**（口径一处）。
+String nfcTagUriOf(String cardId) => 'lh://nfc/$cardId';
+
+/// 从一条 URI 反解 `cardId`（写卡层读回「已有内容/本机另一张卡」用）。
+///
+/// 只认 `lh://nfc/<12 位 base62>`：scheme/host 不符、层级多余、id 不合规 → null。
+/// **不猜、不回显**（B35：外部 URI 能带任意字符串进来，格式校验是防注入的唯一闸）。
+String? nfcCardIdOfTagUri(String? uri) {
+  final raw = (uri ?? '').trim();
+  if (raw.isEmpty) return null;
+  final u = Uri.tryParse(raw);
+  if (u == null || u.scheme != 'lh' || u.host != 'nfc') return null;
+  var seg = u.path;
+  while (seg.startsWith('/')) {
+    seg = seg.substring(1);
+  }
+  if (seg.isEmpty || seg.contains('/')) return null; // 多余层级＝不是本模块寻址
+  return isValidNfcCardId(seg) ? seg : null;
+}
+
 /// **脱敏后的排障串**：指纹只留后 4 位（C11/F1-1b）。
 ///
 /// ⚠ **UID 指纹永不进任何日志（含 debug 级）**——UID 可反查物理卡序列，比卡号更敏感。

@@ -4,6 +4,13 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- NFC 卡片模块批2（冻结档 §6.2 的 Manifest 改动面之一）：
+         NFC 权限用于**前台**读写标签（`nfc_manager` 内部即 NfcAdapter）。
+         `uses-feature required=false`＝**不因 NFC 被应用商店过滤**——
+         本 App 的 NFC 是增强功能，没 NFC 的设备照常用（B1：入口行置灰）。
+         ⚠ 不声明 `uses-feature required=true`，也不加任何后台/常驻相关权限。 -->
+    <uses-permission android:name="android.permission.NFC"/>
+    <uses-feature android:name="android.hardware.nfc" android:required="false"/>
     <!-- 批B（工单 悬浮胶囊增强批-20261014 §7）：app 外系统悬浮窗。
          SYSTEM_ALERT_WINDOW＝「显示在其他应用上层」特殊访问，运行时经
          Settings.canDrawOverlays 探问、ACTION_MANAGE_OVERLAY_PERMISSION 引导；
@@ -128,6 +135,17 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="lh"/>
+            </intent-filter>
+            <!-- NFC 卡片模块批2（冻结档 §4.4 贴卡两制 · C36/C37）：
+                 标签里写的是 `lh://nfc/<cardId>`（TNF absoluteUri 单条记录），
+                 系统读到 NDEF 后按 action=NDEF_DISCOVERED + data.scheme/host 派发，
+                 与上面 `ACTION_VIEW lh://` **共用同一解析分支**（handle → enqueueLaunch）。
+                 host 固定 `nfc`：把「本应用的标签」与其他 App 的 lh:// 链接在系统层择开，
+                 减少误唤起（更深一层的「是不是本机卡片」判定归 Dart 侧查表）。 -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="lh" android:host="nfc"/>
             </intent-filter>
         </activity>
         <!-- flutter_local_notifications：定时通知发送 + 开机重传（需 ScheduleNotificationReceiver 权限声明） -->
