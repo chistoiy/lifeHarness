@@ -92,7 +92,8 @@ void main() {
       'features/items/presentation/item_edit_page.dart': 3,
       'features/journal/presentation/diary_edit_page.dart': 1,
       'features/read/presentation/biblio/book_info_page.dart': 1,
-      'features/read/presentation/read_sheets_b3.dart': 1,
+      // 高保真批6c·刀1（2026-10-16）：「联动 L5」文案随书摘表单群拆 part 迁入同库件，登记随迁。
+      'features/read/presentation/read_sheets_b3_quote.dart': 1,
       'features/read/presentation/read_sheets_b4.dart': 1,
       'features/read/presentation/reader/reader_sel_ops.dart': 1,
       'features/read/presentation/stats/quotes_lib_page.dart': 4,

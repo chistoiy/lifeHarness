@@ -119,8 +119,10 @@ void main() {
           '全书检索整页携带**活 EpubDoc 句柄**，用完即 dispose，生命周期挂在这条 await 上，无深链语义',
       'features/read/presentation/reader/reader_page.dart':
           '同上，且要等 `BrSearchResult` 返回值挂命中链',
-      'features/read/presentation/read_sheets_b3.dart':
-          '书摘表单 `_QuoteForm` 是本库私有全屏表单（带编辑对象与六项运行时参数），不是可登记屏',
+      // 高保真批6c·刀1（2026-10-16）：书摘表单群拆 part 迁入同库件，匿名 push 随组搬迁
+      //（maybeOf 前置支口径不变），登记随迁、白名单力度不减。
+      'features/read/presentation/read_sheets_b3_quote.dart':
+          '自 read_sheets_b3 拆 part 迁入：书摘表单 `_QuoteForm` 是本库私有全屏表单（带编辑对象与六项运行时参数），不是可登记屏',
     };
     test('lib 内出现 MaterialPageRoute 的文件必须都在白名单里', () {
       final hits = Directory('lib')
