@@ -4,7 +4,7 @@
 // 优先 jsdom 真 DOM 断言，jsdom 不可用退化为正则断言。用法：node tools/syncproto_check.js [文件路径]
 //
 // 【2026-10-16 批 2 修订（高保真体量整改 · 合并式收口）——每处都标了依据，勿再当「闸坏了」】
-//   依据＝工单 docs/handoff/交棒话术-20261015-高保真体量整改.md §3 批 2 ＋ 本会话产品六条裁定。
+//   依据＝工单 docs/archive/交棒话术-20261015-高保真体量整改.md（已归档） §3 批 2 ＋ 本会话产品六条裁定。
 //   ① 屏表：p-log 退役（被 index.html 侧迁入的 p-logs 取代，Q1 合并式收口）；
 //      新增批 2 迁入 5 屏（p-sub-data / p-sub-backup / p-sub-dbstats / p-logs / p-sub-mediaclean）
 //      ＋迁入 5 弹层（sheetSyncDiff / sheetExport / sheetBkDel / sheetLogSettings / sheetMcDel）。
