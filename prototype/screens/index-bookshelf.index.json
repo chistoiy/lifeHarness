@@ -1,23 +1,15 @@
 {
  "file": "index-bookshelf.html",
- "total": 766859,
+ "total": 706819,
  "cut": 0,
  "screens": [
   {
-   "id": "p-records",
+   "id": "p-readhub",
    "kind": "screen",
-   "title": "记录",
+   "title": "",
    "role": "home",
-   "size": 5084,
-   "hash": "c0afe4a4"
-  },
-  {
-   "id": "p-import",
-   "kind": "screen",
-   "title": "导入读书笔记",
-   "role": "home",
-   "size": 6418,
-   "hash": "ef80a320"
+   "size": 388,
+   "hash": "485bad48"
   },
   {
    "id": "p-bookDetail",
@@ -32,8 +24,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 3847,
-   "hash": "6166448e"
+   "size": 3902,
+   "hash": "37f6df4b"
   },
   {
    "id": "p-bookInfo",
@@ -60,12 +52,28 @@
    "hash": "18696ae3"
   },
   {
+   "id": "sheetBfDate",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1147,
+   "hash": "ee0a3f61"
+  },
+  {
+   "id": "sheetBfPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 812,
+   "hash": "99c73dd0"
+  },
+  {
    "id": "p-quotes",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 1826,
-   "hash": "4b23bf6e"
+   "size": 1940,
+   "hash": "2292f59f"
   },
   {
    "id": "p-quoteEdit",
@@ -88,16 +96,16 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 3728,
-   "hash": "11d782ad"
+   "size": 3851,
+   "hash": "15378651"
   },
   {
    "id": "p-readtimer",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 2732,
-   "hash": "fa458391"
+   "size": 2393,
+   "hash": "56c8b8df"
   },
   {
    "id": "p-readset",
@@ -112,8 +120,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 1188,
-   "hash": "2b7adaf6"
+   "size": 1245,
+   "hash": "700db00e"
   },
   {
    "id": "p-readimport",
@@ -138,6 +146,14 @@
    "role": "home",
    "size": 910,
    "hash": "28c2667a"
+  },
+  {
+   "id": "sheetBmDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 622,
+   "hash": "2791f443"
   },
   {
    "id": "p-xrwords",
@@ -188,12 +204,20 @@
    "hash": "84e984f1"
   },
   {
-   "id": "sheetShelfDim",
+   "id": "sheetShBatchDel",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 431,
-   "hash": "8780b49a"
+   "size": 1047,
+   "hash": "36f84993"
+  },
+  {
+   "id": "sheetShBatchTag",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 671,
+   "hash": "b13b73ab"
   },
   {
    "id": "sheetBookOps",
@@ -232,24 +256,16 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 11971,
-   "hash": "86c25578"
+   "size": 12679,
+   "hash": "9cc4a7e1"
   },
   {
    "id": "p-readerSearch",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 918,
-   "hash": "ba57164f"
-  },
-  {
-   "id": "sheetAddMedia",
-   "kind": "sheet",
-   "title": "",
-   "role": "rep",
-   "size": 2309,
-   "hash": "70349886"
+   "size": 1106,
+   "hash": "d609a77a"
   },
   {
    "id": "sheetProgress",
@@ -258,6 +274,14 @@
    "role": "home",
    "size": 956,
    "hash": "ccce4702"
+  },
+  {
+   "id": "sheetPillDemo",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 5449,
+   "hash": "4024c21a"
   },
   {
    "id": "sheetShelfSort",
@@ -280,8 +304,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 4527,
-   "hash": "002d7137"
+   "size": 4621,
+   "hash": "6134fe64"
   },
   {
    "id": "sheetEditBook",
@@ -296,8 +320,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3537,
-   "hash": "90d10609"
+   "size": 3558,
+   "hash": "aec24b8a"
   },
   {
    "id": "sheetInboxBook",
@@ -320,32 +344,32 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1949,
-   "hash": "a9ae8530"
+   "size": 2588,
+   "hash": "cf6a81d2"
   },
   {
    "id": "sheetBrAppearance",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 4409,
-   "hash": "1c5fee1d"
+   "size": 4523,
+   "hash": "bb4af500"
   },
   {
    "id": "sheetBrApSub",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3890,
-   "hash": "26075a8c"
+   "size": 3911,
+   "hash": "26802e74"
   },
   {
    "id": "sheetBrProg",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2094,
-   "hash": "27303102"
+   "size": 2157,
+   "hash": "6db190bb"
   },
   {
    "id": "sheetBrLocalInfo",
@@ -360,8 +384,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1601,
-   "hash": "c7567ae2"
+   "size": 1643,
+   "hash": "f4a135ae"
   },
   {
    "id": "sheetXrDel",
@@ -376,8 +400,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1241,
-   "hash": "d5ccc11f"
+   "size": 1262,
+   "hash": "980ba098"
   },
   {
    "id": "sheetXrMerge",
@@ -440,16 +464,16 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1950,
-   "hash": "c74d5a8a"
+   "size": 1971,
+   "hash": "4388d469"
   },
   {
    "id": "sheetBrAi",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1216,
-   "hash": "1590dcd6"
+   "size": 1237,
+   "hash": "ae30e6ea"
   },
   {
    "id": "sheetBrDict",
@@ -464,8 +488,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 965,
-   "hash": "df40a948"
+   "size": 966,
+   "hash": "6e8bc4e9"
   },
   {
    "id": "sheetBrLink",
@@ -488,8 +512,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1978,
-   "hash": "755e092f"
+   "size": 1825,
+   "hash": "7e3842fc"
   },
   {
    "id": "sheetBrDel",

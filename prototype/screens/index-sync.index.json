@@ -1,0 +1,103 @@
+{
+ "file": "index-sync.html",
+ "total": 142283,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-sync",
+   "kind": "screen",
+   "title": "数据与同步",
+   "role": "home",
+   "size": 6844,
+   "hash": "bd87f4c5"
+  },
+  {
+   "id": "p-synchist",
+   "kind": "screen",
+   "title": "同步历史",
+   "role": "home",
+   "size": 119,
+   "hash": "27edff1e"
+  },
+  {
+   "id": "p-sub-data",
+   "kind": "screen",
+   "title": "数据与同步",
+   "role": "home",
+   "size": 12272,
+   "hash": "a55fd7aa"
+  },
+  {
+   "id": "sheetSyncDiff",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1091,
+   "hash": "9fe0e30e"
+  },
+  {
+   "id": "sheetExport",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 4898,
+   "hash": "1f6a36c2"
+  },
+  {
+   "id": "p-sub-backup",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1920,
+   "hash": "9aeaaf72"
+  },
+  {
+   "id": "sheetBkDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 962,
+   "hash": "924cac4c"
+  },
+  {
+   "id": "p-sub-mediaclean",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1738,
+   "hash": "710519c9"
+  },
+  {
+   "id": "sheetMcDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 967,
+   "hash": "c4bc8a97"
+  },
+  {
+   "id": "p-sub-dbstats",
+   "kind": "screen",
+   "title": "数据库概览",
+   "role": "home",
+   "size": 5883,
+   "hash": "98703ba0"
+  },
+  {
+   "id": "p-logs",
+   "kind": "screen",
+   "title": "日志管理",
+   "role": "home",
+   "size": 10205,
+   "hash": "1a79b093"
+  },
+  {
+   "id": "sheetLogSettings",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 3901,
+   "hash": "0a1255f0"
+  }
+ ]
+}

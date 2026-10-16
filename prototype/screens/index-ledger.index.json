@@ -1,6 +1,6 @@
 {
  "file": "index-ledger.html",
- "total": 431502,
+ "total": 375211,
  "cut": 0,
  "screens": [
   {
@@ -8,288 +8,288 @@
    "kind": "screen",
    "title": "记账",
    "role": "home",
-   "size": 4244,
-   "hash": "d739e5e2"
+   "size": 4251,
+   "hash": "4bd8cb21"
   },
   {
    "id": "p-txAdd",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 2201,
-   "hash": "450e3c71"
+   "size": 2369,
+   "hash": "abfca132"
   },
   {
    "id": "p-txDetail",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 112,
-   "hash": "833f1f06"
+   "size": 110,
+   "hash": "28e2226b"
   },
   {
    "id": "p-report",
    "kind": "screen",
    "title": "检查报告",
    "role": "home",
-   "size": 1709,
-   "hash": "f342937a"
+   "size": 1698,
+   "hash": "2a7dd355"
   },
   {
    "id": "p-yearly",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 485,
-   "hash": "aacf78e5"
+   "size": 478,
+   "hash": "ea3104de"
   },
   {
    "id": "p-budget",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 496,
-   "hash": "6e6bd32d"
+   "size": 489,
+   "hash": "cb88f16f"
   },
   {
    "id": "p-assets",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 128,
-   "hash": "900559bf"
+   "size": 126,
+   "hash": "a2a00d72"
   },
   {
    "id": "p-assetAcct",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 131,
-   "hash": "114d7fbd"
+   "size": 129,
+   "hash": "d0953017"
   },
   {
    "id": "p-cats",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 1320,
-   "hash": "0715c32a"
+   "size": 1307,
+   "hash": "4a4285e5"
   },
   {
    "id": "p-recur",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 127,
-   "hash": "3dbea0b4"
+   "size": 125,
+   "hash": "b6b7a9e5"
   },
   {
    "id": "p-wish",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 127,
-   "hash": "e7360a2c"
+   "size": 125,
+   "hash": "c96f1f8b"
   },
   {
    "id": "p-debt",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 127,
-   "hash": "e43ee2de"
+   "size": 125,
+   "hash": "6c71aaac"
   },
   {
    "id": "p-txSearch",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 820,
-   "hash": "4a2f1707"
+   "size": 811,
+   "hash": "0b7fcdca"
   },
   {
    "id": "p-lset",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 127,
-   "hash": "b4a73fb1"
+   "size": 125,
+   "hash": "30df950f"
   },
   {
    "id": "p-export",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 128,
-   "hash": "bb8497cb"
+   "size": 126,
+   "hash": "2ed108a8"
   },
   {
    "id": "p-billImport",
    "kind": "screen",
    "title": "导入账单",
    "role": "home",
-   "size": 8019,
-   "hash": "b840e736"
+   "size": 7928,
+   "hash": "0e7f8643"
   },
   {
    "id": "sheetBillCat",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1361,
-   "hash": "42dd541a"
+   "size": 1347,
+   "hash": "ed43cb09"
   },
   {
    "id": "sheetBiAcctPick",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 785,
-   "hash": "1c925ecd"
+   "size": 777,
+   "hash": "ed4f74d9"
   },
   {
    "id": "sheetLedgerDate",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 998,
-   "hash": "740bb8dd"
+   "size": 981,
+   "hash": "c5ae0d9c"
   },
   {
    "id": "sheetLedgerMore",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 437,
-   "hash": "90e6b93d"
+   "size": 431,
+   "hash": "041ca816"
   },
   {
    "id": "sheetLedgerAcct",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 662,
-   "hash": "e087d2f9"
+   "size": 655,
+   "hash": "0c7e947d"
   },
   {
    "id": "sheetLedgerCatAdd",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2156,
-   "hash": "2c2db69d"
+   "size": 2222,
+   "hash": "02dc5411"
   },
   {
    "id": "sheetLedgerParent2",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 451,
-   "hash": "97818f12"
+   "size": 445,
+   "hash": "51c4b9ce"
   },
   {
    "id": "sheetLedgerCatPick",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2123,
-   "hash": "406a6943"
+   "size": 2107,
+   "hash": "4047702e"
   },
   {
    "id": "sheetLedgerWho",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 802,
-   "hash": "b9742b50"
+   "size": 790,
+   "hash": "0e96079f"
   },
   {
    "id": "sheetLedgerTag",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 994,
-   "hash": "b2319937"
+   "size": 979,
+   "hash": "16b186f4"
   },
   {
    "id": "sheetLedgerMerch",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 809,
-   "hash": "cd3f7b03"
+   "size": 797,
+   "hash": "ebf95724"
   },
   {
    "id": "sheetLedgerQuick",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 628,
-   "hash": "bddc6e0d"
+   "size": 621,
+   "hash": "34357af1"
   },
   {
    "id": "sheetLedgerHero",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1031,
-   "hash": "766d705d"
+   "size": 1020,
+   "hash": "22a321a1"
   },
   {
    "id": "sheetLedgerBooks",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 565,
-   "hash": "39f2b831"
+   "size": 558,
+   "hash": "db855b87"
   },
   {
    "id": "sheetLedgerAcctAdd",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1277,
-   "hash": "2bd4795c"
+   "size": 1258,
+   "hash": "ad017066"
   },
   {
    "id": "sheetLedgerBatches",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 629,
-   "hash": "15a77421"
+   "size": 622,
+   "hash": "93775951"
   },
   {
    "id": "sheetLedgerUndo",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1107,
-   "hash": "3afa374a"
+   "size": 1094,
+   "hash": "03784f47"
   },
   {
    "id": "sheetLedgerWheel",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 747,
-   "hash": "c3e9c7db"
+   "size": 735,
+   "hash": "d119164e"
   },
   {
    "id": "sheetAddExcerpt",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1251,
-   "hash": "b873c739"
+   "size": 1239,
+   "hash": "1ad213c9"
   },
   {
    "id": "sheetYearShare",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 887,
-   "hash": "aed11b1a"
+   "size": 878,
+   "hash": "a4570c6b"
   }
  ]
 }

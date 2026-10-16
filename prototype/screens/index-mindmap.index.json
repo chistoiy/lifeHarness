@@ -1,0 +1,151 @@
+{
+ "file": "index-mindmap.html",
+ "total": 131619,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "mm-list",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 5677,
+   "hash": "a52ada32"
+  },
+  {
+   "id": "mm-canvas",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 6575,
+   "hash": "3dc74020"
+  },
+  {
+   "id": "sheetMm-new",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1008,
+   "hash": "098bdafb"
+  },
+  {
+   "id": "sheetMm-node",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1690,
+   "hash": "e9f0166b"
+  },
+  {
+   "id": "sheetMm-bindNote",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1377,
+   "hash": "f6d26e3d"
+  },
+  {
+   "id": "sheetMm-fromMd",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1519,
+   "hash": "f08dd969"
+  },
+  {
+   "id": "sheetMm-fromInbox",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1183,
+   "hash": "1c4e9d98"
+  },
+  {
+   "id": "sheetMm-rename",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 527,
+   "hash": "a4eb1499"
+  },
+  {
+   "id": "sheetMm-map",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2049,
+   "hash": "5d9e6a69"
+  },
+  {
+   "id": "sheetMm-confirm",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 685,
+   "hash": "2ae1d7ed"
+  },
+  {
+   "id": "sheetMm-card",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1961,
+   "hash": "7822ea2b"
+  },
+  {
+   "id": "sheetMm-inboxTo",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2488,
+   "hash": "4a9f3fb9"
+  },
+  {
+   "id": "sheetMm-more",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 705,
+   "hash": "1ad5e714"
+  },
+  {
+   "id": "sheetMm-search",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 892,
+   "hash": "a239a309"
+  },
+  {
+   "id": "sheetMm-folders",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 976,
+   "hash": "5a926073"
+  },
+  {
+   "id": "sheetMm-export",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1974,
+   "hash": "25aae71e"
+  },
+  {
+   "id": "sheetMm-style",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1494,
+   "hash": "dd574889"
+  },
+  {
+   "id": "sheetMm-layout",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1221,
+   "hash": "f74c9abf"
+  }
+ ]
+}

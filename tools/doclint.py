@@ -263,6 +263,18 @@ try:
         sys.exit(1)
 except FileNotFoundError:
     print("WARN 未找到 node，注册表体检跳过（本机应有 node，出现此行请先查 PATH）")
+# ---- 守护十八：读侧索引卡一致性（治理 §4-6「doclint 校索引与 HTML 一致」2026-10-16 补做）----
+# 卡是 pslice.js --list 的唯一读数来源；过期卡＝读侧工具给错读数且无人知情。漂移即红灯。
+try:
+    rc = subprocess.run(["node", os.path.join(ROOT, "tools", "proto_cards_check.js"), "--check"],
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT)
+    tailc = [x for x in (rc.stdout or "").strip().splitlines() if x.startswith(("索引卡体检", "CARDS"))]
+    print(" / ".join(tailc) if tailc else (rc.stdout or "").strip()[:200])
+    if rc.returncode != 0:
+        print("守护十八 红灯（索引卡缺/过期/孤儿）：跑 `node tools/proto_cards_check.js --write` 重生成后复跑本闸")
+        sys.exit(1)
+except FileNotFoundError:
+    print("WARN 未找到 node，读侧索引卡体检跳过（本机应有 node，出现此行请先查 PATH）")
 # ---- T13 档③ 硬零闸：代码自造表情只许在白名单文件（须写理由），新增即红灯 ----
 try:
     re3 = subprocess.run(["node", os.path.join(ROOT, "tools", "emoji_triage.js"), "--check"],

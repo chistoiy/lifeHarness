@@ -1,6 +1,6 @@
 {
  "file": "index-maternity_bady.html",
- "total": 374727,
+ "total": 319545,
  "cut": 0,
  "screens": [
   {
@@ -184,8 +184,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 9779,
-   "hash": "4871f242"
+   "size": 9842,
+   "hash": "d9a7b588"
   },
   {
    "id": "sheetEvPanel",

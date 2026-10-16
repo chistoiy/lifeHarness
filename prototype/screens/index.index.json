@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 448628,
+ "total": 301911,
  "cut": 0,
  "screens": [
   {
@@ -8,232 +8,120 @@
    "kind": "screen",
    "title": "今天",
    "role": "home",
-   "size": 4162,
-   "hash": "6c11932f"
+   "size": 6200,
+   "hash": "6d8f4466"
   },
   {
    "id": "p-todo",
    "kind": "screen",
    "title": "待办",
    "role": "home",
-   "size": 2270,
-   "hash": "15d6ac7a"
-  },
-  {
-   "id": "p-calendar",
-   "kind": "screen",
-   "title": "时间",
-   "role": "home",
-   "size": 5637,
-   "hash": "44660305"
-  },
-  {
-   "id": "p-diaryEdit",
-   "kind": "screen",
-   "title": "写日记",
-   "role": "home",
-   "size": 2625,
-   "hash": "bb680802"
-  },
-  {
-   "id": "p-noteEdit",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 3472,
-   "hash": "25d5483e"
-  },
-  {
-   "id": "p-sub-recmg",
-   "kind": "screen",
-   "title": "记录管理",
-   "role": "home",
-   "size": 2754,
-   "hash": "5551d373"
-  },
-  {
-   "id": "p-sub-todoTrash",
-   "kind": "screen",
-   "title": "垃圾箱",
-   "role": "home",
-   "size": 640,
-   "hash": "61dd53da"
+   "size": 1642,
+   "hash": "43c82357"
   },
   {
    "id": "p-inbox",
    "kind": "screen",
    "title": "收集箱",
    "role": "home",
-   "size": 1374,
-   "hash": "be4e60cc"
-  },
-  {
-   "id": "p-pstore",
-   "kind": "screen",
-   "title": "插件中心",
-   "role": "home",
-   "size": 1961,
-   "hash": "7963f1a7"
+   "size": 1390,
+   "hash": "f9b1dab1"
   },
   {
    "id": "p-profile",
    "kind": "screen",
    "title": "我的",
    "role": "home",
-   "size": 26300,
-   "hash": "7b1b8996"
+   "size": 15853,
+   "hash": "f2c04509"
   },
   {
-   "id": "p-sub-data",
+   "id": "p-sub-nfc",
    "kind": "screen",
-   "title": "数据与同步",
+   "title": "NFC 卡片",
    "role": "home",
-   "size": 3676,
-   "hash": "5b6e6ae4"
+   "size": 1885,
+   "hash": "3e6922ae"
   },
   {
-   "id": "p-sub-notify",
-   "kind": "screen",
-   "title": "提醒通知",
-   "role": "home",
-   "size": 2789,
-   "hash": "6b12de40"
-  },
-  {
-   "id": "p-sub-ai",
-   "kind": "screen",
-   "title": "AI 增强",
-   "role": "home",
-   "size": 4652,
-   "hash": "10cdcbe3"
-  },
-  {
-   "id": "p-sub-aiPrompts",
-   "kind": "screen",
-   "title": "提示词管理",
-   "role": "home",
-   "size": 249,
-   "hash": "3251ae01"
-  },
-  {
-   "id": "p-sub-aiPromptEdit",
-   "kind": "screen",
-   "title": "编辑提示词",
-   "role": "home",
-   "size": 1171,
-   "hash": "e2e7111c"
-  },
-  {
-   "id": "p-aiUsage",
-   "kind": "screen",
-   "title": "AI 使用记录",
-   "role": "home",
-   "size": 1065,
-   "hash": "134ce3a0"
-  },
-  {
-   "id": "p-timeStats",
-   "kind": "screen",
-   "title": "时间账本",
-   "role": "home",
-   "size": 782,
-   "hash": "d8f30482"
-  },
-  {
-   "id": "p-sub-cats",
-   "kind": "screen",
-   "title": "分类管理",
-   "role": "home",
-   "size": 728,
-   "hash": "a43390fd"
-  },
-  {
-   "id": "p-sub-catAdd",
-   "kind": "screen",
-   "title": "添加分类",
-   "role": "home",
-   "size": 2759,
-   "hash": "9f9362d2"
-  },
-  {
-   "id": "p-logs",
-   "kind": "screen",
-   "title": "日志管理",
-   "role": "home",
-   "size": 11259,
-   "hash": "dcb7c8b0"
-  },
-  {
-   "id": "sheetPlugin",
+   "id": "sheetNfcEdit",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1581,
-   "hash": "411571e8"
+   "size": 1867,
+   "hash": "b8a4b7be"
   },
   {
-   "id": "sheetLogSettings",
+   "id": "sheetNfcWrite",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3901,
-   "hash": "0a1255f0"
+   "size": 2334,
+   "hash": "975415eb"
   },
   {
-   "id": "p-sub-appearance",
+   "id": "sheetNfcDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 950,
+   "hash": "d8cca644"
+  },
+  {
+   "id": "p-records",
    "kind": "screen",
-   "title": "外观",
+   "title": "记录",
    "role": "home",
-   "size": 1946,
-   "hash": "a5598068"
+   "size": 3594,
+   "hash": "7cf935eb"
   },
   {
-   "id": "sheetAiUsageCfg",
+   "id": "sheetNoteImport",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1789,
-   "hash": "2ce7bf81"
+   "size": 1068,
+   "hash": "1d1e8401"
   },
   {
-   "id": "sheetAiProv",
+   "id": "sheetNoteOpenHist",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3448,
-   "hash": "327992dc"
+   "size": 870,
+   "hash": "d88e6921"
+  },
+  {
+   "id": "sheetNoteSrc",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 442,
+   "hash": "699537bf"
   },
   {
    "id": "sheetNoteMove",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 523,
-   "hash": "79853f35"
+   "size": 530,
+   "hash": "75835021"
   },
   {
    "id": "sheetSearch",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 771,
-   "hash": "92d431cf"
+   "size": 780,
+   "hash": "6373b653"
   },
   {
    "id": "sheetAddTask",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 7756,
-   "hash": "e28e33d9"
-  },
-  {
-   "id": "sheetTimePick",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 2766,
-   "hash": "b3bdc8d3"
+   "size": 8218,
+   "hash": "ff18915e"
   },
   {
    "id": "sheetAddEvent",
@@ -252,212 +140,100 @@
    "hash": "2bfc8f3b"
   },
   {
-   "id": "sheetGridMark",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1517,
-   "hash": "0895a071"
-  },
-  {
    "id": "sheetDatePick",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1086,
-   "hash": "27e8e5ef"
+   "size": 1101,
+   "hash": "fcf01314"
   },
   {
    "id": "sheetAddMedia",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2280,
-   "hash": "2b57ea42"
-  },
-  {
-   "id": "sheetDiaryTpl",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 585,
-   "hash": "2ccc021f"
-  },
-  {
-   "id": "sheetWeatherPick",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 673,
-   "hash": "bb120148"
-  },
-  {
-   "id": "sheetCityPick",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 612,
-   "hash": "3eb6ab20"
+   "size": 2309,
+   "hash": "70349886"
   },
   {
    "id": "sheetProfile",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1197,
-   "hash": "0bcf8192"
-  },
-  {
-   "id": "sheetDiaryTplEdit",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1126,
-   "hash": "8e072836"
-  },
-  {
-   "id": "sheetCatParent",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 678,
-   "hash": "dcad8fc6"
+   "size": 1209,
+   "hash": "b12b8ad2"
   },
   {
    "id": "sheetTask",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2083,
-   "hash": "8e65e4ea"
+   "size": 2105,
+   "hash": "d8f20c67"
   },
   {
    "id": "sheetAddExcerpt",
    "kind": "sheet",
    "title": "",
    "role": "rep",
-   "size": 1239,
-   "hash": "1ad213c9"
+   "size": 1251,
+   "hash": "b873c739"
   },
   {
    "id": "sheetAddItem",
    "kind": "sheet",
    "title": "",
    "role": "rep",
-   "size": 1698,
-   "hash": "da9f1430"
+   "size": 1716,
+   "hash": "39027077"
   },
   {
    "id": "sheetAddDay",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 925,
-   "hash": "5cbe29ee"
+   "size": 934,
+   "hash": "438bec82"
   },
   {
    "id": "sheetSnapshot",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1507,
-   "hash": "ff359f4e"
+   "size": 1519,
+   "hash": "579724a5"
   },
   {
    "id": "sheetImgSrc",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 682,
-   "hash": "e4eb78ca"
-  },
-  {
-   "id": "sheetDiaryFilter",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 402,
-   "hash": "d8886131"
-  },
-  {
-   "id": "sheetDiaryReview",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1602,
-   "hash": "0afa3990"
-  },
-  {
-   "id": "sheetNoteKit",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 3940,
-   "hash": "63199778"
-  },
-  {
-   "id": "sheetNoteShare",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1537,
-   "hash": "6c53903f"
+   "size": 691,
+   "hash": "90f6eb48"
   },
   {
    "id": "sheetProgress",
    "kind": "sheet",
    "title": "",
    "role": "rep",
-   "size": 945,
-   "hash": "b6368a4c"
+   "size": 956,
+   "hash": "ccce4702"
   },
   {
    "id": "sheetBabyMeasure",
    "kind": "sheet",
    "title": "",
    "role": "rep",
-   "size": 1280,
-   "hash": "1608a18b"
-  },
-  {
-   "id": "sheetPSDetail",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 360,
-   "hash": "5978e67a"
+   "size": 1293,
+   "hash": "e03243b9"
   },
   {
    "id": "sheetAddHabit",
    "kind": "sheet",
    "title": "",
    "role": "rep",
-   "size": 3304,
-   "hash": "f2b54599"
-  },
-  {
-   "id": "sheetThemeMarket",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 761,
-   "hash": "a17c56b4"
-  },
-  {
-   "id": "sheetTrashPurge",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 883,
-   "hash": "47108cb4"
-  },
-  {
-   "id": "sheetTsCat",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1085,
-   "hash": "6dea1639"
+   "size": 3350,
+   "hash": "53ce175b"
   }
  ]
 }

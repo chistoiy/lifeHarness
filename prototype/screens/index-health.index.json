@@ -1,6 +1,6 @@
 {
  "file": "index-health.html",
- "total": 347236,
+ "total": 288840,
  "cut": 0,
  "screens": [
   {
@@ -8,32 +8,32 @@
    "kind": "screen",
    "title": "健康",
    "role": "home",
-   "size": 6416,
-   "hash": "cad1b452"
+   "size": 6365,
+   "hash": "65e4fca2"
   },
   {
    "id": "p-body",
    "kind": "screen",
    "title": "身体数据",
    "role": "home",
-   "size": 2346,
-   "hash": "fe039520"
+   "size": 2319,
+   "hash": "74ddb453"
   },
   {
    "id": "p-exLog",
    "kind": "screen",
    "title": "运动记录",
    "role": "home",
-   "size": 1617,
-   "hash": "a10ddf2a"
+   "size": 1639,
+   "hash": "553e00c4"
   },
   {
    "id": "p-med",
    "kind": "screen",
    "title": "用药管理",
    "role": "home",
-   "size": 1310,
-   "hash": "cfcf9166"
+   "size": 1301,
+   "hash": "cd8ebd1f"
   },
   {
    "id": "p-sleepLog",
@@ -41,87 +41,87 @@
    "title": "睡眠记录",
    "role": "home",
    "size": 1859,
-   "hash": "59fed830"
+   "hash": "c1a488c3"
   },
   {
    "id": "p-trends",
    "kind": "screen",
    "title": "健康趋势",
    "role": "home",
-   "size": 2573,
-   "hash": "dba6cbd6"
+   "size": 2567,
+   "hash": "4360f0fe"
   },
   {
    "id": "p-goalsH",
    "kind": "screen",
    "title": "健康目标",
    "role": "home",
-   "size": 3266,
-   "hash": "12d72ca5"
+   "size": 3284,
+   "hash": "a60bf496"
   },
   {
    "id": "p-hSet",
    "kind": "screen",
    "title": "健康设置",
    "role": "home",
-   "size": 3543,
-   "hash": "f8636820"
+   "size": 3521,
+   "hash": "501c2330"
   },
   {
    "id": "sheetHAdd",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2722,
-   "hash": "1184cf89"
+   "size": 2708,
+   "hash": "ea4286f1"
   },
   {
    "id": "sheetHWeight",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2324,
-   "hash": "8c116aba"
+   "size": 2296,
+   "hash": "a35a7596"
   },
   {
    "id": "sheetHSleep",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2860,
-   "hash": "b43c6007"
+   "size": 2833,
+   "hash": "1f8d20df"
   },
   {
    "id": "sheetHEx",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2719,
-   "hash": "298b5a02"
+   "size": 2691,
+   "hash": "022ce23a"
   },
   {
    "id": "sheetHDrug",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1717,
-   "hash": "faf9a7c1"
+   "size": 1702,
+   "hash": "70a8bb1e"
   },
   {
    "id": "sheetHDrugLog",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 934,
-   "hash": "294a57c9"
+   "size": 924,
+   "hash": "6679ca9a"
   },
   {
    "id": "sheetHealthReport",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1520,
-   "hash": "613da0f4"
+   "size": 1524,
+   "hash": "1c7b6fc2"
   }
  ]
 }
