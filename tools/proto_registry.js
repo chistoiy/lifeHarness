@@ -92,13 +92,17 @@ console.log('file 条目合计 ' + total + ' · 完全复现 ' + okN + ' · size
 if (log.length) console.log(log.slice(0, 24).join('\n') + (log.length > 24 ? '\n…（共 ' + log.length + ' 条）' : ''));
 
 if (WRITE) {
-  const before = fs.readFileSync(REG, 'utf8');
-  /* 格式自证（对**未改写**的解析结果做序列化）：证明「parse→stringify(indent 1)+换行」逐字节等于原文件，
-     否则禁写——不然一次回写会把整份注册表重排，diff 炸成不可读，还可能吞字段。 */
+  const raw = fs.readFileSync(REG, 'utf8');
+  /* 格式自证（对**未改写**的解析结果做序列化）：证明「parse→stringify(indent 2)+换行」逐字节等于原文件，
+     否则禁写——不然一次回写会把整份注册表重排，diff 炸成不可读，还可能吞字段。
+     ⚠️ 本机autocrlf=true：仓内 blob 是 LF，工作区被 smudge 成 CRLF（`git ls-files --eol` 显示 i/lf w/crlf）。
+        若直接拿盘上 CRLF 文本自证，永远不等 ⇒闸会恒拒绝。故先按 git 的规范化口径（LF）比较，
+        回写也用 LF——git 提交时会再按 core.autocrlf 处理，仓内口径不会被破坏。 */
+  const before = raw.replace(/\r\n/g, '\n');
   const pristine = JSON.stringify(JSON.parse(before), null, 2) + '\n';
   if (pristine !== before) {
     let d = -1; for (let i = 0; i < Math.min(before.length, pristine.length); i++) { if (before[i] !== pristine[i]) { d = i; break } }
-    console.log('REFUSE 回写：JSON.parse→stringify(.,null,1) 与原文件不逐字节相等（原 ' + before.length + ' · 序列化 ' + pristine.length + ' · 首个差异第 ' + d + ' 字符），先对齐序列化口径');
+    console.log('REFUSE 回写：JSON.parse→stringify(.,null,2) 与原文件不逐字节相等（原 ' + before.length + ' · 序列化 ' + pristine.length + ' · 首个差异第 ' + d + ' 字符），先对齐序列化口径');
     process.exit(2);
   }
   const after = JSON.stringify(reg, null, 2) + '\n';
