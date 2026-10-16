@@ -190,9 +190,28 @@ def _gate(label, path, size, maxb, yellow=True):
 # 十一) AGENTS.md 体量（超＝注入截断；放宽须人审改下列常量并在治理件写理由）
 AGENTS_BYTES_MAX = 16384            # 16 KiB（Codex project_doc_max_bytes 默认 32 KiB，留一半余量）
 _gate("守护十一", "AGENTS.md", os.path.getsize("AGENTS.md"), AGENTS_BYTES_MAX, yellow=False)
-# 十二) 交接文档（2026-10-14 首次瘦身＝正文变更日志改滚动窗口只留近 7 天：203140→149674 字节）
-JIAOJIE_BYTES_MAX = 172032          # 168 KiB（棘轮＝瘦身后 149674 × 1.15 取整；旧上限 210 KiB）
+# 十二) 交接文档（2026-10-14 首次瘦身＝正文变更日志改滚动窗口只留近 7 天：203140→149674 字节；
+#       2026-10-16 治理五轮T2 二次瘦身＝「附」段被当成第二面变更日志，164 条流水 137 KB 整段沉档：161031→21540 字节）
+JIAOJIE_BYTES_MAX = 25600            # 25 KiB（棘轮＝瘦身后实测 21540 × 1.15 取整；旧上限 168 KiB）
 _gate("守护十二", "docs/交接文档.md", os.path.getsize("docs/交接文档.md"), JIAOJIE_BYTES_MAX)
+# 十二B) 交接文档「唯一活体变更日志面」内容型闸（2026-10-16 治理五轮T2 新增·守护十二只卡总字节看不见病根）
+#        病灶＝「附·本机未入库资产清单」标题之下被当成第二面变更日志，逐轮流水堆到 137 KB／全文 87%，
+#        且与 §5 变更日志重复登记（10-12/10-13/10-15 三天双份）＋出窗条目赖着不走。
+#        闸＝附段只许留指针：正文非空行 ≤6，且不得出现流水条目（日期开头的 "- " 列表行）。
+_JJ_LINES = open("docs/交接文档.md", encoding="utf-8").read().split("\n")
+_m = next((k for k, l in enumerate(_JJ_LINES) if l.startswith("## 附 ·")), None)
+if _m is None:
+    g.append("守护十二B：docs/交接文档.md 缺「## 附 ·」小节（小节被删/改名，本闸失效）")
+else:
+    _tail = [l for l in _JJ_LINES[_m + 1:] if l.strip() != ""]
+    if len(_tail) > 6:
+        g.append("守护十二B：交接文档「## 附 ·」段正文非空行 %d > 6——附段只许留指针，"
+                 "逐轮流水/资产盘点原文沉 docs/archive/变更台账-*.md" % len(_tail))
+    for _n, l in enumerate(_tail, 1):
+        if re.match(r"^-\s*\d{4}-\d{2}-\d{2}", l):
+            g.append("守护十二B：交接文档「## 附 ·」段出现流水条目（第 %d 行）——变更日志唯一活体面是 §5，"
+                     "此处出现逐批流水＝第二面登记面复发，须沉 docs/archive/变更台账-*.md" % _n)
+            break
 # 十三) 需求清单（行数 + 字节双闸；字节闸＝2026-10-14 新增——防「行数没超但巨行把体积顶满」，
 #       该件实测平均 263 字节/行、最长 983 字符，纯行数闸根本看不见体积）
 REQ_LINES_MAX = 600                 # 当前 562 行
