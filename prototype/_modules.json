@@ -1311,11 +1311,11 @@
       "id": "p-noteEdit",
       "kind": "screen",
       "title": "",
-      "home": "index.html",
+      "home": "index-journal.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-journal.html": {
           "size": 3800,
           "hash": "c9bdfaa6"
         }
@@ -3212,11 +3212,11 @@
       "id": "sheetNoteKit",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-journal.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-journal.html": {
           "size": 3970,
           "hash": "32e23dd3"
         }
@@ -3242,11 +3242,11 @@
       "id": "sheetNoteShare",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-journal.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-journal.html": {
           "size": 1549,
           "hash": "c696ee88"
         }
@@ -4571,37 +4571,37 @@
     {
       "file": "index-bookshelf.html",
       "id": "p-noteEdit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "p-noteEdit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "p-noteEdit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "p-noteEdit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "p-noteEdit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "p-noteEdit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
@@ -5987,73 +5987,73 @@
     {
       "file": "index-bookshelf.html",
       "id": "sheetNoteKit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "sheetNoteKit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "sheetNoteKit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "sheetNoteKit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "sheetNoteKit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "sheetNoteKit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-bookshelf.html",
       "id": "sheetNoteShare",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "sheetNoteShare",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "sheetNoteShare",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "sheetNoteShare",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "sheetNoteShare",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "sheetNoteShare",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
@@ -6530,7 +6530,7 @@
     {
       "file": "index-media.html",
       "id": "p-noteEdit",
-      "home": "index.html"
+      "home": "index-journal.html"
     },
     {
       "file": "index-media.html",
@@ -6675,7 +6675,7 @@
     {
       "file": "index-media.html",
       "id": "sheetNoteKit",
-      "home": "index.html"
+      "home": "index-journal.html"
     },
     {
       "file": "index-media.html",
@@ -6685,7 +6685,7 @@
     {
       "file": "index-media.html",
       "id": "sheetNoteShare",
-      "home": "index.html"
+      "home": "index-journal.html"
     },
     {
       "file": "index-media.html",
@@ -6800,7 +6800,7 @@
     {
       "file": "index-journal.html",
       "id": "p-noteEdit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
@@ -6998,13 +6998,13 @@
     {
       "file": "index-journal.html",
       "id": "sheetNoteKit",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "sheetNoteShare",
-      "home": "index.html",
+      "home": "index-journal.html",
       "exempt": null
     },
     {
@@ -7451,27 +7451,27 @@
     },
     {
       "from": "index-bookshelf.html#p-noteEdit",
-      "to": "index.html#p-noteEdit"
+      "to": "index-journal.html#p-noteEdit"
     },
     {
       "from": "index-ledger.html#p-noteEdit",
-      "to": "index.html#p-noteEdit"
+      "to": "index-journal.html#p-noteEdit"
     },
     {
       "from": "index-health.html#p-noteEdit",
-      "to": "index.html#p-noteEdit"
+      "to": "index-journal.html#p-noteEdit"
     },
     {
       "from": "index_habitcheck.html#p-noteEdit",
-      "to": "index.html#p-noteEdit"
+      "to": "index-journal.html#p-noteEdit"
     },
     {
       "from": "index-maternity_bady.html#p-noteEdit",
-      "to": "index.html#p-noteEdit"
+      "to": "index-journal.html#p-noteEdit"
     },
     {
       "from": "index-day_aim__goods.html#p-noteEdit",
-      "to": "index.html#p-noteEdit"
+      "to": "index-journal.html#p-noteEdit"
     },
     {
       "from": "index-bookshelf.html#p-sub-recmg",
@@ -8423,51 +8423,51 @@
     },
     {
       "from": "index-bookshelf.html#sheetNoteKit",
-      "to": "index.html#sheetNoteKit"
+      "to": "index-journal.html#sheetNoteKit"
     },
     {
       "from": "index-ledger.html#sheetNoteKit",
-      "to": "index.html#sheetNoteKit"
+      "to": "index-journal.html#sheetNoteKit"
     },
     {
       "from": "index-health.html#sheetNoteKit",
-      "to": "index.html#sheetNoteKit"
+      "to": "index-journal.html#sheetNoteKit"
     },
     {
       "from": "index_habitcheck.html#sheetNoteKit",
-      "to": "index.html#sheetNoteKit"
+      "to": "index-journal.html#sheetNoteKit"
     },
     {
       "from": "index-maternity_bady.html#sheetNoteKit",
-      "to": "index.html#sheetNoteKit"
+      "to": "index-journal.html#sheetNoteKit"
     },
     {
       "from": "index-day_aim__goods.html#sheetNoteKit",
-      "to": "index.html#sheetNoteKit"
+      "to": "index-journal.html#sheetNoteKit"
     },
     {
       "from": "index-bookshelf.html#sheetNoteShare",
-      "to": "index.html#sheetNoteShare"
+      "to": "index-journal.html#sheetNoteShare"
     },
     {
       "from": "index-ledger.html#sheetNoteShare",
-      "to": "index.html#sheetNoteShare"
+      "to": "index-journal.html#sheetNoteShare"
     },
     {
       "from": "index-health.html#sheetNoteShare",
-      "to": "index.html#sheetNoteShare"
+      "to": "index-journal.html#sheetNoteShare"
     },
     {
       "from": "index_habitcheck.html#sheetNoteShare",
-      "to": "index.html#sheetNoteShare"
+      "to": "index-journal.html#sheetNoteShare"
     },
     {
       "from": "index-maternity_bady.html#sheetNoteShare",
-      "to": "index.html#sheetNoteShare"
+      "to": "index-journal.html#sheetNoteShare"
     },
     {
       "from": "index-day_aim__goods.html#sheetNoteShare",
-      "to": "index.html#sheetNoteShare"
+      "to": "index-journal.html#sheetNoteShare"
     },
     {
       "from": "index-ledger.html#sheetProgress",
@@ -8860,6 +8860,18 @@
     {
       "from": "index.html#sheetTrashPurge",
       "to": "index-settings.html#sheetTrashPurge"
+    },
+    {
+      "from": "index.html#p-noteEdit",
+      "to": "index-journal.html#p-noteEdit"
+    },
+    {
+      "from": "index.html#sheetNoteKit",
+      "to": "index-journal.html#sheetNoteKit"
+    },
+    {
+      "from": "index.html#sheetNoteShare",
+      "to": "index-journal.html#sheetNoteShare"
     }
   ],
   "frozen": [

@@ -529,6 +529,45 @@ tailwind.config = {
     </section>
 
     <!-- ===== P4d 笔记编辑器（纯纯写作风 · 写作视图+源码/预览切换 · V1.29轮9e 去分屏 · 轮9o 去专注钮） ===== -->
+    <section id="p-noteEdit" class="page no-scrollbar" style="--pw-bg:#fbf8f1;--pw-fg:#403a31;background:var(--pw-bg);color:var(--pw-fg)">
+      <!-- 批3-方案1/2/4：头部左右与体/尾统一 px-5；pwTitle 在写作视图下「滚动浮出」（标题滚出视口后才淡入吸顶），src/预览视图常显；保存态降噪成一个安静的点 -->
+      <div id="pwHead" class="px-5 pt-2.5 pb-2 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg);transition:box-shadow .18s">
+        <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl">‹</button>
+        <div class="flex-1 min-w-0">
+          <div id="pwTitle" class="text-[13px] font-bold truncate" style="transition:opacity .18s">论写作工具的克制设计</div>
+          <div class="flex items-center gap-1.5 text-[10px] opacity-45"><span class="inline-block w-1.5 h-1.5 rounded-full bg-current"></span><span id="pwSaveState">已保存</span></div>
+        </div>
+        <!-- V1.29轮9h/9o：MD 顶行=写作(默认·无钮)+源码+预览 两个可再点回落的切换图标 · 段落聚焦由 ⋯ 笔记选项开关管 -->
+        <div class="flex gap-0.5 flex-shrink-0" id="pwModes">
+          <button class="pw-mode-btn" data-m="src" onclick="pwSetMode(pwMode==='src'?'focus':'src')" title="MD 源码">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5m8-10 5 5-5 5"/></svg></button>
+          <button class="pw-mode-btn" data-m="view" onclick="pwSetMode(pwMode==='view'?'focus':'view')" title="预览">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+        <button onclick="openSheet('sheetNoteKit')" class="pw-ic-btn">⋯</button>
+      </div>
+
+      <!-- 写作视图（默认态·现有段落·无模式钮） -->
+      <div class="px-5 pt-5 pb-28 pw-body pw-focus" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
+        <h1 class="text-[22px] font-extrabold leading-8 mb-5">论写作工具的克制设计</h1>
+        <p class="pw-cur">写作工具的第一要务，是让人忘记工具的存在。每一次弹窗、每一个闪烁的光标动画、每一处为了“智能”而打断心流的补全，都是对作者的干扰。</p>
+        <p>好的编辑器应该像一张纸：安静、退到背景里、只在被需要的瞬间出现。纸不会建议你写什么，但纸会诚实地接住你写下的一切——包括那些只写了一半的句子。</p>
+        <p>克制不等于简陋。自动保存、版本快照、断点续写，这些防丢稿的地基应该平时看不见，塌了才知道它重要。</p>
+        <p>☑ 待办行样式：勾选后自动同步为任务列表新任务（联动 L3，与日记同构）</p>
+        <p>Markdown、LaTeX 公式、实时渲染——都在，但只在你需要时才出现。</p>
+        <p class="opacity-60">（点击任意段落试试聚焦模式 · 本段以下为演示占位）字距、行距、纸色，是中文写作工具被低估的三件套。行高 2.15、字距 0.03em，是长时间盯屏不累的经验值。</p>
+        <!-- V1.29轮8①：纯文本也可插图=正文尾部「＋」附件卡 → 图库/拍照 -->
+        <button id="pwAttach" class="hidden mt-4 w-24 h-24 rounded-2xl items-center justify-center text-2xl active:scale-95 transition" style="background:rgba(120,110,90,.12);color:var(--pw-fg)" onclick="imgTarget='note';openSheet('sheetImgSrc')">＋</button>
+      </div>
+      <!-- 模式②③：源码 / 预览（V1.29轮9e：分屏移除·手机屏太小用不起来） -->
+      <div id="pwSrcWrap" class="hidden px-5 pt-3 pb-28"><div id="pwSrcBox"></div></div>
+      <div id="pwViewWrap" class="hidden px-5 pt-4 pb-28"><div id="pwViewBox" class="md-view"></div>
+        <div class="mt-4 text-[10px] opacity-45">公式渲染：原型为手写 LaTeX 子集演示 · 正式版采用 flutter_math_fork（KaTeX 语法）全量渲染；MD 语法支持：标题/粗斜删/代码块/引用/列表/待办/表格/链接/图片/分割线/行内与块级公式。</div></div>
+      <!-- V1.29：原底栏（字号/纸色/统计/聚焦/分类/置顶）整体移入右上角 ⋯ 二级子项 sheetNoteKit -->
+      <!-- V1.29轮8②：快捷操作栏移到底部（拇指热区·横向滑动）；H#/Tt/≡ 点开二级行也在底部，滑到尾部或 ✕ 收起 -->
+      <div id="pwSubRow" class="hidden sticky bottom-[46px] z-20 px-5 py-1.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.08)"></div>
+      <div id="pwBottomBar" class="hidden sticky bottom-0 z-20 px-5 py-2.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12)"></div>
+    </section>
     
 
     <!-- ===== P12g 二级：记录管理（V1.29轮6：按日记/笔记/阅读/影音游分类 + 通用设置） ===== -->
@@ -645,12 +684,8 @@ tailwind.config = {
     <button class="fab-act" onclick="fabPick('pomo')">🍅 番茄计时</button>
   </div>
 
-  <!-- V1.29：笔记 tab FAB 三选一（与首页快捷记录菜单同款·替代顶部写笔记按钮） -->
-  <div id="noteFabMenu" class="hidden absolute right-6 bottom-[140px] z-40 w-44 space-y-2 text-xs font-bold">
-    <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('rich')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>添加富文本</button>
-    <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('plain')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>添加纯文本</button>
-    <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('md')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>添加 MD 文档</button>
-  </div>
+  <!-- 批5（2026-10-16）：笔记 tab FAB 三选一（富文本 / 纯文本 / MD · newNote 入口）已随 p-records 网格留在壳 index.html ——
+       journal 无 p-records 屏（navTab 深链重定向回壳），本菜单与 showNoteFabMenu 一并移除；hideNoteFabMenu 保留（navTab / switchRecord 判空调用）。 -->
 
   <!-- ===== 番茄全屏专注页（V1.21 · 参考图1：圆环大时钟+任务名+⏸↺■） ===== -->
   <div id="pomoStage" class="hidden absolute inset-0 z-[60] flex-col items-center text-white" style="background:linear-gradient(180deg,#41618c 0%,#7d93b5 55%,#d8a9a2 100%)">
@@ -874,9 +909,52 @@ tailwind.config = {
     <span class="ins-img" style="width:76%;border-radius:16px;background:linear-gradient(135deg,#7dd3fc,#818cf8);font-size:64px">🌇</span>
   </div>
   
+  <div id="sheetNoteKit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" style="--pw-bg:#fbf8f1;--pw-fg:#403a31" onclick="if(event.target===this)closeSheet('sheetNoteKit')">
+    <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
+      <div class="grabber"></div>
+      <!-- V1.29轮9q：标题去「⋯」前缀（入口钮已有）·统计信息上移至标题右侧，原统计行移除 -->
+      <!-- V1.29轮9r：置顶行移除（置顶走列表批量操作）·导出行改为标题行统计右侧分享钮 -->
+      <div class="flex items-center justify-between"><div class="font-extrabold">笔记选项</div>
+        <div class="flex items-center gap-1.5"><b class="text-xs opacity-60" id="pwCount">312 字 · 约 1 分钟</b>
+        <button class="pw-ic-btn" title="分享 / 导出" onclick="closeSheet('sheetNoteKit');openSheet('sheetNoteShare')"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div></div>
+      <div class="mt-3 space-y-2 text-xs">
+        <!-- V1.29轮9j：行内去 emoji（纯文字简约风） -->
+        <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">类型</span>
+          <div class="flex gap-1.5 flex-1" id="pwTypes">
+            <button class="chip !py-1" data-t="rich" onclick="pwSetType('rich')">富文本</button>
+            <button class="chip !py-1" data-t="plain" onclick="pwSetType('plain')">纯文本</button>
+            <button class="chip chip-on !py-1" data-t="md" onclick="pwSetType('md')">MD 文档</button>
+          </div></div>
+        <div class="card !py-3 px-4 flex items-center gap-2.5"><span class="opacity-50 w-14 flex-shrink-0">字号</span><input type="range" min="13" max="19" value="15" oninput="pwFont(this.value)" class="flex-1"><span class="opacity-50 w-14 text-right flex-shrink-0" id="pwKitFont">15 px</span></div>
+        <!-- V1.29轮9n修正：纸色一行一体=预置4点+自定义色条+当前名（纸色仅对当前笔记生效·仅卡片视图条目底色跟随） -->
+        <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">纸色</span><div class="flex gap-1.5 flex-shrink-0" id="pwPapers"></div><input type="range" min="0" max="359" value="40" id="pwHue" oninput="pwSetPaperHue(this.value)" class="flex-1 min-w-0" style="background:linear-gradient(to right,hsl(0,60%,88%),hsl(60,60%,88%),hsl(120,60%,88%),hsl(180,60%,88%),hsl(240,60%,88%),hsl(300,60%,88%),hsl(359,60%,88%));border-radius:999px;height:14px;appearance:none;-webkit-appearance:none;outline:none"><span class="opacity-55 flex-shrink-0 text-right w-10" id="pwPaperName">米纸</span></div>
+        <!-- V1.29轮9j补正2/9o：聚焦=纸面默认开·开关在此（当前段高亮其余淡出·写作视图不再有专注钮）·开关靠右对齐 -->
+        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">聚焦</span><span id="pwFocusTgl" class="toggle on ml-auto" onclick="pwFocusToggle(this)"></span></div>
+        <!-- V1.29轮9p：行号开关（仅纯文本类型显示本行·默认关） -->
+        <div class="card !py-3 px-4 flex items-center hidden" id="pwLnRow"><span class="opacity-50 w-14 flex-shrink-0">行号</span><span id="pwLnTgl" class="toggle ml-auto" onclick="pwLnToggle(this)"></span></div>
+        <!-- V1.29轮9t：「分类」改口「文件夹」=同一 folder 字段（管理入口在列表 📂 树抽屉） -->
+        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">文件夹</span><span class="ml-auto">灵感</span><span class="text-slate-400 ml-1">▾</span></div>
+        <!-- V1.29轮9r：置顶行移除（置顶=列表批量操作）·导出行移除（改标题行分享钮→sheetNoteShare） -->
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteKit');openSheet('sheetSnapshot')"><span class="opacity-50 w-14 flex-shrink-0 text-left">快照</span><b class="ml-auto text-slate-400">版本快照 · 恢复 ›</b></button>
+      </div>
+      <button onclick="closeSheet('sheetNoteKit')" class="mt-3 w-full py-3 rounded-xl border text-sm font-bold" style="border-color:color-mix(in srgb,var(--pw-fg) 22%,transparent)">收起</button>
+    </div>
+  </div>
   <!-- V1.29轮9r：分享/导出弹层（笔记选项标题行分享钮唤起·原导出三项+图片分享） -->
   <!-- V1.29轮10-8：分享弹层与笔记选项同语言=纸色面板+整行条目(名称左 · ›右) -->
-  
+  <div id="sheetNoteShare" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" style="--pw-bg:#fbf8f1;--pw-fg:#403a31" onclick="if(event.target===this)closeSheet('sheetNoteShare')">
+    <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
+      <div class="grabber"></div>
+      <div class="font-extrabold">分享</div>
+      <div class="mt-3 space-y-2 text-xs">
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已导出 TXT（真实版=系统分享面板）')"><b class="text-left">导出 TXT</b><span class="ml-auto opacity-40">›</span></button>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已导出 Markdown（真实版=系统分享面板）')"><b class="text-left">导出 Markdown</b><span class="ml-auto opacity-40">›</span></button>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已复制全文到剪贴板')"><b class="text-left">复制全文</b><span class="ml-auto opacity-40">›</span></button>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已生成笔记图片卡片 · 存至 exports（系统分享面板规划 V1.x）')"><b class="text-left">以图片形式分享</b><span class="ml-auto opacity-40">›</span></button>
+      </div>
+      <button onclick="closeSheet('sheetNoteShare')" class="mt-3 w-full py-3 rounded-xl border text-sm font-bold" style="border-color:color-mix(in srgb,var(--pw-fg) 22%,transparent)">取消</button>
+    </div>
+  </div>
 
 
   <!-- ===== 阅读/观影进度录入（多方式） ===== -->
@@ -1138,7 +1216,7 @@ function fabGo(p,msg){ $('#fabMenu').classList.add('hidden'); $('#fab').style.tr
 /* V1.27：待办 FAB 类型二选一 = 首页快捷记录菜单同款行卡（页面风格统一） */
 function showTodoFabMenu(){$('#fabMenu').classList.add('hidden');$('#fab').style.transform='rotate(45deg)';$('#todoFabMenu').classList.remove('hidden')}
 function hideTodoFabMenu(){const m=$('#todoFabMenu');if(m)m.classList.add('hidden');const f=$('#fab');if(f&&$('#fabMenu').classList.contains('hidden'))f.style.transform=''}
-function showNoteFabMenu(){$('#fabMenu').classList.add('hidden');$('#fab').style.transform='rotate(45deg)';$('#noteFabMenu').classList.remove('hidden')}
+/* 批5（2026-10-16）：showNoteFabMenu 随 #noteFabMenu 移除（journal 无 p-records 屏 · FAB_CFG p-records 分支不可达）；hideNoteFabMenu 保留（判空调用方仍在）。 */
 function hideNoteFabMenu(){const m=$('#noteFabMenu');if(m)m.classList.add('hidden');const f=$('#fab');if(f&&$('#fabMenu').classList.contains('hidden'))f.style.transform=''}
 function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 
@@ -2479,13 +2557,10 @@ let noteView='list',noteCols=2,noteFolder='';
 /* V1.29轮6：排序三方式（标题/创建时间/最后修改）+ 长按批量选择（删除/移动到/置顶） */
 /* V1.29轮8④：再点当前排序项=方向翻转（最后修改 ↓⇄↑ / 创建时间 ↓⇄↑ / 标题 A→Z⇄Z→A） */
 let noteSort='upd',noteAsc=false;
-function sortLabel(k){return k==='title'?(noteAsc?'标题 Z→A':'标题 A→Z'):k==='cre'?(noteAsc?'创建时间 ↑':'创建时间 ↓'):(noteAsc?'最后修改 ↑':'最后修改 ↓');}
-function noteSortClick(k){if(noteSort===k){noteAsc=!noteAsc;renderNoteSortMenu();}else{noteSort=k;noteAsc=false;$('#noteSortMenu').classList.add('hidden');}renderNotes();toast('排序：'+sortLabel(k));}
+/* 批5（2026-10-16）：排序菜单 sortLabel / noteSortClick 已随 p-records 笔记网格留在壳 index.html —— journal 无 notes 网格（renderNotes 旧孪生随批删除）。 */
 function nkey(s){if(!s)return '';if(s.startsWith('今天'))return '2026-09-19';return /^\d{4}-/.test(s)?s:'2026-'+s;} /* 轮9s：跨年样本归一化排序 */
 
-function renderNoteSortMenu(){const m=$('#noteSortMenu');
-  m.innerHTML=['upd','cre','title'].map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===noteSort?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="noteSortClick('${k}')">${sortLabel(k)}<span class="text-[11px]">${k===noteSort?'✓':''}</span></button>`).join('');}
-document.addEventListener('pointerdown',e=>{const m=$('#noteSortMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recNote'))m.classList.add('hidden')},true);
+/* 批5（2026-10-16）：renderNoteSortMenu 与 #noteSortMenu 收起监听随上留在壳（journal 无 notes 网格 · 无 #noteSortMenu 呼出点）。 */
 let noteSelMode=false,noteSel=new Set();
 
 function noteSorted(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);
@@ -2494,105 +2569,6 @@ function noteSorted(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteF
       :nkey(noteSort==='cre'?b.cre:b.time).localeCompare(nkey(noteSort==='cre'?a.cre:a.time));
     return noteAsc?-r:r;});
   return list;}
-function renderNotes(){const L=$('#noteList');
-  const list=noteSorted();
-  /* V1.29轮9b：卡片视图=瀑布流错落（CSS columns）·卡片 1 标题 + 最多 4 行正文 + 1 时间行 */
-  const card=noteView==='card';
-  L.className=card?'mt-2 note-masonry':'';
-  L.style.columnCount=card?noteCols:'';
-  L.innerHTML=list.map(n=>{const sel=noteSel.has(n.t);
-    const body=card?`<div class="text-xs text-slate-500 mt-1 overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical">${n.txt}</div>`
-      :`<div class="text-xs text-slate-500 mt-1 truncate">${n.txt}</div>`;
-    return `<div class="note-sw min-w-0 ${card?'':'mb-2.5'}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
-    <div class="note-card card" ${card&&NOTE_PAPER[n.t]?'style="background:'+NOTE_PAPER[n.t].bg+'"':''} onclick="noteTap(this,'${n.t}')" oncontextmenu="event.preventDefault();noteEnterSel('${n.t}')">
-    <div class="flex items-center gap-2.5"><div class="flex-1 min-w-0">
-    <b class="text-sm block truncate">${n.t}</b>
-    ${body}
-    <div class="flex items-center gap-1.5 mt-1.5"><span class="text-[10px] text-slate-400">${n.time}</span>${n.pin?`<span class="inline-flex text-amber-500" style="transform:rotate(45deg);width:13px;height:13px">${NT_IC.pin.replace(/width="15" height="15"/,'width="13" height="13"')}</span>`:''}</div>
-    </div>${noteSelMode?`<span class="nchk ${sel?'on':''} flex-shrink-0">✓</span>`:''}</div></div></div>`;}).join('');
-  $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;const w=c.parentElement;
-    c.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;},{passive:true});
-    c.addEventListener('touchmove',e=>{if(noteSelMode)return;dx=Math.min(0,Math.max(-84,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
-    c.addEventListener('touchend',()=>{if(noteSelMode)return;c.style.transform='';if(dx<-36){$$('#noteList .note-card.open').forEach(o=>{if(o!==c){o.classList.remove('open');o.parentElement.classList.remove('show-del')}});c.classList.add('open');w.classList.add('show-del');}else{c.classList.remove('open');w.classList.remove('show-del');}});});}
-function noteTap(el,t){if(el.classList.contains('open')){el.classList.remove('open');el.parentElement.classList.remove('show-del');return;}
-  if(noteSelMode){if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);
-    if(!noteSel.size){noteExitSel();return;}updateNoteSelBar();renderNotes();return;}
-  pwNote=t;pwLoadNotePaper(t);navTo('p-noteEdit');}
-function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);}
-  else{if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);}
-  updateNoteSelBar();renderNotes();}
-function noteAllPinned(){return [...noteSel].every(t=>{const x=D.notes.find(y=>y.t===t);return x&&x.pin;});}
-function updateNoteSelBar(){const b=$('#noteSelBar');if(!b)return;
-  if(!noteSelMode||!noteSel.size){noteExitSel();return;}
-  b.classList.remove('hidden');b.classList.add('flex');
-  const top=$('#noteSelTop');top.classList.remove('hidden');top.classList.add('flex');
-  $('#noteSelTopN').textContent=noteSel.size;
-  $('#notePinLabel').textContent=noteAllPinned()?'取消置顶':'置顶';}
-function noteExitSel(){noteSelMode=false;noteSel.clear();const b=$('#noteSelBar');if(b){b.classList.add('hidden');b.classList.remove('flex');}
-  const top=$('#noteSelTop');if(top){top.classList.add('hidden');top.classList.remove('flex');}renderNotes();}
-function noteBatchPin(){const n=noteSel.size,un=noteAllPinned();D.notes.forEach(x=>{if(noteSel.has(x.t))x.pin=un?0:1;});noteExitSel();toast(un?`已取消置顶 ${n} 篇`:`已置顶 ${n} 篇`);}
-function noteBatchTrash(){const n=noteSel.size;noteExitSel();toast(`已移入回收站 ${n} 篇 · 保留期内可恢复`);}
-function ntFlat(list,d,out){list=list||NTREE;d=d||0;out=out||[];list.forEach(n=>{out.push({n:n.n,d:d});ntFlat(n.c,d+1,out);});return out;}
-function noteBatchMove(){if(!noteSel.size)return;$('#nmCount').textContent=noteSel.size;
-  $('#nmList').innerHTML=ntFlat().map(f=>`<button class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-bold active:bg-slate-100 dark:active:bg-slate-700" style="padding-left:${12+f.d*16}px" onclick="noteMoveTo('${f.n}')"><span class="nt-ic text-slate-400">${NT_IC.folder}</span>${f.n}</button>`).join('');
-  openSheet('sheetNoteMove');}
-function noteMoveTo(f){const n=noteSel.size;D.notes.forEach(x=>{if(noteSel.has(x.t))x.folder=f;});closeSheet('sheetNoteMove');noteExitSel();toast(`已移动 ${n} 篇到「${f}」`);}
-function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>{o.classList.remove('open');o.parentElement.classList.remove('show-del')});toast(`已移入回收站 · 保留期内可在「回收站」恢复（${t}）`);}
-/* —— V1.29 三轮：多层嵌套文件夹 · 树状侧边栏抽屉（简约线性图标 · 参考 Obsidian） —— */
-const NT_IC={
- all:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
- folder:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/></svg>',
- trash:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>',
- add:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
- folderAdd:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M14.5 12.5h5m-2.5-2.5v5"/></svg>',
- edit:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/></svg>',
- sort:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M4 12h7M4 18h4M17 8v11m0 0 3-3m-3 3-3-3"/></svg>',
- expand:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 8 7l4 4 4-4-4-4ZM12 21l4-4-4-4-4 4 4 4Z"/></svg>',
- close:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
- pin:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V3H9v7.76Z"/></svg>',
- folderMove:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M11 12.5h5m0 0-2-2m2 2-2 2"/></svg>',
- caretR:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
- caretD:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
-const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',c:[]}];
-let ntOpen={},ntSel='';
-/* V1.29轮6：点选=选中当前目录（抽屉保持打开）·添加文件夹=建在选中目录下 */
-function ntFindPath(name,list,path,key){list=list||NTREE;path=path||[];key=key||'';
-  for(let i=0;i<list.length;i++){const n=list[i],k=key===''?String(i):key+'.'+i;
-    if(n.n===name)return{arr:list,i:i,k:k};
-    const r=ntFindPath(name,n.c||[],path.concat([k]),k);if(r)return r;}
-  return null;}
-function ntAdd(){const target=ntSel;
-  const n=prompt(target?'新建文件夹名称（将创建在「'+target+'」下）':'新建文件夹名称（创建在顶层）');
-  if(!n)return;
-  let arr=NTREE;
-  if(target){const p=ntFindPath(target);if(!p){toast('未找到目标文件夹');return;}arr=p.arr[p.i].c;ntOpen[p.k]=true;}
-  arr.push({n:n,c:[]});renderNt();toast(target?'已在「'+target+'」下新建「'+n+'」':'已新建顶层文件夹「'+n+'」');}
-function ntRename(){toast(ntSel?'重命名「'+ntSel+'」（模拟）':'先点选树中的文件夹，再按此键');}
-let ntSortMode=0;const NT_SORTS=['名称 A→Z','创建时间 ↓','手动（长按拖动 · 拖入另一夹=子级）'];
-let ntAllOpen=false;
-function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
-function ntToggle(i){ntOpen[i]=!ntOpen[i];renderNt();}
-function ntPick(n,has){ntSel=n;noteFolder=n;if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
-function ntKeyOf(name){const p=ntFindPath(name);return p?p.k:'';}
-function ntLong(n){toast('长按「'+n+'」：重命名 / 删除（内有笔记时提示迁移）· 拖动排序（拖入另一夹=变子级）');}
-function ntRow(n,d,i){const kids=n.c||[];const has=kids.length>0;
-  return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}',${has})" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
-    <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${typeof i==='number'?i:"'"+i+"'"})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
-    <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}</span><span class="text-[9px] text-slate-400">${2+n.n.length}</span></div>`
-    +(has&&ntOpen[i]?kids.map((k,ki)=>ntRow(k,d+1,i+'.'+ki)).join(''):'');}
-function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="ntSel='';noteFolder='';renderNotes();renderNt()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
-  +NTREE.map((n,i)=>ntRow(n,0,i)).join('')
-  +`<div class="nt-row" onclick="ntClose();gtOpen('note')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">${gtCnt('note')}</span></div>`
-  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`;}
-
-function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
-(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
-let noteRestore='replace';
-function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
-  $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';
-  toast(noteRestore==='replace'?'恢复=直接替换当前正文（替换前自动留快照）':'恢复=新增一条副本笔记，当前正文不动');}
-function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');if(key==='trash')recSetChanged(key);}
-function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'未归类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});
   /* 批3-方案1：编辑页滚动容器＝section.page 自身，滚动时驱动头部标题浮出与吸顶分隔 */
@@ -3524,12 +3500,12 @@ function renderMoodMini(){const hs=['#6366f1','#2dd4bf','#f59e0b','#fb7185','#8b
   $('#moodMini').innerHTML=Array.from({length:30},(_,i)=>`<button class="flex-1 rounded-t-sm" style="height:${25+((i*53)%4)*23}%;background:${hs[(i*7)%6]};opacity:.9" onclick="event.stopPropagation();toast('查看 09-${String(i+1).padStart(2,'0')} 当天记录（模拟）')"></button>`).join('');}
 function diaryLayout(k){dlLayout=k;const b=$('#diaryViewBtn');if(b)b.textContent=k==='list'?'☰':'▦';renderDiaryList();
   toast(k==='ins'?'INS 卡片流预览':'列表视图');}
-window.addEventListener('load',function(){try{renderDiaryList();renderMoodMini();}catch(e){console.warn('[journal-init]',e);}});
+window.addEventListener('load',function(){try{renderDiaryList();renderMoodMini();initPW();initPW2();}catch(e){console.warn('[journal-init]',e);}});
 </script>
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
 (function(){
-var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index-time.html","index-time.html"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index-settings.html","设置子屏"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-items":["index-day_aim__goods.html","目标"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-days":["index-day_aim__goods.html","目标"],"p-health":["index-health.html","健康"],"p-goals":["index-day_aim__goods.html","目标"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index-sync.html","同步"],"p-sub-notify":["index-settings.html","设置子屏"],"p-sub-ai":["index-ai.html","AI 增强"],"p-sub-cats":["index-time.html","index-time.html"],"p-sub-catAdd":["index-time.html","index-time.html"],"p-sub-appearance":["index-settings.html","设置子屏"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index-time.html","index-time.html"],"sheetDatePick":["index.html","壳与跨模块"],"sheetCatParent":["index-time.html","index-time.html"],"sheetTask":["index.html","壳与跨模块"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddDay":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index-settings.html","设置子屏"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetAddMedia":["index.html","壳与跨模块"],"p-aiUsage":["index-ai.html","AI 增强"],"p-logs":["index-sync.html","同步"],"p-sub-aiPromptEdit":["index-ai.html","AI 增强"],"p-sub-aiPrompts":["index-ai.html","AI 增强"],"p-sub-aiVerify":["index-ai.html","AI 增强"],"p-sub-backup":["index-sync.html","同步"],"p-sub-dbstats":["index-sync.html","同步"],"p-sub-mediaclean":["index-sync.html","同步"],"p-sub-trash":["index-settings.html","设置子屏"],"p-timeStats":["index-time.html","index-time.html"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetAiPick":["index-ai.html","AI 增强"],"sheetAiProv":["index-ai.html","AI 增强"],"sheetAiUsageCfg":["index-ai.html","AI 增强"],"sheetBkDel":["index-sync.html","同步"],"sheetLogSettings":["index-sync.html","同步"],"sheetMcDel":["index-sync.html","同步"],"sheetProfile":["index.html","壳与跨模块"],"sheetTrashKeep":["index-settings.html","设置子屏"],"sheetTrashPurge":["index-settings.html","设置子屏"],"sheetTsCat":["index-time.html","index-time.html"]};
+var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index-time.html","index-time.html"],"p-sub-recmg":["index-settings.html","设置子屏"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-items":["index-day_aim__goods.html","目标"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-days":["index-day_aim__goods.html","目标"],"p-health":["index-health.html","健康"],"p-goals":["index-day_aim__goods.html","目标"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index-sync.html","同步"],"p-sub-notify":["index-settings.html","设置子屏"],"p-sub-ai":["index-ai.html","AI 增强"],"p-sub-cats":["index-time.html","index-time.html"],"p-sub-catAdd":["index-time.html","index-time.html"],"p-sub-appearance":["index-settings.html","设置子屏"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index-time.html","index-time.html"],"sheetDatePick":["index.html","壳与跨模块"],"sheetCatParent":["index-time.html","index-time.html"],"sheetTask":["index.html","壳与跨模块"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddDay":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index-settings.html","设置子屏"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetAddMedia":["index.html","壳与跨模块"],"p-aiUsage":["index-ai.html","AI 增强"],"p-logs":["index-sync.html","同步"],"p-sub-aiPromptEdit":["index-ai.html","AI 增强"],"p-sub-aiPrompts":["index-ai.html","AI 增强"],"p-sub-aiVerify":["index-ai.html","AI 增强"],"p-sub-backup":["index-sync.html","同步"],"p-sub-dbstats":["index-sync.html","同步"],"p-sub-mediaclean":["index-sync.html","同步"],"p-sub-trash":["index-settings.html","设置子屏"],"p-timeStats":["index-time.html","index-time.html"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetAiPick":["index-ai.html","AI 增强"],"sheetAiProv":["index-ai.html","AI 增强"],"sheetAiUsageCfg":["index-ai.html","AI 增强"],"sheetBkDel":["index-sync.html","同步"],"sheetLogSettings":["index-sync.html","同步"],"sheetMcDel":["index-sync.html","同步"],"sheetProfile":["index.html","壳与跨模块"],"sheetTrashKeep":["index-settings.html","设置子屏"],"sheetTrashPurge":["index-settings.html","设置子屏"],"sheetTsCat":["index-time.html","index-time.html"]};
 var DROP=window.LH_DROPPED={};
 var SELF=window.LH_SELF={};
 window.LH_LANDING="p-diaryHome";

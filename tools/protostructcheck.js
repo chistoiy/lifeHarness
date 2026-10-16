@@ -60,8 +60,9 @@ const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox'];
   /* 2026-10-12 时间模块抽离批：4 屏（p-calendar/p-timeStats/p-sub-cats/p-sub-catAdd）迁出壳 ⇒ 页段数 23→19，
      阈值随之下调为 >=15（仍是「壳没被拆空」的护栏）
      2026-10-16 批2：备份/数据组 5 屏迁 index-sync ⇒ 19→16；批3：AI 组 5 屏迁 index-ai ⇒ 16→12，阈值随之下调为 >=10
-     2026-10-16 批4：设置二级组 5 屏（appearance/notify/recmg/trash/desktop）迁 index-settings ⇒ 12→7，阈值随之下调为 >=7 */
-  (r1.all >= 7 && r1.all === r1.inMain && r1.mainW > 380)
+     2026-10-16 批4：设置二级组 5 屏（appearance/notify/recmg/trash/desktop）迁 index-settings ⇒ 12→7，阈值随之下调为 >=7
+     2026-10-16 批5：笔记组 p-noteEdit 屏迁 index-journal ⇒ 7→6，阈值随之下调为 >=6 */
+  (r1.all >= 6 && r1.all === r1.inMain && r1.mainW > 380)
     ? ok('① ' + r1.all + ' 个 page 段全部在 main 壳内 · 壳宽 ' + r1.mainW + 'px') : bad('① page 段归属', JSON.stringify(r1));
 
   /* ② 逐页激活量宽：被拆坏的页会塌成 padding 宽（≈40px） */
