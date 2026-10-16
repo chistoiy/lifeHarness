@@ -23,7 +23,9 @@ const WRITE = argv.includes('--write'), CHECK = argv.includes('--check');
 const reg = JSON.parse(fs.readFileSync(REG, 'utf8'));
 const byid = Object.fromEntries(reg.screens.map(s => [s.id, s]));
 const frozen = new Set(reg.frozen || []);
-/* 在册专版＝注册表 screens[].files 里出现过的文件（frozen 豁免：并行会话正在下架的 v2.html / index-v2.html） */
+/* 在册专版＝注册表 screens[].files 里出现过的文件（frozen 豁免：v2.html / index-v2.html
+   两份非本系列旧原型已于 2026-10-16 由产品手动删除并提交，条目留在 frozen 里作历史台账；
+   三个闸都按「名单内即豁免」处理，故这些条目无害——frozen 是豁免名单而非在册名单）*/
 const onfile = new Set();
 for (const s of reg.screens) for (const f of Object.keys(s.files || {})) if (!frozen.has(f)) onfile.add(f);
 
