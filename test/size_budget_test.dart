@@ -15,11 +15,6 @@ void main() {
 
   // 治理 G0~G7d⑤ 交付后（2026-09-29）实测登记的基线预算。
   const budget = <String, int>{
-    // 1778→1806 本批净增 28（阅读模块批2 · 2026-10-14）：F2-15 保存防重入门
-    // （`_busy` 门＋保存钮置灰）＋F2-12 书名必填就地红字（新增态/编辑态两处
-    // `_field(_title)` 各包一层 Column 挂 `FieldError`，输入即撤）。
-    // 真还债＝书籍表单群拆 part，另批做。
-    'features/read/presentation/read_sheets_b2.dart': 1806,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // book_detail 登记值 1570→1579 同属存量越线归位（V1.60 导入批实测 HEAD 即 1579，
     // 本批只改两行同长文案，净增 0；真还债＝三态弹层群拆 part，另批做）。
@@ -77,6 +72,9 @@ void main() {
     // dashboard_page 已还债：1204→1200 落到默认 1200 面（时间模块 B10 5700dff9 删旧 events
     // 系接线），按口径「拆完删项」**删除登记**（阅读模块批2 · 2026-10-14 跑出 stale 提醒）。
     'features/settings/presentation/settings_page.dart': 1609,
+    // 高保真批6b·刀1（2026-10-16）归还批2 登记的 read_sheets_b2 体积债：
+    // _BookForm/_BookFormState 整组迁入同库 part read_sheets_b2_form.dart（小件群落扩展），
+    // 主文件 1806→716，按口径删登记项还默认面。
     // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
     // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
     // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。

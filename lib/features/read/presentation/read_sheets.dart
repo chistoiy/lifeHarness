@@ -24,6 +24,7 @@ import 'read_providers.dart';
 import 'widgets/bs_cover.dart';
 
 part 'read_sheets_b2.dart';
+part 'read_sheets_b2_form.dart';
 part 'read_sheets_b3.dart';
 part 'read_sheets_b4.dart';
 
