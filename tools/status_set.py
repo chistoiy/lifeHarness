@@ -27,7 +27,7 @@ PATH = os.path.join(ROOT, 'docs', 'STATUS.md')
 
 MAX_FIELD_CHARS = 400
 MAX_LINE_CHARS = 1200
-MAX_FILE_BYTES = 14336              # 14 KiB（2026-10-14 棘轮自 16384 下调；黄线＝12,902）
+MAX_FILE_BYTES = 10752              # 10.5 KiB（2026-10-16 治理五轮 T1 再下调：瘦身后实测 9,721 × 1.10 取整；黄线＝9,677。**规则二＝默认面＋收窄，放宽须人审并写理由，禁止单向放宽**）
 LEVELS = ['\u672c\u6279', '\u4e0a\u4e00\u6279']          # 本批 / 上一批（只许两级）
 FIELD_RE = re.compile(r'^- \*\*([^*\n]{2,10})\uff1d\*\* ?(.*)$')
 

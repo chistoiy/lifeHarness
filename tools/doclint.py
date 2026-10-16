@@ -237,6 +237,39 @@ if _bl > BACKLOG_LINES_MAX:
 #       它 60 KB 且每轮收口都在长（测试口径/流水线细则先写这里），自 2026-09-25 起无人拦。）
 PLAN_BYTES_MAX = 71680              # 70 KiB（棘轮＝2026-10-14 实测 60202 × 1.15 取整）
 _gate("守护十七", "docs/开发计划书.md", os.path.getsize("docs/开发计划书.md"), PLAN_BYTES_MAX)
+# ---- 守护二十/二十一/二十二：治理文档「内容型瘦身闸」（治理五轮 T1·2026-10-16 立）----
+# 起因：本仓文档瘦身规则**只卡字节/行数上限，不卡「该沉什么」**——每轮收尾照抄读数，
+# 闸红了就单向放宽上限，永远回不到默认面。2026-10-16 实测病灶：
+#   · INDEX 84,698 B 里 69%（30,799 字符）挂在 43 条**已归档件**的行尾流水上（最长一行 11,930 字符），活件仅 18 条；
+#   · STATUS 13,931 B 已越黄线 12,902，单行滚存（下一站 1,192 字符）；
+#   · 排期池速览表与详情段**重复登记同一实测读数**。
+# 本组三闸改「量型判红」为「内容型判红」——不看总字节，看该沉的内容是否还钉在现行件里。
+# 工单＝docs/handoff/交棒话术-20261016-治理文档瘦身规则优化.md §2 规则一。
+
+# 守护二十：INDEX 归档件行 ≤ ARCHIVE_ROW_MAX 字符（归档件只需「在哪、能查」，不需要「做了什么」）
+ARCHIVE_ROW_MAX = 220
+for _l in [x for x in idx.splitlines() if x.strip().startswith("| docs/archive/")]:
+    if len(_l) > ARCHIVE_ROW_MAX:
+        g.append("守护二十：INDEX 归档件行 %d 字符 > %d「%s…」——历史叙事沉该件自身 docs/archive/ 正文，INDEX 只留路径＋一句能查（工单 §2 规则三）"
+                 % (len(_l), ARCHIVE_ROW_MAX, _l.strip()[:40]))
+
+# 守护二十一：STATUS 单行滚存 ≤ STATUS_ROW_MAX 字符（严于 status_set.py 的 1200，专治下一站/复测包这类超长行）
+STATUS_ROW_MAX = 700                # 单行滚存上限（严于 status_set.py 的 MAX_LINE_CHARS=1200·专治下一站/复测包类超长行）
+_st_body = open("docs/STATUS.md", encoding="utf-8").read()
+for _i, _l in enumerate(_st_body.splitlines(), 1):
+    if len(_l) > STATUS_ROW_MAX:
+        g.append("守护二十一：STATUS L%d %d 字符 > %d——单行只许写「现状一行结论＋指针」，历史读数沉交接文档变更日志（工单 §2 规则三）"
+                 % (_i, len(_l), STATUS_ROW_MAX))
+
+# 守护二十二：排期池速览表行 ≤ BACKLOG_ROW_MAX 字符（速览只留结论＋指针，细节在详情段）
+BACKLOG_ROW_MAX = 160
+_bl_view = [x for x in open(_bp, encoding="utf-8").read().splitlines()
+            if x.strip().startswith("|") and x.count("|") >= 5]
+for _l in _bl_view:
+    if len(_l) > BACKLOG_ROW_MAX:
+        g.append("守护二十二：排期池速览行 %d 字符 > %d——速览只留一行结论＋指针，细节在详情段（工单 §2 规则三）"
+                 % (len(_l), BACKLOG_ROW_MAX))
+
 # ---- 守护十九：收口必归档（治理四轮 T1·2026-10-16 立）----
 # 起因：2026-10-02 治理二轮做过一次同款流转（26 份→4 活 22 闭环，tools/gov2_move_tickets.py），
 # 但**没有任何闸管「收口了要归档」**——两周内 docs/handoff/ 又从 4 份积回 50 份，其中 17 份
@@ -255,6 +288,7 @@ ACTIVE_TICKETS19 = {
     "交棒话术-20261004-笔记本地导入导出与系统打开方式.md",
     "交棒话术-20261005-UX审计真机批-贴底行吞点击与工装转正.md",
     "悬浮胶囊增强批-20261014.md",
+    "交棒话术-20261016-治理文档瘦身规则优化.md",
 }
 _ho = "docs/handoff"
 _on_disk = {f for f in os.listdir(_ho)
