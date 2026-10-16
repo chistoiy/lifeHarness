@@ -1582,7 +1582,9 @@ function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.
   return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span>${bn?`<span class="navbadge">${bn>99?'99+':bn}</span>`:''}</button>`}).join('');}
 function renderNavSet(){$('#navSetList').innerHTML=NAV_MODS.map(([p,label])=>{const on=activeTabs.includes(p);
   /* 2026-10-15：锚栏目（今天/我的）不再常开不可点，可关其一 —— 开关值如实反映 activeTabs */
-  return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}</span><span class="toggle '+(on?'on':'')+'" onclick="navToggle(''+p+'',this)"></span></div>`}).join('');
+  /* 2026-10-16 修障（产品报障「导航自定义开关点不动」）：桌面批2+3 单行模板化时漏改插值，
+     class/onclick 曾变字面量（点击即 ReferenceError: p is not defined），on 与 p 改回 ${} 插值 */
+  return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}</span><span class="toggle ${on?'on':''}" onclick="navToggle('${p}',this)"></span></div>`}).join('');
   $('#navCount').textContent=activeTabs.length;}
 /* 折叠态（会话内，不落偏好）：点标题行展开/收起 */
 let navSetOpen=false;
