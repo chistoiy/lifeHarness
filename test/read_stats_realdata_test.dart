@@ -20,6 +20,8 @@ void main() {
       // 统计取数与呈现链（读数来源），逐个扫「伪随机」关键词。
       const files = [
         'lib/features/read/presentation/stats/read_stat_page.dart',
+        // 高保真批6c·刀2（2026-10-16）：卡群拆 part 迁入同库件，进统计取数呈现链扫描面。
+        'lib/features/read/presentation/stats/read_stat_page_cards.dart',
         'lib/features/read/presentation/stats/read_stat_widgets.dart',
         'lib/features/read/presentation/stats/read_stat_heat_card.dart',
       ];

@@ -97,7 +97,8 @@ void main() {
       'features/read/presentation/read_sheets_b4.dart': 1,
       'features/read/presentation/reader/reader_sel_ops.dart': 1,
       'features/read/presentation/stats/quotes_lib_page.dart': 4,
-      'features/read/presentation/stats/read_stat_page.dart': 1,
+      // 高保真批6c·刀2（2026-10-16）：「已联动 L4/L7」文案随统计卡群拆 part 迁入同库件，登记随迁。
+      'features/read/presentation/stats/read_stat_page_cards.dart': 1,
       'features/todo/presentation/widgets/quadrant_board.dart': 1,
       'features/todo/presentation/widgets/todo_edit_sheet.dart': 3,
       'features/todo/presentation/widgets/todo_list_view.dart': 1,

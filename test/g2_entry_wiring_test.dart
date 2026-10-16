@@ -17,17 +17,21 @@ void main() {
 
   group('G2 假死入口接线', () {
     test('阅读统计「看账本」真跳 /ledger · 占位文案与过期注释归零', () {
-      const f = 'lib/features/read/presentation/stats/read_stat_page.dart';
-      final s = src(f);
-      expect(s, contains("import 'package:go_router/go_router.dart';"));
+      // 高保真批6c·刀2（2026-10-16）：「看账本」钮随统计卡群拆 part 迁入同库件。拆后
+      // go_router import 留库根 read_stat_page.dart、路由调用随卡群迁入同库 part
+      // read_stat_page_cards.dart（part 文件不得自带 import），扫描面改双件合检。
+      const root = 'lib/features/read/presentation/stats/read_stat_page.dart';
+      const part = 'lib/features/read/presentation/stats/read_stat_page_cards.dart';
+      expect(src(root), contains("import 'package:go_router/go_router.dart';"));
       expect(
-        s,
+        src(part),
         contains("onTap: () => context.go('/ledger'),"),
         reason: '看账本仍是指向别处或未接',
       );
-      expect(s, isNot(contains('账本模块规划中')));
+      final both = src(root) + src(part);
+      expect(both, isNot(contains('账本模块规划中')));
       expect(
-        s,
+        both,
         isNot(contains('/finance 路由未就绪')),
         reason: '记账路由实为 /ledger，该「未就绪」注释已过期',
       );
@@ -38,7 +42,9 @@ void main() {
       final s = src(f);
       // V1.58 反馈轮5：日记/笔记两枚下架（与记录页 ⇄ 段重复），
       // 阅读枚改带 `?tab=book` 深链，点击自动切到阅读视图。
-      expect(s, contains("('📚', '阅读', '/journal?tab=book', null),"));
+      // 顺带修存量红（批6c·刀2 闸面清零）：仪表盘「全部功能」格子由 emoji 字面量改
+      // IconData 后本条字面量过期（语义未变：阅读枚仍接 /journal?tab=book、无 V0.5 角标）。
+      expect(s, contains("(Icons.menu_book_outlined, '阅读', '/journal?tab=book', null),"));
       expect(s, isNot(contains("'笔记', '/journal'")));
       expect(s, isNot(contains("'日记', '/journal'")));
       expect(s, isNot(contains("'V0.5'")), reason: '笔记/阅读早已上线，不得再挂规划角标');

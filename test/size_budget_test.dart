@@ -18,16 +18,6 @@ void main() {
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     'features/habit/presentation/habit_detail_page.dart': 1520,
     'features/habit/presentation/habit_stat_page.dart': 1503,
-    // U4 批（2026-10-06）：热力图卡整段抽进同目录件 `read_stat_heat_card.dart`
-    // （格面行为零改动·只加月份刻度与默认视口定位），1359→1210；仍超默认 1200 线，
-    // 登记值按现状收紧，真还债＝统计页其余卡群拆 part，另批做。
-    // 1210→1219 同批 U11：目标卡三枚按钮换紧凑胶囊＋Wrap（消 RenderFlex overflow），
-    // 四宫格由 childAspectRatio 改 mainAxisExtent（390dp 下格子被压到 41px 装不下三行）——
-    // 两处都是窄屏真溢出修复，不是新功能。
-    // 1219→1259 阅读模块批3（2026-10-14）：F3-8 看账本/年报关闭命中槽高 44
-    // ＋F3-10 年报限高内滚＋F3-3 构成环色板改 accent 派生（_statPal）＋F3-5 等宽读数。
-    // 之后只许减；真还债＝统计页其余卡群拆 part，另批做。
-    'features/read/presentation/stats/read_stat_page.dart': 1259,
     // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
     // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。
     // 1382→1386 存量越线归位（B-4 批 2026-10-05 相邻回归跑出本红）：净增 4 行

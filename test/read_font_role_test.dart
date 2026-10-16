@@ -39,7 +39,8 @@ void main() {
 
   test('F3-5 统计四卡/记录四格/概览/目标读数走 tabular-nums', () {
     const numSites = [
-      'lib/features/read/presentation/stats/read_stat_page.dart',
+      // 高保真批6c·刀2（2026-10-16）：tabular-nums 读数随统计卡群拆 part 迁入同库件，扫描点随迁。
+      'lib/features/read/presentation/stats/read_stat_page_cards.dart',
       'lib/features/read/presentation/stats/read_log_page.dart',
       'lib/features/read/presentation/read_tab.dart',
       'lib/features/read/presentation/shelf/shelf_goal.dart',
