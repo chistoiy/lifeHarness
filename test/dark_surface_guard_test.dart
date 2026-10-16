@@ -79,7 +79,12 @@ const _baseline = <String, int>{
     'lib/features/habit/presentation/habit_stat_page.dart': 4,
     'lib/features/ledger/presentation/ledger_hero_cfg_sheet.dart': 4,
     'lib/features/read/presentation/read_tab.dart': 4,
-    'lib/features/read/presentation/shelf/book_detail.dart': 4,
+    // 4→2 棘轮收紧＋拆出件登记（高保真批6b·刀3）：2 处随 _localEpubStrip/_cacheRow
+    // 整组迁入同库 part book_detail_cards.dart（机械搬迁·字面原值·文件总量不变）。
+    'lib/features/read/presentation/shelf/book_detail.dart': 2,
+    // 高保真批6b·刀3 自 book_detail 迁入 2 处（原值）：紧凑条/缓存行内近白字面随组
+    // 搬迁，非新面。登记≠放行：深色观感仍随该模块既有真机门走查。
+    'lib/features/read/presentation/shelf/book_detail_cards.dart': 2,
     'lib/features/todo/presentation/widgets/pomo_screen.dart': 4,
     // 2026-10-14 摘除（悬浮胶囊增强批A 跟进）：条目已是「死登记」——批A 整文件重写时
     // 两条计时胶囊的字色由 `Colors.white` 改吃 scheme（onSurface/onSurfaceVariant），
@@ -141,8 +146,10 @@ const _baseline = <String, int>{
     'lib/features/ledger/presentation/ledger_report_page.dart': 1,
     'lib/features/ledger/presentation/ledger_wish_page.dart': 1,
     'lib/features/read/presentation/biblio/biblio_search_page.dart': 1,
-    'lib/features/read/presentation/read_sheets_b2.dart': 1,
-    'lib/features/read/presentation/shelf/book_form_page.dart': 1,
+    // 高保真批6b·刀1/刀2（2026-10-16）：两文件各 1 处随拆 part 迁出后归零，按
+    // 「归零即删项」删登记，白面原值落到同库新 part 件（同批机械搬迁·非新面）。
+    'lib/features/read/presentation/read_sheets_b2_form.dart': 1,
+    'lib/features/read/presentation/shelf/book_form_page_form.dart': 1,
     'lib/features/read/presentation/shelf/read_lists_page.dart': 1,
     'lib/features/read/presentation/shelf/shelf_fab.dart': 1,
     'lib/features/read/presentation/shelf/shelf_panel.dart': 1,

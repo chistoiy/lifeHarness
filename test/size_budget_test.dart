@@ -16,10 +16,6 @@ void main() {
   // 治理 G0~G7d⑤ 交付后（2026-09-29）实测登记的基线预算。
   const budget = <String, int>{
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
-    // book_detail 登记值 1570→1579 同属存量越线归位（V1.60 导入批实测 HEAD 即 1579，
-    // 本批只改两行同长文案，净增 0；真还债＝三态弹层群拆 part，另批做）。
-    // 1579→1582 阅读模块批3（2026-10-14）：F3-10 书籍操作弹层补把手。
-    'features/read/presentation/shelf/book_detail.dart': 1582,
     'features/habit/presentation/habit_detail_page.dart': 1520,
     'features/habit/presentation/habit_stat_page.dart': 1503,
     // U4 批（2026-10-06）：热力图卡整段抽进同目录件 `read_stat_heat_card.dart`
@@ -72,6 +68,10 @@ void main() {
     // 高保真批6b·刀2（2026-10-16）归还阅读模块批2 登记的 book_form_page 体积债：
     // UI 积木群 13 件落同库扩展 _BookFormForm＋日期滚轮弹层 _DateWheelSheet 整组迁入同库
     // part book_form_page_form.dart，主文件 1623→893 还默认面。
+    // 高保真批6b·刀3（2026-10-16）归还阅读模块批2/批3 登记的 book_detail 体积债：
+    // 三态弹层群关联面（_localEpubStrip/_cacheRow）＋书摘卡群（_noQuotes/_quoteCard/
+    // _qMeta）落同库扩展 _BookDetailCards，showBrLocalInfo 整组迁入同库 part
+    // book_detail_cards.dart，主文件 1582→1019 还默认面。
     // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
     // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
     // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。
