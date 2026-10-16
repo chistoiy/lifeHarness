@@ -48,6 +48,16 @@ class SettingsRepository {
   /// 批3 · 勾圈闭环的补写队列（原生写库失败时暂存，App 启动时排空）。
   static const String kDeskPendingTogglesKey = 'desktop.widget_pending_toggles';
 
+  // ===== NFC 卡片批1（2026-10-16 · 冻结档 F1-7 · C42）=====
+  // 三键：总闸（默认开）/ 贴卡先确认再执行（默认关）/ 未识别卡片提示绑定（默认开）。
+  // ⚠ **层级＝总闸 ＞ 明细开关**（C42）：总闸关闭时贴卡**完全静默无反应**
+  //   （不报错、不弹提示、不震动、不计次）——否则用户关了却有反应会当成 bug。
+  // ⚠ **独立于 UserSettings**：照桌面批1 惯例走独立读写口，**不进「口径设置整包导出」**
+  //   （备份口径不含贴卡行为，换机后按默认重建即可），**不动既有键**。
+  static const String kNfcEnabledKey = 'nfc.enabled';
+  static const String kNfcConfirmKey = 'nfc.confirmBeforeRun';
+  static const String kNfcPromptUnboundKey = 'nfc.promptUnbound';
+
   /// R14-12·我的页资料（本地模式无账号：昵称/签名只是偏好，不建表、不进业务备份口径）。
   static const _kProfileNick = 'lh.profile_nick';
   static const _kProfileBio = 'lh.profile_bio';
@@ -247,6 +257,23 @@ class SettingsRepository {
   bool loadDesktopWidgetLedger() => _prefs.getBool(kDeskWidgetLedgerKey) ?? true;
   Future<void> saveDesktopWidgetLedger(bool v) =>
       _prefs.setBool(kDeskWidgetLedgerKey, v);
+
+  // ===== NFC 卡片批1（F1-7 · C42 总闸）=====
+
+  /// 贴卡总闸，默认**开**。关时贴卡完全静默无反应（判据落批2 触发链）。
+  bool loadNfcEnabled() => _prefs.getBool(kNfcEnabledKey) ?? true;
+  Future<void> saveNfcEnabled(bool v) => _prefs.setBool(kNfcEnabledKey, v);
+
+  /// 贴卡先确认再执行（C5：默认**关**＝直接执行，与 `lh://` 冷/热启动同语义；
+  /// 开则每次先出 `lhConfirm`。不做代码侧「脏态」判定）。
+  bool loadNfcConfirmBeforeRun() => _prefs.getBool(kNfcConfirmKey) ?? false;
+  Future<void> saveNfcConfirmBeforeRun(bool v) =>
+      _prefs.setBool(kNfcConfirmKey, v);
+
+  /// 未识别卡片提示绑定（B8/B17：默认**开**；关掉后陌生卡静默回 `/`，不打扰）。
+  bool loadNfcPromptUnbound() => _prefs.getBool(kNfcPromptUnboundKey) ?? true;
+  Future<void> saveNfcPromptUnbound(bool v) =>
+      _prefs.setBool(kNfcPromptUnboundKey, v);
 
   // ---- 待办勾圈的补写队列（原生 [TodoActionReceiver] 写库失败时的兜底）----
   //

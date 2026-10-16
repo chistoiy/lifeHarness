@@ -350,6 +350,16 @@ const List<ExportUnit> kExportUnits = [
     // 且面板文案已过产品门。若日后产品要开，只需在 timeRoots 加一行
     // `ExportTimeRoot(DbSchema.tAiCalls, 'ts')` 并去掉原型 EX_NOTIME 一行。
   ),
+  ExportUnit(
+    id: 'nfc',
+    label: 'NFC 卡片',
+    tables: [DbSchema.tNfcCards],
+    // **本行是 C8-V3「备份三处登记」的第②处**：漏登记 ⇒ 子集备份走差集法时不收本表
+    // ⇒ 换机恢复后同一张物理标签不可用（C8「进备份包」的全部意义落空）。
+    // 守护＝backup_scope_test 的第②条断言。
+    // timeRoots 留空＝该单元无时间筛语义（用户心智是「我的卡片」不是流水），
+    // 面板按既有口径明说「不生效」而非静默忽略（同 AI 单元取舍）。
+  ),
 ];
 
 /// 按 id 找单元（未知 id = null，调用方按「未归属」处理）。

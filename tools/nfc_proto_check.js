@@ -42,7 +42,19 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
     if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id) }
     if (m.method === 'Runtime.exceptionThrown') errs.push(((m.params.exceptionDetails.exception || {}).description || '').slice(0, 200)) });
   await cmd('Runtime.enable'); await cmd('Page.enable');
-  await cmd('Page.navigate', { url: URLF }); await wait(2800);
+  await cmd('Page.navigate', { url: URLF });
+  // 等主脚本就绪，**不用固定 sleep**（2026-10-16 实锤：index.html 有 167KB 主脚本
+  // ＋ Tailwind CDN，固定 2800ms 在本机会整片假红——`setPage is not defined`、
+  // `NFC_CARDS is not defined`，而 PAGE ERRORS 是 0、语法检查也全过，
+  // 典型的「脚本还没执行完就去断言」，读起来却像原型坏了）。
+  // 判据＝主脚本已执行（setPage 已定义）**且** NFC 段已就位（NFC_CARDS 已定义）。
+  let ready = false;
+  for (let i = 0; i < 40; i++) {
+    const r = await ev(`return {s: typeof setPage, n: typeof NFC_CARDS};`);
+    if (r.s === 'function' && r.n !== 'undefined') { ready = true; break; }
+    await wait(300);
+  }
+  if (!ready) { bad('原型脚本就绪（setPage/NFC_CARDS 已定义）'); return finish(); }
 
   /* N1 入口行在位·紧邻「桌面与快捷方式」下一行·张数与列表同源 */
   const n1 = await ev(`setPage('p-profile');var t=$('#p-profile').innerText,ec=$('#nfcEntryCnt').textContent;

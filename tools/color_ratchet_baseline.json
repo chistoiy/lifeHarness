@@ -74,6 +74,7 @@
  "lib/features/media/presentation/media_note_edit_sheet.dart": 6,
  "lib/features/media/presentation/media_notes_page.dart": 2,
  "lib/features/media/presentation/widgets/media_card.dart": 31,
+ "lib/features/nfc/presentation/nfc_sheets.dart": 1,
  "lib/features/read/data/epub_css.dart": 2,
  "lib/features/read/domain/reader_cfg.dart": 9,
  "lib/features/read/presentation/biblio/biblio_search_page.dart": 1,

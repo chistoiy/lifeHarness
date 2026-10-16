@@ -193,6 +193,10 @@ const Map<String, ({String label, String module})> dbTableLabels = {
   'xray_entity': (label: '词条实体 · 可再生', module: '阅读'),
   'xray_task': (label: '索引任务 · 可再生', module: '阅读'),
   'xray_userdict': (label: '用户词库', module: '阅读'),
+  // —— NFC 卡片（V1.68）——
+  // ⚠ 本行是 C8-V3「备份三处登记」的第③处：漏登记 ⇒ 概览屏不显示该表、
+  // 恢复报告里是一串无中文标签的英文表名（用户看不懂导出了什么）。
+  'nfc_cards': (label: 'NFC 卡片', module: 'NFC'),
   // —— 记账 ——
   'finance_txns': (label: '早期流水', module: '记账'),
   'ledger_books': (label: '账簿', module: '记账'),

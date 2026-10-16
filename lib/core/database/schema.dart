@@ -15,6 +15,7 @@ import 'schema/items.dart' as m;
 import 'schema/ledger.dart' as l;
 import 'schema/media.dart' as md;
 import 'schema/mindmap.dart' as mm;
+import 'schema/nfc.dart' as nf;
 import 'schema/read.dart' as r;
 import 'schema/xray.dart' as x;
 class DbSchema {
@@ -66,7 +67,11 @@ class DbSchema {
   // 数据，老图节点四列取默认（无标签·非任务·无图）＝**升级不丢任何既有语义**。
   // ⚠ 版本常量与 migrations 最高键必须同批同步——6109 预发布漏改本行（仍 43），
   // 真机升级 onUpgrade 不触发 ⇒ 表无 deleted_at ⇒ 日记读写全断（保存失败/列表空）。
-  static const int version = 47;
+  // 48：NFC 卡片批1（2026-10-16）——migrations[47]（47→48）建 nfc_cards 一张表
+  // （新模块只建表零搬数据；标签只存编号 C1，名称/目标全在本机表 ⇒ 改数据零贴卡；
+  //  written_at 为写入态唯一判据 C31；id 12 位 base62 随机 C33）。同 v45/v47 教训，
+  //  版本常量与 migrations 最高键必须同批同步（上一行 ⚠ 有 6109 实锤前例）。
+  static const int version = 48;
  
 
   
@@ -354,6 +359,8 @@ class DbSchema {
     // 批8a media_goals 建表：已在 mediaSchemaStatements 尾部（mig[37]/mig[39] 同段重放，互不撞）。
     // V1.62 思维导图批1 两新表：迁移段与本处同源一份语句表（schema/mindmap.dart 段注）。
     ...mm.mindmapSchemaStatements,
+    // V1.68 NFC 卡片批1：nfc_cards 一张表；与 mig[47] 同源引一份（schema/nfc.dart 段注）。
+    ...nf.nfcCreateStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart
@@ -451,6 +458,7 @@ class DbSchema {
   static const List<String> bookTocSchemaStatements = r.bookTocSchemaStatements;  // G5: read.dart
   static final List<String> ledgerSchemaStatements = l.ledgerSchemaStatements;  // G5: ledger.dart
   static const List<String> careSchemaStatements = e.careSchemaStatements;  // G5: care.dart
+  static const String tNfcCards = nf.tNfcCards;  // G5: nfc.dart
   static const String tXrayTask = x.tXrayTask;  // G5: xray.dart
   static const String tXrayEntity = x.tXrayEntity;  // G5: xray.dart
   static const String tXrayMention = x.tXrayMention;  // G5: xray.dart
@@ -480,5 +488,6 @@ class DbSchema {
     ...hd.mig,
     ...md.mig,
     ...mm.mig,
+    ...nf.mig,
   };
 }

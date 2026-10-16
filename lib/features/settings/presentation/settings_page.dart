@@ -15,6 +15,7 @@ import '../../../core/settings/user_settings.dart';
 import '../../../core/sync/sync_providers.dart' show activeSyncServiceProvider;
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
+import '../../../shared/linkage/nfc_mounts.dart' show nfcCardCount;
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/trash/trash_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
@@ -197,8 +198,7 @@ class SettingsPage extends ConsumerWidget {
               title: '外观与交互',
               index: showIndex ? '03' : null,
               dim: dimLabel),
-          // 桌面模块批1 入口行（原型 p-profile 第 03 组 · F1-3）→ 同库件。
-          buildDesktopEntryGroup(context, flat: flat),
+          buildDesktopEntryGroup(context, flat: flat), // 桌面批1＋NFC 批1 F1-6 入口行（口径见 part 件）
           const SizedBox(height: 12),
           // 底部导航自定义卡（原型「外观与交互」组内独立卡）
           // 2026-10-15 产品改口：11 枚开关铺开太占屏 ⇒ 整卡**默认折叠**，点标题行展开。

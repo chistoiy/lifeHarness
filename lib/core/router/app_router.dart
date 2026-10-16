@@ -22,6 +22,7 @@ import '../../features/read/presentation/read_routes.dart';
 import '../../features/media/presentation/media_routes.dart';
 import '../../features/health/presentation/health_routes.dart';
 import '../../features/mindmap/presentation/mindmap_routes.dart';
+import '../../features/nfc/presentation/nfc_routes.dart';
 import '../ai/ai_review.dart' show aiRootNavKey;
 
 import '../nav/nav_module.dart';
@@ -147,6 +148,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ...healthPageRoutes(),
       // V1.62 思维导图批1（工单 2a：模块不占底栏，宫格直达 push）。
       ...mindmapPageRoutes(),
+      // V1.68 NFC 卡片批1（模块不占底栏，「我的 › 外观与交互 › NFC 卡片」push 进入）。
+      ...nfcPageRoutes(),
       ...settingsPageRoutes(
         dbOverviewBackupSizeReader:
             ref.watch(dbOverviewBackupSizeReaderProvider),
