@@ -648,68 +648,10 @@ tailwind.config = {
       <div id="pwBottomBar" class="hidden sticky bottom-0 z-20 px-5 py-2.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12)"></div>
     </section>
 
-    <!-- ===== P12g 二级：记录管理（V1.29轮6：按日记/笔记/阅读/影音游分类 + 通用设置） ===== -->
-    <section id="p-sub-recmg" class="page px-5 safe-pb no-scrollbar">
-      <div class="text-xs font-extrabold text-slate-400 mt-2 mb-1.5">日记</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>日记天气</span>
-          <button id="rwCity" class="mini-btn" onclick="openSheet('sheetCityPick')">常州市</button></div>
-        <div class="flex items-center justify-between"><span>默认新建模板</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'tpl',['纯文本','KPT 复盘','晨间三问'])">纯文本</button></div>
-        <div class="flex items-center justify-between"><span>连续记录提醒</span><b class="text-xs text-slate-400">断签 2 天时提醒</b></div>
-      </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">笔记</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>版本恢复方式</span>
-          <button id="nrMode" onclick="tglNoteRestore()" class="mini-btn">直接替换正文</button></div>
-        <div class="text-[11px] text-slate-400">恢复快照时：直接替换当前正文（替换前自动留快照，可反悔）⇄ 新增为一条副本笔记</div>
-        <div class="flex items-center justify-between"><span>自动快照节奏</span><b class="text-xs text-slate-400">停输 30 秒 / 每 500 字</b></div>
-        <!-- V1.29轮9k：LaTeX 语法渲染开关（默认关·关=预览/分屏按原文显示 $..$/$$..$$） -->
-        <div class="flex items-center justify-between"><span>LaTeX 公式渲染</span><span id="latexTgl" class="toggle" onclick="tgl(this);PW_LATEX=!PW_LATEX;pwSync();toast(PW_LATEX?'已开启 LaTeX 渲染：$..$ 与 $$..$$ 显示为公式':'已关闭 LaTeX 渲染：公式按原文显示')"></span></div>
-        <div class="flex items-center justify-between"><span>文件夹管理</span><button class="mini-btn" onclick="toast('在 记录 › 笔记 tab 打开树状侧栏管理（增删改/拖动嵌套）')">前往 ›</button></div>
-      </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">阅读</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>默认进度方式</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'pg',['页数','百分比','章节'])">页数</button></div>
-        <div class="flex items-center justify-between"><span>阅读计时</span><b class="text-xs text-slate-400">开始阅读时询问</b></div>
-      </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">影音游</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>默认进度方式</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'mg',['集数','百分比','时间点'])">集数</button></div>
-      </div>
-      <!-- F5-3（轮5③·2026-10-06）：「回收站自动清理」档位已从本页撤出——改放回收站屏右上角图标钮→档位半屏（sheetTrashKeep）。
-           本页只留日记/笔记/阅读/影音游四组。 -->
-    </section>
-
-    <!-- ===== P4a2b 全局回收站（V1.60 · 七类软删保留期内可恢复 · 批量彻底删除/恢复 · 书连带清防幽灵） ===== -->
-    <section id="p-sub-trash" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex items-center justify-between mt-1">
-        <div class="text-[11px] text-slate-400"><b class="text-slate-600 dark:text-slate-300" id="ttCnt">10 项</b><span id="ttKeep"> · 删除 30 天后自动彻底删除</span></div>
-        <div class="flex items-center gap-3 text-[11px] font-bold">
-          <button class="text-brand-500 hidden" id="ttAllBtn" onclick="ttSelAll()">全选</button>
-          <button class="text-slate-500" id="ttPickBtn" onclick="ttToggleSel()">选择</button>
-          <!-- F5-3：档位入口＝右上角图标钮（线性 SVG，无教学文案），当前档由左侧期限行读出 -->
-          <button class="text-slate-500" id="ttKeepBtn" aria-label="自动清理保留期" onclick="openSheet('sheetTrashKeep')">
-            <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.6V12l3 1.9"/></svg>
-          </button>
-        </div>
-      </div>
-      <!-- V1.60：七类分段 chips（计数随动作同步） -->
-      <div class="flex gap-1.5 mt-2 flex-wrap" id="gtSegRow"></div>
-      <div class="mt-2 space-y-2" id="ttList"></div>
-      <!-- F5-3（轮5③）· 自动清理保留期半屏：家＝回收站屏（页内弹层；批2 后 sheetLogSettings 已随 p-logs 迁 index-sync 专版，此处仅保留同口径），
-           档位四枚单选（当前档高亮），选完即改并回显期限；原「记录管理 › 通用」那行已撤出。 -->
-      <div id="sheetTrashKeep" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTrashKeep')">
-        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
-          <div class="grabber"></div>
-          <div class="flex items-center justify-between"><div class="font-extrabold">自动清理保留期</div><button class="mini-btn !text-[10px]" onclick="closeSheet('sheetTrashKeep')">关闭</button></div>
-          <div class="text-[11px] text-slate-400 mt-1">待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 / 物品 / 日记 删除的内容统一进回收站，按此期限自动彻底删除</div>
-          <div id="tkRows" class="mt-3 space-y-2"></div>
-        </div>
-      </div>
-    </section>
+    <!-- 批4（2026-10-16）：设置二级组 5 屏＋回收站组 3 屏已迁设置域专版 prototype/index-settings.html ——
+         p-sub-appearance / p-sub-notify / p-sub-recmg / p-sub-trash（含页内弹层 sheetTrashKeep）/
+         p-sub-desktop / sheetThemeMarket / sheetTrashPurge。
+         本文件只留入口行（p-profile 各组行）与深链重定向表；禁在本文件内复活这些屏。 -->
 
     <!-- ===== P4b 阅读导入向导 ===== -->
     
@@ -870,7 +812,7 @@ tailwind.config = {
       <div class="card !p-0 overflow-hidden">
         <button onclick="navTo('p-logs')" class="w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-purple-50 dark:bg-purple-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="5.6" y="5" width="12.8" height="15" rx="2"/><path d="M9.4 5V3.6h5.2V5M9.4 10.4h5.2m-5.2 3.4h5.2m-5.2 3.4h3.4"/></svg></span><div class="flex-1"><b class="text-sm">日志管理</b><div class="text-[11px] text-slate-400">环形缓冲 300 · 复制永远全量</div></div><span class="text-slate-300">›</span></button>
-        <button onclick="gtOpen('all')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+        <button onclick="navTo('p-sub-trash')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg></span><div class="flex-1"><b class="text-sm">回收站</b><div class="text-[11px] text-slate-400">八类删除内容 · 保留期内可恢复</div></div><span class="text-[11px] text-slate-400" id="pfTrashCnt">10 项</span><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-sub-mediaclean')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-emerald-50 dark:bg-emerald-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4.2" y="5.4" width="15.6" height="13.2" rx="2.4"/><path d="M7.6 14.6l2.5-2.7 2.2 2.3 1.9-2 2.2 2.4"/><circle cx="9.2" cy="9.2" r="1.2"/></svg></span><div class="flex-1"><b class="text-sm">图片存储清理</b><div class="text-[11px] text-slate-400">未引用图片扫描 · 勾选清理</div></div><span class="text-[11px] text-slate-400" id="pfMcCnt">6 个</span><span class="text-slate-300">›</span>
@@ -893,39 +835,6 @@ tailwind.config = {
     <!-- ===== P12 习惯打卡 ===== -->
     
 
-    <!-- ===== P12b 二级：提醒通知 ===== -->
-    <section id="p-sub-notify" class="page px-5 safe-pb no-scrollbar">
-      <div class="card">
-        <div class="flex justify-between items-center"><div class="row-title">日程与任务提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 space-y-2 text-xs text-slate-500 dark:text-slate-400">
-          <div class="flex justify-between"><span>默认提前量</span><select class="sel"><option>10 分钟</option><option>30 分钟</option><option>1 小时</option></select></div>
-          <div class="flex justify-between"><span>重复事件提醒策略</span><select class="sel"><option>仅当天</option><option>每次重复都提醒</option></select></div>
-          <div class="flex justify-between items-center"><span>逾期任务升级提醒</span><span class="toggle on" onclick="tgl(this)"></span></div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">日记复盘</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>晚间复盘提醒时间</span><select class="sel"><option>21:30</option><option>22:00</option><option>自定义</option></select></div>
-        <div class="mt-2 flex justify-between items-center text-xs"><span>含今日概览草稿自动预览</span><span class="toggle on" onclick="tgl(this)"></span></div>
-      </div>
-      <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">收集箱清理</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>每天 21:00 · 未整理≥3 条时提醒</span><span class="toggle on" onclick="tgl(this)"></span></div>
-      </div>
-      <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">习惯提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex justify-between items-center"><span>🏃 晨间跑步 · 07:00</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex justify-between items-center"><span>📚 阅读 30min · 21:00</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex justify-between items-center"><span>🧋 奶茶控制 · 20:00 晚确认</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="text-[10px] text-slate-400">负向习惯每天晚间一次确认：「今天没有做 → 自动正向积累 +1」</div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="row-title">免打扰时段</div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>23:00 – 07:00 · 仅逾期紧急项可穿透</span><button class="mini-btn" onclick="toast('编辑时段（模拟）')">设置</button></div>
-      </div>
-    </section>
 
     <!-- 批3（2026-10-16）：AI 组 5 屏已迁 AI 域专版 prototype/index-ai.html ——
          p-sub-ai / p-sub-aiVerify / p-sub-aiPrompts / p-sub-aiPromptEdit / p-aiUsage。
@@ -937,97 +846,7 @@ tailwind.config = {
 
 
 
-    <!-- ===== P12f 二级：外观（V1.27 · 主题风格/深色/主题色/字号 收拢） ===== -->
-    <section id="p-sub-appearance" class="page px-5 safe-pb no-scrollbar">
-      <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">主题风格</div><button onclick="openSheet('sheetThemeMarket')" class="text-[11px] text-brand-500 font-bold">更多主题 ›</button></div>
-        <div class="text-[11px] text-slate-400 mb-2">7 套内置 · 支持配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色</div>
-        <div class="grid grid-cols-3 gap-2" id="themeStyleRow"></div>
-      </div>
-      <div class="card mt-4 space-y-3 text-sm">
-        <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.6A8.6 8.6 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6Z"/></svg></span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400" id="darkModeSub">跟随系统 · 与任意主题风格叠加生效</div></div></div>
-        <div class="flex gap-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold" id="darkModeSeg">
-          <button id="dm-system" class="seg-on flex-1 rounded-lg py-1.5" onclick="setDarkMode('system')">跟随系统</button>
-          <button id="dm-light" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setDarkMode('light')">浅色</button>
-          <button id="dm-dark" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setDarkMode('dark')">深色</button>
-        </div>
-        <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8c3 4 5.4 6.3 5.4 9.3a5.4 5.4 0 0 1-10.8 0c0-3 2.4-5.3 5.4-9.3Z"/></svg></span><div class="flex-1"><b>主题色</b></div>
-          <div class="flex gap-2" id="themeDots"></div></div>
-        <div class="flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
-      </div>
 
-      <!-- ===== 底栏手势设置（V1.65 · 2026-10-11 产品过门并随 6106 出包＝常驻卡，不再是临时样张） =====
-           产品拍板：线索 A 细握把 / B 胶囊折角两条都留、此处切换；线索距底可调；悬浮球不落底。
-           （原注「待产品过门·定形落实现后本卡整体摘除」已于 2026-10-11 批A 转正，勿再当样张摘除。） -->
-      <div class="card mt-4" id="tbSetCard">
-        <div class="flex items-center gap-3">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 15h15"/><path d="M8 19h8"/><path d="M12 11V4.5m0 0-2.3 2.3M12 4.5l2.3 2.3"/></svg></span>
-          <div class="flex-1"><b class="text-sm">底栏手势</b><div class="text-[11px] text-slate-400">双指张开收起底栏 · 捏合还原</div></div>
-          <span class="toggle" id="tbSetToggle" onclick="tglTb(this)"></span>
-        </div>
-
-        <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800" id="tbSetBody" style="opacity:.4;pointer-events:none">
-          <div class="text-[11px] font-bold text-slate-500 mb-2">收起后的可见线索</div>
-          <div class="flex gap-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold" id="tbLineSeg">
-            <button id="tbLA" class="seg-on flex-1 rounded-lg py-1.5" onclick="setTbLine('a')">细握把</button>
-            <button id="tbLB" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setTbLine('b')">胶囊折角</button>
-          </div>
-
-          <div class="mt-4 flex items-center justify-between text-[11px]"><span class="text-slate-400">线索距屏幕底部</span><b id="tbGapVal" class="text-slate-600 dark:text-slate-300">16 px</b></div>
-          <input id="tbGapRange" type="range" min="8" max="48" step="1" value="16" class="w-full mt-1.5" oninput="setTbGap(this.value)">
-
-          <div id="tbSetPrev" class="mt-3">
-            <div class="tpHint"><i class="tpA"></i><i class="tpB"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></i></div>
-          </div>
-          <div class="text-[10px] text-slate-400 mt-2">悬浮球保持原位（不随底栏落底）· 预览仅示意线索相对屏幕底部的位置</div>
-        </div>
-      </div>
-
-      <!-- ===== 我的页版式切换（2026-10-12 · 待产品过门；定形并落实现后本卡整体摘除）===== -->
-      <div class="card mt-4" id="myLayoutCard">
-        <div class="flex items-center gap-3">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4.2" y="4.6" width="15.6" height="14.8" rx="2.4"/><path d="M4.2 9.6h15.6M9.6 9.6v9.8"/></svg></span>
-          <div class="flex-1"><b class="text-sm">我的页版式</b><div class="text-[11px] text-slate-400">身份区与列表的呈现方式 · 三选一</div></div>
-        </div>
-        <div class="flex gap-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold mt-3" id="myLayoutSeg">
-          <button id="layHero" class="seg-on flex-1 rounded-lg py-1.5" onclick="setMyLayout('hero')">记录仪表</button>
-          <button id="layChapters" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setMyLayout('chapters')">编辑章节</button>
-          <button id="layMinimal" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setMyLayout('minimal')">极简卷轴</button>
-        </div>
-        <div class="text-[11px] text-slate-400 mt-2" id="myLayoutHint">顶部为渐变身份卡：连击环＋读数带＋里程碑；下半页分组圆角卡。</div>
-      </div>
-    </section>
-
-    <!-- ===== P12g 二级：桌面与快捷方式（桌面模块 · 长按菜单/铺到桌面/小部件/链接直达；规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md） ===== -->
-    <section id="p-sub-desktop" class="page px-5 safe-pb no-scrollbar">
-      <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">长按图标菜单</div><span class="text-[10px] text-slate-400">已选 <b id="deskMenuCount" class="text-brand-500">4</b>/4</span></div>
-        <div class="text-[11px] text-slate-400 mt-0.5">长按桌面图标弹出的快捷菜单最多 4 个；更多入口请用下方「铺到桌面」</div>
-        <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="deskMenuList"></div>
-      </div>
-
-      <div class="card mt-3">
-        <div class="row-title">铺到桌面</div>
-        <div class="text-[11px] text-slate-400 mt-0.5">把常用动作固定到桌面，数量不限、逐条添加</div>
-        <div class="mt-2" id="deskPinList"></div>
-      </div>
-
-      <div class="card mt-3">
-        <div class="flex items-center justify-between"><div class="row-title">小部件</div><button class="mini-btn" onclick="toast('已调起系统小部件中心（模拟）')">添加到桌面</button></div>
-        <div class="text-[11px] text-slate-400 mt-0.5">桌面常驻读数，点击直达应用内</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex items-center justify-between"><span>今日概览读数（2×2）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>快捷记录入口（4×1）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>隐藏金额同步到小部件</span><span class="toggle on" onclick="tgl(this)"></span></div>
-        </div>
-        <div class="text-[10px] text-slate-400 mt-2 leading-5">小部件读数来自最近一次同步快照，可能略有延迟；开启「隐藏金额」时小部件金额位显示为 ••••。</div>
-      </div>
-
-      <div class="card mt-3">
-        <div class="row-title">链接直达</div>
-        <div class="text-[11px] text-slate-400 mt-1 leading-5">支持 <b class="font-mono">lh://</b> 链接从浏览器、二维码、NFC 或自动化工具直接打开对应动作，例如 <span class="font-mono text-brand-500">lh://ledger/add</span>、<span class="font-mono text-brand-500">lh://inbox/new</span>。</div>
-      </div>
-    </section>
 
     <!-- ===== P12i 二级：NFC 卡片（贴卡触发动作 · 卡片数据增删改；规格＝docs/handoff/NFC卡片模块-冻结版开发方案-20261015.md） =====
          一屏两卡：①我的卡片（列表＋新建·空态＝虚线行 LH-L04）②贴卡行为（两开关 B/C5·B17）；Flutter /nfc -->
@@ -1723,31 +1542,6 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- ===== 主题市场 ===== -->
-  <div id="sheetThemeMarket" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetThemeMarket')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
-      <div class="grabber"></div>
-      <div class="font-extrabold">🛍 主题市场</div>
-      <div class="text-[11px] text-slate-400 mb-3 mt-0.5 leading-5">主题即配置文件（<span class="font-mono">themes/*.json</span> 设计令牌）：颜色/字体/圆角/阴影/纹理 · 下载即热加载，无需刷新 · 正式版支持从仓库拉取并校验签名</div>
-      <div id="mktList"></div>
-      <button onclick="closeSheet('sheetThemeMarket')" class="mt-2 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">收起</button>
-    </div>
-  </div>
-
-  <!-- ===== V1.57 垃圾箱彻底删除二次确认（不可恢复 · 列出将被删除的条目） ===== -->
-  <div id="sheetTrashPurge" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTrashPurge')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold text-sm">彻底删除</div>
-      <div class="mt-1 text-[11px] text-rose-500 font-bold" id="tpMsg">删除后不可恢复</div>
-      <div class="mt-3 space-y-1.5 text-xs max-h-[40vh] overflow-y-auto no-scrollbar" id="tpList"></div>
-      <div class="mt-4 flex gap-2">
-        <button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetTrashPurge')">取消</button>
-        <button class="flex-1 py-3 rounded-xl bg-rose-500 text-white text-sm font-extrabold" onclick="tpGo()">彻底删除</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ===== INS 全屏查看 ===== -->
   <!-- ===== Toast ===== -->
   <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-24 z-[60] bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-xl max-w-[85%] text-center"></div>
@@ -1876,6 +1670,10 @@ let navSetOpen=false;
 function navSetToggle(){navSetOpen=!navSetOpen;
   $('#navSetBody').classList.toggle('hidden',!navSetOpen);
   $('#navSetArrow').classList.toggle('rotate-180',navSetOpen);}
+/* 批4（2026-10-16）：桌面模块 App 内设置屏引擎（DESK_ACTIONS/renderDeskMenu/deskPin 等）随 p-sub-desktop
+   迁 index-settings.html；主题市场（MKT_LOADED/MKT_META/renderMkt/mktInstall）随 sheetThemeMarket 迁出；
+   记录管理引擎（noteRestore/tglNoteRestore/cycleRecSet）随 p-sub-recmg 迁出。
+   主题风格系统核心（THEMES/THEME_TOKENS/MKT/setTheme/renderSideThemes 等）留壳＝侧栏主题选择器仍用。 */
 function navToggle(p,el){const on=el.classList.contains('on');
   if(!on){if(activeTabs.length>=5){toast('底部导航最多同时显示 5 个栏目，请先关闭一个');renderNavSet();return;}
     activeTabs.push(p);activeTabs.sort((a,b)=>NAV_MODS.findIndex(m=>m[0]===a)-NAV_MODS.findIndex(m=>m[0]===b));}
@@ -1883,14 +1681,6 @@ function navToggle(p,el){const on=el.classList.contains('on');
     if(!left.some(x=>x==='p-dashboard'||x==='p-profile')){toast('「今天」和「我的」至少要留一个');renderNavSet();return;}
     activeTabs=left;}
   renderNav();renderNavSet();toast('导航栏已更新（模拟持久化）');}
-/* 桌面模块：长按菜单 4 枚勾选 与 铺到桌面列表（规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md §2.0/§4.2） */
-const DESK_ACTIONS=[['inbox','速记'],['todo','记待办'],['ledger','记一笔'],['habit','打卡'],['journal','写日记'],['items','记物品'],['today','回今天页']];
-let deskMenuSel=['inbox','todo','ledger','habit'];
-let deskPinDone=['ledger'];
-function renderDeskMenu(){$('#deskMenuList').innerHTML=DESK_ACTIONS.map(function(a){var on=deskMenuSel.indexOf(a[0])>=0;return '<label class="flex items-center gap-1.5 py-2.5 border-b border-slate-100 dark:border-slate-800"><input type="checkbox" class="accent-indigo-500" '+(on?'checked':'')+' onchange="deskMenuToggle(\''+a[0]+'\',this.checked)"> '+a[1]+'</label>';}).join('');$('#deskMenuCount').textContent=deskMenuSel.length;}
-function deskMenuToggle(id,on){if(on){if(deskMenuSel.length>=4){toast('长按菜单最多 4 个，更多入口请「铺到桌面」');renderDeskMenu();return;}deskMenuSel.push(id);}else{if(deskMenuSel.length<=1){toast('至少保留 1 个快捷动作');renderDeskMenu();return;}deskMenuSel=deskMenuSel.filter(function(x){return x!==id;});}renderDeskMenu();toast('长按菜单已更新（模拟持久化）');}
-function renderDeskPin(){$('#deskPinList').innerHTML=DESK_ACTIONS.map(function(a){var done=deskPinDone.indexOf(a[0])>=0;return '<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="font-semibold">'+a[1]+'</span>'+(done?'<span class="text-[11px] text-slate-400">已铺</span>':'<button class="mini-btn" onclick="deskPin(\''+a[0]+'\')">铺到桌面</button>')+'</div>';}).join('');}
-function deskPin(id){if(deskPinDone.indexOf(id)>=0)return;deskPinDone.push(id);renderDeskPin();toast('已铺到桌面（模拟）');}
 
 /* ================= NFC 卡片模块（规格＝docs/handoff/NFC卡片模块-冻结版开发方案-20261015.md） =================
    口径：卡片只存「编号」，名称/目标在本机（C1）；身份取 NDEF URI 非 UID（C2）；零常驻服务（C4）；
@@ -2036,7 +1826,6 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
   hideRecSwitchMenu(); renderRecSwitch();
   if(p!=='p-records'){const _sb=$('#noteSelBar');if(_sb){_sb.classList.add('hidden');_sb.classList.remove('flex');}
     const _ds=$('#diarySelBar');if(_ds){_ds.classList.add('hidden');_ds.classList.remove('flex');}}
-  if(p!=='p-sub-trash'){const _ts=$('#ttSelBar');if(_ts){_ts.classList.add('hidden');_ts.classList.remove('flex');}}
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   if(p==='p-timeStats')renderTimeStats();
   if(p==='p-profile')renderProfile();
@@ -2129,7 +1918,7 @@ function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetTrashKeep')renderTrashKeep(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -2153,16 +1942,7 @@ let DARK_MODE=(function(){try{return localStorage.getItem('lh.darkMode')||'syste
 function darkForced(){const t=THEME_TOKENS[curTheme]||MKT[curTheme];return !!(t&&t.forceDark)}
 function darkWant(){return darkForced()||(DARK_MODE==='dark')||(DARK_MODE==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)}
 function darkApply(){const on=darkWant();document.documentElement.classList.toggle('dark',on);
- if(THEME_TOKENS[curTheme]||MKT[curTheme])applyTokens(curTheme);renderDarkSeg()}
-function renderDarkSeg(){const f=darkForced();
- ['system','light','dark'].forEach(m=>{const b=document.getElementById('dm-'+m);if(!b)return;
-  const on=!f&&DARK_MODE===m;b.classList.toggle('seg-on',on);b.classList.toggle('text-slate-500',!on);
-  b.classList.toggle('opacity-40',f);b.disabled=f});
- const s=document.getElementById('darkModeSub');if(!s)return;
- s.textContent=f?'当前主题强制深色 · 三档暂不可选':(DARK_MODE==='system'?'跟随系统 · 现在是'+(darkWant()?'深色':'浅色')
-  :(DARK_MODE==='dark'?'已锁定深色 · 与任意主题风格叠加生效':'已锁定浅色 · 与任意主题风格叠加生效'))}
-function setDarkMode(m){DARK_MODE=m;try{localStorage.setItem('lh.darkMode',m)}catch(e){}
- darkApply();toast(m==='system'?'深色已跟随系统':(m==='dark'?'已锁定深色':'已锁定浅色'))}
+ if(THEME_TOKENS[curTheme]||MKT[curTheme])applyTokens(curTheme);}
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(DARK_MODE==='system'&&!darkForced())darkApply()});
 /* ================= 主题风格系统（内置 CSS 主题 + 令牌主题热加载） ================= */
 const THEMES=[['minimal','简约 · 默认','#6366f1','#8b5cf6','#d946ef'],['fresh','小清新','#34d399','#22d3ee','#60a5fa'],['retro','复古','#d97706','#b45309','#7c2d12'],['neumorph','轻拟态','#cfd9ea','#5b7cfa','#f8fafc'],
@@ -2193,27 +1973,10 @@ function setTheme(k){curTheme=k;const r=document.documentElement;
  else{r.dataset.theme=k;clearTokens();r.style.removeProperty('--page-img')}
  darkApply()
  const meta=(THEMES.find(x=>x[0]===k)||[k,'主题']);
- renderThemeRow();renderSideThemes();
+ renderSideThemes();
  toast('已切换主题：'+(tokenTheme?tokenTheme.meta.name:meta[1].split(' · ')[0])+(tokenTheme?' · 配置热加载✓ 无需刷新':''));}
-function renderThemeRow(){
-  $('#themeStyleRow').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95 text-left" style="border-color:${t[0]===curTheme?'var(--accent)':'transparent'};background:var(--card)">
-    <span class="block h-11 rounded-xl" style="background:${themeSwatch(t)};${t[0]==='neumorph'?'box-shadow:inset 2px 2px 4px rgba(0,0,0,.12),-2px -2px 4px #fff':''}${t[0]==='cyber'?'box-shadow:inset 0 0 12px rgba(34,211,238,.5)':''}"></span>
-    <span class="text-[10px] font-bold block mt-1" style="color:${t[0]===curTheme?'var(--accent)':'#94a3b8'}">${t[1].split(' · ')[0]}</span></button>`).join('')
-    +MKT_LOADED.map(t=>`<button onclick="setTheme('${t.k}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95 text-left" style="border-color:${t.k===curTheme?'var(--accent)':'transparent'};background:var(--card)"><span class="block h-11 rounded-xl" style="background:${themeSwatch(t.sw)}"></span><span class="text-[10px] font-bold block mt-1" style="color:${t.k===curTheme?'var(--accent)':'#94a3b8'}">${t.name} ⬇</span></button>`).join('');}
 function renderSideThemes(){if(!$('#sideThemes'))return;
   $('#sideThemes').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="px-2 py-2 rounded-xl text-[11px] font-bold transition ${t[0]===curTheme?'text-white ring-2 ring-white/60':'text-slate-400'}" style="background:${t[0]===curTheme?themeSwatch(t):'#1e293b'}">${t[1].split(' · ')[0]}</button>`).join('')}
-/* —— 主题市场 —— */
-let MKT_LOADED=[];
-const MKT_META=[{k:'sakura',n:'樱花粉系',d:'粉色系渐变 + 大圆角 · 社区作者 @hao',v:'v0.9'},{k:'mint',n:'薄荷抹茶',d:'绿色护胃 · 社区作者 @tea',v:'v1.1'},{k:'graphite',n:'石墨黑白',d:'无彩色极客风 · 等宽字体',v:'v1.0'}];
-function renderMkt(){var items=MKT_META.map(function(m){var loaded=MKT_LOADED.some(function(x){return x.k===m.k});
- var sw=m.k==='sakura'?'linear-gradient(135deg,#f472b6,#e879f9)':m.k==='mint'?'linear-gradient(135deg,#10b981,#84cc16)':'linear-gradient(135deg,#27272a,#71717a)';
- var tail=loaded?'<span class="text-[10px] text-emerald-500 font-bold shrink-0">✓ 已加载</span>':'<button class="mini-btn shrink-0" onclick="mktInstall(\''+m.k+'\')">⬇ 下载热加载</button>';
- return '<div class="mkt-card flex items-center gap-3"><span class="w-11 h-11 rounded-xl flex-shrink-0" style="background:'+sw+'"></span><div class="flex-1 min-w-0"><b class="text-xs">'+m.n+'</b> <span class="text-[9px] text-slate-400">'+m.v+'</span><div class="text-[10px] text-slate-400 truncate">'+m.d+'</div></div>'+tail+'</div>'}).join('');
- $('#mktList').innerHTML=items+'<div class="text-[10px] text-slate-400 leading-5 mt-1">流程演示：从主题仓库（GitHub Release json）拉取配置 → 校验签名 → applyTokens() 写入设计令牌 → 全局即时换肤。将 json 放入 <span class="font-mono">prototype/themes/</span> 目录即可同理扩展。</div>';}
-function mktInstall(k){const m=MKT_META.find(x=>x.k===k);if(MKT_LOADED.some(x=>x.k===k))return;
- toast('⬇ 拉取 themes/'+k+'.json … 签名校验通过（模拟 412ms）');
- setTimeout(()=>{MKT_LOADED.push({k,name:m.n,sw:['',m.n,k==='sakura'?'#f472b6':k==='mint'?'#10b981':'#52525b',k==='sakura'?'#fb7185':k==='mint'?'#84cc16':'#a1a1aa',k==='sakura'?'#e879f9':k==='mint'?'#14b8a6':'#18181b']});
-  setTheme(k);renderMkt();toast('🎨 '+m.n+' 已热加载并应用 · 未刷新页面')},650);}
 
 /* ================= 仪表盘 ================= */
 /* 健康批7 共享面挂载：今日健康卡（计划 §批7＝环＋杯数＋运动分钟，需求 V1.63 增血压位）。
@@ -2297,7 +2060,6 @@ function renderTodos(){ renderHero();
       <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5"><span>⏰ ${t.due}</span>${t.habit?`<span class="text-violet-500 font-bold">🔁 ${t.habit}</span>`:''}${t.tag?`<span>#${t.tag}</span>`:''}</div></div>
     ${t.pomo?(pomoRun&&pomoRun.i===i?`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-extrabold shrink-0" onclick="event.stopPropagation();pomoFinish()">■ 结束</button>`:`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500/90 text-white text-[10px] font-extrabold shrink-0" onclick="event.stopPropagation();pomoStart(${i})">▶ 专注</button>`):''}
     <span class="w-3 h-3 rounded-full ${D.quads[t.q].cls} shrink-0" title="${D.quads[t.q].name}"></span></div>`).join('');
-  ttSyncKeep();
 }
 /* V1.27 清单长按拖拽排序 */
 let ldIdx=null;
@@ -2306,113 +2068,18 @@ function listDrop(e,i){e.preventDefault();if(ldIdx===null||ldIdx===i)return;
   const rec=D.todos.splice(ldIdx,1)[0];D.todos.splice(i,0,rec);ldIdx=null;renderTodos();toast('清单顺序已调整（模拟持久化）')}
 function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQuad(); renderTimeline(); renderChips(); if(t.done){toast('完成 ✓ 已计入今日小结（联动 L2）');if(t.habit)syncHabit(t.habit);} }
 function delTaskFromSheet(){const t=D.todos.splice(stIdx,1)[0];t.del='09-19 14:20';t.k='todo';D.trash.unshift(t);
-  closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();renderChips();renderTrash();
-  toast('已移入垃圾箱 · '+ttKeepTxt())}
-/* ================= V1.60 全局回收站（七类软删 · 保留期与记录管理同源 · 批量恢复/彻底删除 · 书连带清防幽灵） ================= */
-const GT_K={todo:{n:'待办',dot:'bg-indigo-400'},note:{n:'笔记',dot:'bg-sky-400'},habit:{n:'习惯',dot:'bg-teal-400'},book:{n:'书籍',dot:'bg-amber-400'},quote:{n:'划线书摘',dot:'bg-rose-400'},list:{n:'书单',dot:'bg-violet-400'},item:{n:'物品',dot:'bg-orange-400'},journal:{n:'日记',dot:'bg-blue-400'}};
-let gtSeg='all',ttMode=false,ttSel=new Set(),tpIds=[],ttPressTimer=null;
-/* F5-3（轮5③）：档位状态自「记录管理页那枚按钮的文案」改成独立变量——该行已从记录管理撤出，
-   改由回收站屏右上角图标钮→半屏选档（档位口径与四档取值一字未动）。 */
-const TK_OPTS=[[7,'7 天','到期当日晚清理'],[30,'30 天','默认档'],[90,'90 天','长期保留'],[0,'不清理','只在回收站里手动彻底删除']];
-let TRASH_KEEP=30;
-function ttDaysVal(){return TRASH_KEEP}
-function tkName(k){const o=TK_OPTS.find(x=>x[0]===k);return o?o[1]:'30 天'}
-function renderTrashKeep(){const el=document.getElementById('tkRows');if(!el)return;
-  el.innerHTML=TK_OPTS.map(o=>{const on=o[0]===TRASH_KEEP;
-    return `<button class="w-full flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left ${on?'border-brand-500 bg-brand-50 dark:bg-brand-500/10':'border-slate-200 dark:border-slate-800'}" onclick="tkPick(${o[0]})"><span class="flex-1"><b class="text-sm">${o[1]}</b><span class="block text-[10.5px] text-slate-400 mt-0.5">${o[2]}</span></span><span class="w-4 h-4 shrink-0 rounded-full border-2 ${on?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'}"></span></button>`}).join('')}
-function tkPick(k){TRASH_KEEP=k;renderTrash();renderTrashKeep();closeSheet('sheetTrashKeep');toast('已设为「'+tkName(k)+'」（模拟持久化）')}
-function ttKeepTxt(){const k=ttDaysVal();return k?'删除 '+k+' 天后自动彻底删除':'不自动清理'}
-function ttAgo(t){const md=String(t.del||'').slice(0,5).split('-'); /* 原型今天=09-19 */
-  return (9*30+19)-((+md[0]||9)*30+(+md[1]||19))}
-function ttLeft(t){const k=ttDaysVal();return k?k-ttAgo(t):null}
-function ttLeftTxt(t){const n=ttLeft(t);return n===null?'不清理':(n<=0?'待清理':'剩 '+n+' 天')}
-function gtCnt(k){return D.trash.filter(t=>(t.k||'todo')===k).length}
-function gtQSub(t){const nm='所属《'+(t.link||'—')+'》';
-  if(t.orphan)return '所属书已彻底删除';
-  return D.trash.some(function(x){return x.k==='book'&&x.t===t.link})?(nm+'· 书还在回收站'):nm}
-function gtOrph(t){if(t.k!=='quote')return '';
-  if(t.orphan)return '所属书已彻底删除';
-  return D.trash.some(function(x){return x.k==='book'&&x.t===t.link})?'所属书还在回收站，先恢复书或整体删除':''}
-function gtVis(){return D.trash.map((t,i)=>({t,i})).filter(o=>gtSeg==='all'||(o.t.k||'todo')===gtSeg)}
+  closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();renderChips();
+  toast('已移入垃圾箱')}
 /* 主页「数据与同步」状态点（真机反馈 F-1 回灌）：措辞取「已配置」不取「已连接」——
    本机只知道自己存了可用端点，连通与否是同步页「测试连接」的口径，主页不许冒充。
    两态＝有无激活服务（App 侧＝activeSyncServiceProvider 真值；未配置态画灰点）。 */
+/* 批4（2026-10-16）：回收站引擎（GT_K/TK_OPTS/renderTrash/ttRestore 等）随 p-sub-trash 迁 index-settings.html；
+   renderSyncState 留壳（p-profile 同步状态点）。壳侧 D.trash 仍收 delTaskFromSheet 的删除，
+   计数（#pfTrashCnt）不再刷新＝静态值（批2 #pfMcCnt 先例，观感无差）。 */
 let SYNC_CONFIGURED=true;
 function renderSyncState(){const e=$('#pfSyncState');if(!e)return;
   e.textContent=SYNC_CONFIGURED?'● 已配置':'● 未配置';
   e.className='text-[10px] font-bold mr-1 '+(SYNC_CONFIGURED?'text-emerald-500':'text-slate-400');}
-function gtOpen(k){gtSeg=k||'all';ttExitSel();navTo('p-sub-trash')}
-function ttSyncKeep(){const k=ttKeepTxt(),m=document.getElementById('todoTrashMeta');
-  if(m)m.textContent='待办 '+gtCnt('todo')+' 项 · 保留期内可恢复';
-  const r=document.getElementById('pfTrashCnt');if(r)r.textContent=D.trash.length+' 项';
-  const c=document.getElementById('ttCnt');if(c)c.textContent=(gtSeg==='all'?D.trash.length:gtCnt(gtSeg))+' 项';
-  const s=document.getElementById('ttKeep');if(s)s.textContent=' · '+k}
-function gtSegs(){const el=document.getElementById('gtSegRow');if(!el)return;
-  el.innerHTML=['all'].concat(Object.keys(GT_K)).map(k=>{const on=gtSeg===k,n=k==='all'?D.trash.length:gtCnt(k);
-    return `<button class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${on?'grad text-white border-transparent':'border-slate-200 dark:border-slate-700 text-slate-500'}" onclick="gtSeg='${k}';ttExitSel()">${k==='all'?'全部':GT_K[k].n} ${n}</button>`}).join('')}
-function gtSub(t){const left=ttLeft(t);const base=`<span>删于 ${t.del}</span><span class="${left!==null&&left<=7?'text-rose-500 font-bold':'text-slate-400'}">${ttLeftTxt(t)}</span>`;
-  if(t.k==='book')return `<span class="text-amber-600 dark:text-amber-400">含在库划线·笔记 ${t.hl||0} 条 · 阅读 ${t.min||0} 分钟 · 进度 ${t.pct||0}%</span>`+base;
-  if(t.k==='quote')return `<span>${gtQSub(t)}</span>`+base;
-  if(t.k==='list')return `<span>成员 ${t.cnt||0} 本</span>`+base;
-  if(t.k==='item')return `<span>${t.cat||'—'} · 成本池 ${t.cost||'—'} · 持有 ${t.days||0} 天</span><span class="text-teal-600 dark:text-teal-400">关联流水 ${t.txn||0} 条保留</span>`+base;
-  if((t.k||'todo')==='todo')return `<span>⏰ ${t.due||'—'}</span>${t.tag?`<span>#${t.tag}</span>`:''}`+base;
-  return base}
-function renderTrash(){const el=document.getElementById('ttList');if(!el)return;gtSegs();ttSyncKeep();
-  const rows=gtVis();
-  if(!rows.length){el.innerHTML=`<div class="card !py-10 text-center text-xs text-slate-400">${gtSeg==='all'?'回收站是空的':'该分类回收站是空的'}</div>`;ttBar();return}
-  el.innerHTML=rows.map(({t,i})=>{const sel=ttSel.has(i),K=GT_K[t.k||'todo'],_o=gtOrph(t),orph=!!_o;
-    return `<div class="card !py-3 flex items-center gap-3" onmousedown="ttPress(${i})" onmouseup="ttRelease()" onmouseleave="ttRelease()" ontouchstart="ttPress(${i})" ontouchend="ttRelease()" onclick="ttTap(${i})">
-      ${ttMode?`<span class="nchk ${sel?'on':''} shrink-0">✓</span>`:`<span class="w-3 h-3 rounded-full ${K.dot} shrink-0" title="${K.n}"></span>`}
-      <div class="flex-1 min-w-0"><div class="text-sm font-semibold truncate">${t.t}</div>
-        <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5 flex-wrap"><span class="px-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">${K.n}</span>${gtSub(t)}</div></div>
-      ${ttMode?'':(orph?`<span class="mini-btn shrink-0 !text-slate-300 dark:!text-slate-600" title="${_o}">不可单独恢复</span>`
-        :`<button class="mini-btn shrink-0" onclick="event.stopPropagation();ttRestore([${i}])">恢复</button>
-        <button class="mini-btn shrink-0 !text-rose-500" onclick="event.stopPropagation();tpAsk([${i}])">删除</button>`)}</div>`}).join('');
-  ttBar()}
-function ttPress(i){ttRelease();if(ttMode)return;ttPressTimer=setTimeout(()=>{ttMode=true;ttSel=new Set([i]);renderTrash()},520)}
-function ttRelease(){if(ttPressTimer){clearTimeout(ttPressTimer);ttPressTimer=null}}
-function ttToggleSel(){if(ttMode){ttExitSel();return}ttMode=true;ttSel.clear();renderTrash()}
-function ttExitSel(){ttMode=false;ttSel.clear();renderTrash()}
-function ttTap(i){if(!ttMode)return;if(ttSel.has(i))ttSel.delete(i);else ttSel.add(i);
-  if(!ttSel.size){ttExitSel();return}renderTrash()}
-function ttSelAll(){const vis=gtVis().map(o=>o.i);
-  if(ttSel.size===vis.length){ttSel.clear()}else{ttSel=new Set(vis)}
-  if(!ttSel.size){ttExitSel();return}renderTrash()}
-function ttBar(){const b=document.getElementById('ttSelBar'),all=document.getElementById('ttAllBtn'),pk=document.getElementById('ttPickBtn');
-  if(b){b.classList.toggle('hidden',!(ttMode&&ttSel.size));b.classList.toggle('flex',ttMode&&ttSel.size>0)}
-  const lbl=document.getElementById('ttSelLbl');if(lbl)lbl.textContent='已选 '+ttSel.size+' 项';
-  const vis=gtVis().length;
-  if(all){all.classList.toggle('hidden',!ttMode);all.textContent=ttSel.size&&ttSel.size===vis?'取消全选':'全选'}
-  if(pk)pk.textContent=ttMode?'取消':'选择'}
-function ttRestore(ids){const list=ids.slice().sort((a,b)=>a-b);const back=list.map(i=>D.trash[i]);
-  for(let j=list.length-1;j>=0;j--)D.trash.splice(list[j],1);
-  back.forEach(t=>{delete t.del;if(!t.k||t.k==='todo'){delete t.k;D.todos.push(t)}});
-  ttSel.clear();if(!ttSel.size)ttMode=false;
-  renderTodos();renderQuad();renderTimeline();renderChips();renderTrash();
-  const b=back[0],one=back.length===1;
-  const msg=one?(b.k==='todo'?'已恢复到「'+D.quads[b.q].name+'」':({note:'已恢复到原文件夹',habit:'已恢复到习惯列表',book:'已回到书架 · 缓存态按源文件现状走守卫',quote:'已恢复到《'+(b.link||'原书')+'》',list:'已恢复到书单列表',item:'已回到物品列表 · 每日计费按删除前状态继续'})[b.k||'todo'])
-   :('已恢复 '+back.length+' 项到各自模块');
-  toast(msg)}
-function ttBatchRestore(){if(!ttSel.size)return;ttRestore([...ttSel])}
-function tpAsk(ids){tpIds=ids.slice();const msg=document.getElementById('tpMsg'),lst=document.getElementById('tpList');
-  if(msg)msg.textContent='共 '+tpIds.length+' 条 · 删除后不可恢复';
-  if(lst)lst.innerHTML=tpIds.map(i=>{const t=D.trash[i];if(!t)return '';const K=GT_K[t.k||'todo'];
-    const tail=t.k==='book'?`<span class="text-rose-500 shrink-0">连带清 在库划线·笔记 ${t.hl||0} 条 · 计时 · 进度</span>`
-      :(t.k==='habit'?`<span class="text-slate-400 shrink-0">只清定义 · 历史流水保留</span>`
-      :(t.k==='list'?`<span class="text-slate-400 shrink-0">连成员行一起清 · 书本身保留</span>`
-      :(t.k==='item'?`<span class="text-rose-500 shrink-0">连带清 成本时间轴 ${t.tl||0} 条 · 按次用量 ${t.use||0} 次 · 关联流水保留</span>`
-      :`<span>${ttLeftTxt(t)}</span>`)));
-    return `<div class="rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full ${K.dot} shrink-0"></span><span class="flex-1 min-w-0 truncate">${t.t}</span>${tail}</div>`}).join('');
-  openSheet('sheetTrashPurge')}
-function ttBatchPurge(){if(!ttSel.size)return;tpAsk([...ttSel].sort((a,b)=>b-a))}
-function tpGo(){const ids=tpIds.slice().sort((a,b)=>b-a);const bk=ids.map(i=>D.trash[i]).filter(t=>t&&t.k==='book').map(t=>t.t);
-  ids.forEach(i=>D.trash.splice(i,1));
-  if(bk.length)D.trash.forEach(t=>{if(t.k==='quote'&&bk.includes(t.link))t.orphan=true});
-  tpIds=[];ttSel.clear();ttMode=false;
-  closeSheet('sheetTrashPurge');renderTrash();
-  toast('已彻底删除 '+ids.length+' 条'+(bk.length?' · 该书名下划线书摘不可再单独恢复':''))}
-/* 记录管理·通用·回收站自动清理 改档后，回收站各处读数同步 */
-function recSetChanged(key){if(key==='trash')renderTrash()}
 /* V1.27：详情→编辑 复用新建表单（回填标题/类型，可改时间等） */
 function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm',t.q);toast('编辑模式 · 保存后覆盖原条目（模拟）')}
 function openTask(i){ stIdx=i; $('#stTitle').textContent=D.todos[i].t; $$('.q-move').forEach((b,q)=>b.classList.toggle('on',q===D.todos[i].q)); openSheet('sheetTask'); }
@@ -3450,11 +3117,6 @@ function nohGo(i){closeSheet('sheetNoteOpenHist');if(curPage!=='p-records'||recT
 
 function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
 (function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
-let noteRestore='replace';
-function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
-  $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';
-  toast(noteRestore==='replace'?'恢复=直接替换当前正文（替换前自动留快照）':'恢复=新增一条副本笔记，当前正文不动');}
-function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');if(key==='trash')recSetChanged(key);}
 function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'未归类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});
@@ -3783,10 +3445,9 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderInbox();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); darkApply(); renderDeskMenu(); renderDeskPin(); renderNfcList();  renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderMkt(); 
+migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderInbox();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderSideThemes(); darkApply(); renderNfcList();  renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); 
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(timingBlk()&&timerSecsOK()){document.querySelectorAll('.tmDur').forEach(function(el){el.textContent=Math.max(0,nowMin()-(+el.dataset.s))+' 分钟'})}},1000);
 function timerSecsOK(){return true}
-$('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 
 /* V1.29轮8：编辑页左右滑动切换笔记（真实触摸手势；桌面演示用键盘 ←/→） */
 (()=>{const b=$('#pwBody');if(!b)return;let sx=0,sy=0;
@@ -3888,7 +3549,7 @@ renderPwBar();
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
 (function(){
-var RED=window.LH_REDIRECTS={"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"p-finance":["index-ledger.html","记账"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-health":["index-health.html","健康"],"p-days":["index-day_aim__goods.html","目标"],"p-items":["index-day_aim__goods.html","目标"],"p-goals":["index-day_aim__goods.html","目标"],"p-diaryEdit":["index-journal.html","日记·笔记"],"sheetDiaryTpl":["index-journal.html","日记·笔记"],"sheetDiaryTplEdit":["index-journal.html","日记·笔记"],"sheetDiaryFilter":["index-journal.html","日记·笔记"],"sheetDiaryReview":["index-journal.html","日记·笔记"],"sheetWeatherPick":["index-journal.html","日记·笔记"],"sheetCityPick":["index-journal.html","日记·笔记"],"p-calendar":["index-time.html","index-time.html"],"p-timeStats":["index-time.html","index-time.html"],"p-sub-cats":["index-time.html","index-time.html"],"p-sub-catAdd":["index-time.html","index-time.html"],"sheetTimePick":["index-time.html","index-time.html"],"sheetTsCat":["index-time.html","index-time.html"],"sheetCatParent":["index-time.html","index-time.html"],"p-import":["index-bookshelf.html","阅读·书架"],"m-shelf":["index-media.html","影音游"],"mm-list":["index-mindmap.html","思维导图"],"p-sub-data":["index-sync.html","同步"],"sheetSyncDiff":["index-sync.html","同步"],"sheetExport":["index-sync.html","同步"],"p-sub-backup":["index-sync.html","同步"],"sheetBkDel":["index-sync.html","同步"],"p-sub-mediaclean":["index-sync.html","同步"],"sheetMcDel":["index-sync.html","同步"],"p-sub-dbstats":["index-sync.html","同步"],"p-logs":["index-sync.html","同步"],"sheetLogSettings":["index-sync.html","同步"],"p-sub-ai":["index-ai.html","AI 增强"],"p-sub-aiVerify":["index-ai.html","AI 增强"],"p-sub-aiPrompts":["index-ai.html","AI 增强"],"p-sub-aiPromptEdit":["index-ai.html","AI 增强"],"p-aiUsage":["index-ai.html","AI 增强"],"sheetAiUsageCfg":["index-ai.html","AI 增强"],"sheetAiPick":["index-ai.html","AI 增强"],"sheetAiProv":["index-ai.html","AI 增强"]};
+var RED=window.LH_REDIRECTS={"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"p-finance":["index-ledger.html","记账"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-health":["index-health.html","健康"],"p-days":["index-day_aim__goods.html","目标"],"p-items":["index-day_aim__goods.html","目标"],"p-goals":["index-day_aim__goods.html","目标"],"p-diaryEdit":["index-journal.html","日记·笔记"],"sheetDiaryTpl":["index-journal.html","日记·笔记"],"sheetDiaryTplEdit":["index-journal.html","日记·笔记"],"sheetDiaryFilter":["index-journal.html","日记·笔记"],"sheetDiaryReview":["index-journal.html","日记·笔记"],"sheetWeatherPick":["index-journal.html","日记·笔记"],"sheetCityPick":["index-journal.html","日记·笔记"],"p-calendar":["index-time.html","index-time.html"],"p-timeStats":["index-time.html","index-time.html"],"p-sub-cats":["index-time.html","index-time.html"],"p-sub-catAdd":["index-time.html","index-time.html"],"sheetTimePick":["index-time.html","index-time.html"],"sheetTsCat":["index-time.html","index-time.html"],"sheetCatParent":["index-time.html","index-time.html"],"p-import":["index-bookshelf.html","阅读·书架"],"m-shelf":["index-media.html","影音游"],"mm-list":["index-mindmap.html","思维导图"],"p-sub-data":["index-sync.html","同步"],"sheetSyncDiff":["index-sync.html","同步"],"sheetExport":["index-sync.html","同步"],"p-sub-backup":["index-sync.html","同步"],"sheetBkDel":["index-sync.html","同步"],"p-sub-mediaclean":["index-sync.html","同步"],"sheetMcDel":["index-sync.html","同步"],"p-sub-dbstats":["index-sync.html","同步"],"p-logs":["index-sync.html","同步"],"sheetLogSettings":["index-sync.html","同步"],"p-sub-ai":["index-ai.html","AI 增强"],"p-sub-aiVerify":["index-ai.html","AI 增强"],"p-sub-aiPrompts":["index-ai.html","AI 增强"],"p-sub-aiPromptEdit":["index-ai.html","AI 增强"],"p-aiUsage":["index-ai.html","AI 增强"],"sheetAiUsageCfg":["index-ai.html","AI 增强"],"sheetAiPick":["index-ai.html","AI 增强"],"sheetAiProv":["index-ai.html","AI 增强"],"p-sub-appearance":["index-settings.html","设置子屏"],"p-sub-notify":["index-settings.html","设置子屏"],"p-sub-recmg":["index-settings.html","设置子屏"],"p-sub-trash":["index-settings.html","设置子屏"],"p-sub-desktop":["index-settings.html","设置子屏"],"sheetThemeMarket":["index-settings.html","设置子屏"],"sheetTrashKeep":["index-settings.html","设置子屏"],"sheetTrashPurge":["index-settings.html","设置子屏"]};
 var DROP=window.LH_DROPPED={};
 var SELF=window.LH_SELF={};
 window.LH_LANDING="p-dashboard";

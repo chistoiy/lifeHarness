@@ -59,8 +59,9 @@ const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox'];
     return {all:all.length,inMain:inMain,mainW:Math.round((document.querySelector('main')||{getBoundingClientRect:()=>({width:0})}).getBoundingClientRect().width)};`);
   /* 2026-10-12 时间模块抽离批：4 屏（p-calendar/p-timeStats/p-sub-cats/p-sub-catAdd）迁出壳 ⇒ 页段数 23→19，
      阈值随之下调为 >=15（仍是「壳没被拆空」的护栏）
-     2026-10-16 批2：备份/数据组 5 屏迁 index-sync ⇒ 19→16；批3：AI 组 5 屏迁 index-ai ⇒ 16→11，阈值随之下调为 >=10 */
-  (r1.all >= 10 && r1.all === r1.inMain && r1.mainW > 380)
+     2026-10-16 批2：备份/数据组 5 屏迁 index-sync ⇒ 19→16；批3：AI 组 5 屏迁 index-ai ⇒ 16→12，阈值随之下调为 >=10
+     2026-10-16 批4：设置二级组 5 屏（appearance/notify/recmg/trash/desktop）迁 index-settings ⇒ 12→7，阈值随之下调为 >=7 */
+  (r1.all >= 7 && r1.all === r1.inMain && r1.mainW > 380)
     ? ok('① ' + r1.all + ' 个 page 段全部在 main 壳内 · 壳宽 ' + r1.mainW + 'px') : bad('① page 段归属', JSON.stringify(r1));
 
   /* ② 逐页激活量宽：被拆坏的页会塌成 padding 宽（≈40px） */
@@ -75,24 +76,27 @@ const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox'];
   (thin.length === 0 && missing.length === 0)
     ? ok('② ' + r2.out.length + ' 个关键页激活后宽度均 >350px', r2.out.join(' ')) : bad('② 页面宽度', '窄=' + thin.join(',') + ' 缺=' + missing.join(','));
 
-  /* ③ 关键节点父子关系没被拆散（服务商列表在弹层内、AI 记录页在壳内）
-     2026-10-16 批 3：AI 组 5 屏 + 3 弹层已迁 index-ai.html ⇒ 本节换被测文件（同一组断言），
-     并补一条专版自身的「page 段全在 main 壳内」。
-     ⚠ 顺带归位：旧断言查的是「#aiProvList 在 .card 内且卡名含『服务商管理』」——该形态早已不存在
-     （服务商列表现行家在 sheetAiPick 的 .sheet-panel，标题「选择服务商」；p-sub-ai 只留 #aiCurRow 单行）。
-     这条自 2026-10-12 起就是存量红，本批按现行形态改正断言并记理由。 */
-  await cmd('Page.navigate', { url: url.pathToFileURL(path.resolve('prototype/index-ai.html')).href }); await wait(2600);
-  const r3 = await ev(`var list=document.getElementById('aiProvList');
-    var pick=list?list.closest('#sheetAiPick'):null;
-    var panel=list?list.closest('.sheet-panel'):null;
-    var au=document.getElementById('p-aiUsage');
+  /* ③ 关键节点父子关系没被拆散（回收站列表在回收站屏内、保留期面板列表在弹层面板内、
+     主题风格行在外观屏内、桌面菜单列表在桌面屏内）
+     2026-10-16 批 3：本节曾换测 index-ai.html（AI 组 5 屏 + 3 弹层专版）；
+     2026-10-16 批 4：设置二级组 5 屏 + 回收站组 3 屏迁 index-settings.html ⇒ 本节换被测文件（同一组断言模式），
+     AI 专版断言随批 3 交付退役（其结构由批 3 门禁记录留痕）。 */
+  await cmd('Page.navigate', { url: url.pathToFileURL(path.resolve('prototype/index-settings.html')).href }); await wait(2600);
+  const r3 = await ev(`var tt=document.getElementById('ttList');
+    var ttIn=tt?tt.closest('#p-sub-trash'):null;
+    var tk=document.getElementById('tkRows');
+    var tkInPanel=tk?tk.closest('.sheet-panel'):null;
+    var tkInKeep=tk?tk.closest('#sheetTrashKeep'):null;
+    var ts=document.getElementById('themeStyleRow');
+    var tsIn=ts?ts.closest('#p-sub-appearance'):null;
+    var dm=document.getElementById('deskMenuList');
+    var dmIn=dm?dm.closest('#p-sub-desktop'):null;
     var all=$$('section.page'),inMain=0;
     [].forEach.call(all,function(s){if(s.closest('main'))inMain++;});
-    return {listInPick:!!pick,listInPanel:!!panel,
-      auInMain:!!(au&&au.closest('main')),pages:all.length,pagesInMain:inMain,
-      usageCardInAiPage:!!(document.getElementById('auK1')&&document.getElementById('auK1').closest('#p-sub-ai'))};`);
-  (r3.listInPick && r3.listInPanel && r3.auInMain && r3.usageCardInAiPage && r3.pages === 5 && r3.pages === r3.pagesInMain)
-    ? ok('③ 专版 index-ai.html 层级正确（服务商列表在 sheetAiPick 面板内 / AI 记录页在壳内 / ' + r3.pages + ' 屏全在 main 壳内）') : bad('③ 层级', JSON.stringify(r3));
+    return {ttInTrash:!!ttIn,tkInPanel:!!tkInPanel,tkInKeep:!!tkInKeep,
+      tsInAppear:!!tsIn,dmInDesk:!!dmIn,pages:all.length,pagesInMain:inMain};`);
+  (r3.ttInTrash && r3.tkInPanel && r3.tkInKeep && r3.tsInAppear && r3.dmInDesk && r3.pages === 5 && r3.pages === r3.pagesInMain)
+    ? ok('③ 专版 index-settings.html 层级正确（回收站列表在回收站屏内 / 保留期列表在弹层面板内 / 主题风格行在外观屏内 / 桌面菜单在桌面屏内 · ' + r3.pages + ' 屏全在 main 壳内）') : bad('③ 层级', JSON.stringify(r3));
 
   /* ④ 零 JS 异常 */
   (errs.length === 0 ? ok : bad)('④ 运行期零 JS 异常', errs.join(' | '));

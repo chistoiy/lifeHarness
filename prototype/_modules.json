@@ -197,7 +197,7 @@
     {
       "id": "settings",
       "name": "设置子屏",
-      "file": null,
+      "file": "index-settings.html",
       "req": "V1.14+",
       "status": "current",
       "dev": "delivered",
@@ -209,7 +209,8 @@
         "分类管理",
         "插件中心"
       ],
-      "rep": "p-profile"
+      "rep": "p-profile",
+      "note": "2026-10-16 批4 新建专版（产品 2026-10-16 定家件 §5 Q1「新设 index-settings.html」）。8 屏＝p-sub-appearance 外观／p-sub-notify 提醒通知／p-sub-recmg 记录管理／p-sub-trash 回收站（含页内弹层 sheetTrashKeep）／p-sub-desktop 桌面与快捷方式（App 内设置屏）／sheetThemeMarket 主题市场／sheetTrashPurge 彻底删除确认；自 index.html 逐字迁入（只搬不改）。壳内 p-profile 各组行仍为入口（行不随屏迁走）；p-sub-nfc 按定家件 §2 留壳（NFC 模块唯一入口）。⚠ p-sub-desktop 原注册表注记「共享面不迁」已按批4 工单成员清单＋定家件同步改判；桌面线读侧路径（index-desktop.html 头注）同批更新。"
     },
     {
       "id": "kits",
@@ -1329,8 +1330,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 15846,
-          "hash": "088927b8"
+          "size": 15853,
+          "hash": "f2c04509"
         }
       }
     },
@@ -1576,11 +1577,11 @@
       "id": "p-sub-appearance",
       "kind": "screen",
       "title": "外观",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 5954,
           "hash": "c9d22ff0"
         }
@@ -1646,11 +1647,11 @@
       "id": "p-sub-notify",
       "kind": "screen",
       "title": "提醒通知",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 2820,
           "hash": "35d45e0e"
         }
@@ -1660,11 +1661,11 @@
       "id": "p-sub-recmg",
       "kind": "screen",
       "title": "记录管理",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 2633,
           "hash": "cb24ad58"
         }
@@ -1674,11 +1675,11 @@
       "id": "p-sub-trash",
       "kind": "screen",
       "title": "回收站",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 2089,
           "hash": "8c97f143"
         }
@@ -3155,11 +3156,11 @@
       "id": "sheetTrashKeep",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 728,
           "hash": "7b73e592"
         }
@@ -3443,11 +3444,11 @@
       "id": "sheetThemeMarket",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 769,
           "hash": "8e05ea35"
         }
@@ -3499,11 +3500,11 @@
       "id": "sheetTrashPurge",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 894,
           "hash": "6944b61b"
         }
@@ -4129,11 +4130,11 @@
       "id": "p-sub-desktop",
       "kind": "screen",
       "title": "桌面与快捷方式",
-      "home": "index.html",
+      "home": "index-settings.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-settings.html": {
           "size": 1972,
           "hash": "1cd3bc79"
         }
@@ -4606,37 +4607,37 @@
     {
       "file": "index-bookshelf.html",
       "id": "p-sub-recmg",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "p-sub-recmg",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "p-sub-recmg",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "p-sub-recmg",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "p-sub-recmg",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "p-sub-recmg",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -5104,37 +5105,37 @@
     {
       "file": "index-bookshelf.html",
       "id": "p-sub-notify",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "p-sub-notify",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "p-sub-notify",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "p-sub-notify",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "p-sub-notify",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "p-sub-notify",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -5248,37 +5249,37 @@
     {
       "file": "index-bookshelf.html",
       "id": "p-sub-appearance",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "p-sub-appearance",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "p-sub-appearance",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "p-sub-appearance",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "p-sub-appearance",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "p-sub-appearance",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -6178,37 +6179,37 @@
     {
       "file": "index-bookshelf.html",
       "id": "sheetThemeMarket",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "sheetThemeMarket",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "sheetThemeMarket",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "sheetThemeMarket",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "sheetThemeMarket",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "sheetThemeMarket",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -6549,7 +6550,7 @@
     {
       "file": "index-media.html",
       "id": "p-sub-appearance",
-      "home": "index.html"
+      "home": "index-settings.html"
     },
     {
       "file": "index-media.html",
@@ -6569,12 +6570,12 @@
     {
       "file": "index-media.html",
       "id": "p-sub-notify",
-      "home": "index.html"
+      "home": "index-settings.html"
     },
     {
       "file": "index-media.html",
       "id": "p-sub-recmg",
-      "home": "index.html"
+      "home": "index-settings.html"
     },
     {
       "file": "index-media.html",
@@ -6719,7 +6720,7 @@
     {
       "file": "index-media.html",
       "id": "sheetThemeMarket",
-      "home": "index.html"
+      "home": "index-settings.html"
     },
     {
       "file": "index-media.html",
@@ -6805,7 +6806,7 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-recmg",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -6883,7 +6884,7 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-notify",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -6907,7 +6908,7 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-appearance",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -7033,7 +7034,7 @@
     {
       "file": "index-journal.html",
       "id": "sheetThemeMarket",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -7117,7 +7118,7 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-trash",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -7177,13 +7178,13 @@
     {
       "file": "index-journal.html",
       "id": "sheetTrashKeep",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "sheetTrashPurge",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -7249,7 +7250,7 @@
     {
       "file": "index-sync.html",
       "id": "p-sub-trash",
-      "home": "index.html",
+      "home": "index-settings.html",
       "exempt": null
     },
     {
@@ -7292,6 +7293,42 @@
       "file": "index-bookshelf.html",
       "id": "p-records",
       "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-settings.html",
+      "id": "p-dashboard",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-settings.html",
+      "id": "p-todo",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-settings.html",
+      "id": "p-calendar",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-settings.html",
+      "id": "p-records",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-settings.html",
+      "id": "p-profile",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-settings.html",
+      "id": "sheetCityPick",
+      "home": "index-journal.html",
       "exempt": null
     }
   ],
@@ -7438,27 +7475,27 @@
     },
     {
       "from": "index-bookshelf.html#p-sub-recmg",
-      "to": "index.html#p-sub-recmg"
+      "to": "index-settings.html#p-sub-recmg"
     },
     {
       "from": "index-ledger.html#p-sub-recmg",
-      "to": "index.html#p-sub-recmg"
+      "to": "index-settings.html#p-sub-recmg"
     },
     {
       "from": "index-health.html#p-sub-recmg",
-      "to": "index.html#p-sub-recmg"
+      "to": "index-settings.html#p-sub-recmg"
     },
     {
       "from": "index_habitcheck.html#p-sub-recmg",
-      "to": "index.html#p-sub-recmg"
+      "to": "index-settings.html#p-sub-recmg"
     },
     {
       "from": "index-maternity_bady.html#p-sub-recmg",
-      "to": "index.html#p-sub-recmg"
+      "to": "index-settings.html#p-sub-recmg"
     },
     {
       "from": "index-day_aim__goods.html#p-sub-recmg",
-      "to": "index.html#p-sub-recmg"
+      "to": "index-settings.html#p-sub-recmg"
     },
     {
       "from": "index.html#p-import",
@@ -7794,27 +7831,27 @@
     },
     {
       "from": "index-bookshelf.html#p-sub-notify",
-      "to": "index.html#p-sub-notify"
+      "to": "index-settings.html#p-sub-notify"
     },
     {
       "from": "index-ledger.html#p-sub-notify",
-      "to": "index.html#p-sub-notify"
+      "to": "index-settings.html#p-sub-notify"
     },
     {
       "from": "index-health.html#p-sub-notify",
-      "to": "index.html#p-sub-notify"
+      "to": "index-settings.html#p-sub-notify"
     },
     {
       "from": "index_habitcheck.html#p-sub-notify",
-      "to": "index.html#p-sub-notify"
+      "to": "index-settings.html#p-sub-notify"
     },
     {
       "from": "index-maternity_bady.html#p-sub-notify",
-      "to": "index.html#p-sub-notify"
+      "to": "index-settings.html#p-sub-notify"
     },
     {
       "from": "index-day_aim__goods.html#p-sub-notify",
-      "to": "index.html#p-sub-notify"
+      "to": "index-settings.html#p-sub-notify"
     },
     {
       "from": "index-bookshelf.html#p-sub-ai",
@@ -7890,27 +7927,27 @@
     },
     {
       "from": "index-bookshelf.html#p-sub-appearance",
-      "to": "index.html#p-sub-appearance"
+      "to": "index-settings.html#p-sub-appearance"
     },
     {
       "from": "index-ledger.html#p-sub-appearance",
-      "to": "index.html#p-sub-appearance"
+      "to": "index-settings.html#p-sub-appearance"
     },
     {
       "from": "index-health.html#p-sub-appearance",
-      "to": "index.html#p-sub-appearance"
+      "to": "index-settings.html#p-sub-appearance"
     },
     {
       "from": "index_habitcheck.html#p-sub-appearance",
-      "to": "index.html#p-sub-appearance"
+      "to": "index-settings.html#p-sub-appearance"
     },
     {
       "from": "index-maternity_bady.html#p-sub-appearance",
-      "to": "index.html#p-sub-appearance"
+      "to": "index-settings.html#p-sub-appearance"
     },
     {
       "from": "index-day_aim__goods.html#p-sub-appearance",
-      "to": "index.html#p-sub-appearance"
+      "to": "index-settings.html#p-sub-appearance"
     },
     {
       "from": "index-bookshelf.html#sheetNoteMove",
@@ -8538,27 +8575,27 @@
     },
     {
       "from": "index-bookshelf.html#sheetThemeMarket",
-      "to": "index.html#sheetThemeMarket"
+      "to": "index-settings.html#sheetThemeMarket"
     },
     {
       "from": "index-ledger.html#sheetThemeMarket",
-      "to": "index.html#sheetThemeMarket"
+      "to": "index-settings.html#sheetThemeMarket"
     },
     {
       "from": "index-health.html#sheetThemeMarket",
-      "to": "index.html#sheetThemeMarket"
+      "to": "index-settings.html#sheetThemeMarket"
     },
     {
       "from": "index_habitcheck.html#sheetThemeMarket",
-      "to": "index.html#sheetThemeMarket"
+      "to": "index-settings.html#sheetThemeMarket"
     },
     {
       "from": "index-maternity_bady.html#sheetThemeMarket",
-      "to": "index.html#sheetThemeMarket"
+      "to": "index-settings.html#sheetThemeMarket"
     },
     {
       "from": "index-day_aim__goods.html#sheetThemeMarket",
-      "to": "index.html#sheetThemeMarket"
+      "to": "index-settings.html#sheetThemeMarket"
     },
     {
       "from": "index-bookshelf.html#sheetAddEvent",
@@ -8791,6 +8828,38 @@
     {
       "from": "index.html#sheetAiProv",
       "to": "index-ai.html#sheetAiProv"
+    },
+    {
+      "from": "index.html#p-sub-appearance",
+      "to": "index-settings.html#p-sub-appearance"
+    },
+    {
+      "from": "index.html#p-sub-notify",
+      "to": "index-settings.html#p-sub-notify"
+    },
+    {
+      "from": "index.html#p-sub-recmg",
+      "to": "index-settings.html#p-sub-recmg"
+    },
+    {
+      "from": "index.html#p-sub-trash",
+      "to": "index-settings.html#p-sub-trash"
+    },
+    {
+      "from": "index.html#p-sub-desktop",
+      "to": "index-settings.html#p-sub-desktop"
+    },
+    {
+      "from": "index.html#sheetThemeMarket",
+      "to": "index-settings.html#sheetThemeMarket"
+    },
+    {
+      "from": "index.html#sheetTrashKeep",
+      "to": "index-settings.html#sheetTrashKeep"
+    },
+    {
+      "from": "index.html#sheetTrashPurge",
+      "to": "index-settings.html#sheetTrashPurge"
     }
   ],
   "frozen": [
