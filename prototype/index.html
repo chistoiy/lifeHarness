@@ -821,41 +821,62 @@ tailwind.config = {
       <div class="card">
         <div class="flex items-center justify-between">
           <div class="row-title">我的卡片</div>
-          <div class="flex items-center gap-2"><span class="text-[10px] text-slate-400">共 <b id="nfcCount" class="text-brand-500">0</b> 张</span><button id="nfcNewBtn" class="mini-btn" onclick="nfcNew()">新建卡片</button></div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-slate-400">共 <b id="nfcCount" class="text-brand-500">0</b> 张</span>
+            <button id="nfcNewBtn" class="mini-btn" onclick="nfcNew()">新建卡片</button>
+            <button class="mini-btn" style="padding-left:8px;padding-right:8px" onclick="openSheet('sheetNfcSet')" title="贴卡设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+          </div>
         </div>
         <div class="text-[11px] text-slate-400 mt-0.5">贴卡即执行绑定的动作；改名或换动作不用重写卡片</div>
         <div class="mt-1" id="nfcList"></div>
-      </div>
-
-      <div class="card mt-3">
-        <div class="row-title">贴卡行为</div>
-        <div class="mt-1 text-xs">
-          <div class="flex items-center justify-between py-2 gap-3"><div><b class="text-xs">贴卡先确认再执行</b><div class="text-[10px] text-slate-400 leading-4">开启后每次贴卡先问一次，避免打断正在编辑的内容</div></div><span class="toggle" data-nfc="confirm" onclick="nfcPref('confirm',this)"></span></div>
-          <div class="flex items-center justify-between py-2 gap-3 border-t border-slate-100 dark:border-slate-800"><div><b class="text-xs">未识别卡片提示绑定</b><div class="text-[10px] text-slate-400 leading-4">关掉后陌生卡片会静默忽略、不打扰</div></div><span class="toggle on" data-nfc="prompt" onclick="nfcPref('prompt',this)"></span></div>
-        </div>
       </div>
 
       <div class="text-[10px] text-slate-400 mt-3 leading-5">卡片里只保存一串编号，名称与目标都在本机；同一张卡连续贴 3 秒内只触发一次。</div>
       <div class="text-[10px] text-slate-400 mt-1 leading-5">锁屏状态下安卓不派发 NFC 事件，需解锁后贴卡；书桌、床头、玄关这类固定位置最好用。</div>
       <div class="text-[10px] text-slate-400 mt-1 leading-5">卡片建议 NTAG213/215/216，硬币大小的圆卡即可（单价 0.5~2 元）。</div>
     </section>
-
-    <!-- NFC 卡片：新建/编辑/绑定卡片层（§4.2）· 家＝p-sub-nfc -->
+    <!-- NFC 卡片：新建/编辑/绑定卡片层（§4.2）· 家＝p-sub-nfc · 两种形态＝卡片信息 / 绑定目标 -->
     <div id="sheetNfcEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNfcEdit')">
       <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[88vh] overflow-y-auto">
         <div class="grabber"></div>
         <div class="text-center mt-1"><div class="text-base font-extrabold" id="nfcEditTitle">新建卡片</div>
           <div class="text-[11px] text-slate-400 mt-1.5 hidden" id="nfcBindHint"></div></div>
-        <div class="mt-4 text-[11px] font-bold text-slate-400">名称</div>
-        <input id="nfcName" maxlength="12" placeholder="例如：出门记账卡" class="mt-1.5 w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm outline-none">
-        <div class="text-[11px] text-rose-500 mt-1 hidden" id="nfcNameErr">起个名字</div>
-        <div class="mt-4 text-[11px] font-bold text-slate-400">贴卡后做什么</div>
-        <div id="nfcTargetBox"></div>
+        <div id="nfcCardBlock">
+          <div class="mt-4 text-[11px] font-bold text-slate-400">名称</div>
+          <input id="nfcName" maxlength="12" placeholder="例如：出门记账卡" class="mt-1.5 w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm outline-none">
+          <div class="text-[11px] text-rose-500 mt-1 hidden" id="nfcNameErr">起个名字</div>
+          <div class="mt-4 text-[11px] font-bold text-slate-400">默认描述（选填）</div>
+          <input id="nfcDesc" maxlength="16" placeholder="例如：坐下就计时" class="mt-1.5 w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm outline-none">
+          <div class="mt-4 text-[11px] font-bold text-slate-400">颜色</div>
+          <div id="nfcColorRow" class="mt-2 flex gap-2"></div>
+          <div class="mt-4" id="nfcCardSumRow">
+            <div class="text-[11px] font-bold text-slate-400">绑定目标</div>
+            <div class="text-xs mt-1 text-slate-500" id="nfcTargetSum">—</div>
+          </div>
+        </div>
+        <div id="nfcTargetBlock">
+          <div class="mt-4 text-[11px] font-bold text-slate-400">贴卡后做什么</div>
+          <div id="nfcTargetBox"></div>
+        </div>
         <div class="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hidden" id="nfcEditOps">
           <button class="w-full flex items-center justify-between px-3.5 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcGotoWrite()"><span class="text-xs font-bold">写入卡片</span><span class="text-[11px] text-slate-400" id="nfcEditWrote">未写入</span></button>
           <button class="w-full flex items-center justify-between px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcAskDel()"><span class="text-xs font-bold text-rose-500">删除卡片</span><span class="text-[11px] text-slate-400">原卡片变未绑定</span></button>
         </div>
         <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="nfcSaveEdit()">保存</button>
+      </div>
+    </div>
+
+    <!-- NFC 卡片：贴卡设置层（原屏内「贴卡行为」收进右上角设置·产品令 2026-10-17）· 家＝p-sub-nfc -->
+    <div id="sheetNfcSet" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNfcSet')">
+      <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+        <div class="grabber"></div>
+        <div class="text-center mt-1"><div class="text-base font-extrabold">贴卡设置</div>
+          <div class="text-[11px] text-slate-400 mt-1">贴卡时的行为与提示</div></div>
+        <div class="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div class="flex items-center justify-between px-3.5 py-3 gap-3"><div><b class="text-xs">贴卡先确认再执行</b><div class="text-[10px] text-slate-400 leading-4 mt-0.5">开启后每次贴卡先问一次，避免打断正在编辑的内容</div></div><span class="toggle" data-nfc="confirm" onclick="nfcPref('confirm',this)"></span></div>
+          <div class="flex items-center justify-between px-3.5 py-3 gap-3 border-t border-slate-100 dark:border-slate-800"><div><b class="text-xs">未识别卡片提示绑定</b><div class="text-[10px] text-slate-400 leading-4 mt-0.5">关掉后陌生卡片会静默忽略、不打扰</div></div><span class="toggle on" data-nfc="prompt" onclick="nfcPref('prompt',this)"></span></div>
+        </div>
+        <button class="mt-4 w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetNfcSet')">完成</button>
       </div>
     </div>
 
@@ -1609,18 +1630,24 @@ function navToggle(p,el){const on=el.classList.contains('on');
         （+timer_duration 可选·C18）；第二次触发＝toggle（C19）；计时单活与阅读单活一律继承各模块
         既有入口（startTiming/startSession），**本模块零仲裁**（C20/B20/B21）；有状态卡必给回执（C22）；
         列表「● 计时中」同源回显、卡片表不存计时态（C23/B30）。 */
-const NFC_NAV=[['inbox','速记'],['todo','记待办'],['ledger','记一笔'],['habit','打卡'],['journal','写日记'],['items','记物品'],['today','回今天页']];
+const NFC_NAV=[['inbox','速记'],['todo','记待办'],['ledger','记一笔'],['journal','写日记'],['items','记物品'],['today','回今天页']];
 const NFC_CATS=[['c1','学习'],['c2','工作'],['c3','运动'],['c4','家务'],['c5','休息'],['c6','通勤']];       /* 真实现源＝categories（经 nfc_mounts） */
 const NFC_BOOKS=[['b1','思考，快与慢'],['b2','資治通鑑'],['b3','人类简史']];                              /* 真实现源＝books（经 nfc_mounts） */
+const NFC_BABIES=[['baby1','小满'],['baby2','团团']];                                                    /* 真实现源＝母婴档案（经 nfc_mounts） */
+const NFC_CARE_KINDS=[['milk','喂奶'],['sleep','睡眠'],['dia','换尿布']];                                 /* 真实现源＝母婴记录类型 */
+const NFC_COLORS=['#F59E0B','#EF4444','#3B82F6','#10B981','#8B5CF6','#64748B'];
+const NFC_COLOR_NAMES=['蜜相色','珊瑚红','天青蓝','薄荷绿','紫罗兰','石墨灰'];
 const NFC_ICON={
  nav:'<path d="M13.2 3.5 5.8 13.6h5l-1.2 6.9 7.6-10.1h-5l1-6.9z"/>',
  timer:'<circle cx="12" cy="12.4" r="8.2"/><path d="M12 8.2v4.4l3 1.8"/><path d="M9.4 3.4h5.2"/>',
- read:'<path d="M5.4 4.8A1.8 1.8 0 0 1 7.2 3h11.4v18H7.2a1.8 1.8 0 0 1-1.8-1.8V4.8z"/><path d="M8.8 3v18"/>'};
+ read:'<path d="M5.4 4.8A1.8 1.8 0 0 1 7.2 3h11.4v18H7.2a1.8 1.8 0 0 1-1.8-1.8V4.8z"/><path d="M8.8 3v18"/>',
+ chain:'<path d="M9.6 14.4a3.4 3.4 0 0 1 0-4.8l2-2a3.4 3.4 0 0 1 4.8 4.8l-.9.9"/><path d="M14.4 9.6a3.4 3.4 0 0 1 0 4.8l-2 2a3.4 3.4 0 0 1-4.8-4.8l.9-.9"/>'};
 let NFC_CARDS=[
- {id:'K7F3M2QX9TBA',name:'书桌学习卡',kind:'timer_cat',ref:'c1',uses:36,wrote:true,last:'今天 08:12'},
- {id:'P4N8R2WD6HCZ',name:'床头阅读卡',kind:'read_book',ref:'b1',uses:12,wrote:true,last:'昨天 22:40'},
- {id:'M9T4XB3JQ7LV',name:'出门记账卡',kind:'nav',ref:'ledger',uses:0,wrote:false,last:'还没用过'}];
-let nfcEditId=null,nfcBindId=null,nfcTarget={kind:'nav',ref:'inbox'},nfcWriteId=null,nfcWriteState='idle',nfcPendDel=null;
+ {id:'K7F3M2QX9TBA',name:'书桌学习卡',desc:'坐下就计时',color:0,kind:'timer_cat',ref:'c1',sub:null,uses:36,wrote:true,last:'今天 08:12'},
+ {id:'P4N8R2WD6HCZ',name:'床头阅读卡',desc:'睡前读两页',color:4,kind:'read_book',ref:'b1',sub:null,uses:12,wrote:true,last:'昨天 22:40'},
+ {id:'M9T4XB3JQ7LV',name:'出门记账卡',desc:'',color:2,kind:'nav',ref:'ledger',sub:null,uses:0,wrote:false,last:'还没用过'}];
+let nfcEditId=null,nfcBindId=null,nfcTarget={kind:'nav',ref:'inbox',sub:null},nfcTab='nav',nfcSel={nav:'inbox',habit:null,care:null,timer_cat:null,read_book:null},nfcEditMode='full',nfcColor=0,nfcWriteId=null,nfcWriteState='idle',nfcPendDel=null;
+let nfcBookQ='',nfcBookOpen=false;
 let nfcLastRun={id:null,ts:0},nfcDebounceHits=0;
 let nfcPrefs={confirm:false,prompt:true};  /* nfc.confirmBeforeRun / nfc.promptUnbound */
 let nfcNoDevice=false;                     /* B1：不支持 NFC 的设备置 true */
@@ -1642,43 +1669,163 @@ const NFC_SIM_ALIAS={ok:'done',readonly:'err_readonly',nonndef:'err_nonndef',cap
 function nfcNavName(id){var a=NFC_NAV.filter(function(x){return x[0]===id;})[0];return a?a[1]:null;}
 function nfcCatName(id){var a=NFC_CATS.filter(function(x){return x[0]===id;})[0];return a?a[1]:null;}
 function nfcBookName(id){var a=NFC_BOOKS.filter(function(x){return x[0]===id;})[0];return a?a[1]:null;}
+function nfcBabyName(id){var a=NFC_BABIES.filter(function(x){return x[0]===id;})[0];return a?a[1]:null;}
+function nfcCareName(id){var a=NFC_CARE_KINDS.filter(function(x){return x[0]===id;})[0];return a?a[1]:null;}
+function nfcColorName(i){return NFC_COLOR_NAMES[i||0];}
 function nfcKindWord(c){return c.kind==='timer_cat'?'分类':(c.kind==='read_book'?'书':'动作');}
-function nfcTargetName(c){return c.kind==='nav'?nfcNavName(c.ref):(c.kind==='timer_cat'?nfcCatName(c.ref):nfcBookName(c.ref));}
-function nfcTargetLabel(c){return c.kind==='timer_cat'?'计时 · '+nfcCatName(c.ref):(c.kind==='read_book'?'阅读 · '+nfcBookName(c.ref):nfcNavName(c.ref));}
-function nfcTargetAlive(c){return !!nfcTargetName(c);}                       /* C24：分类/书/动作任一查不到＝已失效 */
+function nfcSubLabel(c){                                                    /* 二级参数的可读名 */
+ if(c.ref==='habit')return c.sub||'';
+ if(c.ref==='care'){var a=(c.sub||'').split('/');return [nfcBabyName(a[0])||'',nfcCareName(a[1])||''].filter(Boolean).join(' · ');}
+ return '';}
+function nfcTargetName(c){
+ if(c.kind==='timer_cat')return nfcCatName(c.ref);
+ if(c.kind==='read_book')return nfcBookName(c.ref);
+ if(c.ref==='habit')return c.sub||null;
+ if(c.ref==='care')return c.sub||null;
+ return nfcNavName(c.ref);}
+function nfcTargetLabel(c){
+ if(c.kind==='timer_cat')return '计时 · '+nfcCatName(c.ref);
+ if(c.kind==='read_book')return '阅读 · '+nfcBookName(c.ref);
+ if(c.ref==='habit')return '打卡 · '+(c.sub||'未选条目');
+ if(c.ref==='care')return '呵护宝宝 · '+(nfcSubLabel(c)||'未选');
+ return nfcNavName(c.ref);}
+function nfcTargetAlive(c){                                                 /* C24：分类/书/动作/习惯/宝宝任一查不到＝已失效 */
+ if(c.kind==='nav'&&c.ref==='habit')return !!HABITS.filter(function(h){return nfcStripEmoji(h.n)===c.sub;}).length;
+ if(c.kind==='nav'&&c.ref==='care'){var a=(c.sub||'').split('/');return !!nfcBabyName(a[0])&&!!nfcCareName(a[1]);}
+ return !!nfcTargetName(c);}
 function nfcIsStateful(c){return c.kind==='timer_cat'||c.kind==='read_book';}
 function nfcRunningOn(c){return (c.kind==='timer_cat'&&nfcRunning.timerCat===c.ref)||(c.kind==='read_book'&&nfcRunning.book===c.ref);}
 function nfcById(id){return NFC_CARDS.filter(function(c){return c.id===id;})[0]||null;}
 function nfcCounts(){if($('#nfcEntryCnt'))$('#nfcEntryCnt').textContent=NFC_CARDS.length;if($('#nfcCount'))$('#nfcCount').textContent=NFC_CARDS.length;}
+/* 卡片归属哪个横向大类（打卡/呵护宝宝＝nav 下的二级动作·独立成 tab·产品令 2026-10-17 二波） */
+function nfcTabOf(c){return (c.kind==='nav'&&(c.ref==='habit'||c.ref==='care'))?c.ref:c.kind;}
+function nfcSelFrom(c){var s={nav:'inbox',habit:null,care:null,timer_cat:null,read_book:null};if(!c)return s;
+ if(c.kind==='nav'){if(c.ref==='habit')s.habit=c.sub;else if(c.ref==='care')s.care=c.sub;else s.nav=c.ref;}
+ else s[c.kind]=c.ref;return s;}
+/* 列表＝一条目两节点（产品令 2026-10-17）：左＝绑定目标（点＝改目标）· 中＝虚线链条 · 右＝卡片（点＝改卡片信息） */
 function renderNfcList(){var box=$('#nfcList');if(!box)return;
  if(!NFC_CARDS.length){box.innerHTML='<div class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-6 text-center text-xs text-slate-400" onclick="nfcNew()">还没有卡片 · 点这里新建</div>';nfcCounts();return;}
  box.innerHTML=NFC_CARDS.map(function(c){var alive=nfcTargetAlive(c),run=nfcRunningOn(c);
-  var ic=c.kind==='timer_cat'?NFC_ICON.timer:(c.kind==='read_book'?NFC_ICON.read:NFC_ICON.nav);
-  var sub=alive?(run?'<span class="text-brand-500">● 计时中</span> · ':'')+nfcTargetLabel(c):'<span class="text-amber-600 dark:text-amber-400">已失效</span>';
-  var right=c.wrote?'<span class="text-[11px] text-slate-400">已写入</span>':'<button class="mini-btn" onclick="event.stopPropagation();nfcOpenWrite(\''+c.id+'\')">写入</button>';
-  return '<div class="flex items-center gap-3 py-2.5 border-b border-slate-100 dark:border-slate-800">'
-   +'<span class="set-ic bg-sky-50 dark:bg-sky-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">'+ic+'</svg></span>'
-   +'<button class="flex-1 text-left" onclick="nfcEdit(\''+c.id+'\')"><b class="text-sm">'+c.name+'</b><div class="text-[11px] text-slate-400">'+sub+' · 用过 '+c.uses+' 次 · '+c.last+'</div></button>'
-   +right+'</div>';}).join('');nfcCounts();}
-function nfcNew(){if(nfcNoDevice){toast('此设备不支持 NFC');return;}nfcEditId=null;nfcBindId=null;nfcTarget={kind:'nav',ref:'inbox'};$('#nfcName').value='';nfcRenderEdit();openSheet('sheetNfcEdit');}
-function nfcEdit(id){var c=nfcById(id);if(!c)return;nfcEditId=id;nfcBindId=null;nfcTarget={kind:c.kind,ref:c.ref};$('#nfcName').value=c.name;$('#nfcNameErr').classList.add('hidden');nfcRenderEdit();openSheet('sheetNfcEdit');}
-function nfcBind(id){nfcEditId=null;nfcBindId=id;nfcTarget={kind:'nav',ref:'inbox'};$('#nfcName').value='';nfcRenderEdit();openSheet('sheetNfcEdit');}  /* B8 未绑定卡片→绑定态 */
-function nfcRenderEdit(){$('#nfcEditTitle').textContent=nfcBindId?'绑定这张卡':(nfcEditId?'编辑卡片':'新建卡片');
+  var col=NFC_COLORS[c.color||0];
+  var tgt=alive?((run?'<span class="text-brand-500">● 计时中</span> · ':'')+nfcTargetLabel(c)):'<span class="text-amber-600 dark:text-amber-400">已失效</span>';
+  return '<div class="flex items-center gap-1.5 py-2.5 border-b border-slate-100 dark:border-slate-800">'
+   +'<button class="flex-1 min-w-0 text-left rounded-xl px-2.5 py-2" style="background:'+col+'22" onclick="nfcEditTarget(\''+c.id+'\')">'
+   +'<div class="text-[11px] font-bold truncate" style="color:'+col+'">'+tgt+'</div>'
+   +'<div class="text-[10px] text-slate-400 mt-0.5 truncate">用过 '+c.uses+' 次 · '+c.last+'</div></button>'
+   +'<span class="shrink-0 text-slate-300 dark:text-slate-600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px">'+NFC_ICON.chain+'</svg></span>'
+   +'<button class="shrink-0 w-[104px] text-left rounded-xl px-2.5 py-2 text-white" style="background:'+col+'" onclick="nfcEditCard(\''+c.id+'\')">'
+   +'<div class="text-[11px] font-bold truncate">'+c.name+'</div>'
+   +'<div class="text-[10px] text-white/85 mt-0.5 truncate">'+(c.desc||(c.wrote?'已写入':'未写入'))+'</div></button>'
+   +'</div>';}).join('');nfcCounts();}
+function nfcNew(){if(nfcNoDevice){toast('此设备不支持 NFC');return;}nfcEditId=null;nfcBindId=null;nfcEditMode='full';nfcTab='nav';nfcSel=nfcSelFrom(null);nfcColor=0;nfcSync();nfcBookOpen=false;nfcBookQ='';$('#nfcName').value='';$('#nfcDesc').value='';nfcRenderEdit();openSheet('sheetNfcEdit');}
+function nfcEdit(id){var c=nfcById(id);if(!c)return;nfcEditId=id;nfcBindId=null;nfcEditMode='full';nfcTab=nfcTabOf(c);nfcSel=nfcSelFrom(c);nfcColor=c.color||0;nfcBookOpen=false;nfcBookQ='';nfcSync();$('#nfcName').value=c.name;$('#nfcDesc').value=c.desc||'';$('#nfcNameErr').classList.add('hidden');nfcRenderEdit();openSheet('sheetNfcEdit');}
+function nfcEditCard(id){var c=nfcById(id);if(!c)return;nfcEditId=id;nfcBindId=null;nfcEditMode='card';nfcTab=nfcTabOf(c);nfcSel=nfcSelFrom(c);nfcColor=c.color||0;nfcBookOpen=false;nfcBookQ='';nfcSync();$('#nfcName').value=c.name;$('#nfcDesc').value=c.desc||'';$('#nfcNameErr').classList.add('hidden');nfcRenderEdit();openSheet('sheetNfcEdit');}
+function nfcEditTarget(id){var c=nfcById(id);if(!c)return;nfcEditId=id;nfcBindId=null;nfcEditMode='target';nfcTab=nfcTabOf(c);nfcSel=nfcSelFrom(c);nfcColor=c.color||0;nfcBookOpen=false;nfcBookQ='';nfcSync();nfcRenderEdit();openSheet('sheetNfcEdit');}
+function nfcBind(id){nfcEditId=null;nfcBindId=id;nfcEditMode='full';nfcTab='nav';nfcSel=nfcSelFrom(null);nfcColor=0;nfcSync();nfcBookOpen=false;nfcBookQ='';$('#nfcName').value='';$('#nfcDesc').value='';nfcRenderEdit();openSheet('sheetNfcEdit');}  /* B8 未绑定卡片→绑定态 */
+function nfcRenderColors(){var el=$('#nfcColorRow');if(!el)return;
+ el.innerHTML=NFC_COLORS.map(function(c,i){
+  return '<button class="w-8 h-8 rounded-xl transition" style="background:'+c+';box-shadow:'+(i===nfcColor?'0 0 0 2px #fff,0 0 0 4px '+c:'none')+'" onclick="nfcPickColor('+i+')" title="'+NFC_COLOR_NAMES[i]+'"></button>';}).join('');}
+function nfcPickColor(i){nfcColor=i;nfcRenderColors();}
+function nfcRenderEdit(){var mode=nfcEditMode;
+ $('#nfcEditTitle').textContent=nfcBindId?'绑定这张卡':(mode==='target'?'绑定目标':(mode==='card'?'卡片信息':(nfcEditId?'编辑卡片':'新建卡片')));
  var bh=$('#nfcBindHint');if(nfcBindId){bh.textContent='这张卡还没绑定 · 卡号 '+nfcBindId;bh.classList.remove('hidden');}else{bh.classList.add('hidden');}
- $('#nfcEditOps').classList.toggle('hidden',!nfcEditId);
- if(nfcEditId){var c=nfcById(nfcEditId);if(c)$('#nfcEditWrote').textContent=c.wrote?'已写入':'未写入';}
- $('#nfcTargetBox').innerHTML=[['nav','快捷动作',NFC_NAV],['timer_cat','计时分类',NFC_CATS],['read_book','阅读书目',NFC_BOOKS]].map(function(g){
-  var rows=g[2].map(function(r){var on=(nfcTarget.kind===g[0]&&nfcTarget.ref===r[0]);
-   return '<button class="chip'+(on?' chip-on':'')+'" data-kind="'+g[0]+'" data-ref="'+r[0]+'" onclick="nfcPickTarget(\''+g[0]+'\',\''+r[0]+'\')">'+r[1]+'</button>';}).join('');
-  return '<div class="mt-3" data-grp="'+g[0]+'"><div class="text-[10px] font-bold text-slate-400 mb-1.5">'+g[1]+'</div><div class="flex flex-wrap gap-1.5">'+rows+'</div></div>';}).join('');}
-function nfcPickTarget(kind,ref){nfcTarget={kind:kind,ref:ref};nfcRenderEdit();}   /* C28 三区块互斥单选·无二级弹层 */
-function nfcSaveEdit(){var nm=($('#nfcName').value||'').trim();
- if(!nm){$('#nfcNameErr').classList.remove('hidden');return;}          /* B13 名称必填·当场校验 */
+ var showCard=(mode==='full'||mode==='card'),showTarget=(mode==='full'||mode==='target');
+ $('#nfcCardBlock').classList.toggle('hidden',!showCard);
+ $('#nfcTargetBlock').classList.toggle('hidden',!showTarget);
+ $('#nfcEditOps').classList.toggle('hidden',!(nfcEditId&&mode!=='target'));
+ if(nfcEditId){var c=nfcById(nfcEditId);if(c){
+   if(showCard){$('#nfcName').value=c.name;$('#nfcDesc').value=c.desc||'';nfcColor=c.color||0;nfcRenderColors();$('#nfcTargetSum').textContent=nfcTargetLabel(c);}
+   if(nfcEditId&&$('#nfcEditWrote'))$('#nfcEditWrote').textContent=c.wrote?'已写入':'未写入';}}
+ if(showCard)nfcRenderColors();
+ nfcRenderTargetBox();}
+
+
+function nfcPickTarget(kind,ref){nfcTab=kind;nfcSel[kind]=ref;nfcSync();nfcRenderEdit();}
+
+/* ===== NFC 目标选择（2026-10-17 产品令二波）：五大类＝横向 tab 单选 · 一次只显示一区 ===== */
+/* 快捷动作／打卡／呵护宝宝／计时分类／阅读书目 五段横向并排，点哪段下方才出现哪一段内容。
+   口径＝「凡有二级选择内容的都提升为横向大类」——打卡＝习惯条目（同源习惯模块）；
+   呵护宝宝＝宝宝档案＋记录类型（同源母婴模块）；计时分类＝一级/子级（同源时间模块）；
+   阅读书目＝收起态一行＋展开搜索。语义不变：全局只有唯一选中目标（nfcTarget）。 */
+function nfcStripEmoji(s){return String(s||'').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{20E3}]/gu,'').trim();}
+function nfcSubParent(s){for(var p in SUBS){if(SUBS[p]&&Object.prototype.hasOwnProperty.call(SUBS[p],s))return p;}return null;}
+function nfcSync(){                                                         /* 唯一选中目标＝当前 tab × 该区记忆 */
+ if(nfcTab==='habit')nfcTarget={kind:'nav',ref:'habit',sub:nfcSel.habit};
+ else if(nfcTab==='care')nfcTarget={kind:'nav',ref:'care',sub:nfcSel.care};
+ else nfcTarget={kind:nfcTab,ref:nfcSel[nfcTab],sub:null};}
+function nfcTabTo(k){nfcTab=k;
+ if(nfcSel[k]==null)nfcSel[k]=(k==='nav'?NFC_NAV[0][0]:(k==='habit'?nfcStripEmoji(HABITS[0].n):(k==='care'?NFC_BABIES[0][0]+'/'+NFC_CARE_KINDS[0][0]:(k==='timer_cat'?Object.keys(CATS)[0]:NFC_BOOKS[0][0]))));
+ if(k!=='read_book'){nfcBookOpen=false;nfcBookQ='';}
+ nfcSync();nfcRenderEdit();}
+function nfcRenderTargetBox(){
+ nfcSync();
+ var TABS=[['nav','快捷动作'],['habit','打卡'],['care','呵护宝宝'],['timer_cat','计时分类'],['read_book','阅读书目']];
+ var html='<div class="flex gap-1">'+TABS.map(function(t){var on=(nfcTab===t[0]);
+   return '<button class="chip flex-1'+(on?' chip-on':'')+'" style="padding-left:2px;padding-right:2px" onclick="nfcTabTo(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
+ html+='<div class="mt-2.5" data-grp="'+nfcTab+'">';
+ if(nfcTab==='nav'){
+  html+='<div class="flex flex-wrap gap-1.5" data-lvl="0">'+NFC_NAV.map(function(r){var on=(nfcSel.nav===r[0]);
+    return '<button class="chip'+(on?' chip-on':'')+'" onclick="nfcPickTarget(\'nav\',\''+r[0]+'\')">'+r[1]+'</button>';}).join('')+'</div>';
+ }else if(nfcTab==='habit'){
+  html+='<div class="text-[10px] text-slate-400 mb-1.5">习惯条目 · 贴卡即完成该习惯打卡</div><div class="flex flex-wrap gap-1.5" data-lvl="1">'
+   +HABITS.map(function(h,i){var nm=nfcStripEmoji(h.n);var on=(nfcSel.habit===nm);
+     return '<button class="chip'+(on?' chip-on':'')+'" onclick="nfcPickHabit('+i+')">'+nm+'</button>';}).join('')+'</div>';
+ }else if(nfcTab==='care'){
+  var ba=(nfcSel.care||'/').split('/');
+  html+='<div class="text-[10px] text-slate-400 mb-1.5">宝宝</div><div class="flex flex-wrap gap-1.5" data-lvl="1">'
+   +NFC_BABIES.map(function(b){var on=(ba[0]===b[0]);
+     return '<button class="chip'+(on?' chip-on':'')+'" onclick="nfcPickBaby(\''+b[0]+'\')">'+b[1]+'</button>';}).join('')+'</div>'
+   +'<div class="text-[10px] text-slate-400 mt-2 mb-1.5">记录类型 · 贴卡即记一条</div><div class="flex flex-wrap gap-1.5" data-lvl="2">'
+   +NFC_CARE_KINDS.map(function(k){var on=(ba[1]===k[0]);
+     return '<button class="chip'+(on?' chip-on':'')+'" onclick="nfcPickCareKind(\''+k[0]+'\')">'+k[1]+'</button>';}).join('')+'</div>';
+ }else if(nfcTab==='timer_cat'){
+  var cur=nfcSel.timer_cat,c1=CATS[cur]?cur:nfcSubParent(cur),cSub=CATS[cur]?'':cur;
+  html+='<div class="text-[10px] font-bold text-slate-400 mb-1.5">一级分组</div><div class="flex flex-wrap gap-1.5" data-lvl="1">'
+   +Object.keys(CATS).map(function(k){var on=(c1===k);
+     return '<button class="chip'+(on?' chip-on':'')+'" onclick="nfcPickCat1(\''+k+'\')"><i style="width:9px;height:9px;border-radius:3px" class="'+CATS[k]+'"></i>'+k+'</button>';}).join('')+'</div>';
+  if(c1){var subs=SUBS[c1]||{},sk=Object.keys(subs);
+   html+='<div class="text-[10px] text-slate-400 mt-2 mb-1.5">子分组 · 属于上方选中一级 · 再点可取消</div><div class="flex flex-wrap gap-1.5" data-lvl="2">'
+    +(sk.length?sk.map(function(s){var on=(cSub===s);
+       return '<button class="chip'+(on?' chip-on':'')+'" onclick="nfcPickCat2(\''+c1+'\',\''+s+'\')">'+s+'</button>';}).join('')
+      :'<span class="text-[10px] text-slate-400">该分类无次级 · 可直接保存</span>')+'</div>';}
+ }else{
+  var bkOn=(nfcSel.read_book!=null),bkName=bkOn?nfcBookName(nfcSel.read_book):null;
+  html+='<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800" onclick="nfcToggleBooks()"><span class="text-xs '+(bkOn?'font-bold':'text-slate-400')+'">'+(bkOn?bkName:'选择书籍')+'</span><span class="text-[10px] text-slate-400">'+(nfcBookOpen?'收起 ∧':'展开 ∨')+'</span></button>';
+  if(nfcBookOpen){
+   html+='<input id="nfcBookQ" value="'+String(nfcBookQ).replace(/"/g,'&quot;')+'" oninput="nfcBookFilter(this.value)" placeholder="搜索书名" class="mt-2 w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs outline-none">'
+    +'<div id="nfcBookList" class="mt-1.5 max-h-44 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700"></div>';}
+ }
+ html+='</div>';
+ document.getElementById('nfcTargetBox').innerHTML=html;
+ if(nfcTab==='read_book'&&nfcBookOpen)nfcBookFilter(nfcBookQ);
+}
+function nfcBookListHtml(){
+ var q=(nfcBookQ||'').trim();var list=NFC_BOOKS.filter(function(b){return !q||b[1].indexOf(q)>=0;});
+ var bkOn=(nfcSel.read_book!=null);
+ return list.length?list.map(function(b){var on=(bkOn&&nfcSel.read_book===b[0]);
+   return '<button class="w-full text-left px-3 py-2.5 text-xs border-b border-slate-100 dark:border-slate-800 last:border-0 '+(on?'text-brand-500 font-bold':'')+'" onclick="nfcPickBook(\''+b[0]+'\')">'+b[1]+'</button>';}).join('')
+  :'<div class="px-3 py-3 text-[11px] text-slate-400 text-center">没有匹配的书</div>';
+}
+function nfcBookFilter(v){nfcBookQ=v;var el=document.getElementById('nfcBookList');if(el)el.innerHTML=nfcBookListHtml();}
+function nfcToggleBooks(){nfcBookOpen=!nfcBookOpen;if(nfcBookOpen)nfcBookQ='';nfcRenderEdit();}
+function nfcPickBook(id){nfcTab='read_book';nfcSel.read_book=id;nfcBookOpen=false;nfcBookQ='';nfcSync();nfcRenderEdit();}
+function nfcPickCat1(k){nfcTab='timer_cat';nfcSel.timer_cat=k;nfcSync();nfcRenderEdit();}
+function nfcPickCat2(p,s){nfcTab='timer_cat';nfcSel.timer_cat=(nfcSel.timer_cat===s?p:s);nfcSync();nfcRenderEdit();}   /* C28 三区块互斥单选·无二级弹层 */
+function nfcPickHabit(i){nfcTab='habit';nfcSel.habit=nfcStripEmoji(HABITS[i].n);nfcSync();nfcRenderEdit();}
+function nfcPickBaby(b){var a=(nfcSel.care||'/').split('/');nfcTab='care';nfcSel.care=b+'/'+(a[1]||NFC_CARE_KINDS[0][0]);nfcSync();nfcRenderEdit();}
+function nfcPickCareKind(k){var a=(nfcSel.care||'/').split('/');nfcTab='care';nfcSel.care=(a[0]||NFC_BABIES[0][0])+'/'+k;nfcSync();nfcRenderEdit();}
+function nfcPickTarget(kind,ref){nfcTab=kind;nfcSel[kind]=ref;nfcSync();nfcRenderEdit();}
+function nfcSaveEdit(){var mode=nfcEditMode;var nm=($('#nfcName').value||'').trim();var ds=($('#nfcDesc').value||'').trim();
+ if(mode!=='target'&&!nm){$('#nfcNameErr').classList.remove('hidden');return;}          /* B13 名称必填·当场校验 */
  $('#nfcNameErr').classList.add('hidden');
- if(nfcBindId){NFC_CARDS.push({id:nfcBindId,name:nm,kind:nfcTarget.kind,ref:nfcTarget.ref,uses:0,wrote:true,last:'还没用过'});nfcBindId=null;renderNfcList();closeSheet('sheetNfcEdit');toast('已绑定这张卡');return;}
- if(nfcEditId){var c=nfcById(nfcEditId);c.name=nm;c.kind=nfcTarget.kind;c.ref=nfcTarget.ref;renderNfcList();closeSheet('sheetNfcEdit');toast('卡片已更新');return;}
+ if(nfcBindId){NFC_CARDS.push({id:nfcBindId,name:nm,desc:ds,color:nfcColor,kind:nfcTarget.kind,ref:nfcTarget.ref,sub:nfcTarget.sub,uses:0,wrote:true,last:'还没用过'});nfcBindId=null;renderNfcList();closeSheet('sheetNfcEdit');toast('已绑定这张卡');return;}
+ if(nfcEditId){var c=nfcById(nfcEditId);
+  if(mode!=='target'){c.name=nm;c.desc=ds;c.color=nfcColor;}
+  if(mode!=='card'){c.kind=nfcTarget.kind;c.ref=nfcTarget.ref;c.sub=nfcTarget.sub;}
+  renderNfcList();closeSheet('sheetNfcEdit');
+  toast(mode==='target'?'绑定目标已更新':(mode==='card'?'卡片信息已更新':'卡片已更新'));return;}
  var id='N'+Math.random().toString(36).slice(2,13).toUpperCase();      /* 12 位编号（真实现＝Crockford Base32） */
- NFC_CARDS.push({id:id,name:nm,kind:nfcTarget.kind,ref:nfcTarget.ref,uses:0,wrote:false,last:'还没用过'});
+ NFC_CARDS.push({id:id,name:nm,desc:ds,color:nfcColor,kind:nfcTarget.kind,ref:nfcTarget.ref,sub:nfcTarget.sub,uses:0,wrote:false,last:'还没用过'});
  nfcEditId=id;renderNfcList();closeSheet('sheetNfcEdit');nfcOpenWrite(id);toast('已保存 · 接着写入卡片');}   /* C16 新建→自动续写卡 */
 function nfcGotoWrite(){if(!nfcEditId)return;closeSheet('sheetNfcEdit');nfcOpenWrite(nfcEditId);}
 function nfcAskDel(){var c=nfcById(nfcEditId);if(!c)return;nfcPendDel=c.id;$('#nfcDelSum').textContent='「'+c.name+'」· '+nfcTargetLabel(c);openSheet('sheetNfcDel');}

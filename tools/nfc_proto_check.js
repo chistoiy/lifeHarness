@@ -58,9 +58,14 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
 
   /* N1 入口行在位·紧邻「桌面与快捷方式」下一行·张数与列表同源 */
   const n1 = await ev(`setPage('p-profile');var t=$('#p-profile').innerText,ec=$('#nfcEntryCnt').textContent;
-    return {has:/NFC 卡片/.test(t),after:/桌面与快捷方式[\\s\\S]*NFC 卡片/.test(t),ec:ec,rows:document.querySelectorAll('#nfcList > div').length};`);
-  (n1.has && n1.after && n1.ec === String(n1.rows))
-    ? ok('N1 入口行在位（桌面与快捷方式下一行）·张数与列表同源', n1.ec + ' 张 / ' + n1.rows + ' 行') : bad('N1', JSON.stringify(n1));
+    navTo('p-sub-nfc');var row=document.querySelector('#nfcList > div');var bts=row?row.querySelectorAll('button'):[];
+    var ocs=Array.prototype.map.call(bts,function(b){return b.getAttribute('onclick')||''}).join('|');
+    return {has:/NFC 卡片/.test(t),after:/桌面与快捷方式[\\s\\S]*NFC 卡片/.test(t),ec:ec,rows:document.querySelectorAll('#nfcList > div').length,
+      twoNodes:/nfcEditTarget/.test(ocs)&&/nfcEditCard/.test(ocs),chain:row?!!row.querySelector('svg'):false,
+      setBtn:Array.prototype.some.call(document.querySelectorAll('button'),function(b){return (b.getAttribute('onclick')||'').indexOf("openSheet('sheetNfcSet')")>=0})};`);
+  (n1.has && n1.after && n1.ec === String(n1.rows) && n1.twoNodes && n1.chain && n1.setBtn)
+    ? ok('N1 入口行在位（桌面与快捷方式下一行）·张数与列表同源·列表行＝左目标/右卡片双节点·右上角设置入口在位', n1.ec + ' 张 / ' + n1.rows + ' 行') : bad('N1', JSON.stringify(n1));
+
 
   /* N2 落屏与标题（三张卡＝计时/阅读/导航 各一） */
   const n2 = await ev(`navTo('p-sub-nfc');var t=$('#nfcList').innerText;
@@ -78,28 +83,63 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
     ? ok('N3 空态＝虚线行定式·两处计数归零', n3.empty) : bad('N3', JSON.stringify(n3));
   await shot('nfc-02-empty');
 
-  /* N4 新建层：三区块结构（nav 7 / timer_cat 6 / read_book 3）·默认恰 1 枚选中·新建态不露「写入/删除」·名称留空拒收不落库 */
+  /* N4 新建层：三区块结构（nav 7 / 一级分组 11 / 书目收起态 0）·默认恰 1 枚选中·
+     分类两级联动（选一级「工作」→ 子分组出现）·书目展开后 3 本·新建态不露「写入/删除」·名称留空拒收不落库 */
   const n4 = await ev(`nfcNew();var n0=NFC_CARDS.length;
     var g=function(k){return document.querySelectorAll('#nfcTargetBox [data-grp="'+k+'"] .chip').length};
-    var r={title:$('#nfcEditTitle').textContent,grpNav:g('nav'),grpCat:g('timer_cat'),grpBook:g('read_book'),
-      on:document.querySelectorAll('#nfcTargetBox .chip-on').length,
+    var g1=function(l){return document.querySelectorAll('#nfcTargetBox [data-lvl="'+l+'"] .chip').length};
+    var r={title:$('#nfcEditTitle').textContent,tab:nfcTab,
+      tabs:document.querySelectorAll('#nfcTargetBox > div:first-child .chip').length,
+      grpNav:g('nav'),grpCat:g('timer_cat'),grpBook:g('read_book'),
+      on:document.querySelectorAll('#nfcTargetBox [data-grp] .chip-on').length,
       opsHidden:$('#nfcEditOps').classList.contains('hidden'),hintHidden:$('#nfcBindHint').classList.contains('hidden')};
+    r.tabLabels=Array.prototype.map.call(document.querySelectorAll('#nfcTargetBox > div:first-child .chip'),function(b){return b.textContent.trim()}).join('/');
+    nfcTabTo('habit');r.habitSubs=g1('1');r.habitTgt=nfcTarget.ref+'/'+nfcTarget.sub;r.habitEmoji=/[\\u{1F000}-\\u{1FAFF}\\u{2600}-\\u{27BF}]/u.test(document.querySelector('#nfcTargetBox [data-grp="habit"]').innerText);
+    nfcTabTo('care');r.babyLvl1=g1('1');r.careLvl2=g1('2');r.careTgt=nfcTarget.ref+'/'+nfcTarget.sub;
+    nfcTabTo('nav');r.backSub=nfcTarget.sub;
+    nfcTabTo('timer_cat');r.tab2=nfcTab;r.lvl1=g1('1');r.lvl2=g1('2');
+    r.on2=document.querySelectorAll('#nfcTargetBox [data-grp] .chip-on').length;
+    nfcTabTo('read_book');r.tab3=nfcTab;r.bookClosed=document.querySelectorAll('#nfcBookList button').length;
+    nfcToggleBooks();r.bookOpen=document.querySelectorAll('#nfcBookList button').length;nfcToggleBooks();
     $('#nfcName').value='';nfcSaveEdit();
     r.errShown=!$('#nfcNameErr').classList.contains('hidden');r.stayed=!$('#sheetNfcEdit').classList.contains('hidden');
     r.grew=NFC_CARDS.length-n0;return r;`);
-  (n4.title === '新建卡片' && n4.grpNav === 7 && n4.grpCat === 6 && n4.grpBook === 3 && n4.on === 1 &&
+  (n4.title === '新建卡片' && n4.tab === 'nav' && n4.tabs === 5 && n4.tabLabels === '快捷动作/打卡/呵护宝宝/计时分类/阅读书目' && n4.grpNav === 6 && n4.grpCat === 0 && n4.grpBook === 0 &&
+    n4.on === 1 && n4.habitSubs === 5 && /^habit\/.+/.test(n4.habitTgt) && n4.habitEmoji === false &&
+    n4.babyLvl1 === 2 && n4.careLvl2 === 3 && /^care\/baby\d\/(milk|sleep|dia)$/.test(n4.careTgt) && n4.backSub === null &&
+    n4.tab2 === 'timer_cat' && n4.lvl1 === 11 && n4.lvl2 === 2 && n4.on2 === 1 &&
+    n4.tab3 === 'read_book' && n4.bookClosed === 0 && n4.bookOpen === 3 &&
     n4.opsHidden && n4.hintHidden && n4.errShown && n4.stayed && n4.grew === 0)
-    ? ok('N4 目标三区块（7/6/3）·默认 1 枚选中·名称留空当场拒收且不落库') : bad('N4', JSON.stringify(n4));
+    ? ok('N4 五大类横向 tab（5 段·一次只显示一区）·快捷动作 6 枚·打卡大类 5 条习惯（零 emoji）·呵护宝宝大类 2×3·分类 11/2·书目 0→3·名称留空当场拒收且不落库') : bad('N4', JSON.stringify(n4));
+
   await shot('nfc-03-new');
 
-  /* N5 三区块互斥单选（C28）：选计时分类 → 快捷动作区归零；再选阅读书目 → 计时区归零 */
-  const n5 = await ev(`var on=function(k){return document.querySelectorAll('#nfcTargetBox [data-grp="'+k+'"] .chip-on').length};
-    nfcPickTarget('timer_cat','c1');var a={nav:on('nav'),cat:on('timer_cat'),book:on('read_book'),total:document.querySelectorAll('#nfcTargetBox .chip-on').length};
-    nfcPickTarget('read_book','b1');var b={nav:on('nav'),cat:on('timer_cat'),book:on('read_book')};
-    return {a:a,b:b,target:nfcTarget.kind+'/'+nfcTarget.ref};`);
-  (n5.a.nav === 0 && n5.a.cat === 1 && n5.a.book === 0 && n5.a.total === 1 &&
-    n5.b.nav === 0 && n5.b.cat === 0 && n5.b.book === 1 && n5.target === 'read_book/b1')
-    ? ok('N5 三区块互斥单选（选区唯一·无二级弹层）') : bad('N5', JSON.stringify(n5));
+  /* N5 tab 互斥（一屏一区·选区唯一）＋ 分类两级联动（父子双高亮·再点取消·无次级提示）＋ 书目搜索：
+     切「计时分类」→ 快捷动作归零、默认选中一级「工作」；选子类「开会」→ 父子双高亮；再点＝回退父级；
+     切「阅读书目」→ 分类归零、目标落到默认书；展开 3 本、搜索「快」过滤到 1 本；选书 → 下拉自动收起 */
+  const n5 = await ev(`nfcNew();
+    var on=function(k){return document.querySelectorAll('#nfcTargetBox [data-grp="'+k+'"] .chip-on').length};
+    var hitxt=function(){return Array.prototype.map.call(document.querySelectorAll('#nfcTargetBox [data-lvl] .chip-on'),function(e){return e.textContent.trim()}).join('+')};
+    nfcTabTo('timer_cat');
+    var a={tab:nfcTab,nav:on('nav'),cat:on('timer_cat'),total:document.querySelectorAll('#nfcTargetBox [data-grp] .chip-on').length,
+      target:nfcTarget.kind+'/'+nfcTarget.ref};
+    nfcPickCat2('工作','开会');var a2=nfcTarget.ref,hi2=hitxt(),n2=on('timer_cat');
+    nfcPickCat2('工作','开会');var a3=nfcTarget.ref,hi3=hitxt();
+    nfcPickCat1('学习');var noSub=document.querySelector('#nfcTargetBox [data-grp="timer_cat"]').innerText.indexOf('该分类无次级')>=0;
+    nfcTabTo('read_book');
+    var b0={nav:on('nav'),cat:on('timer_cat'),target:nfcTarget.kind+'/'+nfcTarget.ref};
+    nfcToggleBooks();var listLen=document.querySelectorAll('#nfcBookList button').length;
+    nfcBookFilter('快');var filtered=document.querySelectorAll('#nfcBookList button').length;nfcBookFilter('');
+    nfcPickBook('b1');
+    var b={tab:nfcTab,nav:on('nav'),cat:on('timer_cat'),target:nfcTarget.kind+'/'+nfcTarget.ref,listGone:document.getElementById('nfcBookList')===null};
+    return {a:a,a2:a2,hi2:hi2,n2:n2,a3:a3,hi3:hi3,noSub:noSub,b0:b0,listLen:listLen,filtered:filtered,b:b};`);
+  (n5.a.tab === 'timer_cat' && n5.a.nav === 0 && n5.a.cat === 1 && n5.a.total === 1 && n5.a.target === 'timer_cat/工作' &&
+    n5.a2 === '开会' && n5.n2 === 2 && n5.hi2 === '工作+开会' &&
+    n5.a3 === '工作' && n5.hi3 === '工作' && n5.noSub &&
+    n5.b0.nav === 0 && n5.b0.cat === 0 && n5.b0.target === 'read_book/b1' &&
+    n5.listLen === 3 && n5.filtered === 1 &&
+    n5.b.tab === 'read_book' && n5.b.target === 'read_book/b1' && n5.b.listGone)
+    ? ok('N5 三区块 tab 互斥（一屏一区·选区唯一）＋分类两级联动（父子双高亮·再点取消·无次级提示）＋书目搜索过滤') : bad('N5', JSON.stringify(n5));
 
   /* N6 新建→自动续写卡（C16）·写卡层状态机七态·成功回写「已写入」 */
   const n6 = await ev(`$('#nfcName').value='书房阅读卡';nfcSaveEdit();
@@ -185,17 +225,50 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
   (n13.open && /旧卡/.test(n13.sum) && n13.n1 === n13.n0 - 1 && n13.cnt === String(n13.n1) && n13.ec === String(n13.n1) && n13.rows === n13.n1)
     ? ok('N13 删除走独立确认层·行数与两处计数三处随动', n13.cnt + ' 张 / ' + n13.rows + ' 行') : bad('N13', JSON.stringify(n13));
 
-  /* N14 贴卡行为两开关默认态（C5/B17）＋锁屏与选型两行灰字在位（C26/C27）＋零 emoji */
+  /* N14 贴卡行为两开关默认态（C5/B17·已收进右上角设置层）＋锁屏与选型两行灰字在位（C26/C27）＋零 emoji */
   const n14 = await ev(`var t=$('#p-sub-nfc').innerText;
     var EM=[/\\u{1F000}-\\u{1FAFF}/u,/\\u{2600}-\\u{27BF}/u,/\\u{2B00}-\\u{2BFF}/u];
     return {confirm:nfcPrefs.confirm,prompt:nfcPrefs.prompt,
       confirmOff:!document.querySelector('[data-nfc="confirm"]').classList.contains('on'),
       promptOn:document.querySelector('[data-nfc="prompt"]').classList.contains('on'),
+      inSetSheet:!!document.querySelector('#sheetNfcSet [data-nfc="confirm"]')&&!!document.querySelector('#sheetNfcSet [data-nfc="prompt"]'),
+      outOfScreen:!document.querySelector('#p-sub-nfc [data-nfc="confirm"]'),
       lock:/锁屏状态下安卓不派发 NFC 事件/.test(t),pick:/NTAG213\\/215\\/216/.test(t),
-      emoji:EM.some(function(r){return r.test($('#nfcEntry').innerText+t+$('#sheetNfcEdit').innerText+$('#sheetNfcWrite').innerText+$('#sheetNfcDel').innerText)})};`);
-  (n14.confirm === false && n14.prompt === true && n14.confirmOff && n14.promptOn && n14.lock && n14.pick && n14.emoji === false)
-    ? ok('N14 两开关默认态（先确认＝关·未识别提示＝开）·锁屏与选型两行在位·零 emoji') : bad('N14', JSON.stringify(n14));
+      emoji:EM.some(function(r){return r.test($('#nfcEntry').innerText+t+$('#sheetNfcEdit').innerText+$('#sheetNfcWrite').innerText+$('#sheetNfcDel').innerText+$('#sheetNfcSet').innerText)})};`);
+  (n14.confirm === false && n14.prompt === true && n14.confirmOff && n14.promptOn && n14.inSetSheet && n14.outOfScreen && n14.lock && n14.pick && n14.emoji === false)
+    ? ok('N14 两开关默认态（先确认＝关·未识别提示＝开·已从屏内收进右上角设置层）·锁屏与选型两行在位·零 emoji') : bad('N14', JSON.stringify(n14));
 
+
+  /* N15 双节点列表与两形态弹层（产品令 2026-10-17）：左＝绑定目标（点＝只改目标）·右＝卡片（点＝只改卡片信息） */
+  const n15 = await ev(`navTo('p-sub-nfc');var id=NFC_CARDS[0].id;
+    nfcEditCard(id);
+    var r={card:{mode:nfcEditMode,title:$('#nfcEditTitle').textContent,cardOn:!$('#nfcCardBlock').classList.contains('hidden'),
+      tgtOff:$('#nfcTargetBlock').classList.contains('hidden'),ops:!$('#nfcEditOps').classList.contains('hidden'),
+      name:$('#nfcName').value,desc:$('#nfcDesc').value,sum:$('#nfcTargetSum').textContent,colors:document.querySelectorAll('#nfcColorRow button').length}};
+    closeSheet('sheetNfcEdit');
+    nfcEditTarget(id);
+    r.tgt={mode:nfcEditMode,title:$('#nfcEditTitle').textContent,cardOff:$('#nfcCardBlock').classList.contains('hidden'),
+      tgtOn:!$('#nfcTargetBlock').classList.contains('hidden'),opsOff:$('#nfcEditOps').classList.contains('hidden')};
+    closeSheet('sheetNfcEdit');
+    nfcEdit(id);
+    r.full={mode:nfcEditMode,cardOn:!$('#nfcCardBlock').classList.contains('hidden'),tgtOn:!$('#nfcTargetBlock').classList.contains('hidden')};
+    closeSheet('sheetNfcEdit');
+    /* 只改目标：卡片信息不动 */
+    nfcEditTarget(id);nfcTabTo('habit');nfcPickHabit(0);nfcSaveEdit();
+    var c=nfcById(id);r.saved={kind:c.kind,ref:c.ref,sub:c.sub,name:c.name,desc:c.desc,color:c.color,label:nfcTargetLabel(c)};
+    /* 只改卡片信息：目标不动 */
+    nfcEditCard(id);$('#nfcName').value='改名后的卡';$('#nfcDesc').value='新描述';nfcPickColor(3);nfcSaveEdit();
+    var c2=nfcById(id);r.saved2={name:c2.name,desc:c2.desc,color:c2.color,ref:c2.ref,sub:c2.sub};
+    return r;`);
+  (n15.card.mode === 'card' && n15.card.cardOn && n15.card.tgtOff && n15.card.ops && n15.card.colors === 6 &&
+    n15.card.name === '书桌学习卡' && n15.card.desc === '坐下就计时' && n15.card.sum === '计时 · 学习' &&
+    n15.tgt.mode === 'target' && n15.tgt.cardOff && n15.tgt.tgtOn && n15.tgt.opsOff &&
+    n15.full.mode === 'full' && n15.full.cardOn && n15.full.tgtOn &&
+    n15.saved.kind === 'nav' && n15.saved.ref === 'habit' && /晨间跑步/.test(n15.saved.sub) && n15.saved.name === '书桌学习卡' &&
+    n15.saved.desc === '坐下就计时' && n15.saved.color === 0 && /打卡 · 晨间跑步/.test(n15.saved.label) &&
+    n15.saved2.name === '改名后的卡' && n15.saved2.desc === '新描述' && n15.saved2.color === 3 &&
+    n15.saved2.ref === 'habit' && n15.saved2.sub === n15.saved.sub)
+    ? ok('N15 双节点两形态弹层：右节点＝卡片信息（名称/描述/6 色/目标摘要）·左节点＝绑定目标（仅目标区）·新建＝全量；只改目标不动卡片、只改卡片不动目标') : bad('N15', JSON.stringify(n15));
   finish();
 })().catch(e => { bad('harness 崩溃 ' + String(e).slice(0, 200)); finish() });
 function finish() { log((fail ? 'RESULT FAIL ' : 'RESULT PASS ') + pass + '/' + (pass + fail));
