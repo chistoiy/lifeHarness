@@ -109,6 +109,10 @@ void main() {
     const whitelist = <String, String>{
       'features/read/presentation/shelf/book_form_page.dart':
           '退回型：`GoRouter.maybeOf` 拿到路由时一律走命名路由，只有 widget 测试直挂 MaterialApp 才匿名 push',
+      // 高保真批6b·刀2（2026-10-16）：书籍表单 UI 积木群拆 part 迁入同库件，其中一条
+      // 退回型匿名 push 随组搬迁（maybeOf 前置支口径不变），在此挂同款理由。
+      'features/read/presentation/shelf/book_form_page_form.dart':
+          '退回型：自 book_form_page 拆 part 迁入，`GoRouter.maybeOf` 拿到路由时一律走命名路由，只有 widget 测试直挂 MaterialApp 才匿名 push',
       'features/read/presentation/biblio/biblio_search_page.dart':
           '退回型：同上（建档/ISBN 扫描两条）',
       'features/read/presentation/reader/epub_state_ui.dart':

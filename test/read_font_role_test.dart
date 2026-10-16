@@ -22,7 +22,10 @@ void main() {
   test('F3-4 书摘/详情摘录/X-Ray 摘录正文走 kFontBody（衬线）', () {
     const bodySites = [
       'lib/features/read/presentation/stats/quotes_lib_page.dart',
-      'lib/features/read/presentation/shelf/book_detail.dart',
+      // 高保真批6b·刀3（2026-10-16）：详情摘录卡群（_noQuotes/_quoteCard/_qMeta）随拆
+      // part 迁入同库件 book_detail_cards.dart，kFontBody.apply 字面随组搬迁（运行时同库
+      // 共享·衬线角色不变）。扫描点改指搬迁后宿主，守护力度不减。
+      'lib/features/read/presentation/shelf/book_detail_cards.dart',
       'lib/features/read/presentation/reader/reader_xray_panel.dart',
     ];
     for (final p in bodySites) {

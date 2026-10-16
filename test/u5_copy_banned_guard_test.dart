@@ -137,7 +137,9 @@ void main() {
       'features/ledger/presentation/ledger_recur_page.dart': 2,
       'features/ledger/presentation/ledger_search_page.dart': 2,
       'features/read/presentation/read_sheets_b2.dart': 1,
-      'features/read/presentation/shelf/book_form_page.dart': 1,
+      // 高保真批6b·刀2（2026-10-16）：DropdownButton 随书籍表单 UI 积木群拆 part
+      // 迁入同库件 book_form_page_form.dart（整组机械搬迁·字面原值·非新增），登记随迁。
+      'features/read/presentation/shelf/book_form_page_form.dart': 1,
       'features/settings/presentation/notify_settings_page.dart': 1,
       'features/todo/presentation/widgets/todo_add_sheet.dart': 4,
     },
