@@ -2116,10 +2116,11 @@ tailwind.config = {
 </div><!-- /phone -->
 
 <script>
-/* ================= 模拟数据（仅 UI 占位，无业务逻辑） ================= */
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+
+/* ⑰批2 补回：以下定义原在被删分节内，但被保留节/书架段真实调用——运行期验证 tools/bs_runtime_check.js 实测捕获后补回（只补必需的，不整节回滚） */
 const D = {
-  todoChips:['📅 今天 4','🗓 最近7天 9','⭐ 四象限','🗃 已安排','☑️ 已完成 128','⏰ 已过期 2'],
-  todos:[
+todos:[
     {t:'提交周报',tag:'工作',q:0,due:'今天 18:00',done:true,imp:1,urg:1},
     {t:'整理季度报销单',tag:'财务',q:0,due:'已逾期 1 天',done:false,imp:1,urg:1},
     {t:'预约牙医复诊',tag:'健康',q:1,due:'明天 09:00',done:false,imp:1,urg:0},
@@ -2128,48 +2129,17 @@ const D = {
     {t:'给妈妈挑生日礼物',tag:'家人',q:1,due:'09-25',done:false,imp:1,urg:0},
     {t:'刷短视频（默认象限演示）',tag:'',q:3,due:'—',done:false,imp:0,urg:0},
   ],
-  quads:[
+quads:[
     {name:'重要且紧急',act:'立即做',cls:'bg-rose-500'},{name:'重要不紧急',act:'计划做',cls:'bg-brand-500'},
     {name:'紧急不重要',act:'快速处理',cls:'bg-sun'},{name:'不紧急不重要',act:'考虑淘汰',cls:'bg-slate-400'}],
-  events:[{tm:'09:00',e:'09:40',t:'晨间规划 · 时间块排布',c:'bg-brand-500'},{tm:'10:00',e:'11:00',t:'产品评审',c:'bg-violet-500'},{tm:'14:00',e:'15:00',t:'专注块：季度报销单',c:'bg-mint'},{tm:'19:30',e:'20:30',t:'健身房 · 腿日',c:'bg-sun'}],
-  diary:[{d:'09-18',wd:'周五',wx:'🌧 18℃',emo:'😪',m:'疲惫',txt:'连续加班第三天，把报销单拖到了今天。睡前写了感恩三件事，好了一些。',tags:['加班','复盘'],img:3,linked:2,tm:'23:12'},
-         {d:'09-18',wd:'周五',wx:'🌧 18℃',emo:'😌',m:'平静',txt:'午休记录了晨间页面：三节都写完了，第三节「今日意图」卡了很久——想写的太多，反而一个字没落。',tags:['晨间页'],img:0,linked:0,tm:'12:30'},
-         {d:'09-17',wd:'周四',wx:'☀️ 24℃',emo:'😄',m:'开心',txt:'跑进 54:01！里程碑。晚上重看了《海街日记》，镰仓的雨路四姐妹，镜头语言比文字克制。',tags:['运动','电影'],img:5,linked:1,tm:'22:40'},
-         {d:'09-16',wd:'周三',wx:'⛅ 22℃',emo:'😌',m:'平静',txt:'周复盘：本周「重要不紧急」时间占比 21%，比上周 +6%。继续。把 SPACED 框架整理成了笔记并关联了目标。',tags:['复盘','方法论'],img:0,linked:3,tm:'21:05'}],
-  noteTags:['全部','方法论','灵感','工作','关联阅读'],
-  notes:[{t:'SPACED 输出式学习框架',txt:'学习→复述→输出→反馈的闭环。可套用到读书摘录流程，每条摘录要求自己用三句话改写。',folder:'方法论',words:1268,time:'今天 14:20',cre:'09-02',pin:1,md:1},
-         {t:'论写作工具的克制设计',txt:'写作工具的第一要务，是让人忘记工具的存在。自动保存、版本快照、断点续写，应该像地基一样平时看不见。',folder:'灵感',words:312,time:'今天 15:42',cre:'09-15',pin:0,md:0},
-         {t:'App 命名候选清单',txt:'LifeHarness / 日子值 / 每一天 … 商标检索情况与域名可用性对比。',folder:'工作',words:86,time:'09-16',cre:'09-16',pin:0,md:0},
-         {t:'周复盘模板（KPT）',txt:'Keep 做对了什么 / Problem 做错了什么 / Try 下季度怎么改，配合季度目标回顾使用。',folder:'方法论',words:420,time:'09-14',cre:'09-07',pin:0,md:1},
-         {t:'《海街日记》台词摘抄',txt:'镰仓 rainy road 上的四姐妹…镜头语言比文字克制，适合改编成日记写法。',folder:'关联阅读',words:175,time:'09-12',cre:'09-12',pin:0,md:0},
-         {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',cre:'09-10',pin:0,md:1},
-         /* V1.29轮9s：跨年笔记=时间显示完整年月日（今天 时:分 / 今年 MM-DD / 跨年 YYYY-MM-DD） */
-         {t:'去年翻出的旧书笔记',txt:'《思考，快与慢》读后残稿：系统1的自动联想值得单独整理成方法论条目。',folder:'关联阅读',words:97,time:'2025-03-05',cre:'2025-03-05',pin:0,md:0},
-         {t:'随手记（未选夹自动入默认）',txt:'新建笔记没有选文件夹时，自动落到「默认」这里，之后可以再移动。',folder:'默认',words:38,time:'昨天 21:05',cre:'10-11',pin:0,md:0}],
-  books:[{n:'思考，快与慢',a:'卡尼曼',st:'在读',p:62,q:59,cover:'from-slate-700 to-slate-900'},{n:'原子习惯',a:'詹姆斯·克利尔',st:'在读',p:31,q:22,cover:'from-teal-500 to-emerald-700'},
-         {n:'置身事内',a:'兰小欢',st:'已读',p:100,q:41,cover:'from-amber-500 to-orange-700'},{n:'金钱心理学',a:'豪泽尔',st:'想读',p:0,q:0,cover:'from-indigo-400 to-violet-600'}],
-  tx:[{d:'09-19',k:'🍜 餐饮',n:'午餐 · 公司楼下',a:-32.00},{d:'09-19',k:'🚇 交通',n:'地铁通勤',a:-6.00},
-      {d:'09-18',k:'🛍 购物',n:'跑鞋（已转物品档案 📦）',a:-899.00},{d:'09-18',k:'📺 订阅',n:'视频会员 · 周期账单',a:-25.00},{d:'09-15',k:'💼 工资',n:'9月工资',a:12000.00}],
-  fin:[{k:'餐饮',v:38,c:'bg-orange-400'},{k:'居住',v:27,c:'bg-brand-500'},{k:'购物',v:18,c:'bg-mint'},{k:'交通',v:9,c:'bg-sun'},{k:'其他',v:8,c:'bg-slate-400'}],
-  items:[
-    {n:'MacBook Air M3',ic:'💻',days:556,cost:9999,extra:555,res:0,st:'使用中',calc:1},
-    {n:'人体工学椅',ic:'🪑',days:412,cost:1899,extra:0,res:0,st:'使用中',calc:1},
-    {n:'Nike 跑鞋',ic:'👟',days:1,days2:1,cost:899,extra:0,res:0,st:'使用中',calc:1},
-    {n:'iPhone 13',ic:'📱',days:980,cost:5999,extra:199,res:1800,st:'已回收(抵扣留用)',calc:1},
-    {n:'旧显示器',ic:'🖥',days:1210,cost:1499,extra:0,res:0,st:'已报废',calc:0}],
-  days:[{t:'妈妈生日',d:28,l:'农历 八月廿七',g:'🎂',c:'from-rose-400 to-pink-600'},{t:'结婚纪念日',d:86,l:'农历 七月初七',g:'💞',c:'from-violet-400 to-fuchsia-600'},
-        {t:'发工资',d:11,l:'每月 30 日',g:'💰',c:'from-emerald-400 to-teal-600'},{t:'日本签证到期',d:-3,l:'已过 3 天',g:'⚠️',c:'from-slate-400 to-slate-600'}],
-  okr:[{o:'O1 建立可持续的健康作息',p:66,kr:[['KR1 每周运动 ≥3 次',78],['KR2 23:30 前入睡率 ≥80%',55],['KR3 读完 12 本书',60]]},
-       {o:'O2 财务清晰可控',p:41,kr:[['KR1 月度结余率 ≥50%',82],['KR2 建立全部物品台账',0]]}],
-  inbox:[{t:'想到一个功能：物品日均成本可以做成分享卡片',age:'10分钟前'},
-         {t:'查证「损失厌恶系数 2」原始论文出处',age:'2小时前'},
-         {t:'日记素材：今晚的晚霞是橘粉色的',age:'昨天 21:40'}],
-  grid:[['✅','待办','p-todo'],['⏱️','时间','p-calendar'],['📔','日记','p-records'],['📝','笔记','p-records'],['📚','阅读','p-records'],
-        ['⚡','收集箱','p-inbox'],['💰','记账','p-finance'],['📦','物品','p-items'],['🎂','日子','p-days'],['🏃','健康','p-health'],
-        ['🔁','习惯','p-habits'],
-        ['🧭','目标','p-goals'],['🧰','小工具','p-tools'],['🍼','母婴','p-care'],['🧩','插件中心','p-pstore'],['🤖','AI 验证','p-tools'],['⚙️','设置','p-profile']]
+events:[{tm:'09:00',e:'09:40',t:'晨间规划 · 时间块排布',c:'bg-brand-500'},{tm:'10:00',e:'11:00',t:'产品评审',c:'bg-violet-500'},{tm:'14:00',e:'15:00',t:'专注块：季度报销单',c:'bg-mint'},{tm:'19:30',e:'20:30',t:'健身房 · 腿日',c:'bg-sun'}],
+books:[{n:'思考，快与慢',a:'卡尼曼',st:'在读',p:62,q:59,cover:'from-slate-700 to-slate-900'},{n:'原子习惯',a:'詹姆斯·克利尔',st:'在读',p:31,q:22,cover:'from-teal-500 to-emerald-700'},
+         {n:'置身事内',a:'兰小欢',st:'已读',p:100,q:41,cover:'from-amber-500 to-orange-700'},{n:'金钱心理学',a:'豪泽尔',st:'想读',p:0,q:0,cover:'from-indigo-400 to-violet-600'}]
 };
-const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const esc2=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let imgTarget='note';
+let curTheme='minimal';
+let pwLnOn=false;
 
 /* ================= 路由与导航 ================= */
 const stack=[]; let curPage='p-dashboard';
@@ -2294,71 +2264,6 @@ function renderSearchScope(){$('#searchScopeChips').innerHTML=SEARCH_SCOPES.map(
 function pickSearchScope(s){searchScope=s;renderSearchScope();$('#searchInput').focus();}
 function closeSheet(id){ const s=$('#'+id); s.classList.remove('sheet-open'); s.classList.add('hidden'); }
 function tgl(el){ el.classList.toggle('on'); }
-
-/* ================= 主题风格系统（内置 CSS 主题 + 令牌主题热加载） ================= */
-const THEMES=[['minimal','简约 · 默认','#6366f1','#8b5cf6','#d946ef'],['fresh','小清新','#34d399','#22d3ee','#60a5fa'],['retro','复古','#d97706','#b45309','#7c2d12'],['neumorph','轻拟态','#cfd9ea','#5b7cfa','#f8fafc'],
- ['cyber','赛博朋克','#0f0524','#a855f7','#22d3ee'],['autumn','秋日暖调','#f5e7cd','#d97706','#b45309'],['ocean','海洋深蓝','#0c2a4d','#0ea5e9','#38bdf8']];
-/* 主题即配置：下列令牌对象与 prototype/themes/*.json 同构，应用时直接写入设计令牌（热加载，无需刷新） */
-const THEME_TOKENS={
- cyber:{forceDark:true,meta:{name:'赛博朋克',ver:'1.0',author:'LifeHarness Team'},dark:{'--accent':'#a855f7','--accent-l':'#c084fc','--g1':'#7c3aed','--g2':'#22d3ee','--g3':'#e879f9','--page':'#0b0f1e','--card':'#151a2e','--card-bd':'rgba(168,85,247,.4)','--card-r':'14px','--card-sh':'0 0 16px rgba(168,85,247,.22), inset 0 0 0 1px rgba(34,211,238,.1)','--nav-bg':'rgba(11,15,30,.9)','--nav-bd':'rgba(34,211,238,.25)','--page-img':'repeating-linear-gradient(90deg,rgba(168,85,247,.05) 0 1px,transparent 1px 44px),repeating-linear-gradient(0deg,rgba(34,211,238,.04) 0 1px,transparent 1px 44px)'}},
- autumn:{meta:{name:'秋日暖调',ver:'1.0',author:'LifeHarness Team'},light:{'--accent':'#c2410c','--accent-l':'#f59e0b','--g1':'#d97706','--g2':'#b45309','--g3':'#92400e','--page':'#f7ecdb','--card':'#fff8ec','--card-bd':'#e8d5b3','--card-r':'18px','--card-sh':'0 2px 10px rgba(146,64,14,.12)','--nav-bg':'rgba(247,236,219,.92)','--nav-bd':'#e8d5b3',"--app-font":"var(--f-body)"},
-  dark:{'--accent':'#f59e0b','--accent-l':'#fbbf24','--g1':'#92400e','--g2':'#78350f','--g3':'#b45309','--page':'#221708','--card':'#2d1f0e','--card-bd':'#4f3a1b','--card-r':'18px','--card-sh':'0 2px 10px rgba(0,0,0,.4)','--nav-bg':'rgba(34,23,8,.92)','--nav-bd':'#4f3a1b',"--app-font":"var(--f-body)"}},
- ocean:{meta:{name:'海洋深蓝',ver:'1.0',author:'LifeHarness Team'},light:{'--accent':'#0284c7','--accent-l':'#38bdf8','--g1':'#0c4a6e','--g2':'#0369a1','--g3':'#0ea5e9','--page':'#eaf4fb','--card':'#ffffff','--card-bd':'#d3e6f5','--card-r':'20px','--card-sh':'0 4px 16px rgba(2,132,199,.12)','--nav-bg':'rgba(234,244,251,.9)','--nav-bd':'#d3e6f5','--page-img':'radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.22), transparent)'},
-  dark:{'--accent':'#38bdf8','--accent-l':'#7dd3fc','--g1':'#0c4a6e','--g2':'#075985','--g3':'#0284c7','--page':'#082033','--card':'#0e2a44','--card-bd':'#1c4263','--card-r':'20px','--card-sh':'0 4px 16px rgba(0,0,0,.35)','--nav-bg':'rgba(8,32,51,.9)','--nav-bd':'#1c4263','--page-img':'radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.15), transparent)'}}};
-/* 主题市场：可下载的第三方主题配置（与 themes/ 目录 json 同构，模拟拉取后热加载） */
-const MKT={
- sakura:{meta:{name:'樱花粉系',ver:'0.9',author:'community'},light:{'--accent':'#db2777','--accent-l':'#f9a8d4','--g1':'#f472b6','--g2':'#fb7185','--g3':'#e879f9','--page':'#fdf2f6','--card':'#ffffff','--card-bd':'#fbd5e3','--card-r':'24px','--nav-bg':'rgba(253,242,246,.9)','--nav-bd':'#fbd5e3'},dark:{'--accent':'#f472b6','--accent-l':'#f9a8d4','--g1':'#be185d','--g2':'#9f1239','--g3':'#db2777','--page':'#1d0a12','--card':'#2a1019','--card-bd':'#4a1d2e','--card-r':'24px','--nav-bg':'rgba(29,10,18,.9)','--nav-bd':'#4a1d2e'}},
- mint:{meta:{name:'薄荷抹茶',ver:'1.1',author:'community'},light:{'--accent':'#059669','--accent-l':'#34d399','--g1':'#10b981','--g2':'#84cc16','--g3':'#14b8a6','--page':'#f1f8ee','--card':'#ffffff','--card-bd':'#d8ecd2','--card-r':'16px','--nav-bg':'rgba(241,248,238,.9)','--nav-bd':'#d8ecd2'},dark:{'--accent':'#34d399','--accent-l':'#6ee7b7','--g1':'#065f46','--g2':'#166534','--g3':'#0f766e','--page':'#07130d','--card':'#0d1d14','--card-bd':'#1d3b2a','--card-r':'16px','--nav-bg':'rgba(7,19,13,.9)','--nav-bd':'#1d3b2a'}},
- graphite:{meta:{name:'石墨黑白',ver:'1.0',author:'community'},light:{'--accent':'#18181b','--accent-l':'#52525b','--g1':'#27272a','--g2':'#52525b','--g3':'#18181b','--page':'#f4f4f5','--card':'#ffffff','--card-bd':'#e4e4e7','--card-r':'10px','--nav-bg':'rgba(244,244,245,.9)','--nav-bd':'#e4e4e7',"--app-font":"var(--f-code)"},dark:{'--accent':'#fafafa','--accent-l':'#e4e4e7','--g1':'#3f3f46','--g2':'#71717a','--g3':'#18181b','--page':'#101012','--card':'#1a1a1e','--card-bd':'#333338','--card-r':'10px','--nav-bg':'rgba(16,16,18,.9)','--nav-bd':'#333338',"--app-font":"var(--f-code)"}}};
-const TOKEN_KEYS=['--accent','--accent-l','--g1','--g2','--g3','--page','--card','--card-bd','--card-r','--card-sh','--nav-bg','--nav-bd','--page-img','--app-font'];
-let curTheme='minimal';
-function themeSwatch(t){return `linear-gradient(135deg,${t[2]} 0%,${t[3]} 55%,${t[4]} 100%)`;}
-function tokenSet(k){const src=THEME_TOKENS[k]||MKT[k];if(!src)return null;const dk=document.documentElement.classList.contains('dark')||src.forceDark;
- return (dk?(src.dark||src.light):src.light)||null;}
-function applyTokens(k){const set=tokenSet(k);if(!set)return;const r=document.documentElement;
- TOKEN_KEYS.forEach(p=>{if(set[p])r.style.setProperty(p,set[p]);else r.style.removeProperty(p)});}
-function clearTokens(){const r=document.documentElement;TOKEN_KEYS.forEach(p=>r.style.removeProperty(p));}
-function setTheme(k){curTheme=k;const r=document.documentElement;
- const tokenTheme=THEME_TOKENS[k]||MKT[k];
- if(tokenTheme){r.dataset.theme=tokenTheme.forceDark?'cyber-base':'minimal';if(tokenTheme.forceDark)r.classList.add('dark');applyTokens(k)}
- else{r.dataset.theme=k;clearTokens();r.style.removeProperty('--page-img')}
- const meta=(THEMES.find(x=>x[0]===k)||[k,'主题']);
- renderThemeRow();renderSideThemes();
- toast('已切换主题：'+(tokenTheme?tokenTheme.meta.name:meta[1].split(' · ')[0])+(tokenTheme?' · 配置热加载✓ 无需刷新':''));}
-function renderThemeRow(){
-  $('#themeStyleRow').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95 text-left" style="border-color:${t[0]===curTheme?'var(--accent)':'transparent'};background:var(--card)">
-    <span class="block h-11 rounded-xl" style="background:${themeSwatch(t)};${t[0]==='neumorph'?'box-shadow:inset 2px 2px 4px rgba(0,0,0,.12),-2px -2px 4px #fff':''}${t[0]==='cyber'?'box-shadow:inset 0 0 12px rgba(34,211,238,.5)':''}"></span>
-    <span class="text-[10px] font-bold block mt-1" style="color:${t[0]===curTheme?'var(--accent)':'#94a3b8'}">${t[1].split(' · ')[0]}</span></button>`).join('')
-    +MKT_LOADED.map(t=>`<button onclick="setTheme('${t.k}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95 text-left" style="border-color:${t.k===curTheme?'var(--accent)':'transparent'};background:var(--card)"><span class="block h-11 rounded-xl" style="background:${themeSwatch(t.sw)}"></span><span class="text-[10px] font-bold block mt-1" style="color:${t.k===curTheme?'var(--accent)':'#94a3b8'}">${t.name} ⬇</span></button>`).join('');}
-function renderSideThemes(){if(!$('#sideThemes'))return;
-  $('#sideThemes').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="px-2 py-2 rounded-xl text-[11px] font-bold transition ${t[0]===curTheme?'text-white ring-2 ring-white/60':'text-slate-400'}" style="background:${t[0]===curTheme?themeSwatch(t):'#1e293b'}">${t[1].split(' · ')[0]}</button>`).join('')}
-/* —— 主题市场 —— */
-let MKT_LOADED=[];
-const MKT_META=[{k:'sakura',n:'樱花粉系',d:'粉色系渐变 + 大圆角 · 社区作者 @hao',v:'v0.9'},{k:'mint',n:'薄荷抹茶',d:'绿色护胃 · 社区作者 @tea',v:'v1.1'},{k:'graphite',n:'石墨黑白',d:'无彩色极客风 · 等宽字体',v:'v1.0'}];
-function renderMkt(){var items=MKT_META.map(function(m){var loaded=MKT_LOADED.some(function(x){return x.k===m.k});
- var sw=m.k==='sakura'?'linear-gradient(135deg,#f472b6,#e879f9)':m.k==='mint'?'linear-gradient(135deg,#10b981,#84cc16)':'linear-gradient(135deg,#27272a,#71717a)';
- var tail=loaded?'<span class="text-[10px] text-emerald-500 font-bold shrink-0">✓ 已加载</span>':'<button class="mini-btn shrink-0" onclick="mktInstall(\''+m.k+'\')">⬇ 下载热加载</button>';
- return '<div class="mkt-card flex items-center gap-3"><span class="w-11 h-11 rounded-xl flex-shrink-0" style="background:'+sw+'"></span><div class="flex-1 min-w-0"><b class="text-xs">'+m.n+'</b> <span class="text-[9px] text-slate-400">'+m.v+'</span><div class="text-[10px] text-slate-400 truncate">'+m.d+'</div></div>'+tail+'</div>'}).join('');
- $('#mktList').innerHTML=items+'<div class="text-[10px] text-slate-400 leading-5 mt-1">流程演示：从主题仓库（GitHub Release json）拉取配置 → 校验签名 → applyTokens() 写入设计令牌 → 全局即时换肤。将 json 放入 <span class="font-mono">prototype/themes/</span> 目录即可同理扩展。</div>';}
-function mktInstall(k){const m=MKT_META.find(x=>x.k===k);if(MKT_LOADED.some(x=>x.k===k))return;
- toast('⬇ 拉取 themes/'+k+'.json … 签名校验通过（模拟 412ms）');
- setTimeout(()=>{MKT_LOADED.push({k,name:m.n,sw:['',m.n,k==='sakura'?'#f472b6':k==='mint'?'#10b981':'#52525b',k==='sakura'?'#fb7185':k==='mint'?'#84cc16':'#a1a1aa',k==='sakura'?'#e879f9':k==='mint'?'#14b8a6':'#18181b']});
-  setTheme(k);renderMkt();toast('🎨 '+m.n+' 已热加载并应用 · 未刷新页面')},650);}
-
-/* ================= 仪表盘 ================= */
-
-/* ================= 主页自由编排（拖拽/上下移动/保存） ================= */
-const DASH_IDS=['greeting','mood','events','inboxBar','chart','grid'];
-let dashEditing=false,dragCard=null;
-
-function saveDashOrder(){try{const ord=[...$$('#p-dashboard .dash-card')].map(c=>c.dataset.id);localStorage.setItem('lh_dash_order',JSON.stringify(ord))}catch(e){}}
-
-
-function dashToggle(){dashEditing=!dashEditing;
-  $('#p-dashboard').classList.toggle('dash-edit',dashEditing);
-  $('#dashTip').classList.toggle('hidden',!dashEditing);
-  $$('.dash-card').forEach(c=>c.setAttribute('draggable',dashEditing?'true':'false'));
-  if(!dashEditing){saveDashOrder();toast('主页布局已保存（localStorage 持久化）· 下次启动保持此顺序，刷新页面验证');}}
 
 /* ================= 待办 ================= */
 let todoFilter=0, askState={imp:null,urg:null};
@@ -2788,28 +2693,6 @@ function renderRecords(){
 
 
 /* ---- V1.28 日记模板：真结构分节 · 编辑页弹层管理（一天多篇·每篇各带心情） ---- */
-/* ================= 心情迷你月历 & 纯写作编辑器 ================= */
-const DI_IMG=['from-orange-300 to-rose-400','from-sky-300 to-indigo-400','from-emerald-300 to-teal-500'];const PW_PAPERS=[['#fbf8f1','#403a31'],['#ffffff','#334155'],['#edf3ea','#37412f'],['#1e1d1b','#cfc9bd']];
-let pwPaper=0;
-
-const PW_PAPER_NM=['米纸','纯白','护眼绿','深夜'];
-/* V1.29轮9n：纸色按笔记独立生效（NOTE_PAPER 映射·仅卡片视图条目底色跟随，列表视图不体现） */
-const NOTE_PAPER={};
-function pwApplyPaperVars(bg,fg){const e=$('#p-noteEdit');e.style.setProperty('--pw-bg',bg);e.style.setProperty('--pw-fg',fg);
- const k=$('#sheetNoteKit');if(k){k.style.setProperty('--pw-bg',bg);k.style.setProperty('--pw-fg',fg);}
- const sh=$('#sheetNoteShare');if(sh){sh.style.setProperty('--pw-bg',bg);sh.style.setProperty('--pw-fg',fg);}}
-
-
-function pwLoadNotePaper(t){const p=NOTE_PAPER[t];
- if(p){pwApplyPaperVars(p.bg,p.fg);const i=PW_PAPERS.findIndex(x=>x[0]===p.bg);const nm=$('#pwPaperName');if(nm)nm.textContent=i>=0?PW_PAPER_NM[i]:'自定义';}
- else{pwApplyPaperVars(PW_PAPERS[0][0],PW_PAPERS[0][1]);const nm=$('#pwPaperName');if(nm)nm.textContent=PW_PAPER_NM[0];}}
-
-/* V1.29轮9j补正2：聚焦开关（默认开·⋯ 笔记选项内）·纯文本/富文本/MD 通用 */
-
-/* V1.29轮9p：纯文本行号开关（默认关·仅对纯文本有效） */
-let pwLnOn=false;
-
-
 /* ================= V1.29 笔记批：类型 / 视图 / 文件夹 / 左滑回收站 ================= */
 let pwType='md',pwNote='';
 function pwSetType(t){pwType=t;
@@ -3053,177 +2936,6 @@ function billStep(d){if(d>0&&billN===1)toast('解析中… 识别到'+(billPlat=
  billN=Math.min(4,Math.max(1,billN+d));renderBill();
  if(d>0&&billN===4)toast('✔ 已写入 87 条 · 支持整批撤销 · 大额数码支出可一键升级物品建档（L12）');}
 
-/* ================= 收集箱 ================= */
-function renderInbox(){
-  $('#inboxCount').textContent=D.inbox.length;
-  $('#inboxList').innerHTML=D.inbox.map((x,i)=>`<div class="card">
-    <div class="text-sm leading-6">${x.t}</div><div class="text-[10px] text-slate-400">${x.age}</div>
-    <div class="mt-2 flex gap-1.5 text-[10px] font-bold">
-      <button class="tri" onclick="triage(${i},'✅ 已转为待办并进入四象限引导（联动 L6）')">→待办</button>
-      <button class="tri" onclick="triage(${i},'📔 已插入今晚日记草稿（联动 L6）')">→日记</button>
-      <button class="tri" onclick="triage(${i},'📝 已存为笔记（联动 L6）')">→笔记</button>
-      <button class="tri" onclick="triExcerpt(${i})">→摘录</button>
-      <button class="tri !text-rose-400" onclick="triage(${i},'🗑 已删除')">✕</button></div></div>`).join('')||'<div class="text-center text-xs text-slate-400 py-10">🎉 收集箱已清空，保持住！</div>';
-}
-function addInbox(){ const v=$('#inboxInput').value.trim(); if(!v){toast('先写点什么吧');return;} D.inbox.unshift({t:v,age:'刚刚'}); $('#inboxInput').value=''; renderInbox(); toast('⚡ 已秒记入收集箱'); }
-function triage(i,msg){ D.inbox.splice(i,1); renderInbox(); toast(msg); }
-/* 收集箱→摘录（回画）：选书落库·origin=收集箱·kind=感想 */
-let ibxCur=-1;
-function triExcerpt(i){ibxCur=i;if(!BS_BOOKS.length)return toast('书架还没有书 · 先去阅读书架添加一本书');openSheet('sheetInboxBook');renderInboxBook()}
-function renderInboxBook(){const el=document.getElementById('ibkList');if(!el)return;const bs=[...BS_BOOKS].sort((a,b)=>(b.last||'').localeCompare(a.last||''));
-  el.innerHTML=bs.map(b=>'<button class="card !py-2.5 w-full text-left flex items-center gap-2 active:scale-[.99] transition" onclick="ibkPick(\''+b.id+'\')"><b class="text-[12px] flex-1 truncate">《'+b.n+'》</b><span class="text-[10px] text-slate-400">'+b.st+'</span></button>').join('')}
-function ibkPick(id){const b=bsBook(id),x=D.inbox[ibxCur];closeSheet('sheetInboxBook');if(!x)return;
-  BS_QUOTES.unshift({b:id,ty:'感想',tg:'重点',ch:'',pg:0,dt:shFmtDate(),x:x.t,th:'',src:'收集箱'});b.q=bsQ(id).length;
-  D.inbox.splice(ibxCur,1);ibxCur=-1;renderInbox();renderQuotes();renderShelf();renderBookDetail();toast('已存为阅读摘录（联动 L6）')}
-
-/* ================= 记账 ================= */
-
-
-/* ================= 物品 ================= */
-
-
-
-/* ================= 重要日子 / 健康 / OKR ================= */
-
-let waterN=5;
-let WEIGHTS=[69.2,69.1,69.3,69.0,68.8,69.1,69.0,68.9,69.2,68.8,68.7,69.0,68.6,68.9,68.5,68.8,68.6,68.4,68.7,68.5,68.3,68.6,68.4,68.2,68.5,68.3,68.1,68.4,68.2,68.5];
-function bmiOf(w){return w/Math.pow(1.75,2)}
-function bmiTag(b){return b<18.5?['偏瘦','text-sky-500']:b<24?['正常','text-emerald-500']:b<28?['超重','text-amber-500']:['肥胖','text-rose-500']}
-function renderBody(){const el=$('#bdSvg');if(!el)return;
-  const w=WEIGHTS,n=w.length,mn=Math.min(...w)-.3,mx=Math.max(...w)+.3;
-  const pts=w.map((v,i)=>[8+i*(284/(n-1)),56-(v-mn)/(mx-mn)*44]);
-  el.innerHTML=`<polyline points="${pts.map(x=>x[0].toFixed(1)+','+x[1].toFixed(1)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>`+
-   pts.map((x,i)=>i%7===0||i===n-1?`<circle cx="${x[0].toFixed(1)}" cy="${x[1].toFixed(1)}" r="2.2" fill="var(--accent)"/>`:'').join('')+
-   `<text x="4" y="10" font-size="8" fill="#94a3b8">${mx.toFixed(1)}</text><text x="4" y="62" font-size="8" fill="#94a3b8">${mn.toFixed(1)}</text><text x="${pts[n-1][0]-24}" y="${(pts[n-1][1]-6).toFixed(1)}" font-size="9" font-weight="700" fill="var(--accent)">${w[n-1].toFixed(1)}</text>`;
-  const cur=w[n-1],b=bmiOf(cur),tag=bmiTag(b);
-  $('#bdW').textContent=cur.toFixed(1);
-  $('#bdWd').textContent='kg · 周'+(cur>=w[n-8]?'+'+(cur-w[n-8]).toFixed(1):(cur-w[n-8]).toFixed(1));
-  $('#bdB').textContent=b.toFixed(1);
-  $('#bdBm').textContent='BMI '+tag[0];$('#bdBm').className='text-[9px] block '+tag[1]}
-
-function renderHealth(){renderBody();
-  $('#waterRow').innerHTML=Array.from({length:8},(_,i)=>`<button onclick="setWater(${i+1})" class="flex-1 h-7 rounded-md text-[10px] ${i<waterN?'bg-sky-400 text-white':'bg-slate-200 dark:bg-slate-800'}">${i<waterN?'💧':''}</button>`).join('');
-  $('#waterN').textContent=waterN;
-  $('#heatCal').innerHTML=Array.from({length:28},(_,i)=>{const lv=[0,1,2,3][ (i*7+3)%4===0?0:(i%5===0?3:(i%3)) ];
-    return `<span class="h-6 rounded-md ${['bg-slate-100 dark:bg-slate-800','bg-mint/30','bg-mint/60','bg-mint'][lv]}"></span>`}).join('');
-}
-function water(n){ waterN=Math.max(0,Math.min(8,waterN+n)); renderHealth(); if(waterN===8)toast('🎉 今日 8 杯达成，将写入日记与周报'); }
-function setWater(n){ waterN=n; renderHealth(); }
-
-
-/* ================= 全局搜索 ================= */
-const SEARCH_DB=[['📅','产品评审','日程 · 今天 10:00'],['✅','预约牙医复诊','待办 · 重要不紧急'],['📔','09-17 跑步破 54 分','日记'],['📚','损失厌恶系数约为 2…','阅读摘录 · 思考快与慢'],['📝','SPACED 输出式学习框架','笔记'],['💰','跑鞋 −¥899.00','记账流水 · 已转物品'],['📦','MacBook Air M3','物品 · 日均 ¥1.22'],['🎂','妈妈生日','倒数日 · 农历八月廿七']];
-
-
-/* ================= 小工具合集 ================= */
-function h2r(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
-function r2h(r){return '#'+r.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');}
-function r2hsl([r,g,b]){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60}return [h,s*100,l*100]}
-function hsl2r(h,s,l){h=((h%360)+360)%360;s/=100;l/=100;const f=n=>{const k=(n+h/30)%12;return (l-s*Math.min(l,1-l)*Math.max(-1,Math.min(k-3,9-k,1)))*255};return [f(0),f(8),f(4)]}
-function cpCopy(x){if(navigator.clipboard){navigator.clipboard.writeText(x).then(()=>toast('已复制 '+x)).catch(()=>toast(x));}else toast(x);}
-const TOOL_WHEELS=['写日记','跑步 5km','阅读 30 分钟','吃顿好的','看部电影','发呆时间'];
-const TOOLS={
- ping:{ic:'📡',nm:'Ping 工具',html:()=>`<div class="flex gap-2"><input id="pingHost" class="inp flex-1 !py-2.5 text-xs" value="8.8.8.8"><button class="mini-btn self-center" onclick="pingGo()">开始</button><button class="mini-btn self-center" onclick="pingStop()">停止</button></div><pre id="pingOut" class="mt-3 rounded-xl bg-slate-900 text-emerald-300 font-mono text-[10px] leading-5 p-3 h-56 overflow-auto whitespace-pre-wrap">输入地址后点击开始（模拟输出）</pre><div class="text-[10px] text-slate-400 mt-1">正式版需网络权限，结果可分享</div>`},
- speed:{ic:'⚡',nm:'网络测速',html:()=>`<div class="text-center"><div id="spdGauge" class="w-44 h-44 mx-auto rounded-full flex items-center justify-center" style="background:conic-gradient(var(--accent) 0deg,#e2e8f0 0deg)"><div class="w-32 h-32 rounded-full bg-white dark:bg-slate-900 flex flex-col items-center justify-center"><b id="spdVal" class="text-2xl">0.0</b><span class="text-[10px] text-slate-400">Mbps</span></div></div><button class="mt-4 mini-btn !text-sm !py-2.5 !px-5" onclick="spdGo()">🚀 开始测速（模拟）</button><div id="spdMsg" class="mt-2 text-[11px] text-slate-400">正式版将请求多节点测下载/上传/延迟</div></div>`},
- ruler:{ic:'📏',nm:'尺子',html:()=>{let t='';for(let i=0;i<=120;i++){const cm=i%10===0,half=i%5===0;t+=`<div style="width:1mm;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:32mm"><span style="width:1px;background:currentColor;opacity:${cm?'.85':half?'.5':'.3'};height:${cm?'13mm':half?'8mm':'4.5mm'}"></span>${cm?`<b style="font-size:8px;margin-top:1px">${i/10}</b>`:''}</div>`}
-  return `<div class="text-[11px] text-slate-400 mb-2">请先用银行卡校准：卡宽应对准尺面 0 → 8.5cm</div><div class="card overflow-x-auto no-scrollbar !p-3 text-slate-700 dark:text-slate-300"><div style="width:121mm;display:flex">${t}</div></div><div class="text-[10px] text-slate-400 mt-2">屏幕 CSS 毫米为逻辑单位，各设备缩放不同 —— 正式版将按设备 DPI 自动校准并提供校准滑杆</div>`}},
- dist:{ic:'🗺️',nm:'测距',html:()=>`<div id="distMap" onclick="distTap(event)" class="relative h-56 rounded-2xl overflow-hidden cursor-crosshair" style="background-image:linear-gradient(rgba(100,116,139,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(100,116,139,.14) 1px,transparent 1px),linear-gradient(135deg,#dbeafe,#e0f2fe 45%,#d1fae5);background-size:24px 24px,24px 24px,100% 100%"><svg id="distSvg" class="absolute inset-0 w-full h-full pointer-events-none"></svg><span class="absolute left-2 top-2 text-[10px] bg-white/80 dark:bg-slate-900/80 rounded px-1.5 py-0.5">模拟地图 · 轻点落点 · 1px≈2.5m</span></div><div class="mt-2 flex items-center text-xs"><b id="distTotal" class="text-brand-500">总长 0 m · 0 个点</b><span class="ml-auto flex gap-2"><button class="mini-btn" onclick="distUndo()">撤销</button><button class="mini-btn" onclick="distClear()">清空</button></span></div><div class="text-[10px] text-slate-400 mt-1">正式版接入离线地图比例尺 / GPS 轨迹双模式</div>`},
- wheel:{ic:'🎡',nm:'轮盘抽签',html:()=>{const colors=['#6366f1','#2dd4bf','#f59e0b','#fb7185','#8b5cf6','#0ea5e9'];const grad='conic-gradient('+colors.map((c,i)=>`${c} ${i*60}deg ${(i+1)*60}deg`).join(',')+')';
-  let labels='';TOOL_WHEELS.forEach((o,i)=>{const a=(i*60+30-90)*Math.PI/180,cx=88+62*Math.cos(a),cy=88+62*Math.sin(a);labels+=`<text x="${cx.toFixed(0)}" y="${cy.toFixed(0)}" font-size="9.5" fill="#fff" font-weight="bold" text-anchor="middle" dominant-baseline="middle" transform="rotate(${i*60+30} ${cx.toFixed(0)} ${cy.toFixed(0)})">${o}</text>`});
-  return `<div class="text-center"><div class="relative inline-block"><span class="absolute left-1/2 -translate-x-1/2 -top-1 z-10" style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:14px solid #0f172a"></span><div id="wheelEl" style="background:${grad}" class="w-44 h-44 rounded-full shadow-lg" ><svg viewBox="0 0 176 176" class="w-full h-full">${labels}</svg></div><button onclick="wheelGo()" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white dark:bg-slate-900 shadow-lg font-extrabold text-[11px]">开始</button></div><div id="wheelRes" class="mt-4 text-sm font-extrabold text-brand-500 min-h-[22px]">点击开始，让命运决定</div><div class="text-[10px] text-slate-400 mt-1">转盘选项可自定义（模拟）· 结果可一键存日记</div></div>`}},
- rand:{ic:'🎲',nm:'随机数',html:()=>`<div class="flex gap-2 items-center"><input id="rMin" class="inp w-20 !py-2.5 text-xs" type="number" value="1"><span class="text-slate-400">~</span><input id="rMax" class="inp w-20 !py-2.5 text-xs" type="number" value="100"><input id="rCnt" class="inp w-16 !py-2.5 text-xs" type="number" value="3" title="个数"><button class="mini-btn self-center" onclick="randGo()">生成</button></div><div id="randOut" class="mt-3 flex flex-wrap gap-2"></div><div class="mt-3 flex gap-2 text-xs flex-wrap"><button class="mini-btn" onclick="randQuick(1,6,1)">🎲 骰子</button><button class="mini-btn" onclick="randQuick(1,2,1)">🪙 硬币</button><button class="mini-btn" onclick="randQuick(1,20,1)">D20</button><button class="mini-btn" onclick="randQuick(1,365,5)">随机 5 天</button></div>`},
- pick:{ic:'💧',nm:'取色盘',html:()=>`<div class="flex items-center gap-3"><input type="color" id="cpk" value="#6366f1" oninput="cpkShow(this.value)" class="w-14 h-14 rounded-xl cursor-pointer bg-transparent border-0"><div class="text-xs space-y-1 flex-1"><div id="cpHex" class="font-mono font-extrabold text-sm"></div><div id="cpRgb" class="font-mono text-slate-400"></div><div id="cpHsl" class="font-mono text-slate-400"></div></div><span id="cpBig" class="w-16 h-16 rounded-2xl shadow-inner flex-shrink-0"></span></div><button class="mt-3 mini-btn" onclick="cpkEye()">🔍 从屏幕取色（EyeDropper·限桌面 Chrome）</button><div class="mt-3 text-[11px] text-slate-400">最近取色（点击复用）：</div><div id="cpRecent" class="mt-1 flex gap-1.5 flex-wrap"></div>`,mount(){cpkShow($('#cpk').value);cpkRenderRecent();}},
- comp:{ic:'🌈',nm:'互补色方案',html:()=>`<div class="flex items-center gap-3"><input type="color" id="cmp" value="#6366f1" oninput="cmpShow(this.value)" class="w-14 h-14 rounded-xl"><div class="text-xs text-slate-400 leading-5">选一个主色，实时生成互补 / 类似 / 三角配色盘，点击复制 HEX</div></div><div id="cmpOut" class="mt-3 space-y-2"></div>`,mount(){cmpShow($('#cmp').value);}},
- datec:{ic:'🗓️',nm:'日期计算',html:()=>`<div class="text-xs font-bold mb-1.5">① 两日期间隔</div><div class="flex gap-2 items-center"><input type="date" id="dA" class="inp flex-1 !py-2 text-xs" value="2026-01-01"><span class="text-slate-400">→</span><input type="date" id="dB" class="inp flex-1 !py-2 text-xs" value="2026-09-19"><button class="mini-btn" onclick="dCalcDiff()">算</button></div><div id="dDiff" class="mt-1.5 text-xs text-brand-500 font-bold min-h-[18px]"></div><div class="text-xs font-bold mt-4 mb-1.5">② 日期 ± 天数</div><div class="flex gap-2 items-center"><input type="date" id="dC" class="inp flex-1 !py-2 text-xs" value="2026-09-19"><span class="text-slate-400">+</span><input type="number" id="dN" class="inp w-20 !py-2 text-xs" value="100"><button class="mini-btn" onclick="dCalcAdd()">算</button></div><div id="dAdd" class="mt-1.5 text-xs font-bold min-h-[18px]" style="color:#0d9488"></div><div class="mt-3 text-[10px] text-slate-400">正式版：结果可一键生成「重要日子」倒数日（联动 L10）</div>`},
- imgz:{ic:'🖼️',nm:'图片缩小',html:()=>`<label class="block card text-center cursor-pointer !bg-slate-50 dark:!bg-slate-800/60"><input type="file" accept="image/*" onchange="imgzLoad(this)" class="hidden"><div class="text-2xl">📥</div><div class="text-xs mt-1 font-semibold">选择图片（全程本地 canvas 处理，不上传）</div></label><div id="imgzBox" class="hidden mt-3"><img id="imgzPrev" class="w-full max-h-40 object-contain rounded-xl bg-slate-100 dark:bg-slate-800 p-2"><div class="mt-2 flex items-center gap-2 text-xs"><span class="text-slate-400">质量</span><input type="range" id="imgzQ" min="20" max="90" value="60" class="flex-1" oninput="imgzGo()"><b id="imgzQL" class="w-6">60</b></div><div id="imgzInfo" class="mt-2 text-xs leading-6"></div><a id="imgzDl" class="hidden mt-1 mini-btn inline-block" download="compressed.jpg">💾 保存压缩结果</a></div>`},
- aiapi:{ic:'🔌',nm:'AI API 验证',html:()=>`<div class="text-[11px] text-slate-400 leading-5 mb-2">供「设置 → AI 增强」使用：验证服务商 / Key / 模型是否可用。默认采用 OpenAI 兼容 Chat Completions 协议，请求仅发往下方填写的地址。</div>
- <select id="aiProvider" onchange="aiPick()" class="inp w-full text-xs"><option>DeepSeek</option><option>OpenAI</option><option>Anthropic</option><option>Moonshot Kimi</option><option>通义千问</option><option>智谱 GLM</option><option>Ollama（本地）</option><option>自定义</option></select>
- <input id="aiUrl" class="inp mt-2 w-full text-xs" value="https://api.deepseek.com/v1" placeholder="Base URL，如 https://api.xxx.com/v1">
- <div class="mt-2 grid grid-cols-2 gap-2"><input id="aiKey" type="password" class="inp text-xs" placeholder="API Key · sk-..."><input id="aiModel" class="inp text-xs" value="deepseek-chat" placeholder="模型名"></div>
- <textarea id="aiPrompt" rows="2" class="inp mt-2 w-full text-xs" placeholder="验证提示词">请只回复四个字：连接成功</textarea>
- <div class="mt-2 flex gap-2"><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(0)">🚀 发送真实验证请求</button><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(1)">🎭 模拟演示</button></div>
- <div id="aiRes" class="mt-3 rounded-xl bg-slate-900 text-slate-200 p-3 min-h-[74px] text-[11px] font-mono leading-5 break-all"><div class="opacity-50">结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 / 429 限流 / 404 模型名 / CORS 网络）。</div></div>
- <div class="mt-2 text-[10px] text-slate-400 leading-5">支持两套协议适配：OpenAI 兼容（默认）与 Anthropic Messages API（x-api-key + anthropic-version）。⚠️ 浏览器原型环境下部分 API 会被 CORS 拦截而显示「网络/CORS 失败」，这是原型限制而非 Key 错误；正式 Flutter 版为原生 HTTP 请求，无此限制。验证通过后，设置页 AI 能力矩阵方可逐项开启。</div>`}
-};
-const TOOL_CATS=[['🌐 网络',['ping','speed']],['📏 长度',['ruler','dist']],['🎲 随机',['wheel','rand']],['🎨 色彩',['pick','comp']],['🧮 计算',['datec']],['🖼 图片',['imgz']],['🤖 智能',['aiapi']]];
-let PLUGINS=[{n:'摩斯电码',src:'本地 · plugins/morse.h5.zip'},{n:'分贝计',src:'GitHub · lifeharness/lh-plugin-decibel v0.3'}];
-let curTool=null,wheelRot=0,wheelBusy=false,pingT=null,DIST=[],IMGO=null,CP_RECENT=['#6366f1','#2dd4bf','#fb7185'];
-
-
-
-
-/* —— ping —— */
-function pingGo(){pingStop();const h=$('#pingHost').value||'8.8.8.8';let i=0;const out=$('#pingOut');out.innerHTML=`PING ${h} (模拟) 56 字节包`;
- pingT=setInterval(()=>{i++;const ms=10+Math.random()*170;out.innerHTML+=Math.random()<.06?`\n<font color="#fb7185">seq=${i} 请求超时</font>`:`\n<font color="#86efac">seq=${i}  reply  time=${ms.toFixed(1)}ms</font>`;out.scrollTop=1e5;if(i>=12)pingStop();},420);}
-function pingStop(){if(pingT){clearInterval(pingT);pingT=null;const out=$('#pingOut');if(out)out.innerHTML+='\n<font color="#94a3b8">--- 统计：12 发 · 平均 89ms · 丢包率 8%（模拟）---</font>';}}
-/* —— 测速 —— */
-function spdGo(){const st=performance.now(),dur=2800,target=40+Math.random()*160;const t=setInterval(()=>{const p=(performance.now()-st)/dur;
-  if(p>=1){clearInterval(t);$('#spdVal').textContent=target.toFixed(1);$('#spdGauge').style.background=`conic-gradient(var(--accent) ${Math.min(360,target/200*360)}deg,#e2e8f0 0deg)`;$('#spdMsg').textContent=`模拟完成 · 抖动 ${(Math.random()*20).toFixed(0)}ms · 延迟 ${(8+Math.random()*40).toFixed(0)}ms`;return}
-  const v=Math.max(0,target*p*(.82+Math.random()*.36));$('#spdVal').textContent=v.toFixed(1);$('#spdGauge').style.background=`conic-gradient(var(--accent) ${Math.min(360,v/200*360)}deg,#e2e8f0 0deg)`;},70);}
-/* —— 测距 —— */
-function distTap(e){const r=e.currentTarget.getBoundingClientRect();DIST.push({x:e.clientX-r.left,y:e.clientY-r.top});distDraw();}
-function distDraw(){const svg=$('#distSvg');if(!svg)return;let d=0;for(let i=1;i<DIST.length;i++)d+=Math.hypot(DIST[i].x-DIST[i-1].x,DIST[i].y-DIST[i-1].y);
-  svg.innerHTML=(DIST.length>1?`<polyline points="${DIST.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="#6366f1" stroke-width="2" stroke-dasharray="5 4"/>`:'')+DIST.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#fff" stroke="#6366f1" stroke-width="2.5"/>`).join('');
-  $('#distTotal').textContent=`总长 ${(d*2.5).toFixed(0)} m · ${DIST.length} 个点`;}
-function distUndo(){DIST.pop();distDraw();}
-function distClear(){DIST=[];distDraw();}
-/* —— 轮盘 —— */
-function wheelGo(){if(wheelBusy)return;wheelBusy=true;$('#wheelRes').textContent='转动中…';const idx=Math.floor(Math.random()*6);
-  const need=(360-(idx*60+30))%360,cur=((wheelRot%360)+360)%360,fw=((need-cur)%360+360)%360;const F=wheelRot+1440+fw;wheelRot=F;
-  const el=$('#wheelEl');el.style.transform=`rotate(${F}deg)`;
-  setTimeout(()=>{wheelBusy=false;$('#wheelRes').textContent='🎉 '+TOOL_WHEELS[idx];toast('结果可一键写入今日日记（联动 L5 模拟）')},2850);}
-/* —— 随机数 —— */
-function randGo(){const a=+$('#rMin').value,b=+$('#rMax').value,n=Math.min(20,+$('#rCnt').value||1);if(a>b){toast('区间不合法');return;}
-  $('#randOut').innerHTML=Array.from({length:n},()=>`<span class="px-3.5 py-2 rounded-xl grad text-white font-extrabold text-sm shadow">${Math.floor(a+Math.random()*(b-a+1))}</span>`).join('');}
-function randQuick(a,b,n){$('#rMin').value=a;$('#rMax').value=b;$('#rCnt').value=n;randGo();}
-/* —— 取色盘 —— */
-function cpkShow(v){const rgb=h2r(v),hsl=r2hsl(rgb);$('#cpHex').textContent=v.toUpperCase();$('#cpRgb').textContent=`rgb(${rgb.map(Math.round).join(', ')})`;$('#cpHsl').textContent=`hsl(${hsl[0].toFixed(0)}, ${hsl[1].toFixed(0)}%, ${hsl[2].toFixed(0)}%)`;$('#cpBig').style.background=v;}
-function cpkRenderRecent(){$('#cpRecent').innerHTML=CP_RECENT.map(c=>`<button data-c="${c}" onclick="cpkPick(this)" class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700" style="background:${c}"></button>`).join('');}
-function cpkPick(el){$('#cpk').value=el.dataset.c;cpkShow(el.dataset.c);}
-async function cpkEye(){if(!window.EyeDropper){toast('当前浏览器不支持 EyeDropper，请用桌面 Chrome 演示（正式版调用系统能力）');return;}
-  try{const r=await new EyeDropper().open();$('#cpk').value=r.sRGBHex;cpkShow(r.sRGBHex);if(!CP_RECENT.includes(r.sRGBHex)){CP_RECENT.unshift(r.sRGBHex);cpkRenderRecent();}}catch(e){}}
-/* —— 互补色 —— */
-function cmpShow(h){const hsl=r2hsl(h2r(h)),H=hsl[0],S=hsl[1],L=hsl[2];
-  const mk=(name,deg)=>{const hex=r2h(hsl2r(deg,Math.min(100,S+4),L>72?52:Math.max(46,Math.min(66,L+6))));
-    return `<div class="flex items-center gap-3 rounded-xl border border-slate-100 dark:border-slate-800 p-2"><span class="w-10 h-10 rounded-lg flex-shrink-0" style="background:${hex}"></span><div class="flex-1 min-w-0"><b class="text-xs">${name}</b><div class="font-mono text-[10px] text-slate-400">${hex.toUpperCase()}</div></div><button class="mini-btn flex-shrink-0" onclick="cpCopy('${hex}')">复制</button></div>`};
-  $('#cmpOut').innerHTML=`<div class="flex items-center gap-3 rounded-xl border border-slate-100 dark:border-slate-800 p-2"><span class="w-10 h-10 rounded-lg" style="background:${h}"></span><div class="flex-1"><b class="text-xs">原色</b><div class="font-mono text-[10px] text-slate-400">${h.toUpperCase()}</div></div><button class="mini-btn" onclick="cpCopy('${h}')">复制</button></div>`+mk('互补色 · 180°',H+180)+mk('类似色 · +30°',H+30)+mk('类似色 · −30°',H-30)+mk('三角配色 · +120°',H+120)+mk('三角配色 · +240°',H+240);}
-/* —— 日期计算 —— */
-function dCalcDiff(){const a=new Date($('#dA').value),b=new Date($('#dB').value);if(isNaN(a.getTime())||isNaN(b.getTime())){$('#dDiff').textContent='请选择完整日期';return;}
-  const d=Math.round((b-a)/864e5);$('#dDiff').textContent=`相差 ${Math.abs(d)} 天 ≈ ${(Math.abs(d)/7).toFixed(1)} 周 · ${d>=0?'结束日期在后':'开始日期在后'}`;}
-function dCalcAdd(){const a=new Date($('#dC').value);const n=+$('#dN').value||0;if(isNaN(a.getTime()))return;const b=new Date(a.getTime()+n*864e5);
-  const wd=['日','一','二','三','四','五','六'][b.getDay()];$('#dAdd').textContent=`${b.getFullYear()}-${String(b.getMonth()+1).padStart(2,'0')}-${String(b.getDate()).padStart(2,'0')} · 周${wd}（${n>0?n+' 天后':'往前 '+(-n)+' 天'}）`;}
-/* —— 图片压缩 —— */
-function imgzLoad(inp){const f=inp.files[0];if(!f)return;const url=URL.createObjectURL(f);const im=new Image();im.onload=()=>{IMGO={im:im,size:f.size};$('#imgzBox').classList.remove('hidden');$('#imgzPrev').src=url;imgzGo();};im.src=url;}
-function imgzGo(){if(!IMGO)return;const q=+$('#imgzQ').value;$('#imgzQL').textContent=q;const im=IMGO.im,size=IMGO.size;
-  const sc=Math.min(1,1600/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);
-  const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(im,0,0,cv.width,cv.height);
-  cv.toBlob(b=>{const pct=((1-b.size/size)*100).toFixed(1);$('#imgzInfo').innerHTML=`原图 ${im.width}×${im.height} · ${(size/1024).toFixed(0)} KB　→　<b style="color:#0d9488">${(b.size/1024).toFixed(0)} KB</b>${sc<1?' · 缩至 '+(sc*100).toFixed(0)+'%':''} · 体积减少 <b style="color:#0d9488">${pct}%</b>`;
-    const a=$('#imgzDl');a.href=URL.createObjectURL(b);a.classList.remove('hidden');},'image/jpeg',q/100);}
-/* —— AI API 验证 —— */
-const esc2=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const AI_PROVIDERS={'DeepSeek':['https://api.deepseek.com/v1','deepseek-chat'],'OpenAI':['https://api.openai.com/v1','gpt-4o-mini'],'Anthropic':['https://api.anthropic.com/v1','claude-3-5-haiku-latest'],'Moonshot Kimi':['https://api.moonshot.cn/v1','moonshot-v1-8s'],'通义千问':['https://dashscope.aliyuncs.com/compatible-mode/v1','qwen-turbo'],'智谱 GLM':['https://open.bigmodel.cn/api/paas/v4','glm-4-flash'],'Ollama（本地）':['http://127.0.0.1:11434/v1','qwen2.5:7b'],'自定义':['','']};
-function aiPick(){const p=AI_PROVIDERS[$('#aiProvider').value];if(!p)return;if(p[0])$('#aiUrl').value=p[0];if(p[1])$('#aiModel').value=p[1];}
-async function aiTest(mock){const box=$('#aiRes');
- if(mock){box.innerHTML='<div style="color:#94a3b8">⚤ 模拟请求中…</div>';setTimeout(()=>{box.innerHTML='<div style="color:#86efac">✔ 200 OK（模拟）· 812ms</div><div>模型回复：连接成功</div><div style="color:#94a3b8">usage: prompt 9 + completion 4 tokens</div><div style="color:#86efac">验证通过 · 设置页 AI 能力矩阵已可开启（模拟不校验真实 Key）</div>'},900);return;}
- const base=$('#aiUrl').value.trim().replace(/\/+$/,'');const prov=(($('#aiProvider')&&$('#aiProvider').value)||'').trim();const anth=prov==='Anthropic';const key=$('#aiKey').value.trim();const model=$('#aiModel').value.trim();const url=base+(anth?'/messages':'/chat/completions');
- if(!base){box.innerHTML='<div style="color:#fb7185">✖ 请填写 Base URL</div>';return;}
- if(!key){box.innerHTML='<div style="color:#fb7185">✖ 请先填入 API Key（或使用模拟演示查看交互效果）</div>';return;}
- box.innerHTML='<div style="color:#94a3b8">⚤ POST '+esc2(url)+' · '+esc2(anth?'Anthropic Messages API（协议适配）':'OpenAI 兼容')+' · model='+esc2(model||'default')+' …</div>';
- const t0=Date.now();const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
- try{
-  const pTxt=$('#aiPrompt').value.trim()||'请只回复四个字：连接成功';
-  const hdr=anth?{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'}:{'Content-Type':'application/json','Authorization':'Bearer '+key};
-  const payload=anth?{model:model||undefined,max_tokens:64,messages:[{role:'user',content:pTxt}]}:{model:model||undefined,messages:[{role:'user',content:pTxt}],max_tokens:30};
-  const r=await fetch(url,{method:'POST',signal:ctl.signal,headers:hdr,body:JSON.stringify(payload)});
-  clearTimeout(to);const ms=Date.now()-t0;
-  if(!r.ok){const txt=esc2((await r.text().catch(()=>'')).slice(0,180));
-   box.innerHTML=`<div style="color:#fb7185">✖ HTTP ${r.status} · ${ms}ms</div><div>${r.status===401?'Key 无效或无权限 —— 请核对 Key 与服务商是否匹配':r.status===403?'无权访问该模型 / 地区限制':r.status===404?'模型名或路径错误 —— 检查 Model 与 Base URL':r.status===429?'限流或余额不足':'服务端错误'}${txt?`<div style="color:#94a3b8">${txt}</div>`:''}</div>`;return;}
-  const j=await r.json();const c=(anth&&j.content&&j.content[0]&&j.content[0].text)||(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||(j.output_text||JSON.stringify(j).slice(0,200));
-  box.innerHTML=`<div style="color:#86efac">✔ 200 OK · ${ms}ms</div><div>模型回复：${esc2(c)}</div><div style="color:#94a3b8">usage: ${(j.usage&&j.usage.prompt_tokens!=null)?(j.usage.prompt_tokens+' + '+(j.usage.completion_tokens!=null?j.usage.completion_tokens:j.usage.output_tokens)+' tokens'):(j.usage&&j.usage.input_tokens!=null?j.usage.input_tokens+' + '+j.usage.output_tokens+' tokens':'n/a')} · endpoint 与 Key 有效，验证通过</div><div style="color:#86efac">→ 可前往设置页逐项开启 AI 能力矩阵</div>`;
- }catch(err){clearTimeout(to);
-  box.innerHTML=`<div style="color:#fb7185">✖ 请求未送达</div><div style="color:#fda4af">${esc2(String(err&&err.name==='AbortError'?'超时 15s':(err&&err.message)||err)).slice(0,140)}</div><div style="color:#94a3b8">浏览器原型环境最常见原因：该 API 不允许网页跨域调用（CORS），属原型环境限制，不代表 Key 错误；正式 Flutter 版原生请求无此限制。也可先用「模拟演示」查看交互流程。</div>`;}
-}
-
 /* ================= 阅读/观影计时 · 多方式进度 · 目录 ================= */
 let timer=null,timerT0=0,timerKind='read',timerTarget='',lastTimerSecs=0;
 const KIND_TXT={read:'阅读计时',watch:'观影计时'};
@@ -3348,60 +3060,6 @@ function renderMedia(){const el=$('#mediaList');if(!el)return;
    ${x.st==='在看'?`<div class="mt-1.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full bg-mint" style="width:${x.p}%"></span></div><div class="text-[10px] text-slate-400 mt-0.5">${x.info}</div>`:`<div class="text-[10px] text-slate-400 mt-1.5">🫎 来自豆瓣片单导入</div>`}</div>
    <div class="text-right shrink-0">${x.st==='在看'?`<button class="mini-btn !text-[10px]" onclick="timerTap('watch','《${x.n}》')">${timer&&timerTarget==='《'+x.n+'》'?'■ 结束':'▶ 观影'}</button>`:`<button class="mini-btn !text-[10px]" onclick="toast('已标记在看 · 开始观影计时')">👀 开始看</button>`}<div class="text-[9px] text-slate-400 mt-1">${timer&&timerTarget==='《'+x.n+'》'?'计时中…':(x.tm.split(' · ')[0]||'')}</div></div></div>`).join('');}
 
-/* ================= 母婴呵护 ================= */
-
-/* —— 她：周期 —— */
-
-
-
-/* —— 宝宝：记录与计时 —— */
-let babyLogs=[{ic:'🤱',t:'母乳 · 共 14min（左8′/右6′）',at:'14:20'},{ic:'💧',t:'尿布 · 尿 · 重 240g',at:'13:05'},{ic:'🥣',t:'配方奶 150ml · 42°C',at:'12:30'},{ic:'😴',t:'睡眠结束 · 1h50min',at:'11:40'},{ic:'💊',t:'补剂 · 维 D3 400IU',at:'09:15'},{ic:'🧸',t:'游戏 · 俯卧时间 8min',at:'08:40'}];
-function bnow(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
-function renderBabyToday(){const el=$('#babyToday');if(!el)return;
- el.innerHTML=babyLogs.map(r=>`<div class="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span class="text-base">${r.ic}</span><div class="flex-1 min-w-0"><b>${r.t}</b><div class="text-[9px] text-slate-400">今天 ${r.at} · 记录人：妈妈</div></div><button class="text-[10px] text-rose-400 font-bold shrink-0" onclick="babyLogs.splice(babyLogs.indexOf(this.closest('div').__r),1);renderBabyToday();toast('记录已删除（可关联体重测量）')">删除</button></div>`).join('')||'<div class="text-center text-slate-400 py-4 text-[11px]">今天还没有记录，点上方一键开始</div>';
- $$('#babyToday > div').forEach((d,i)=>d.__r=babyLogs[i]);const c=$('#babyCount');if(c)c.textContent=babyLogs.length;}
-
-let ftTimer=null,ftT0=0,ftKind='',ftSide='左',ftSwapMin=0;
-
-function ftSwap(min){ftSwapMin=min;ftSide=ftSide==='左'?'右':'左';renderFeedBar();toast('已换边 → '+ftSide+'侧继续计时，分段会记录')}
-function renderFeedBar(){const s=Math.floor((Date.now()-ftT0)/1000);const mm=Math.floor(s/60),ss=String(s%60).padStart(2,'0');const bar=$('#feedTimer');bar.classList.remove('hidden');
- bar.innerHTML=ftKind==='milk'?`<span class="text-lg">🤱</span><div class="flex-1 min-w-0"><b class="text-xs">${ftSide}侧哺乳 · 累计 ${mm}:${ss}</b><div class="text-[9px] text-slate-400">换边继续计时，结束时自动生成分段记录</div></div><button class="mini-btn !text-[10px]" onclick="ftSwap(Math.round((Date.now()-ftT0)/60000))">🔄 换边</button><button class="mini-btn !text-[10px] !bg-rose-100 !text-rose-500 dark:!bg-rose-500/15" onclick="endFeed()">■ 结束</button>`
- :`<span class="text-lg">😴</span><div class="flex-1 min-w-0"><b class="text-xs">入睡中 · ${mm}:${ss}</b><div class="text-[9px] text-slate-400">与上次喂养自动关联「吃-睡间隔」</div></div><button class="mini-btn !text-[10px] !bg-mint/15 !text-teal-600" onclick="endFeed()">⏰ 醒了</button>`;}
-function endFeed(){if(!ftTimer)return;const s=Math.floor((Date.now()-ftT0)/1000);const mins=Math.max(1,Math.round(s/60));
- if(ftKind==='milk'){const l=ftSwapMin?ftSide==='左'?ftSwapMin:mins-ftSwapMin:mins;const r=mins-l;babyLogs.unshift({ic:'🤱',t:`母乳 · 共 ${mins}min（左${l}′/右${r}′）`,at:bnow()})}
- else babyLogs.unshift({ic:'😴',t:`睡眠 · ${mins>=60?(Math.floor(mins/60)+'h'+(mins%60)+(mins%60?'′':'')+'m'):mins+'min'}`,at:bnow()});
- clearInterval(ftTimer);ftTimer=null;ftKind='';$('#feedTimer').classList.add('hidden');renderBabyToday();toast('✔ 计时已存 · 今日一览与时长统计已更新')}
-/* —— 生长曲线 / 疫苗 / 周概览 —— */
-const GROWTH={w:{pts:[3.3,4.5,5.6,6.3,6.9,7.4,7.8,8.3,8.9],info:'体重 8.9kg · 近 P62 · 上月 +0.6kg · 曲线平滑正常',col:'#6366f1'},
- h:{pts:[49.9,54.7,58.4,61.4,63.9,65.9,67.6,69.2,71],info:'身高 71cm · 近 P75 · 遗传目标身高预测 172±5cm',col:'#2dd4bf'},
- head:{pts:[34.2,36.3,38.1,39.5,40.8,41.9,42.8,43.7,44.5],info:'头围 44.5cm · 近 P85 · 连续跟随自身曲线',col:'#f59e0b'}};
-function drawGrowth(k){gCur=k;const g=GROWTH[k],el=$('#growthSvg');if(!el)return;const xs=16,xe=304;const vs=g.pts;const lo=Math.min(...vs)*.78,hi=Math.max(...vs)*1.1;
- const X=i=>xs+i*((xe-xs)/(vs.length-1)),Y=v=>126-((v-lo)/(hi-lo))*108;
- const line=f=>vs.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+','+Y(v*f).toFixed(1)).join(' ');
- el.innerHTML=`<path d="${line(1.13)}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>
-  <path d="${line(1)}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" opacity=".8"/>
-  <path d="${line(.87)}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>
-  <path d="${line(.76)}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" opacity=".35"/>
-  <path d="${vs.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${g.col}" stroke-width="2.5"/>
-  ${vs.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="${g.col}"/>`).join('')}
-  ${vs.map((v,i)=>`<text x="${X(i).toFixed(1)}" y="138" font-size="7" fill="#94a3b8" text-anchor="middle">${i}m</text>`).join('')}
-  <text x="300" y="14" font-size="7" fill="#94a3b8" text-anchor="end">P97 · P50 · P3（虚线带）</text>`;
- $$('#growthTabs .gc').forEach(b=>b.classList.toggle('on',b.dataset.k===k));$('#growthInfo').textContent=g.info;gPaint();}
-let gCur='w',gMode=0;
-const GVALS={w:['处于 P62 百分位','高于均值 +0.9 SD','Z 分数 +0.35'],h:['处于 P75 百分位','高于均值 +1.2 SD','Z 分数 +0.47'],head:['处于 P85 百分位','高于均值 +1.6 SD','Z 分数 +0.62']};
-function gPaint(){const b=$('#gModeBtn');if(!b)return;const names=['百分位 P','标准差 SD','Z 分数 Z'];b.textContent=names[gMode];const h=$('#gValHint');if(h)h.textContent=GVALS[gCur][gMode]+' · 点击切换';}
-
-function sportCalc(){const km=+$('#spKm').value||0,mn=+$('#spMin').value||0;const el=$('#spOut');if(!km||!mn){el.textContent='请填写距离与时长';return}
- const p=mn/km,pm=Math.floor(p),sec=Math.round((p-pm)*60);el.textContent=`配速 ${pm}′${String(sec).padStart(2,'0')}″/km · ${km}km=${mn}min 三模互算 ✓`;}
-function sportCalc0(){sportCalc()}
-
-let VAX=[{n:'手足口病灭活疫苗 第1剂',due:'2026-10-12',st:'plan'},{n:'流脑 A群多糖 第1剂',due:'2026-11-02',st:'plan'},{n:'乙脑减毒 第1剂',due:'2026-09-08',st:'done'},{n:'乙肝第3剂',due:'2026-07-15',st:'done'}];
-function renderVax(){const el=$('#vaxList');if(!el)return;
- el.innerHTML=VAX.map((x,i)=>`<div class="flex items-center gap-2.5 ${x.st==='done'?'opacity-55':''} bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span>${x.st==='done'?'✅':'💉'}</span><div class="flex-1 min-w-0"><b>${x.n}</b><div class="text-[9px] text-slate-400">${x.st==='done'?'已接种 · 接种记录可拍照归档':'计划 '+x.due+' · 提前 7 天提醒'}</div></div>${x.st==='plan'?`<button class="mini-btn !text-[10px]" onclick="vaxDone(${i})">完成</button>`:`<button class="text-[10px] text-slate-400 font-bold" onclick="toast('查看接种凭证照片（本地图档）')">凭证</button>`}</div>`).join('');}
-function vaxDone(i){VAX[i].st='done';renderVax();toast('✔ 已记录接种 · 下一针提醒已同步到「重要日子」（联动 L10）')}
-
-
-
 /* ================= FAB 按需显示配置 ================= */
 let recTab='note';
 const FAB_CFG={
@@ -3416,103 +3074,6 @@ const FAB_CFG={
  'p-habits':{ico:'＋',act:()=>openSheet('sheetAddHabit')},
  'p-health':{ico:'💧',act:()=>{water(1);toast('💧 快捷 +1 杯（FAB 随上下文变化）')}}
  /* 其余页（目标/设置/阅读详情/仪表盘除外…）无添加能力 → 自动隐藏 */};
-/* ================= 习惯打卡（正向/负向） ================= */
-let hsDim='w',hbNewType='pos';
-let HABITS=[
- {n:'🏃 晨间跑步 30min',type:'pos',streak:12,w:[1,1,0,1,1,1,1],mDone:22},
- {n:'📚 阅读 30min',type:'pos',streak:5,w:[1,0,1,1,1,0,1],mDone:17},
- {n:'🧘 睡前冥想',type:'pos',streak:2,w:[0,1,0,1,0,1,1],mDone:9},
- {n:'🧋 奶茶（每周≤2次）',type:'neg',target:2,triggers:1,w:[1,1,1,0,1,1,1],mAvoid:19},
- {n:'📱 深夜刷手机（每周≤3次）',type:'neg',target:3,triggers:2,w:[1,0,1,1,0,1,1],mAvoid:15}];
-
-
-function hsDots(h){const base=h.w,n=hsDim==='w'?7:28,arr=[];
- for(let i=0;i<n;i++)arr.push(i<7?base[i%7]:((i*7+3)%4===0?0:base[i%7]));return arr}
-function renderHabits(){const el=$('#habList');if(!el)return;
- const allW=HABITS.map(h=>h.w),posRate=Math.round(allW.flat().filter(v=>v).length/allW.flat().length*100);
- $('#habStatRow').innerHTML=`<div class="card !py-2.5"><b class="text-base text-mint">${posRate}%</b> ${hsDim==='w'?'本周':'本月'}总完成率</div>
-  <div class="card !py-2.5"><b class="text-base text-sun">${Math.max(...HABITS.map(h=>h.streak||h.avoidStreak||0))}</b>天 最长连续</div>
-  <div class="card !py-2.5"><b class="text-base text-brand-500">${HABITS.length}</b>个习惯进行中</div>`;
- el.innerHTML=HABITS.map((h,i)=>{const dots=hsDots(h),ok=dots.filter(v=>v).length,tot=dots.length;
-  const rate=Math.round(ok/tot*100);
-  const negLeft=h.type==='neg'?Math.max(0,h.target-h.triggers):0;
-  return `<div class="card">
-   <div class="flex items-center gap-2"><b class="text-sm flex-1">${h.n}</b>
-    <span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${h.type==='pos'?'bg-mint/15 text-teal-600':'bg-rose-100 text-rose-500 dark:bg-rose-500/15'}">${h.type==='pos'?'正向 · 坚持':'负向 · 控制中'}</span></div>
-   <div class="mt-2 flex gap-1">${dots.map((v,k)=>`<span class="hb-dot ${v?'bg-emerald-400 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'}">${v?'✓':''}</span>`).join('')}</div>
-   <div class="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
-    <span>${h.type==='pos'?`🔥 连续 <b class="text-sun">${h.streak}</b> 天 · ${hsDim==='w'?'本周':'本月'} <b class="text-emerald-500">${ok}/${tot}</b>`:`已坚持不出现 <b class="text-emerald-500">${h.type==='neg'?ok:0}</b>/${tot} 天 · 本周已触发 <b class="text-rose-500">${h.triggers}</b>/${h.target}`}</span>
-    <span class="ml-auto font-extrabold ${rate>=70?'text-emerald-500':rate>=40?'text-sun':'text-rose-500'}">${rate}%</span></div>
-   <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full rounded-full ${h.type==='pos'?'grad':'bg-emerald-400'}" style="width:${rate}%"></span></div>
-   <div class="mt-2.5 flex gap-2">
-   ${h.type==='pos'?`<button class="flex-1 py-2 rounded-xl bg-mint/80 text-slate-900 text-xs font-extrabold" onclick="hsCheck(${i})">${h.w[6]?'✔ 今日已打卡 · 点击撤销':'✅ 今天打卡'}</button>`
-    :`<button class="flex-1 py-2 rounded-xl bg-emerald-500 text-white text-xs font-extrabold" onclick="hsAvoid(${i})">🛡 今天没做 · 积累 +1</button><button class="px-3 py-2 rounded-xl bg-rose-100 text-rose-500 dark:bg-rose-500/15 text-xs font-extrabold" onclick="hsTrigger(${i})">⚠️ 没忍住（−1）</button>`}
-   <button class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 text-xs" onclick="toast('趋势曲线 / 里程碑回顾（周月视图已切·演示）')">📈</button></div>
-   ${h.type==='neg'&&negLeft===0?'<div class="mt-2 text-[10px] text-rose-500 font-bold">⚠ 本周触发已达上限，最后确认日加油守住！</div>':''}
-   ${h.type==='neg'&&hsDim==='m'?`<div class="mt-1.5 text-[10px] text-slate-400">月度累计不出现 ${h.mAvoid} 天 · 连续 ${h.triggers<=1?'2':'1'} 个周期达标，已接近「戒除中🎉」</div>`:''}
-  </div>`}).join('')}
-function hsCheck(i){const h=HABITS[i];h.w[6]=h.w[6]?0:1;if(h.w[6]){h.streak++;toast('✅ '+h.n+' 已打卡 · 连续 '+h.streak+' 天 · 写入周报（L4）')}else{h.streak=Math.max(0,h.streak-1);toast('已撤销今日打卡')}renderHabits()}
-function hsAvoid(i){const h=HABITS[i];if(h.w[6]){toast('今日已计入积累');return}h.w[6]=1;h.mAvoid++;toast('🛡 今日未触发 → 正向积累 +1 · 已坚持 '+h.mAvoid+' 天');renderHabits()}
-function hsTrigger(i){const h=HABITS[i];if(!h.w[6]){toast('今日已记录为触发');return}h.w[6]=0;h.triggers++;h.mAvoid=Math.max(0,h.mAvoid-1);toast('⚠️ 已记录触发 · 扣减积累 · 第 '+(h.triggers)+'/'+h.target+' 次（不批判，观察即改变）');renderHabits()}
-let hbCycV='day',hbTkV='norm';
-
-
-
-function syncHabit(name){const h=HABITS.find(x=>x.n.includes((name||'').replace('🔁 打卡：','').slice(0,6)));if(!h)return;
- h.w[6]=1;h.streak=(h.streak||0)+1;renderHabits();
- toast('🔁 已回写习惯打卡 ✓ · 「'+h.n+'」连续 '+h.streak+' 天')}
-/* ================= 插件中心（大模块插件化） ================= */
-const PS=[
- {id:'care',ic:'🍼',n:'母婴呵护',cat:'家庭',ver:'1.1.0',host:'1.0',size:'2.8 MB',rating:'★ 4.9 · 8.2k',state:'inst',weight:60,mount:['首页宫格','导航池','详情页'],tbl:'plugin_care',desc:'周期记录 + 宝宝八类喂养记录',long:'包含：生理周期/排卵预测着色日历、宝宝八类一键记录、WHO 生长曲线、疫苗计划。计时能力复用宿主悬浮计时条基础设施，插件自身不申请后台常驻。',perm:['隔离表空间 plugin_care（SQLite）','通知（预约类）'],hist:['1.1.0 新增生长曲线偏离预警','1.0.0 首发']},
- {id:'habits',ic:'🔁',n:'习惯打卡 · 成就增强包',cat:'效率',ver:'1.2.0',newVer:'1.3.0',host:'1.0',size:'1.2 MB',rating:'★ 4.7 · 5.6k',state:'upd',weight:70,mount:['首页宫格','仪表盘卡片'],tbl:'plugin_habits',desc:'正负向打卡 + 成就体系/赛季制',long:'在基础打卡上增加：成就徽章、赛季目标、同伴监督卡。与「仪表盘装饰包」同时声明首页宫格挂载点——将展示仲裁演示。',perm:['隔离表空间 plugin_habits'],hist:['1.3.0 新增赛季模板','1.2.0 新增负向习惯晚确认流']},
- {id:'billparser',ic:'🧾',n:'账单解析包（支付宝/微信）',cat:'效率',ver:'2.0.1',host:'1.1',size:'380 KB',rating:'★ 4.8 · 3.1k',state:'inst',weight:40,mount:['记账页功能区'],tbl:'—（无独立表，写宿主流水表需宿主代理）',desc:'平台 CSV 格式库随版本热更新',long:'解析规则纯数据包：支付宝/微信表头版本变更时无需升级 App，插件更新即适配。演示了最轻量的插件形态（无 UI，仅能力注入）。',perm:['读用户选定的导入文件'],hist:['2.0.1 适配微信 2026-08 表头','2.0.0 支持 zip 加密包直解']},
- {id:'items',ic:'📦',n:'物品价值 · 每日成本',cat:'生活',ver:'1.2.0',host:'1.0',size:'2.4 MB',rating:'★ 4.8 · 2.1k',state:'idle',weight:50,mount:['首页宫格','导航池','仪表盘卡片'],tbl:'plugin_items',desc:'摊薄引擎 + 回收/报废生命周期 + 决算分享卡',long:'资产摊销引擎（直线法/按次/预估止损）、二次付费/回收/报废流、与记账 L12 双向联动（通过宿主事件总线，插件不直接读写他插件表）。',perm:['隔离表空间 plugin_items','相机（录物品照片）'],hist:['1.2.0 按次均摊','1.1.0 决算分享卡','1.0.0 首发']},
- {id:'media',ic:'🎬',n:'影音游 · 观影笔记',cat:'生活',ver:'1.0.3',host:'1.0',size:'1.9 MB',rating:'★ 4.6 · 4.3k',state:'idle',weight:45,mount:['首页宫格','导航池'],tbl:'plugin_media',desc:'与阅读同构：计时/进度/片单导入',long:'复用宿主阅读笔记同构数据层（宿主提供 Shelf/Timer 能力 API），插件仅含展示与豆瓣片单解析。体现“宿主能力 API + 插件薄层”设计。',perm:['隔离表空间 plugin_media','网络（限豆瓣域名白名单）'],hist:['1.0.3 豆瓣导出格式适配','1.0.0 首发']},
- {id:'okr',ic:'🧭',n:'目标 OKR',cat:'效率',ver:'1.0.2',host:'1.0',size:'0.9 MB',rating:'★ 4.5 · 1.8k',state:'off',weight:35,mount:['首页宫格','仪表盘卡片'],tbl:'plugin_okr',desc:'O/KR + 复盘引导 + 进度汇聚',long:'当前处于停用态：挂载点已释放、导航项隐藏、表 plugin_okr  detach 保留——重新启用即无损恢复。',perm:['隔离表空间 plugin_okr'],hist:['1.0.2 复盘模板 KPT','1.0.0 首发']},
- {id:'deco',ic:'🎨',n:'仪表盘装饰包',cat:'个性化',ver:'0.9.4',host:'1.2',size:'1.5 MB',rating:'★ 4.4 · 990',state:'idle',weight:45,mount:['仪表盘卡片（多槽）'],tbl:'plugin_deco',desc:'季节卡片/渐变组件/纪念日自动装饰',long:'与「习惯成就包」同时申请首页宫格与仪表盘卡位，是典型挂载冲突场景：仲裁后各自按权重占位，用户可在设置拖拽改变序。',perm:['无存储（纯展示）'],hist:['0.9.4 秋叶纹理组件','0.9.0 首发']},
- {id:'readingimport',ic:'📚',n:'阅读导入解析包（微信读书/豆瓣）',cat:'效率',ver:'1.4.0',host:'1.1',size:'520 KB',rating:'★ 4.9 · 6.7k',state:'idle',weight:40,mount:['阅读页导入向导源列表'],tbl:'—（解析结果经宿主写入）',desc:'新平台格式适配不需升级 App',long:'导出格式变更频发场景下的“解析器即插件”策略：社区可持续贡献新平台适配，宿主审核签名后上架索引。',perm:['读用户选定文件'],hist:['1.4.0 豆瓣片单适配','1.0.0 微信读书解析器']}];
-let psCur='discover',psSel=null;
-
-function psIcon(p){return '<span class="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0" style="background:color-mix(in srgb,var(--accent) 10%,transparent)">'+p.ic+'</span>'}
-function renderPstore(){const n=PS.filter(p=>p.state==='upd').length;const bdg=$('#psUpdBadge');if(bdg)bdg.textContent=n?'('+n+')':'';
- const el=$('#psList');if(!el)return;
- let list=psCur==='discover'?PS:psCur==='inst'?PS.filter(p=>['inst','off'].includes(p.state)):PS.filter(p=>p.state==='upd');
- el.innerHTML=list.map(p=>{const btn=p.state==='idle'?'<button class="mini-btn flex-shrink-0" onclick="event.stopPropagation();psInstall(\''+p.id+'\')">⬇ 安装</button>':p.state==='inst'?'<button class="mini-btn flex-shrink-0" onclick="event.stopPropagation();openPS(\''+p.id+'\')">管理</button>':p.state==='upd'?'<button class="mini-btn flex-shrink-0 !bg-sun/20 !text-amber-600" onclick="event.stopPropagation();psInstall(\''+p.id+'\',1)">⬆ 更新</button>':p.state==='off'?'<button class="mini-btn flex-shrink-0" onclick="event.stopPropagation();psEnable(\''+p.id+'\')">启用</button>':p.state==='busy'?'<span class="text-[10px] text-brand-500 font-bold flex-shrink-0">安装中…</span>':'';
-  return '<div class="card flex gap-3 items-center cursor-pointer" onclick="openPS(\''+p.id+'\')">'+psIcon(p)
-   +'<div class="flex-1 min-w-0"><b class="text-[13px]">'+p.n+'</b> <span class="text-[9px] text-slate-400">v'+p.ver+' · '+p.size+'</span>'+(p.state==='upd'?' <span class="text-[9px] text-amber-500 font-bold">可升 v'+p.newVer+'</span>':'')+(p.state==='off'?' <span class="text-[9px] text-slate-400">已停用·资源已释放</span>':'')
-   +'<div class="text-[10px] text-slate-400 truncate mt-0.5">'+p.desc+'</div><div class="text-[9px] mt-0.5 text-slate-400">'+p.rating+' · 挂载：'+p.mount.join('、')+'</div></div>'+btn+'</div>'}).join('')||'<div class="text-center text-xs text-slate-400 py-8">此分类暂无插件</div>'}
-function mountConflicts(p){return PS.filter(x=>x.id!==p.id&&['inst','upd'].includes(x.state)&&x.mount.some(m=>p.mount.includes(m)))}
-function openPS(id){psSel=id;const p=PS.find(x=>x.id===id);const cf=mountConflicts(p);
- $('#psdBody').innerHTML='<div class="flex gap-3 items-center">'+psIcon(p).replace('w-11 h-11','w-14 h-14 text-2xl')+'<div class="flex-1 min-w-0"><b>'+p.n+'</b> <span class="text-[10px] text-slate-400">v'+p.ver+(p.newVer?' → <b class="text-amber-500">v'+p.newVer+'</b>':'')+'</span><div class="text-[10px] text-slate-400">'+p.size+' · 需宿主 ≥ '+p.host+' · 发布者 <b class="text-brand-500">lifeharness-io</b>（已认证）</div></div></div>'
- +'<div class="mt-3 text-xs leading-6 text-slate-500 dark:text-slate-400">'+p.long+'</div>'
- +'<div class="mt-3 text-[11px] font-bold">SHA-256 与签名</div><div class="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5 mt-1 break-all leading-5">sha256: 3a9f7c21e8b4d0a5…9d2c4f6ab7e2<br><span class="text-emerald-500 font-bold">✓ 与 index.json 清单一致 · minisign 发布者签名校验通过</span></div>'
- +'<div class="mt-3 text-[11px] font-bold">沙箱权限声明（'+p.perm.length+' 项，逐项可拒）</div><div class="mt-1 space-y-1 text-[11px]">'+p.perm.map(x=>'<div class="flex justify-between bg-slate-50 dark:bg-slate-800/60 rounded-lg px-2.5 py-1.5"><span>'+x+'</span><span class="text-slate-400">受限于插件目录</span></div>').join('')+'</div>'
- +'<div class="mt-3 text-[11px] font-bold">UI 挂载点与冲突仲裁</div><div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-5">'+p.mount.join(' · ')+'（权重 '+p.weight+'）<br>'+(cf.length?'⚠ 与已安装的「'+cf.map(c=>c.n+'(权重'+c.weight+')').join('、')+'」共享挂载点 → 仲裁：'+(p.weight>Math.max(...cf.map(c=>c.weight))?'本插件占第 1 位':'本插件排其后第 '+(1+cf.filter(c=>c.weight>=p.weight).length+1)+' 位')+'，用户可在设置拖拽改变最终序':'✓ 当前无挂载冲突')+'</div>'
- +'<div class="mt-3 text-[11px] font-bold">版本历史 / 回滚点</div><div class="mt-1 space-y-1 text-[11px] text-slate-500 dark:text-slate-400">'+p.hist.map((x,i)=>'<div class="flex justify-between items-center"><span>'+x+'</span>'+(i===(p.state==='upd'?1:0)&&['inst','off','upd'].includes(p.state)&&p.hist.length>1?'<button class="text-rose-400 font-bold" onclick="psRollback()">回滚至此</button>':'')+'</div>').join('')+'</div><div class="text-[10px] text-slate-400 mt-1">N-1 版本包本地保留 · 增量更新（bsdiff）省流约 78% · 卸载后数据快照保留 30 天</div>'
- +'<div id="psProgW" class="hidden mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><span id="psProgBar" class="block h-full grad rounded-full" style="width:0"></span></div><div id="psStage" class="hidden mt-1.5 text-[10px] text-brand-500 font-mono leading-5"></div>'
- +'<div class="mt-4 flex gap-2">'+(p.state==='idle'?'<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="psInstall(\''+id+'\')">⬇ 下载并安装</button>':p.state==='upd'?'<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="psInstall(\''+id+'\',1)">⬆ 增量更新</button>':p.state==='inst'?'<button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="psDisable(\''+id+'\')">停用</button><button class="flex-1 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold" onclick="psUninstall(\''+id+'\')">卸载</button>':p.state==='off'?'<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="psEnable(\''+id+'\')">重新启用</button><button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold text-rose-400" onclick="psUninstall(\''+id+'\')">卸载</button>':'')+'</div>'
- +(p.state!=='busy'?'<div class="mt-2 text-[10px] text-slate-400 text-center">浏览：'+p.rating+' · 分类 '+p.cat+'</div>':'');
- openSheet('sheetPSDetail');}
-function psInstall(id,isUpd){const p=PS.find(x=>x.id===id);if(p.state==='busy')return;p.state='busy';renderPstore();openPS(id);
- const st=$('#psStage'),bar=$('#psProgBar');st.classList.remove('hidden');$('#psProgW').classList.remove('hidden');
- const seq=isUpd?['拉取 bsdiff 增量包 '+p.newVer+'…','SHA-256 差异校验 ✓','合并 → v'+p.newVer,'plugin_'+p.id+' 表迁移（数据无损·回滚点已存）','热替换完成 · N-1 包保留可回滚']
- :['连接 github.com/lifeharness/plugins/releases','下载 '+p.id+'-v'+p.ver+'.zip（'+p.size+'）','SHA-256 校验 ✓ 3a9f…b7e2','发布者签名 lifeharness-io ✓','权限审阅（'+p.perm.length+' 项）→ 沙箱策略生成','创建隔离表空间 plugin_'+p.id,'挂载 '+p.mount[0]+' · 写入本地缓存（断网可运行）'];
- let i=0,w=0;const t=setInterval(()=>{w+=100/seq.length;bar.style.width=Math.min(100,w)+'%';if(i<seq.length)st.textContent='▸ '+seq[i++];
-  if(w>=100){clearInterval(t);p.state='inst';if(isUpd){p.ver=p.newVer;p.hist.unshift(p.ver+' 增量更新（自动）');p.newVer=null}
-   renderPstore();setTimeout(()=>{openPS(id);toast('🧩 '+p.n+(isUpd?' 已增量更新至 v'+p.ver+'，可回滚':' 安装完成并已启用 · 挂载点/导航池已更新，可在设置停用'))},600)}},520)}
-function psDisable(id){const p=PS.find(x=>x.id===id);p.state='off';closeSheet('sheetPSDetail');renderPstore();
- toast('⏸ 已停用 '+p.n+'：挂载点释放 · 导航项移除 · 缓存保留 · 表 plugin_'+p.id+' detach 保留（数据不删）')}
-function psEnable(id){const p=PS.find(x=>x.id===id);p.state='inst';renderPstore();toast('▶ 已启用 '+p.n+'：重新挂载 · detach 表无损恢复')}
-function psUninstall(id){const p=PS.find(x=>x.id===id);p.state='idle';closeSheet('sheetPSDetail');renderPstore();
- toast('🗑 已卸载 '+p.n+'：程序与缓存清除 · 数据快照按政策保留 30 天可恢复')}
-function psRollback(){const p=PS.find(x=>x.id===psSel);toast('↩ 已回滚 '+p.n+' 至 N-1 版本（表迁移反向脚本执行 · 数据无损）');closeSheet('sheetPSDetail')}
-
-/* ================= 日记 INS 风格 ================= */const DIARY_FILTERS=['全部','☐ 待办','#加班','#复盘'];/* ================= V1.29批2 · 回顾弹层（心情趋势+词云+那年今日） ================= */const DR_MOODS=['😖','😔','😐','😌','🙂','😄',''];
-const DR_COLORS=['#fb7185','#f59e0b','#a3a3a3','#2dd4bf','#0ea5e9','#8b5cf6','#6366f1'];
-/* V1.29批2：日记编辑器工具栏兑现（B/≡/☑/❝ 插标记·🖼 走插图链·富文本=所见即所得模拟） */
-let imgTarget='note';
-/* 轮12-9：日记正文=富文本框（所见即所得·按钮直接施加格式，不插 MD 语法） */function diaryAttach(){imgTarget='diary';openSheet('sheetImgSrc');}
-/* 轮12-2：快捷栏 拍照/相册=直取来源插图（不再经来源弹层） *//* 轮12-1：今日概览草稿默认折叠·点标题行展开/收起 */
 /* ================= 其他 ================= */
 function tick(){ const d=new Date(); $('#clock').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }
 setInterval(tick,10000);
@@ -5555,7 +5116,7 @@ function bsInit(){shSt=BS_SET.openTab||'全部';shViewIcon();saveProgress=bsSave
   const old=switchRecord;window.switchRecord=k=>{old(k);if(k==='book'&&curPage==='p-readhub')renderRecHub()}}
 document.addEventListener('click',e=>{const b=e.target.closest('#navBar .navtab');});
 
-renderRecords(); tick(); renderGrid(); renderNav(); renderFab(); renderSideThemes(); renderToc(); renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderPstore(); bsInit();
+ tick();  renderNav(); renderFab();  renderToc();       bsInit();
 /* ================================================================
    V1.50 书架专版 · 阅读器（本地 EPUB）
    仅追加：不改动既有书架/摘录/计时函数本体，全部经包装器接入
