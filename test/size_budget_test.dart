@@ -56,7 +56,10 @@ void main() {
     // F2-15 保存防重入门（`_busy` 门＋保存钮置灰）。之后只许减；真还债＝拆 part，另批做。
     // 1622→1623 阅读模块批3（2026-10-14）：F3-10 表单弹层补把手（净增 1）。
     'features/read/presentation/shelf/book_form_page.dart': 1623,
-    'features/ledger/data/ledger_repository.dart': 1352,
+    // 1352→1364 存量越线归位（高保真批 6a 2026-10-16 跑出本红）：净增 12 行发生在
+    // 备份余量批3（6939f3ec·V1.67 按范围自由导出时间维度），该批未带 size 闸，
+    // 批 6a 一行未动该文件。按现状登记，之后只许减。
+    'features/ledger/data/ledger_repository.dart': 1364,
     // 1331→1341 本批净增 10（阅读模块批2 · 2026-10-14）：F2-15 保存防重入门
     // （`_busy` 门＋保存钮置灰＋校验未过解门可再存）。之后只许减。
     'features/read/presentation/read_sheets_b3.dart': 1341,
@@ -68,9 +71,12 @@ void main() {
     // settings_page 1566 行越线（思维导图批1 2026-10-12 跑出本红）：越线发生在语义断链批
     // （V1.68 日记第八类，该批没带 size 闸），本批只改一行文案——非本批造成，按现状登记，
     // 之后只许减；真还债＝拆 part，另批做。
+    // 1566→1609 存量越线归位（高保真批 6a 2026-10-16 跑出本红）：净增 43 行发生在
+    // 桌面批2＋批3（a6e6bdb6·四枚小组件预览卡与设置生效面），该批未带 size 闸。
+    // 之后只许减。
     // dashboard_page 已还债：1204→1200 落到默认 1200 面（时间模块 B10 5700dff9 删旧 events
     // 系接线），按口径「拆完删项」**删除登记**（阅读模块批2 · 2026-10-14 跑出 stale 提醒）。
-    'features/settings/presentation/settings_page.dart': 1566,
+    'features/settings/presentation/settings_page.dart': 1609,
     // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
     // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
     // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。

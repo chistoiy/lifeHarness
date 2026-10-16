@@ -91,7 +91,7 @@ Future<void> drainPillEvents(WidgetRef ref) async {
     try {
       await showQuoteEditPage(navCtx, ref, bookId: readS.bookId);
     } catch (_) {
-      // catch-ok：弹层打开失败不崩，计时继续。
+      // catch-ok: 弹层打开失败不崩，计时继续。
     }
     return;
   }

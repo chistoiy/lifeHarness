@@ -182,7 +182,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                   filt.args);
               c = rows.isEmpty ? 0 : (rows.first['c'] as int? ?? 0);
             } catch (_) {
-              c = 0;
+              c = 0; // catch-ok: 谓词计数失败按 0 计——体积预估本就带「约」，占比照常展示。
             }
           }
           totalRows += c;
