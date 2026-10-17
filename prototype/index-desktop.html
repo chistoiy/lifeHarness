@@ -17,6 +17,8 @@
   校验：node tools/dtcheck.js（结构断言）＋ doclint 链（protogate strict / proto_registry / vm_script_check）。
   深链直达：index-desktop.html#dt-desk｜#dt-menu｜#dt-widget｜#dt-map（启动读 location.hash 落屏，与 time/media/bookshelf 专版同口径）。
   页内切换：header 下方四枚 chip（#scrSw）可点直达四屏，与返回栈/深链同径同步高亮。
+  2026-10-18（产品反馈整改）：4×1 快捷记录两区→三区（记一笔｜今日支出｜本月结余·信息密度上调）；
+  待办勾圈示意层可点（切换完成态·真机落库即消失、无撤销条）。
 -->
 <html lang="zh-CN" data-theme="minimal">
 <head>
@@ -144,6 +146,9 @@ tailwind.config = {
   .wg-todo-t{font-size:11px;font-weight:600;color:var(--w-fg);line-height:1.25;
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
   .wg-todo-m{font-size:9px;color:var(--w-sub);flex:0 0 auto;font-variant-numeric:tabular-nums}
+  /* 待办勾圈示意层：点＝切换完成态（划线）；真机＝落库后该行消失、其余上移，无撤销条 */
+  .wg-todo.done .wg-todo-t{text-decoration:line-through;opacity:.55}
+  .wg-todo.done .wg-todo-m{opacity:.55}
   /* 记账 2×2 · 三行读数（今日支出 / 本月支出 / 本月结余），对齐参考 App 的行式布局 */
   .wg-amt-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
   .wg-amt-v{font-size:15px;font-weight:800;color:var(--w-fg);line-height:1.1;font-variant-numeric:tabular-nums}
@@ -285,9 +290,9 @@ tailwind.config = {
         <div class="wg-corner"></div>
         <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 待办</div>
         <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
-          <div class="wg-todo" onclick="event.stopPropagation();toast('勾圈：闭环该条待办（写库）· 误触无撤销条')"><span class="wg-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
-          <div class="wg-todo" onclick="event.stopPropagation()"><span class="wg-chk"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
-          <div class="wg-todo" onclick="event.stopPropagation()"><span class="wg-chk"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
+<div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
+          <div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
+          <div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
         </div>
       </div>
     </div>
@@ -309,17 +314,18 @@ tailwind.config = {
     <div style="margin:0 14px 12px">
       <div class="wg" style="height:74px">
         <div class="wg-corner"></div>
-        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:50%" onclick="toast('4×1 快捷记录 · 点击走 quick.ledger → /ledger/add')">
-          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          记一笔
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔走 quick.ledger → /ledger/add')">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
-        <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
-        <div style="position:absolute;left:calc(50% + 13px);right:12px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:3px">
-          <div class="wg-name">LifeHarness · 快捷记录</div>
-          <div class="flex items-end justify-between">
-            <span class="wg-lab" style="font-size:10px">今日支出</span>
-            <span class="wg-read" style="font-size:20px" data-amt="1286">¥1,286</span>
-          </div>
+        <div style="position:absolute;left:30%;top:12px;bottom:12px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:11px">
+          <span class="wg-lab" style="font-size:9px">今日支出</span>
+          <span class="wg-read" style="font-size:16px" data-amt="1286">¥1,286</span>
+        </div>
+        <div style="position:absolute;left:65%;top:12px;bottom:12px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:11px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:2px">
+          <span class="wg-lab" style="font-size:9px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:16px">¥3,580</span>
         </div>
       </div>
     </div>
@@ -346,7 +352,7 @@ tailwind.config = {
 
   <div class="px-5 py-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
     <div class="spec"><span class="demo-tag">示意</span> 点 LifeHarness 图标＝长按菜单（系统硬限 4 枚，默认 速记/记待办/记一笔/打卡）。<br>
-      读数型小部件（2×2 今日概览／2×2 待办／2×2 记账／4×1 快捷记录）点击均走 §2.0 动作表，四路导航栈一致；<b>批 A 起</b>桌面可出现动作型「打卡-单习惯」2×2——按实例绑定，点击打卡不起 App（本地回显 → 后台 isolate → 快照收敛）。</div>
+      读数型小部件点击均走 §2.0 动作表，四路导航栈一致；4×1 快捷记录＝记一笔｜今日支出｜本月结余三区（2026-10-18 密度上调），待办勾圈可点（示意层切换完成态）；<b>批 A 起</b>桌面可出现动作型「打卡-单习惯」2×2——按实例绑定，点击打卡不起 App（本地回显 → 后台 isolate → 快照收敛）。</div>
   </div>
 </section>
 
@@ -435,16 +441,16 @@ tailwind.config = {
 
   <div class="card mt-3">
     <div class="row-title">2×2 待办清单<span class="spec" style="font-weight:400;margin-left:8px">批 3 新增</span></div>
-    <div class="spec mt-1 mb-3">列最近 3 条未完待办。<b>左侧勾圈点即闭环</b>（写 PendingIntent 广播，落库后该行消失、其余上移）；<b>行文本点进待办页</b>。禁滑动、禁输入、禁动画；超 3 条只显「还有 N 条」。</div>
+    <div class="spec mt-1 mb-3">列最近 3 条未完待办。<b>左侧勾圈点即闭环</b>（写 PendingIntent 广播，落库后该行消失、其余上移）；<b>行文本点进待办页</b>。禁滑动、禁输入、禁动画；超 3 条只显「还有 N 条」。<br>示意层勾圈可反复点＝切换完成态（划线）便于演示；真机落库即消失、<b>无撤销条</b>（误触需进待办页撤销）。</div>
     <div class="flex gap-3">
       <div class="flex-1">
         <div class="wg force-light" style="height:152px">
           <div class="wg-corner"></div><div class="wg-safe"></div>
           <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 待办</div>
           <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
-            <div class="wg-todo" onclick="toast('勾圈：闭环该条待办（写库）')"><span class="wg-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
-            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
-            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
+<div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
+            <div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
+            <div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
           </div>
         </div>
         <div class="cap spec">浅色档 · 勾圈空心 #64748B，闭环态填 #6366F1</div>
@@ -454,9 +460,9 @@ tailwind.config = {
           <div class="wg-corner"></div><div class="wg-safe"></div>
           <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 待办</div>
           <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
-            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
-            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
-            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
+<div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
+            <div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
+            <div class="wg-todo" onclick="toast('行文本：进待办页')"><span class="wg-chk" onclick="event.stopPropagation();wgTodoChk(this)"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
           </div>
         </div>
         <div class="cap spec">深色档 · 勾圈空心 #94A3B8，闭环态填 #818CF8＋深字</div>
@@ -498,76 +504,124 @@ tailwind.config = {
 
   <div class="card mt-3">
     <div class="row-title">4×1 快捷记录</div>
-    <div class="spec mt-1 mb-3">左半「记一笔」点击走动作表 <span style="font-family:ui-monospace,monospace">quick.ledger</span>；右半显示今日支出金额位，开启「隐藏金额」时变 ••••（B7）。<b>4:1 长条</b>，故两档上下堆叠而非并排。</div>
-    <div class="wg force-light" style="height:80px;margin-bottom:16px">
-      <div class="wg-corner"></div>
-      <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:50%">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
-      </div>
-      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
-      <div style="position:absolute;left:calc(50% + 13px);right:13px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:4px">
-        <div class="wg-name">LifeHarness · 快捷记录</div>
-        <div class="flex items-end justify-between">
-          <span class="wg-lab" style="font-size:10px">今日支出</span>
-          <span class="wg-read" style="font-size:20px" data-amt="1286">¥1,286</span>
+    <div class="spec mt-1 mb-3"><b>2026-10-18 三区改版</b>（产品令：原「左按钮＋右金额」两区占整行、信息密度低）：<b>记一笔</b>｜<b>今日支出</b>｜<b>本月结余</b> 三区并列——一次看见「记入口＋今天花了多少＋本月还剩多少」；条内不显名（名称由桌面添加列表 label 承载）。「记一笔」走动作表 <span style="font-family:ui-monospace,monospace">quick.ledger</span>；开启「隐藏金额」时两个金额位一律 ••••（B7）。</div>
+      <div class="wg force-light" style="height:80px">
+        <div class="wg-corner"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔走 quick.ledger → /ledger/add')">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
+        </div>
+        <div style="position:absolute;left:30%;top:13px;bottom:13px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:11px">
+          <span class="wg-lab" style="font-size:9px">今日支出</span>
+          <span class="wg-read" style="font-size:16px" data-amt="1286">¥1,286</span>
+        </div>
+        <div style="position:absolute;left:65%;top:13px;bottom:13px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:11px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:2px">
+          <span class="wg-lab" style="font-size:9px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:16px">¥3,580</span>
         </div>
       </div>
-    </div>
     <div class="cap spec" style="margin-top:-10px">浅色档</div>
 
-    <div class="wg force-dark mt-3" style="height:80px">
-      <div class="wg-corner"></div>
-      <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:50%">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
-      </div>
-      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
-      <div style="position:absolute;left:calc(50% + 13px);right:13px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:4px">
-        <div class="wg-name">LifeHarness · 快捷记录</div>
-        <div class="flex items-end justify-between">
-          <span class="wg-lab" style="font-size:10px">今日支出</span>
-          <span class="wg-read" style="font-size:20px" data-amt="1286">¥1,286</span>
+      <div class="wg force-dark mt-3" style="height:80px">
+        <div class="wg-corner"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔走 quick.ledger → /ledger/add')">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
+        </div>
+        <div style="position:absolute;left:30%;top:13px;bottom:13px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:11px">
+          <span class="wg-lab" style="font-size:9px">今日支出</span>
+          <span class="wg-read" style="font-size:16px" data-amt="1286">¥1,286</span>
+        </div>
+        <div style="position:absolute;left:65%;top:13px;bottom:13px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:11px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:2px">
+          <span class="wg-lab" style="font-size:9px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:16px">¥3,580</span>
         </div>
       </div>
-    </div>
     <div class="cap spec">深色档</div>
   </div>
 
   <div class="card mt-3">
     <div class="row-title">隐藏金额（B7）</div>
-    <div class="spec mt-1 mb-3">4×1 右半的金额位：开关开启时显示 ••••，不把金额泄露到桌面；对长按菜单/铺桌面无影响。</div>
+    <div class="spec mt-1 mb-3">4×1 的两个金额位（今日支出／本月结余）：开关开启时一律显示 ••••，不把金额泄露到桌面；对长按菜单/铺桌面无影响。</div>
     <div class="pair">
       <div>
-        <div class="wg force-light" style="height:88px;padding:12px">
-          <div class="wg-name">LifeHarness · 快捷记录</div>
-          <div class="wg-lab" style="font-size:10px;margin-top:6px">今日支出</div>
-          <div class="wg-read" style="font-size:20px">¥1,286</div>
+      <div class="wg force-light" style="height:88px">
+        <div class="wg-corner"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
+        <div style="position:absolute;left:30%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:1px;padding-left:9px">
+          <span class="wg-lab" style="font-size:8px">今日支出</span>
+          <span class="wg-read" style="font-size:13px" data-amt="1286">¥1,286</span>
+        </div>
+        <div style="position:absolute;left:65%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:9px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:1px">
+          <span class="wg-lab" style="font-size:8px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:13px">¥3,580</span>
+        </div>
+      </div>
         <div class="cap spec">浅色 · 隐藏关</div>
       </div>
       <div>
-        <div class="wg force-light" style="height:88px;padding:12px">
-          <div class="wg-name">LifeHarness · 快捷记录</div>
-          <div class="wg-lab" style="font-size:10px;margin-top:6px">今日支出</div>
-          <div class="wg-read" style="font-size:20px">••••</div>
+      <div class="wg force-light" style="height:88px">
+        <div class="wg-corner"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
+        <div style="position:absolute;left:30%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:1px;padding-left:9px">
+          <span class="wg-lab" style="font-size:8px">今日支出</span>
+          <span class="wg-read" style="font-size:13px" data-amt="1286">••••</span>
+        </div>
+        <div style="position:absolute;left:65%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:9px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:1px">
+          <span class="wg-lab" style="font-size:8px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:13px">••••</span>
+        </div>
+      </div>
         <div class="cap spec">浅色 · 隐藏开</div>
       </div>
     </div>
     <div class="pair mt-3">
       <div>
-        <div class="wg force-dark" style="height:88px;padding:12px">
-          <div class="wg-name">LifeHarness · 快捷记录</div>
-          <div class="wg-lab" style="font-size:10px;margin-top:6px">今日支出</div>
-          <div class="wg-read" style="font-size:20px">¥1,286</div>
+      <div class="wg force-dark" style="height:88px">
+        <div class="wg-corner"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
+        <div style="position:absolute;left:30%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:1px;padding-left:9px">
+          <span class="wg-lab" style="font-size:8px">今日支出</span>
+          <span class="wg-read" style="font-size:13px" data-amt="1286">¥1,286</span>
+        </div>
+        <div style="position:absolute;left:65%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:9px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:1px">
+          <span class="wg-lab" style="font-size:8px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:13px">¥3,580</span>
+        </div>
+      </div>
         <div class="cap spec">深色 · 隐藏关</div>
       </div>
       <div>
-        <div class="wg force-dark" style="height:88px;padding:12px">
-          <div class="wg-name">LifeHarness · 快捷记录</div>
-          <div class="wg-lab" style="font-size:10px;margin-top:6px">今日支出</div>
-          <div class="wg-read" style="font-size:20px">••••</div>
+      <div class="wg force-dark" style="height:88px">
+        <div class="wg-corner"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
+        <div style="position:absolute;left:30%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:1px;padding-left:9px">
+          <span class="wg-lab" style="font-size:8px">今日支出</span>
+          <span class="wg-read" style="font-size:13px" data-amt="1286">••••</span>
+        </div>
+        <div style="position:absolute;left:65%;top:10px;bottom:10px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:9px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:1px">
+          <span class="wg-lab" style="font-size:8px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:13px">••••</span>
+        </div>
+      </div>
         <div class="cap spec">深色 · 隐藏开</div>
       </div>
     </div>
@@ -676,17 +730,22 @@ tailwind.config = {
             <span style="font-size:12px;font-weight:600">快捷记录（4×1）</span>
             <span style="margin-left:auto;font-size:11.5px;color:var(--acc);font-weight:600">添加到桌面</span>
           </div>
-          <div class="wg force-light" style="height:48px">
-            <div class="wg-corner"></div>
-            <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:50%">
-              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
-            </div>
-            <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
-            <div style="position:absolute;left:calc(50% + 11px);right:11px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:2px">
-              <div class="wg-name">LifeHarness · 快捷记录</div>
-              <div class="flex items-end justify-between"><span class="wg-lab" style="font-size:9px">今日支出</span><span class="wg-read" style="font-size:14px">¥1,286</span></div>
-            </div>
-          </div>
+      <div class="wg force-light" style="height:48px">
+        <div class="wg-corner"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
+        </div>
+        <div style="position:absolute;left:30%;top:8px;bottom:8px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:30%;top:0;bottom:0;width:35%;display:flex;flex-direction:column;justify-content:center;gap:0px;padding-left:9px">
+          <span class="wg-lab" style="font-size:7px">今日支出</span>
+          <span class="wg-read" style="font-size:12px" data-amt="1286">¥1,286</span>
+        </div>
+        <div style="position:absolute;left:65%;top:8px;bottom:8px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div style="position:absolute;left:65%;right:9px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:0px">
+          <span class="wg-lab" style="font-size:7px">本月结余</span>
+          <span class="wg-read wg-acc" style="font-size:12px">¥3,580</span>
+        </div>
+      </div>
         </div>
       </div>
 
@@ -1066,6 +1125,13 @@ function scrSync(){ var b=$('#scrSw'); if(!b)return;
   Array.prototype.forEach.call(b.querySelectorAll('button'),function(x){
     x.classList.toggle('on', x.getAttribute('data-scr')===curPage); }); }
 function scrGo(p){ navTo(p); }
+/* 待办勾圈示意层：切换完成态（可逆，便于演示）；真机勾圈即落库、该行消失、无撤销条 */
+function wgTodoChk(el){
+  var row=el.closest?el.closest('.wg-todo'):null; if(!row)return;
+  var on=row.classList.toggle('done');
+  el.classList.toggle('on',on);
+  toast(on?'勾圈：闭环该条待办（写库）· 真机该行消失、其余上移；误触无撤销条':'示意层可反复点；真机勾圈即落库、无撤销');
+}
 function navTo(p){ if(p===curPage)return; if(!document.getElementById(p)){toast('屏 '+p+' 未在本专版内');return;} stack.push(curPage); setPage(p); }
 function goBack(){ if(stack.length){ setPage(stack.pop()); return; } setPage('dt-desk'); }
 function toast(msg){

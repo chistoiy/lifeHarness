@@ -1,6 +1,6 @@
 {
  "file": "index-desktop.html",
- "total": 71584,
+ "total": 78464,
  "cut": 0,
  "screens": [
   {
@@ -8,8 +8,8 @@
    "kind": "screen",
    "title": "桌面全貌（示意）",
    "role": "home",
-   "size": 5791,
-   "hash": "c43c8f18"
+   "size": 6218,
+   "hash": "8f493011"
   },
   {
    "id": "dt-menu",
@@ -24,8 +24,8 @@
    "kind": "screen",
    "title": "小组件规格",
    "role": "home",
-   "size": 31167,
-   "hash": "31de6d16"
+   "size": 37078,
+   "hash": "43ab117e"
   },
   {
    "id": "dt-map",

@@ -65,6 +65,17 @@ async function toastText() { return (await ev("var t=document.getElementById('to
     + "return on.length===1?on[0].getAttribute('data-scr'):'multi:'+on.length;");
   r0c === 'dt-widget' ? ok('chip 高亮与当前屏同步') : bad('chip 高亮不同步', String(r0c));
   await shot('scr-switch');
+
+  /* 2026-10-18 既有 widget 整改（产品反馈）：4×1 两区→三区提密度；待办勾圈示意层可点 */
+  const rq = await ev("navTo('dt-desk');var w=Array.prototype.filter.call(document.querySelectorAll('#dt-desk .wg'),function(x){return x.textContent.indexOf('记一笔')>=0})[0];"
+    + "var t=w?w.textContent:'';return {has:w?1:0,spend:t.indexOf('今日支出')>=0,left:t.indexOf('本月结余')>=0,noName:t.indexOf('LifeHarness · 快捷记录')<0};");
+  (rq && rq.has && rq.spend && rq.left && rq.noName) ? ok('4×1 三区（记一笔｜今日支出｜本月结余·条内不显名）') : bad('4×1 三区改版缺项', JSON.stringify(rq));
+  const rt = await ev("navTo('dt-widget');var rows=Array.prototype.slice.call(document.querySelectorAll('#dt-widget .wg-todo'));"
+    + "var chk=rows[1].querySelector('.wg-chk');chk.click();"
+    + "var done=rows[1].classList.contains('done'),on=chk.classList.contains('on');"
+    + "chk.click();var back=!rows[1].classList.contains('done');"
+    + "return {n:rows.length,done:done,on:on,back:back};");
+  (rt && rt.n === 6 && rt.done && rt.on && rt.back) ? ok('待办勾圈可点（切换完成态·可逆·示意层·深浅各三行）') : bad('待办勾圈点击无效', JSON.stringify(rt));
   const r1 = await ev("navTo('dt-widget');var s=document.getElementById('dt-widget');return {on:s.classList.contains('active'),"
     + "name:(s.textContent.match(/打卡-单习惯/g)||[]).length,"
     + "wgName:(s.querySelectorAll('.wg-name').length),"
