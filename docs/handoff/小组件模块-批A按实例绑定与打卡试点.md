@@ -82,7 +82,8 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 - **绑定层已落（Dart 侧第一刀·纯函数＋prefs）**：`lib/features/widget/domain/widget_binding.dart`（目标三件套同构 `NfcTargetKind`·控制字符编解码·实例回收·老实例回落·失效三态判据）＋`lib/features/widget/data/widget_binding_store.dart`（一实例一键 `desktop.widget_bind.<id>`＋全局默认键·loadAll/prune/resolve）＋ `test/widget_binding_test.dart` **16 例全绿**·analyze 干净·变异一刀（回落打死）红后 md5 复原全等。
   - **架构纪律**：provider 未进 `core/providers.dart`（R2：core 禁依赖 features·组合根白名单只有 router）——store 构造注入自足，provider 留配置页那刀随 feature 侧 providers 文件一起加（免死代码）。
   - **存量红上报（非本批引入）**：`test/desktop_widget_test.dart` 1 例红＝守卫「activity 禁空 taskAffinity」（10-15 桌面批3 立）撞 `NfcRelayActivity` 空 affinity（10-17 NFC 批3c 故意为之·excludeFromRecents＋noHistory 的中转界面）。跨线冲突，按互斥纪律不动 NFC 线 Manifest/守卫，**待 NFC 在飞线收口时裁定**（守卫加白名单条目或收窄扫描面二选一）。
-- **下一步（按 §2 五层）**：选择层（共享五段选择器参数化·新组件不碰 nfc_sheets.dart）→ 配置页 → 渲染层/交互闭环（后两层待 NFC 线收口解封 android/**）。
+- **选择层已落（Dart 侧第二刀·2026-10-18 晚）**：`lib/features/widget/presentation/widget_target_picker.dart`——五段横向大类共享选择器，`WidgetPickerMode`（nfc｜widget）只改按钮文案与区标签（「保存」/「添加到桌面」·「贴卡后做什么」/「点击后做什么」），写卡专属分支不进组件；数据一律经 `nfc_mounts` linkage 出口（同库同函数·同一数据源）；返回 `WidgetTarget` 三件套由调用点决定去向（widget 侧绑实例键）。`test/widget_picker_test.dart` **20 例全绿**（五区各返三件套／切区不改变已选／再点子级退父级／进区默认选中／空习惯确认键置灰／同源守护≡NFC 侧 tab 表·ref 常量·care 子格式／写卡分支隔离源码扫描）。⚠ 与 NFC 侧两处登记（tab 表/ref 常量）靠测试守护防漂移，NFC 侧参数化时（R7）二选一销一份。变异一刀（habit/care 换序）⇒ 同源守护红其位·md5 复原全等。
+- **下一步（按 §2 五层）**：配置页（设置页小部件卡「添加小组件」→ picker（initialTab habit）→ 预选绑定落 prefs → pinDesktopWidget → 配置页无感回写）→ 渲染层/交互闭环（android/** 已解禁·对话框 Activity 第一刀见 §5）。
 
 ### §7.1 产品追加需求：记一笔「不打开 App 直接弹窗记账」（2026-10-18 拍板走 A 路）
 
