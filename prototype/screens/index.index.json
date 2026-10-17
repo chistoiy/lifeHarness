@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 314976,
+ "total": 316765,
  "cut": 0,
  "screens": [
   {
@@ -40,8 +40,8 @@
    "kind": "screen",
    "title": "NFC 卡片",
    "role": "home",
-   "size": 2069,
-   "hash": "17e41593"
+   "size": 3390,
+   "hash": "c4e22524"
   },
   {
    "id": "sheetNfcEdit",
@@ -56,8 +56,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1373,
-   "hash": "242e1c02"
+   "size": 1701,
+   "hash": "045d97d0"
   },
   {
    "id": "sheetNfcWrite",

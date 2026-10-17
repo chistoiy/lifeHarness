@@ -269,6 +269,22 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
     n15.saved2.name === '改名后的卡' && n15.saved2.desc === '新描述' && n15.saved2.color === 3 &&
     n15.saved2.ref === 'habit' && n15.saved2.sub === n15.saved.sub)
     ? ok('N15 双节点两形态弹层：右节点＝卡片信息（名称/描述/6 色/目标摘要）·左节点＝绑定目标（仅目标区）·新建＝全量；只改目标不动卡片、只改卡片不动目标') : bad('N15', JSON.stringify(n15));
+
+  /* N16 贴卡回执双态口径回灌（批3e/3f·2026-10-17 产品令）：前台 toast／后台自绘悬浮横幅
+     · 左→右＋右→左两格示意（方向逐次交替）· 2.6s 滑出 · 通知栏零条目 */
+  const n16 = await ev(`var t=$('#p-sub-nfc').innerText, s=$('#sheetNfcSet').innerText;
+    var card=document.evaluate("//div[contains(@class,'card')][contains(.,'贴卡回执长什么样')]",document,null,9,null).singleNodeValue;
+    var cells=card?card.querySelectorAll('.grid > div'):[];
+    return {card:!!card,
+      title:/贴卡回执长什么样/.test(t),
+      l2r:!!cells[0]&&/第一次 · 左→右/.test(cells[0].innerText)&&/开始「学习」计时/.test(cells[0].innerText),
+      r2l:!!cells[1]&&/第二次 · 右→左/.test(cells[1].innerText)&&/已结束「学习」计时/.test(cells[1].innerText),
+      alt:/方向交替/.test(t),
+      noNotif:/不会在通知栏留条目/.test(t),
+      setRow:/回执方式/.test(s)&&/不在通知栏留条目/.test(s),
+      src:/原生自绘悬浮横幅/.test(document.documentElement.innerHTML)};`);
+  (n16.card && n16.title && n16.l2r && n16.r2l && n16.alt && n16.noNotif && n16.setRow && n16.src)
+    ? ok('N16 回执双态回灌：前台 toast／后台自绘横幅·左→右＋右→左两格示意·方向交替·通知栏零条目·设置层有回执方式行') : bad('N16', JSON.stringify(n16));
   finish();
 })().catch(e => { bad('harness 崩溃 ' + String(e).slice(0, 200)); finish() });
 function finish() { log((fail ? 'RESULT FAIL ' : 'RESULT PASS ') + pass + '/' + (pass + fail));
