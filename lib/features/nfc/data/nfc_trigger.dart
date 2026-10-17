@@ -50,8 +50,12 @@ const Duration kNfcDebounceWindow = Duration(milliseconds: 3000);
 /// 去抖窗口内的第二次提示文案（B16/B43 逐字）。
 const String kNfcDebounceToast = '刚刚触发过，等一下';
 
-/// 目标失效回执（C24/F2-8 逐字）。
-const String kNfcTargetGoneToast = '这张卡绑的分类/书已经不在了';
+  /// 目标失效回执（C24/F2-8 逐字）。
+  const String kNfcTargetGoneToast = '这张卡绑的分类/书已经不在了';
+
+  /// 打卡卡没绑具体习惯的回执（2026-10-17 真机报障：老卡贴卡只闪一下打卡页、
+  /// 什么也没发生，用户根本不知道问题出在哪——必须给一句能行动的话）。
+  const String kNfcHabitUnboundToast = '这张卡没绑具体习惯，去 NFC 管理页补绑';
 
 /// 未识别卡片的绑定引导 toast（B17/F2-5 逐字）。
 const String kNfcUnboundToast = '这张卡还没绑定';
@@ -67,8 +71,12 @@ enum NfcTriggerOutcome {
   /// 走了确认但用户取消。
   cancelled,
 
-  /// 已执行（`nav.*` 的 go，或有状态卡的 toggle）。
+  /// 已执行（`nav.*` 的 go）。
   executed,
+
+  /// 需要补绑：卡上有目标动作但缺关键参数（打卡卡没绑具体习惯），
+  /// 无法执行。给一句能行动的回执后回首页，**不把人丢进某个页面**。
+  needsRebind,
 
   /// 已执行且**不需要用户看界面**（打卡卡 / 计时与阅读 toggle）。
   ///
@@ -289,8 +297,16 @@ Future<NfcTriggerOutcome> _execute(
   // 点一下——贴卡等于只是个快捷入口，卡上绑的具体习惯形同虚设。
   if (card.targetRef == kNfcRefHabit) {
     final sub = (card.targetSub ?? '').trim();
+    // 老卡只绑了动作、没绑具体习惯 ⇒ **无法知道给谁打卡**。
+    // 以前这里会落到 nav.* 分支 go('/habits')，真机上表现为「贴卡闪一下打卡页、
+    // 什么也没发生」——用户既没打卡也没被告知原因。改成给一句能行动的回执。
+    if (sub.isEmpty) {
+      _showToast(deps, kNfcHabitUnboundToast);
+      _goHome(deps);
+      return NfcTriggerOutcome.needsRebind;
+    }
     final check = deps.habitCheckIn;
-    if (sub.isNotEmpty && check != null) {
+    if (check != null) {
       final r = await check(sub);
       if (r == null) {
         // 名字对不上在册习惯（已删/改名）⇒ 失效口径（与其它目标一致）。
@@ -306,7 +322,7 @@ Future<NfcTriggerOutcome> _execute(
       }
       return NfcTriggerOutcome.executedSilent;
     }
-    // 老卡只绑了动作 id、没绑具体习惯 ⇒ 退回跳页（保持批2 行为，不误判失效）。
+    // 打卡出口未注入（理论不该发生·nfcTriggerDepsOf 恒注入）⇒ 退回跳页，不误判失效。
   }
 
   // `nav.*`（含打卡 / 呵护宝宝两枚具体动作）：解析动作路由并 go/push。

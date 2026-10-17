@@ -171,6 +171,52 @@ void main() {
     test('空消息（零记录）⇒ 视为空卡', () {
       expect(nfcContentOf(const <NfcRawRecord>[]).isEmpty, true);
     });
+    test('TNF=EMPTY 记录被过滤：清空过的卡读回就是空', () {
+      // 真机复现的根因：清空写的是 EMPTY 记录，它排在首位时整条消息在系统
+      // 眼里是空的（Android 按首条记录取类型）⇒ 读回显示「类型 0（空）」。
+      final cleared = nfcEmptyRecords();
+      final c = nfcContentOf(cleared);
+      expect(c.records, isEmpty);
+      expect(c.isEmpty, true);
+      expect(c.firstEditableIndex, null);
+    });
+
+    test('EMPTY 排在内容前面时也被滤掉，内容正常显示', () {
+      // 追加在 EMPTY 后面的内容此前完全读不出来（系统只看首条）。
+      final c = nfcContentOf([...nfcEmptyRecords(), _text('hello')]);
+      expect(c.records.length, 1);
+      expect(c.records[0].kind, NfcContentKind.text);
+      expect(c.records[0].text, 'hello');
+      expect(c.records[0].index, 0); // 下标按滤后序列
+    });
+
+    test('新建 RTD-URI 记录：形态与系统识别的 RTD-URI 一致', () {
+      final r = nfcNewUriRecord('lh://nfc/abc123DEF456');
+      expect(r.tnf, 1);
+      expect(r.type, Uint8List.fromList(const [0x55]));
+      expect(r.payload[0], 0); // 无前缀码
+      expect(utf8.decode(r.payload.sublist(1)), 'lh://nfc/abc123DEF456');
+      // 读回应是网址类型（不是文本）。
+      expect(nfcContentOf([r]).records[0].kind, NfcContentKind.uri);
+    });
+
+    test('新建 RTD-Text 记录：状态位＋en 语言码＋正文', () {
+      final r = nfcNewTextRecord('今天读了一章');
+      expect(r.tnf, 1);
+      expect(r.type, Uint8List.fromList(const [0x54]));
+      expect(nfcContentOf([r]).records[0].text, '今天读了一章');
+      expect(nfcContentOf([r]).records[0].kind, NfcContentKind.text);
+    });
+
+    test('清空后写入网址：读回是网址且内容正确（真机报障主链路）', () {
+      // 模拟：清空卡 → 写入一个网址 → 再读。此前会得到 [EMPTY, Text] ⇒ 读成空。
+      final next = [...nfcContentOf(nfcEmptyRecords()).raw, nfcNewUriRecord('https://a.com')];
+      final back = nfcContentOf(next);
+      expect(back.records.length, 1);
+      expect(back.records[0].kind, NfcContentKind.uri);
+      expect(back.records[0].text, 'https://a.com');
+      expect(back.isEmpty, false);
+    });
   });
 
   group('NFC 卡片内容工具 · 弹层', () {
@@ -305,6 +351,69 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('nfc-tool-edit')), findsOneWidget);
       expect(io.written, isNull);
+    });
+
+    testWidgets('空卡写网址：存成 RTD-URI，读回是网址而不是文本（真机报障主链路）',
+        (tester) async {
+      final io = _FakeIo();
+      await _pump(tester, io);
+      // 先读一张**清空过的卡**（只有一条 EMPTY 记录）。
+      io.tap(_probeOf(nfcEmptyRecords()));
+      await tester.pumpAndSettle();
+      expect(find.text('这张卡是空的'), findsOneWidget);
+
+      // 粘进一个网址 → 类型应自动切到「网址」。
+      await tester.tap(find.byKey(const ValueKey('nfc-tool-edit')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('nfc-tool-text')), 'lh://nfc/abc123DEF456');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('nfc-tool-kind-uri')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('nfc-tool-edit-save')));
+      await tester.pumpAndSettle();
+      io.tap(_probeOf(nfcEmptyRecords()));
+      await tester.pumpAndSettle();
+      expect(find.text('已写入'), findsOneWidget);
+
+      // 写出去的必须是 RTD-URI，且是**首条**（读回来系统才认）。
+      final w = io.written!;
+      expect(w.length, 1);
+      expect(w[0].tnf, 1);
+      expect(w[0].type, Uint8List.fromList(const [0x55]));
+      expect(utf8.decode(w[0].payload.sublist(1)), 'lh://nfc/abc123DEF456');
+      // 模拟再读一次：显示为网址。
+      io.tap(_probeOf(w));
+      await tester.pumpAndSettle();
+      expect(find.text('网址'), findsOneWidget);
+      expect(find.text('lh://nfc/abc123DEF456'), findsOneWidget);
+    });
+
+    testWidgets('类型可手动切换：文本改网址后按 RTD-URI 写回', (tester) async {
+      final io = _FakeIo();
+      await _pump(tester, io);
+      io.tap(_probeOf([_text('plain text')]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('nfc-tool-edit')));
+      await tester.pumpAndSettle();
+      // 默认沿用原类型＝文本。
+      expect(find.byKey(const ValueKey('nfc-tool-kind-text')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('nfc-tool-kind-uri')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('nfc-tool-text')), 'https://a.com/x');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('nfc-tool-edit-save')));
+      await tester.pumpAndSettle();
+      io.tap(_probeOf([_text('plain text')]));
+      await tester.pumpAndSettle();
+
+      final w = io.written!;
+      expect(w.length, 1);
+      expect(w[0].type, Uint8List.fromList(const [0x55])); // 已换成 RTD-URI
+      expect(utf8.decode(w[0].payload.sublist(1)), 'https://a.com/x');
     });
 
     testWidgets('关层 ⇒ 停会话（不留后台 NFC 监听）', (tester) async {

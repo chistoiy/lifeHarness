@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/platform/desktop_actions.dart' show LaunchRoute;
 import 'package:lifeharness/core/settings/settings_repository.dart';
-import 'package:lifeharness/features/nfc/data/nfc_trigger.dart';
+import 'package:lifeharness/features/nfc/data/nfc_trigger.dart' show NfcTriggerDeps, NfcTriggerOutcome, debugResetNfcDebounce, kNfcDebounceToast, kNfcHabitUnboundToast, kNfcTargetGoneToast, kNfcUnboundToast, nfcCardIdOfRoute, nfcHandleLaunch, nfcNavIsFullScreen, nfcTriggerDepsOf;
 import 'package:lifeharness/features/nfc/domain/nfc_card.dart';
 import 'package:lifeharness/shared/linkage/nfc_mounts.dart' show NfcTargetState;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -421,19 +421,26 @@ void main() {
       expect(goes, contains('/'));
     });
 
-    testWidgets('打卡卡·老卡只绑动作未绑习惯 → 退回跳页（不误判失效）',
+    testWidgets('打卡卡·老卡没绑具体习惯 → 给补绑提示并回首页，不把人丢进打卡页',
         (tester) async {
+      // 2026-10-17 真机报障：老卡贴卡只闪一下打卡页、什么也没发生，
+      // 用户既没打卡也不知道原因。现在必须给一句能行动的回执。
       final ctx = await host(tester);
+      String? asked;
       final deps = await depsOf(
         ctx,
         prefs: await prefsOf(),
         byId: (_) => cardOf(targetRef: 'habit'), // targetSub 为空
         habitPresent: true,
+        onHabitCheck: (n) => asked = n,
       );
       final r = await nfcHandleLaunch(
           const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
-      expect(r, NfcTriggerOutcome.executed);
-      expect(goes, contains('/habits'), reason: '没绑具体习惯 ⇒ 保持批2 跳页行为');
+      expect(r, NfcTriggerOutcome.needsRebind);
+      expect(goes, contains('/'), reason: '回首页，不落打卡页');
+      expect(goes, isNot(contains('/habits')));
+      expect(toasts, contains(kNfcHabitUnboundToast));
+      expect(asked, isNull, reason: '没绑习惯就不该去查习惯库');
     });
 
     testWidgets('nav.* 全屏栈目标 → push（V1.67 黑屏伤）', (tester) async {

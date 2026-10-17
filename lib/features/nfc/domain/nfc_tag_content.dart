@@ -172,11 +172,21 @@ const String kNfcAarTypeName = 'android.com:pkg';
 
 /// 把原始记录解析成可展示/可编辑的视图。
 NfcTagContent nfcContentOf(List<NfcRawRecord> raw) {
+  // ⚠ **TNF=EMPTY 记录一律过滤**（2026-10-17 真机实锤）：本模块「清空」写的正是
+  // 一条 EMPTY 记录。它不承载内容，却**排在首位时会让整条消息在系统眼里是空的**
+  // ——Android 的 NfcDispatcher 按**首条记录**取 URI／判类型，首条是 EMPTY ⇒
+  // 读回来显示「类型 0（空）」（真机复现：清空→写入→再读＝空）。
+  // 过滤后：① 清空过的卡读回如实显示为空；② 再写内容时底稿里已没有那条 EMPTY，
+  // 新记录自然成为首条，不会再「追加在 EMPTY 后面仍读成空」。
+  final kept = <NfcRawRecord>[
+    for (final r in raw)
+      if (r.tnf != 0) r,
+  ];
   final out = <NfcContentRecord>[];
-  for (var i = 0; i < raw.length; i++) {
-    out.add(_recordOf(i, raw[i]));
+  for (var i = 0; i < kept.length; i++) {
+    out.add(_recordOf(i, kept[i]));
   }
-  return NfcTagContent(records: out, raw: raw);
+  return NfcTagContent(records: out, raw: kept);
 }
 
 NfcContentRecord _recordOf(int index, NfcRawRecord r) {
@@ -365,6 +375,27 @@ NfcRawRecord nfcRecordWithText(NfcRawRecord orig, String text) {
 
 /// 文本 → base64（写回 base64 卡用）。
 String encodeBase64Text(String s) => base64.encode(utf8.encode(s));
+
+/// 新建一条 **RTD-URI 记录**（`tnf=1` ＋ type `U` ＋ `[0x00]+uri`）。
+///
+/// 前缀码取 `0x00`（「无前缀，后面就是完整 URI」）——`lh://`、`http://` 这类
+/// 都不在 NDEF 缩写表内，用 `0x00` 才是 Android `NdefRecord.createUri` 同口径。
+/// **存网址必须用这条**：存成文本记录系统不认，贴卡不会拉起 App（真机实锤）。
+NfcRawRecord nfcNewUriRecord(String uri) => NfcRawRecord(
+      tnf: 1,
+      type: Uint8List.fromList(const [0x55]), // 'U'
+      payload: Uint8List.fromList([0, ...utf8.encode(uri)]),
+    );
+
+/// 新建一条 **RTD-Text 记录**（`tnf=1` ＋ type `T` ＋ `[0x02 'en'] + 正文`）。
+NfcRawRecord nfcNewTextRecord(String text) {
+  final body = Uint8List(3 + utf8.encode(text).length);
+  body[0] = 0x02; // 状态位：UTF-8 ＋ 语言码 2 字节
+  body[1] = 0x65; // 'e'
+  body[2] = 0x6E; // 'n'
+  body.setRange(3, 3 + utf8.encode(text).length, utf8.encode(text));
+  return NfcRawRecord(tnf: 1, type: Uint8List.fromList(const [0x54]), payload: body);
+}
 
 /// 清空后的记录集：**一条 TNF=EMPTY 空记录**（合法 NDEF、读侧 `firstUriOf` 得 null）。
 ///

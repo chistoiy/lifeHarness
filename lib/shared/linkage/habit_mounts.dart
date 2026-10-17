@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -170,8 +172,12 @@ Future<HabitCheckOutcome?> habitCheckInById(
   );
   final after = await repo.habitById(h.id);
   final streak = after?.streak ?? 0;
-  // 通知失败不影响打卡（已落库），内部自吞异常。
-  await NotificationService.showHabitChecked(habitName: h.name, streak: streak);
+  // 横幅**延后发**（不 await）：本出口的唯一调用方是 NFC 贴卡——App 执行完就会
+  // 退回桌面，横幅必须在退到后台之后才发，否则被系统压成静默通知
+  // （真机实锤见 NotificationService.showHabitCheckedAfterBack）。
+  // App 内点打卡不走这里，仍是即时横幅。
+  unawaited(NotificationService.showHabitCheckedAfterBack(
+      habitName: h.name, streak: streak));
   return HabitCheckOutcome(
       checked: true, already: false, name: h.name, streak: streak);
 }

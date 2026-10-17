@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -53,6 +52,12 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
 
   /// 正在编辑的那条记录下标（-1＝没有）。
   int _editIndex = -1;
+
+  /// 编辑时的存储类型：`'uri'`＝网址（RTD-URI·系统可识别）／`'text'`＝文本。
+  ///
+  /// 默认沿用原记录类型；**空卡写网址必须选 uri**——存成文本系统不认，
+  /// 贴卡不会拉起 App（2026-10-17 真机报障）。
+  String _editKind = 'text';
 
   /// 待写记录（非 null ⇒ 下一张贴上来的卡就写它）。
   List<NfcRawRecord>? _pendingWrite;
@@ -167,12 +172,13 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
     return '写入失败（$code）';
   }
 
-  /// 进入编辑态：有可改的记录就改那条，没有就**新增一条文本记录**
+  /// 进入编辑态：有可改的记录就改那条，没有就**新增一条**
   /// （空卡／只有 AAR 的卡也能用来写内容）。
   void _beginEdit() {
     final i = _content.firstEditableIndex;
     if (i == null) {
       _text.text = '';
+      _editKind = _kindOfInput('');
       setState(() {
         _editIndex = _content.raw.length; // ＝「追加一条」，超出原下标
         _stage = _Stage.editing;
@@ -182,6 +188,8 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
     }
     final rec = _content.records.firstWhere((r) => r.index == i);
     _text.text = rec.editValue;
+    // 默认沿用原记录的类型（改网址仍是网址，改文本仍是文本）。
+    _editKind = rec.kind == NfcContentKind.uri ? 'uri' : 'text';
     setState(() {
       _editIndex = i;
       _stage = _Stage.editing;
@@ -189,27 +197,38 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
     });
   }
 
+  /// 根据输入猜类型：像网址就默认存成网址（**网址必须存 RTD-URI，否则系统不认**）。
+  String _kindOfInput(String s) =>
+      RegExp(r'^[a-zA-Z][a-zA-Z0-9+.\-]*://').hasMatch(s.trim()) ? 'uri' : 'text';
+
   /// 保存编辑 ⇒ 组装新记录集 ⇒ 进入等卡写入态。
   void _saveEdit() {
     final i = _editIndex;
     if (i < 0) return;
     final input = _text.text;
+    final wantUri = _editKind == 'uri';
     List<NfcRawRecord> next;
     if (i >= _content.raw.length) {
-      // 新增：造一条 RTD-Text（状态位 0x02＝语言码 2 字节 "en"）。
-      final base = NfcRawRecord(
-        tnf: 1,
-        type: Uint8List.fromList(const [0x54]), // 'T'
-        payload: Uint8List(0),
-      );
-      next = <NfcRawRecord>[..._content.raw, nfcRecordWithText(base, input)];
+      // 新增：按选定的类型造一条（底稿已被 nfcContentOf 滤掉 EMPTY，
+      // 故新记录必然成为首条——这是「清空后写入再读不回空」的关键）。
+      next = <NfcRawRecord>[
+        ..._content.raw,
+        wantUri ? nfcNewUriRecord(input) : nfcNewTextRecord(input),
+      ];
     } else {
       final rec = _content.records.firstWhere((r) => r.index == i);
       // base64 卡：用户改的是解码后的可读文本，写回时按原样重新编码。
       final stored = rec.isBase64 ? encodeBase64Text(input) : input;
       next = <NfcRawRecord>[
         for (var k = 0; k < _content.raw.length; k++)
-          k == i ? nfcRecordWithText(_content.raw[k], stored) : _content.raw[k],
+          if (k != i)
+            _content.raw[k]
+          else
+            (rec.kind == NfcContentKind.uri) == wantUri
+                ? nfcRecordWithText(_content.raw[k], stored) // 同型：保留前缀码/语言码
+                : wantUri
+                    ? nfcNewUriRecord(stored) // 换型：按选定类型重建
+                    : nfcNewTextRecord(stored),
       ];
     }
     setState(() {
@@ -368,24 +387,38 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
             ? null
             : _content.records.firstWhere((r) => r.index == _editIndex);
         return [
-          Text(isNew ? '正在写入：新增一条文本' : '正在修改：${rec!.typeLabel}',
+          Text(isNew ? '正在写入：新增一条内容' : '正在修改：${rec!.typeLabel}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          if (rec != null && rec.isBase64)
-            _tiny(scheme, '原内容是 base64 编码，这里显示解码后的文本；保存时会按原样重新编码写回'),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
+          _kindPicker(scheme),
+          const SizedBox(height: 8),
           TextField(
             key: const ValueKey('nfc-tool-text'),
             controller: _text,
             maxLines: 6,
             minLines: 3,
             autofocus: true,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            onChanged: (v) {
+              // 新建态下按输入自动切类型（粘进网址就切到网址）。
+              if (isNew && _editKind != _kindOfInput(v)) {
+                setState(() => _editKind = _kindOfInput(v));
+              }
+            },
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
               isDense: true,
-              hintText: '要写进卡片的内容',
+              hintText: _editKind == 'uri' ? '要写进卡片的网址' : '要写进卡片的文本',
             ),
           ),
+          const SizedBox(height: 8),
+          if (_editKind == 'uri')
+            _tiny(scheme, '按网址存储：贴这张卡时系统能认出并打开对应 App'),
+          if (rec != null &&
+              rec.kind == NfcContentKind.text &&
+              _editKind == 'uri')
+            _tiny(scheme, '原内容是文本，改成网址后系统才会按网址识别'),
+          if (rec != null && rec.isBase64)
+            _tiny(scheme, '原内容是 base64 编码，这里显示解码后的文本；保存时会按原样重新编码写回'),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -455,6 +488,47 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
           ),
         ];
     }
+  }
+
+  /// 存储类型二选一（网址／文本）。默认沿用原类型，新建态按输入自动切。
+  Widget _kindPicker(ColorScheme scheme) {
+    return Row(
+      children: [
+        _kindChip(scheme, 'uri', '网址', Icons.link),
+        const SizedBox(width: 8),
+        _kindChip(scheme, 'text', '文本', Icons.subject),
+        const Spacer(),
+        Text('存为',
+            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+      ],
+    );
+  }
+
+  Widget _kindChip(ColorScheme scheme, String kind, String label, IconData icon) {
+    final on = _editKind == kind;
+    final bg = on ? scheme.primary : scheme.surfaceContainerHighest;
+    final fg = on ? scheme.onPrimary : scheme.onSurfaceVariant;
+    return InkWell(
+      key: ValueKey<String>('nfc-tool-kind-$kind'),
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => setState(() => _editKind = kind),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 容量与可写态一行（读出来后立刻给「能不能改」的判据）。

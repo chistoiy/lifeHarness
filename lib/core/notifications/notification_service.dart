@@ -181,6 +181,24 @@ class NotificationService {
     }
   }
 
+  /// 打卡成功横幅 · **退到后台后再发**（批3 · 2026-10-17 真机实锤）。
+  ///
+  /// 场景＝贴卡打卡：App 被 NFC 拉起 → 执行打卡 → 立刻 `moveTaskToBack` 退回桌面。
+  /// 若横幅在「App 还在前台那一瞬间」发出去，系统会把它压成一条**静默的通知栏
+  /// 条目**，横幅根本不弹（8161 实测：同样的打卡，8160 App 留在前台时横幅正常，
+  /// 8161 加了 moveTaskToBack 后横幅消失）。
+  ///
+  /// 故这里等一小会儿再发——那时 App 已退到后台，横幅必然弹出。
+  /// **只给「用户不在 App 里」的场景用**；App 内点打卡仍走 [showHabitChecked]（即时）。
+  static Future<void> showHabitCheckedAfterBack({
+    required String habitName,
+    required int streak,
+    Duration after = const Duration(milliseconds: 700),
+  }) async {
+    await Future<void>.delayed(after);
+    await showHabitChecked(habitName: habitName, streak: streak);
+  }
+
   // ---- V1.57 B 批：记账超支/月度小结 · 呵护儿保体检 ----
 
   static const int ledgerDigestId = 900010;

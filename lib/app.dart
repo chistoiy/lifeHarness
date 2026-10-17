@@ -125,12 +125,21 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
         // 落 AppLog 供真机排障（不弹层不 toast——贴卡是一次性动作，报错也不该打断用户）。
         try {
           final outcome = await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
-          // 批3（2026-10-17 产品令）：「不需要看界面」的动作（打卡 / 计时 / 阅读）
-          // 执行完把界面让回原处——贴卡时用户本来在桌面，系统却因 AAR 把本 App
-          // 拉到前台（Android 硬限制：NFC 事件必须交给某个组件）。这里退回原界面，
-          // 结果由横幅通知呈现；`nav.*` 卡不适用（它的目的就是打开某个页面）。
-          // 只在「投递时 App 不在前台」时让回——用户本来就在 App 里贴卡则留在原地。
-          if (outcome == NfcTriggerOutcome.executedSilent && route.fromBackground) {
+          // 排障留痕：只记结果枚举，无卡号/指纹（不在 C11 红线内）。真机复现
+          // 「贴卡没反应／没横幅」时，到 App 内日志页看这一行就知道走到了哪一支。
+          AppLog.add('NFC 贴卡结果：$outcome（fromBackground=${route.fromBackground}）',
+              src: LhLogLine.srcSystem);
+          // 批3（2026-10-17 产品令）：**「没办成需要看界面的事」的结果一律退回原处**——
+          // 贴卡时用户本来在桌面，系统却因 AAR 把本 App 拉到前台（Android 硬限制：
+          // NFC 事件必须交给某个组件）。已执行完的静默动作、要补绑的、目标失效的、
+          // 以及总闸关等完全静默的，都不该把用户留在 App 里；结果由横幅/toast 呈现。
+          // `nav.*`（记一笔等）不适用——它的目的就是打开某个页面；未识别卡也不适用
+          // （B8 绑定引导需要留在 `/nfc`）。
+          if (route.fromBackground &&
+              (outcome == NfcTriggerOutcome.executedSilent ||
+                  outcome == NfcTriggerOutcome.needsRebind ||
+                  outcome == NfcTriggerOutcome.targetGone ||
+                  outcome == NfcTriggerOutcome.silent)) {
             await moveTaskToBack();
           }
         } catch (e) {
