@@ -155,6 +155,33 @@ tailwind.config = {
   .cfg-row.dk .wg-chk.on svg{color:#1E293B}
   .cfg-row .wg-chk{width:19px;height:19px}
 
+  /* 批A（2026-10-17）· 打卡四格试点：状态点／计数型 ±N／失效占位／先选后落流程步 */
+  .wg-dot{width:9px;height:9px;border-radius:999px;border:1.5px solid var(--w-sub);flex:0 0 auto}
+  .wg-dot.on{background:var(--w-acc);border-color:var(--w-acc)}
+  .wg-hab{font-size:14px;font-weight:800;color:var(--w-fg);line-height:1.2}
+  .wg-cnt{display:flex;align-items:stretch;gap:6px;height:34px}
+  .wg-cnt-btn{flex:1;display:flex;align-items:center;justify-content:center;border-radius:10px;
+              border:1px solid color-mix(in srgb,var(--w-sub) 32%,transparent);
+              font-size:14px;font-weight:800;color:var(--w-fg)}
+  .wg-cnt-val{flex:1.5;display:flex;align-items:center;justify-content:center;border-radius:10px;
+              background:color-mix(in srgb,var(--w-sub) 12%,transparent);
+              font-size:16px;font-weight:800;color:var(--w-fg);font-variant-numeric:tabular-nums}
+  .wg-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+         gap:5px;padding:13px;text-align:center}
+  .wg-ph-t{font-size:11px;font-weight:700;color:var(--w-sub);line-height:1.45}
+  .flow-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .flow-step{border:1px solid var(--card-bd);border-radius:14px;padding:8px;background:var(--card)}
+  .flow-step .n{width:18px;height:18px;border-radius:999px;background:var(--accent);color:#fff;
+                font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .flow-step .t{font-size:10px;font-weight:800;margin-top:5px;line-height:1.4}
+  .flow-step .d{font-size:9px;color:#64748b;line-height:1.55;margin-top:3px}
+  html.dark .flow-step .d{color:#94a3b8}
+  .wstrip{display:flex;gap:3px}
+  .wstrip span{flex:1;text-align:center;font-size:8px;font-weight:700;padding:3px 0;border-radius:6px;
+               border:1px solid color-mix(in srgb,var(--w-sub) 26%,transparent);color:var(--w-sub);
+               overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .wstrip span.on{border-color:var(--w-acc);color:var(--w-acc);
+                  background:color-mix(in srgb,var(--w-acc) 10%,transparent)}
   /* 标注气泡（关系图用） */
   .anno{position:absolute;z-index:5;font-size:10px;font-weight:700;line-height:1.4;
         background:var(--w-acc);color:#fff;padding:3px 7px;border-radius:8px;white-space:nowrap}
@@ -279,6 +306,18 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- 打卡-单习惯小组件（批 A · 2×2 按实例绑定试点 · 与 NFC 打卡卡同构） -->
+    <div style="margin:0 14px 12px">
+      <div class="wg" style="width:178px;height:152px" onclick="toast('2×2 打卡-单习惯 · 点击打卡不起 App：乐观回显 → 后台 isolate → 快照收敛')">
+        <div class="wg-corner"></div><div class="wg-safe"></div>
+        <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 打卡</div>
+        <div style="position:absolute;top:36px;left:13px;right:13px">
+          <div class="wg-hab">早起</div>
+          <div class="flex items-center gap-1.5" style="margin-top:5px"><span class="wg-dot"></span><span class="wg-lab" style="font-size:10px">连击 12 天 · 今日未打卡</span></div>
+        </div>
+        <div class="wg-btn" style="position:absolute;left:13px;right:13px;bottom:14px;height:40px;border-radius:12px">打卡</div>
+      </div>
+    </div>
     <div class="desk-dock" id="deskDock"></div>
 
     <!-- 长按菜单弹层（默认隐藏；点 LifeHarness 图标唤出） -->
@@ -289,7 +328,7 @@ tailwind.config = {
 
   <div class="px-5 py-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
     <div class="spec"><span class="demo-tag">示意</span> 点 LifeHarness 图标＝长按菜单（系统硬限 4 枚，默认 速记/记待办/记一笔/打卡）。<br>
-      2×2 与 4×1 两枚小部件为批 2 产物，点击均走 §2.0 动作表，四路导航栈一致。</div>
+      读数型小部件（2×2 今日概览／2×2 待办／2×2 记账／4×1 快捷记录）点击均走 §2.0 动作表，四路导航栈一致；<b>批 A 起</b>桌面可出现动作型「打卡-单习惯」2×2——按实例绑定，点击打卡不起 App（本地回显 → 后台 isolate → 快照收敛）。</div>
   </div>
 </section>
 
@@ -652,7 +691,150 @@ tailwind.config = {
     <div class="spec mt-1">禁滑动、禁输入、禁动画；字号固定，不随系统字体放大截断（改用缩略号）。<br>
       小部件读数来自最近一次同步快照，<b>不是实时</b>；widget 不直读 sqlite。</div>
   </div>
-</section>
+  <div class="card mt-3">
+    <div class="row-title">2×2 打卡-单习惯<span class="spec" style="font-weight:400;margin-left:8px">批 A 新增 · 按实例绑定试点</span></div>
+    <div class="spec mt-1 mb-3">命名改「功能-形态」口径（一叶日记同款）。一枚只绑一个习惯，与 NFC「一卡一目标」同构；
+      <b>标题＋副文案＋主按钮＋状态点</b>四件套走共享模板（后续计时/快捷动作 provider 复用）。
+      点击<b>不起 App</b>：本地乐观回显 → 后台 isolate 走仓库出口提交 → 快照收敛；失败回滚并入待排空队列（App 启动排空）。
+      禁滑动、禁输入、禁撤销条（改数回 App 内）；每枚按钮配读屏标签（小米规范）。</div>
+    <div class="pair">
+      <div>
+        <div class="wg force-light" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 打卡</div>
+          <div style="position:absolute;top:36px;left:13px;right:13px">
+            <div class="wg-hab">早起</div>
+            <div class="flex items-center gap-1.5" style="margin-top:5px"><span class="wg-dot"></span><span class="wg-lab" style="font-size:10px">连击 12 天 · 今日未打卡</span></div>
+          </div>
+          <div class="wg-btn" style="position:absolute;left:13px;right:13px;bottom:14px;height:40px;border-radius:12px" onclick="toast('点击打卡：乐观回显「已打卡」→ 后台 isolate 提交 → 快照收敛；不起 App')">打卡</div>
+        </div>
+        <div class="cap spec">浅色 · 未打卡态</div>
+      </div>
+      <div>
+        <div class="wg force-dark" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 打卡</div>
+          <div style="position:absolute;top:36px;left:13px;right:13px">
+            <div class="wg-hab">早起</div>
+            <div class="flex items-center gap-1.5" style="margin-top:5px"><span class="wg-dot"></span><span class="wg-lab" style="font-size:10px">连击 12 天 · 今日未打卡</span></div>
+          </div>
+          <div class="wg-btn" style="position:absolute;left:13px;right:13px;bottom:14px;height:40px;border-radius:12px" onclick="toast('点击打卡：乐观回显「已打卡」→ 后台 isolate 提交 → 快照收敛；不起 App')">打卡</div>
+        </div>
+        <div class="cap spec">深色 · 未打卡态</div>
+      </div>
+    </div>
+    <div class="pair mt-3">
+      <div>
+        <div class="wg force-light" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 打卡</div>
+          <div style="position:absolute;top:36px;left:13px;right:13px">
+            <div class="wg-hab">早起</div>
+            <div class="flex items-center gap-1.5" style="margin-top:5px"><span class="wg-dot on"></span><span class="wg-lab" style="font-size:10px">连击 12 天 · 今日已打卡</span></div>
+          </div>
+          <div style="position:absolute;left:13px;right:13px;bottom:14px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--w-sub);background:color-mix(in srgb,var(--w-sub) 14%,transparent)">已打卡</div>
+        </div>
+        <div class="cap spec">浅色 · 已打卡态（回显收敛后）</div>
+      </div>
+      <div>
+        <div class="wg force-dark" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 打卡</div>
+          <div style="position:absolute;top:36px;left:13px;right:13px">
+            <div class="wg-hab">早起</div>
+            <div class="flex items-center gap-1.5" style="margin-top:5px"><span class="wg-dot on"></span><span class="wg-lab" style="font-size:10px">连击 12 天 · 今日已打卡</span></div>
+          </div>
+          <div style="position:absolute;left:13px;right:13px;bottom:14px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--w-sub);background:color-mix(in srgb,var(--w-sub) 14%,transparent)">已打卡</div>
+        </div>
+        <div class="cap spec">深色 · 已打卡态（回显收敛后）</div>
+      </div>
+    </div>
+    <div class="spec mt-2">回显三态：点击瞬间先乐观回显 → 后台成功写库 → 下次 App 推快照自然收敛；后台失败 → 回滚显示态并入待排空队列。已打卡态按钮置灰不可点（只收敛、不回滚）。</div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">2×2 打卡-单习惯 · 计数型 ±N<span class="spec" style="font-weight:400;margin-left:8px">同模板变体</span></div>
+    <div class="spec mt-1 mb-3">计数型习惯（默认 30）：<b>−5／数值／＋5</b> 三格只改该实例显示态里的中间计数（快照键，不动业务库）；「打卡」把中间值一次提交（仍走 isolate 出口）。
+      切日/换绑即丢弃中间值，不产生半成品数据（不复用库内「自动达成待确认」挂起表，语义不同）；提交后只显示「已打卡 · 30」，撤销/改数回 App 内。</div>
+    <div class="pair">
+      <div>
+        <div class="wg force-light" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 打卡</div>
+          <div style="position:absolute;top:36px;left:13px;right:13px">
+            <div class="wg-hab">俯卧撑</div>
+            <div class="wg-lab" style="font-size:10px;margin-top:3px">今天已记 3 组</div>
+          </div>
+          <div style="position:absolute;left:13px;right:13px;bottom:46px" class="wg-cnt">
+            <span class="wg-cnt-btn">−5</span>
+            <span class="wg-cnt-val">30</span>
+            <span class="wg-cnt-btn">+5</span>
+          </div>
+          <div class="wg-btn" style="position:absolute;left:13px;right:13px;bottom:14px;height:26px;border-radius:9px;font-size:11px" onclick="toast('计数型：±5 只改本实例显示态；「打卡」把中间值一次提交（后台 isolate）')">打卡</div>
+        </div>
+        <div class="cap spec">浅色 · 计数型</div>
+      </div>
+      <div>
+        <div class="wg force-dark" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 打卡</div>
+          <div style="position:absolute;top:36px;left:13px;right:13px">
+            <div class="wg-hab">俯卧撑</div>
+            <div class="wg-lab" style="font-size:10px;margin-top:3px">今天已记 3 组</div>
+          </div>
+          <div style="position:absolute;left:13px;right:13px;bottom:46px" class="wg-cnt">
+            <span class="wg-cnt-btn">−5</span>
+            <span class="wg-cnt-val">30</span>
+            <span class="wg-cnt-btn">+5</span>
+          </div>
+          <div class="wg-btn" style="position:absolute;left:13px;right:13px;bottom:14px;height:26px;border-radius:9px;font-size:11px" onclick="toast('计数型：±5 只改本实例显示态；「打卡」把中间值一次提交（后台 isolate）')">打卡</div>
+        </div>
+        <div class="cap spec">深色 · 计数型</div>
+      </div>
+    </div>
+    <div class="spec mt-2">落点：单值习惯＝当日流水数量列；组习惯＝子项数量行（库内已有当日唯一约束）。isolate 冷启动几百 ms~1s+ 的延迟由乐观回显盖住；点击走广播直达，不经系统调频。</div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">失效三态（R4）</div>
+    <div class="spec mt-1 mb-3">widget 不像贴卡能起 App 提示：目标被删/被隐藏/快照过期时只能静态占位＋点击引导重绑。文案（2026-10-17 产品勾定）与去向＝点击起 App 开小组件配置/管理页（与「先选后落」入口同页）。</div>
+    <div class="flex gap-2">
+      <div class="flex-1">
+        <div class="wg force-light" style="height:92px" onclick="toast('无快照：点击起 App 开小组件配置/管理页')">
+          <div class="wg-corner"></div>
+          <div class="wg-ph"><div class="wg-name">LifeHarness · 打卡</div><div class="wg-ph-t">等待数据</div></div>
+        </div>
+        <div class="cap spec">无快照</div>
+      </div>
+      <div class="flex-1">
+        <div class="wg force-light" style="height:92px" onclick="toast('无绑定：点击起 App 开配置/管理页，引导选目标')">
+          <div class="wg-corner"></div>
+          <div class="wg-ph"><div class="wg-name">LifeHarness · 打卡</div><div class="wg-ph-t">未选择内容，点此设置</div></div>
+        </div>
+        <div class="cap spec">无绑定</div>
+      </div>
+      <div class="flex-1">
+        <div class="wg force-light" style="height:92px" onclick="toast('源失效：点击起 App 开配置/管理页，引导重绑')">
+          <div class="wg-corner"></div>
+          <div class="wg-ph"><div class="wg-name">LifeHarness · 打卡</div><div class="wg-ph-t">内容已失效，点此重新选择</div></div>
+        </div>
+        <div class="cap spec">源失效</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">先选后落 · 添加流程（App 内序）</div>
+    <div class="spec mt-1 mb-3">2026-10-17 产品勾定：本批走 App 内「先选后 pin」序（配置页承载 Flutter 留批 C 复判）。四步＝① 设置页「桌面与快捷方式 › 小部件 › 添加小组件」→ ② 开共享选择页（NFC「绑定目标」同款五段，模式参数只改按钮文案与回调去向，写卡专属分支不进组件）→ ③ requestPinAppWidget 系统确认（取消则不落桌面）→ ④ 配置页读预选绑定无感回写 → 落桌面。全局四开关回归设置页（本就同份数据）。</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="n">1</div><div class="t">设置页入口</div><div class="d">桌面与快捷方式 › 小部件 ›「添加小组件」</div></div>
+      <div class="flow-step"><div class="n">2</div><div class="t">五段选目标</div><div class="d">NFC「绑定目标」同款五段；按钮随模式变「添加到桌面」</div>
+        <div class="wstrip" style="margin-top:6px"><span>快捷</span><span class="on">打卡</span><span>呵护</span><span>计时</span><span>阅读</span></div></div>
+      <div class="flow-step"><div class="n">3</div><div class="t">系统确认</div><div class="d">requestPinAppWidget；取消则不落桌面</div></div>
+      <div class="flow-step"><div class="n">4</div><div class="t">无感回写 · 落桌面</div><div class="d">配置页读预选绑定写本实例；桌面出现「打卡-单习惯」</div></div>
+    </div>
+    <div class="spec mt-2">桌面入口（系统）序＝pin 确认 → 配置页承载选择 UI，多一跳、有可见延迟与主题/返回栈代价，留批 C 复判（R3）。</div>
+  </div></section>
 
 <!-- ================= 屏 4 · dt-map 设置页与桌面关系标注 =================
      §4.2 设置页三卡 ↔ 桌面三处落点的一一对应；入口在「我的」→「外观与交互」组。 -->
@@ -682,8 +864,8 @@ tailwind.config = {
           <b>2026-10-16 改口：仅在桌面支持「钉快捷方式」时才画</b> —— MIUI 的 <code>isRequestPinShortcutSupported</code> 为 false，7 项全显示「本机不支持」＝废的还占屏；不支持就整块不画，支持的桌面（原生 Pixel 等）照旧显示。</div>
       </div>
       <div class="card mt-2" style="padding:10px 12px;border-radius:14px">
-        <div class="flex items-center gap-2"><span class="text-[12px] font-bold">③ 小组件</span><span class="ml-auto text-[10px] text-slate-400">两开关＋金额</span></div>
-        <div class="spec mt-1">添加到桌面 · 概览 / 快捷记录 · 隐藏金额</div>
+        <div class="flex items-center gap-2"><span class="text-[12px] font-bold">③ 小组件</span><span class="ml-auto text-[10px] text-slate-400">按实例绑定</span></div>
+        <div class="spec mt-1">添加走「先选后落」· 每枚绑一个目标<br>批 A 试点＝打卡-单习惯（2×2）· 全局开关仍在本页</div>
       </div>
     </div>
 

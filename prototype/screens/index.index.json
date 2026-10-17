@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 316765,
+ "total": 316774,
  "cut": 0,
  "screens": [
   {
@@ -32,8 +32,8 @@
    "kind": "screen",
    "title": "我的",
    "role": "home",
-   "size": 15853,
-   "hash": "f2c04509"
+   "size": 15859,
+   "hash": "e7027c74"
   },
   {
    "id": "p-sub-nfc",

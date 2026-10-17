@@ -1330,8 +1330,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 15853,
-          "hash": "f2c04509"
+          "size": 15859,
+          "hash": "e7027c74"
         }
       }
     },
@@ -4135,8 +4135,8 @@
       "status": "exclusive",
       "files": {
         "index-settings.html": {
-          "size": 1972,
-          "hash": "1cd3bc79"
+          "size": 2273,
+          "hash": "304a2d0a"
         }
       }
     },
@@ -4317,8 +4317,8 @@
       "status": "exclusive",
       "files": {
         "index-desktop.html": {
-          "size": 4872,
-          "hash": "e5ca6171"
+          "size": 5791,
+          "hash": "c43c8f18"
         }
       }
     },
@@ -4345,8 +4345,8 @@
       "status": "exclusive",
       "files": {
         "index-desktop.html": {
-          "size": 22049,
-          "hash": "603234e6"
+          "size": 31167,
+          "hash": "31de6d16"
         }
       }
     },
@@ -4359,8 +4359,8 @@
       "status": "exclusive",
       "files": {
         "index-desktop.html": {
-          "size": 4468,
-          "hash": "5a7741d5"
+          "size": 4493,
+          "hash": "c48dc6df"
         }
       }
     },

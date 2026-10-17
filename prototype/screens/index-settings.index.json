@@ -1,6 +1,6 @@
 {
  "file": "index-settings.html",
- "total": 105019,
+ "total": 105299,
  "cut": 0,
  "screens": [
   {
@@ -48,8 +48,8 @@
    "kind": "screen",
    "title": "桌面与快捷方式",
    "role": "home",
-   "size": 1972,
-   "hash": "1cd3bc79"
+   "size": 2273,
+   "hash": "304a2d0a"
   },
   {
    "id": "sheetThemeMarket",
