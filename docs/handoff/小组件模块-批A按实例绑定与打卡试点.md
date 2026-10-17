@@ -81,8 +81,8 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 - **依据**：`docs/handoff/拍板记录-20261018-记一笔弹窗记账与零输入口径改判.md`（三路对比＋口径改判＋真机门四项）。
 - **调研结论**：widget 自身弹不出——RemoteViews 不输出弹窗/对话框 token，也不接受输入控件；唯一可行路＝**对话框主题的 Activity**（`Theme.DeviceDefault.Dialog`＋带包名前缀 taskAffinity＋`excludeFromRecents`），本仓已有两块先例（`WidgetConfigActivity`／`NfcRelayActivity`）。A 原生对话框（推荐·轻·任务栈干净）／B Flutter 对话框（视觉最好但小窗＋IME 风险）／C 悬浮窗（权限与生命周期脏·不推荐）。
 - **口径改判**：覆盖 2026-10-17 评估件 Q3④「不采用」——**widget 自身不放输入控件这条不变**；仅「记账录入」允许对话框形态轻量 Activity 收集、交 Dart 侧写库（C15 唯一意图出口不变·C18 写入类仅预填不变）。
-- **原型样张已交付**：`#dt-desk` 记一笔按钮真弹窗（遮罩＋对话框：金额键盘/分类/备注三区＋保存/取消）＋`#dt-widget` 弹窗规格卡（深浅双档）；`tools/widget_acheck.js` **27/27**（增钉弹窗三动作与规格卡双档·变异一刀红后 md5 复原全等）。
-- **待过门**：三张截图（弹窗开／保存回显／规格卡）落仓库外 `tempWork/wa-shots`；过门后才动 `android/**`（与 NFC 在飞线串行）·已登排期池 #20。
+- **原型样张已交付**：`#dt-desk` 记一笔按钮真弹窗（遮罩＋对话框：金额键盘/分类/备注三区＋保存/取消）＋`#dt-widget` 弹窗规格卡（深浅双档）；`tools/widget_acheck.js` **29/29**（增钉弹窗四断言与规格卡双档·变异一刀红后 md5 复原全等）。
+- **待过门**：三张截图（`dt-desk-quickpopup-open`／`dt-desk-quickpopup-saved`／`dt-widget-quickpopup-card`·`WA_SHOTS=1` 可复现）落仓库外 `tempWork/wa-shots`；过门后才动 `android/**`（与 NFC 在飞线串行）·已登排期池 #20。
 
 ### §7.2 跨线存量红已按产品授权收口（2026-10-18）
 

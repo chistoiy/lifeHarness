@@ -78,21 +78,32 @@ async function toastText() { return (await ev("var t=document.getElementById('to
   (rt && rt.n === 6 && rt.done && rt.on && rt.back) ? ok('待办勾圈可点（切换完成态·可逆·示意层·深浅各三行）') : bad('待办勾圈点击无效', JSON.stringify(rt));
 
   /* 2026-10-18 拍板·A 路：4×1「记一笔」＝弹窗记账（dt-desk 可点演示＋dt-widget 规格卡） */
-  const rd1 = await ev("navTo('dt-desk');var d=document.getElementById('qpDlg');"
+  const q0 = await ev("navTo('dt-desk');var d=document.getElementById('qpDlg');"
     + "var btn=Array.prototype.filter.call(document.querySelectorAll('#dt-desk .wg-btn'),function(x){return x.textContent.indexOf('记一笔')>=0})[0];"
-    + "var hid0=d.classList.contains('hidden');btn.click();var open=!d.classList.contains('hidden');"
-    + "var okBtn=d.querySelector('.qp-ok');okBtn.click();var closed=d.classList.contains('hidden');"
-    + "var t1=document.getElementById('toast').textContent;"
-    + "btn.click();d.querySelector('.qp-no').click();var closed2=d.classList.contains('hidden');"
-    + "return {hid0:hid0,open:open,closed:closed,toast:t1,closed2:closed2};");
-  (rd1 && rd1.hid0 && rd1.open && rd1.closed && rd1.closed2 && rd1.toast.indexOf('已入账') >= 0 && rd1.toast.indexOf('Dart 写库') >= 0)
-    ? ok('记一笔弹窗：默认隐→点开→保存（已入账·交 Dart 写库）→关；取消→关', rd1.toast)
-    : bad('弹窗交互缺项', JSON.stringify(rd1));
+    + "var hid0=d.classList.contains('hidden');btn.click();"
+    + "return {hid0:hid0,open:!d.classList.contains('hidden'),amt:document.querySelectorAll('#qpDlg .qp-amt').length};");
+  (q0 && q0.hid0 && q0.open) ? ok('记一笔弹窗默认隐→点击打开（不起 App）') : bad('弹窗打不开', JSON.stringify(q0));
+  await wait(220);
+  await shot('dt-desk-quickpopup-open');
+  const q1 = await ev("var d=document.getElementById('qpDlg');d.querySelector('.qp-ok').click();"
+    + "return {closed:d.classList.contains('hidden')};");
+  await wait(180);
+  const t0 = await toastText();
+  (q1 && q1.closed && t0.indexOf('已入账') >= 0 && t0.indexOf('Dart 写库') >= 0)
+    ? ok('保存→关框＋已入账（原生只收集·交 Dart 写库）', t0)
+    : bad('保存动作缺项', JSON.stringify(q1) + ' / ' + t0);
+  await shot('dt-desk-quickpopup-saved');
+  const q2 = await ev("var d=document.getElementById('qpDlg');"
+    + "var btn=Array.prototype.filter.call(document.querySelectorAll('#dt-desk .wg-btn'),function(x){return x.textContent.indexOf('记一笔')>=0})[0];"
+    + "btn.click();var open2=!d.classList.contains('hidden');d.querySelector('.qp-no').click();"
+    + "return {open2:open2,closed2:d.classList.contains('hidden')};");
+  (q2 && q2.open2 && q2.closed2) ? ok('取消→关框（不留半条记录）') : bad('取消动作缺项', JSON.stringify(q2));
   const rd2 = await ev("navTo('dt-widget');var t=document.getElementById('dt-widget').textContent;"
     + "return {card:t.indexOf('记一笔 · 弹窗记账')>=0,ruling:t.indexOf('2026-10-18 拍板')>=0,"
     + "dlg:document.querySelectorAll('#dt-widget .qp-dlg').length};");
   (rd2 && rd2.card && rd2.ruling && rd2.dlg === 2) ? ok('dt-widget 弹窗规格卡（深浅双档＋拍板口径＋禁做清单改释）') : bad('弹窗规格卡缺项', JSON.stringify(rd2));
-  await shot('dt-desk-quickpopup');
+  await wait(180);
+  await shot('dt-widget-quickpopup-card');
   const r1 = await ev("navTo('dt-widget');var s=document.getElementById('dt-widget');return {on:s.classList.contains('active'),"
     + "name:(s.textContent.match(/打卡-单习惯/g)||[]).length,"
     + "wgName:(s.querySelectorAll('.wg-name').length),"
