@@ -40,7 +40,7 @@ import '../../../shared/linkage/nfc_mounts.dart'
         nfcToggleRead,
         nfcToggleTimer;
 import '../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
-import '../../../shared/widgets/ui_kit.dart' show AppToast;
+import '../../../shared/widgets/nfc_receipt.dart' show nfcReceipt;
 import '../domain/nfc_card.dart';
 import 'nfc_repo.dart';
 
@@ -315,7 +315,10 @@ Future<NfcTriggerOutcome> _execute(
         return NfcTriggerOutcome.targetGone;
       }
       if (r.checked) {
-        _showToast(deps, '${r.name} 已打卡 · 连续 ${r.streak} 天');
+        // 打卡成功横幅由 `habitCheckInById` 自己发（含习惯名与连续天数），
+        // 这里只补前台 toast——否则后台会连弹两条一模一样的通知。
+        _showToast(deps, '${r.name} 已打卡 · 连续 ${r.streak} 天',
+            bannerWhenBack: false);
       } else {
         // 今天已打过：**不重复计、不撤销**，只回执（贴卡是「补一下」不是「切换」）。
         _showToast(deps, '${r.name} 今天已打卡');
@@ -370,16 +373,20 @@ String? _navPathOf(String? actionId) {
 bool nfcNavIsFullScreen(String? actionId) =>
     desktopActionOf(actionId ?? '')?.fullScreen ?? false;
 
-/// toast（host 不可用时静默丢弃·B31）。
-void _showToast(NfcTriggerDeps deps, String msg) {
+/// toast（host 不可用或 App 在后台时改走系统横幅·批3d）。
+///
+/// 批3c 起贴卡走透明中转界面：App 界面全程不出现，`AppToast` 挂在没人看的
+/// widget 树上——真机表现「贴完只震动、什么也没有」。回执必须落到系统层。
+/// [bannerWhenBack]＝false 用于「本就有自己的横幅」的分支（打卡成功），免重复弹。
+void _showToast(NfcTriggerDeps deps, String msg, {bool bannerWhenBack = true}) {
   final ctx = deps.hostContext;
-  if (ctx == null || !ctx.mounted) return;
   final t = deps.toast;
-  if (t != null) {
+  if (t != null && ctx != null && ctx.mounted) {
     t(ctx, msg);
-  } else {
-    AppToast.show(ctx, msg);
+    return;
   }
+  if (!bannerWhenBack) return;
+  nfcReceipt(ctx, msg);
 }
 
 /// 确认框（标题＝卡名 · 正文＝目标名）。返回是否确认。

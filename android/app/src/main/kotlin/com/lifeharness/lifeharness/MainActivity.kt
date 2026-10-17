@@ -17,6 +17,7 @@ import android.util.Log
 import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -90,11 +91,32 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        // 批3c：引擎随本 Activity 销毁 ⇒ 清掉引用，中转界面据此走冷启动分支
-        // （否则会往已死的引擎投递，贴卡静默丢失）。
-        engineRef = null
+        // 批3d（2026-10-17 真机实锤）：引擎已改为「常驻」——Activity 销毁只是界面
+        // 走了，引擎与 Dart 隔离区还活着（[provideFlutterEngine] 走 FlutterEngineCache
+        // ＋ [shouldDestroyEngineWithHost] 恒 false），故这里**没有任何清理动作**。
+        //
+        // 早先在这里把引擎引用置空，导致「引擎明明活着却判成进程刚起」⇒ 透明中转
+        // 界面每次都走冷启动转交 ⇒ 主界面被反复拉起（真机 logcat：`removedForAddTask`
+        // 删掉旧 task、`Displayed +228ms`、`relay → main：冷启动转交` 反复出现）。
         super.onDestroy()
     }
+
+    /**
+     * 批3d：引擎常驻的**取用端**——Activity 重建时复用同一个引擎。
+     *
+     * 为什么这么做：透明中转界面（[NfcRelayActivity]）要靠「引擎是否活着」决定
+     * 零闪现直投还是冷启动转交。只要引擎随 Activity 一起死，就必然反复冷启动、
+     * 反复闪一下主界面（真机 8166 实测）。缓存住引擎后，用户从桌面贴卡时界面
+     * 全程不出现，业务在后台跑完只留一条横幅。
+     */
+    override fun provideFlutterEngine(context: Context): FlutterEngine? =
+        FlutterEngineCache.getInstance().get(ENGINE_ID)
+
+    /**
+     * 批3d：**禁止**引擎随 Activity 销毁（常驻的代价＝进程活着就常驻，可接受：
+     * 贴卡/悬浮窗都靠它，且进程本就被系统按内存压力回收）。
+     */
+    override fun shouldDestroyEngineWithHost(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -188,10 +210,24 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        // 批3c：透明中转界面（NfcRelayActivity）靠这个引用把贴卡事件直投 Dart。
-        engineRef = flutterEngine
+        // 批3d：引擎常驻后本方法会在**同一个引擎**上被反复回调（每次 Activity 重建）。
+        // 装配只做一次——`super.configureFlutterEngine` 会跑 GeneratedPluginRegistrant，
+        // 重复跑等于把插件实例挂两份（通知插件尤其敏感：initialize 在旧实例上做过，
+        // 新实例接手通道后 show 会报未初始化）。
+        if (wiredEngine !== flutterEngine) {
+            wiredEngine = flutterEngine
+            super.configureFlutterEngine(flutterEngine)
+            // 把引擎挂进缓存 ⇒ Activity 销毁后引擎仍在，贴卡可零闪现直投
+            // （[provideFlutterEngine] 下次从这里取回同一个引擎）。
+            FlutterEngineCache.getInstance().put(ENGINE_ID, flutterEngine)
+            wireChannels(flutterEngine)
+        }
+        // 意图入队每建一次界面都要跑（新 Activity 的 intent 可能带待处理路由）。
         handle(intent)
+    }
+
+    /** 通道装配（每引擎一次·见 [configureFlutterEngine]）。 */
+    private fun wireChannels(flutterEngine: FlutterEngine) {
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "lh/intents"
         ).setMethodCallHandler { call, result ->
@@ -241,9 +277,12 @@ class MainActivity : FlutterActivity() {
                     )
                     try {
                         startForegroundService(TimerPillService.syncIntent(this, p))
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
                         // 起服务被权限/ROM 拒绝＝降级为无 app 外悬浮窗，不崩
                         // （6128 实伤：缺 FGS 基础权限时这里 SecurityException 即闪退）。
+                        // 批3d：留痕——贴卡在后台起计时时若被拒，用户看到的就是
+                        // 「贴了卡、胶囊没出来」，logcat 这一行能一刀切开。
+                        Log.w("LH-NFC", "起悬浮窗服务被拒：${e.javaClass.simpleName}")
                     }
                     result.success(null)
                 }
@@ -275,7 +314,11 @@ class MainActivity : FlutterActivity() {
                 // 的动作（打卡/计时）时，Dart 执行完调这里退回原界面，只留横幅通知。
                 // 用 moveTaskToBack 而非 finish：Activity 留在后台，下次贴卡仍是热启动。
                 "moveTaskToBack" -> {
-                    moveTaskToBack(true)
+                    // 批3d：引擎常驻后本方法可能在**已销毁**的 Activity 上被调用
+                    // （透明中转路径下界面根本没建过），直接调会抛 IllegalStateException。
+                    if (!isFinishing && !isDestroyed) {
+                        moveTaskToBack(true)
+                    }
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -291,6 +334,13 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "openSettings" -> {
                     openNfcSettings()
+                    result.success(null)
+                }
+                // 批3d 排障口（2026-10-17）：release 包也能把 Dart 侧的贴卡链路打点
+                // 落到 logcat（`adb logcat -s LH-NFC`）。**只记结果枚举与人话，
+                // 不记 cardId**（C11 红线）。与 `lh/pill` 的 log 方法同模式。
+                "log" -> {
+                    Log.i("LH-NFC", "[dart] ${call.argument<String>("msg") ?: ""}")
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -859,13 +909,25 @@ class MainActivity : FlutterActivity() {
         const val NFC_CHANNEL = "lh/nfc"
 
         /**
-         * 当前 FlutterEngine 引用（批3c）：透明中转界面拿它把贴卡事件**直投 Dart**。
+         * 常驻引擎的缓存键（批3d）。**禁第二处字面量**。
          *
-         * 非空＝App 进程还在（引擎活着）⇒ 零闪现路径；为空＝进程刚起来 ⇒ 走冷启动。
-         * 在 [configureFlutterEngine] 赋值、[onDestroy] 清空。
+         * 全进程只有一个引擎：Activity 重建复用它、透明中转界面靠它投递贴卡事件。
          */
-        @Volatile
-        var engineRef: FlutterEngine? = null
+        const val ENGINE_ID = "lh_main"
+
+        /**
+         * 已装配过的引擎（批3d）：同一引擎只跑一次 `configureFlutterEngine` 的装配段，
+         * 免插件实例挂两份（Activity 重建会再次回调该生命周期）。
+         */
+        private var wiredEngine: FlutterEngine? = null
+
+        /**
+         * 活着的引擎（null＝进程刚起、还没跑过 Flutter）；中转界面据此分流。
+         *
+         * **唯一真源＝FlutterEngineCache**（批3d）：不要去缓存某个 FlutterEngine
+         * 引用——Activity 销毁后那个引用可能指向已销毁的实例，判活必出错。
+         */
+        fun aliveEngine(): FlutterEngine? = FlutterEngineCache.getInstance().get(ENGINE_ID)
 
         private const val REQ_SAF_SAVE = 0x5AF1
         private const val REQ_SAF_TREE = 0x5AF3

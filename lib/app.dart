@@ -13,7 +13,7 @@ import 'core/platform/open_intent.dart'
     show classifyOpenIntent, kOpenUnsupportedToast, takeOpenFile;
 import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
-import 'features/nfc/data/nfc_tag_io.dart' show kNfcChannel;
+import 'features/nfc/data/nfc_tag_io.dart' show kNfcChannel, nfcDiagLog;
 import 'features/nfc/data/nfc_trigger.dart'
     show NfcTriggerOutcome, nfcHandleLaunch, nfcTriggerDepsOf;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
@@ -154,6 +154,7 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
         AppLog.add(
             'NFC 贴卡：已收到系统派发（fromBackground=${route.fromBackground}）',
             src: LhLogLine.srcSystem);
+        unawaited(nfcDiagLog('启动队列：收到贴卡路由'));
       }
       // await 之后再复查一次：这中间可能已退出页面/销毁 Navigator。
       if (!navCtx.mounted) return;
@@ -190,6 +191,8 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       final args = call.arguments;
       final action = args is Map ? args['action'] as String? : null;
       if (action == null || action.isEmpty) return null;
+      // 排障打点（批3d）：这一行到了＝透明中转确实把事件投进了 Dart。
+      unawaited(nfcDiagLog('中转直投：已收到（界面未出现）'));
       await _runNfcRoute(LaunchRoute(
         action: action,
         fromBackground: args is Map && args['fromBackground'] == true,
@@ -204,13 +207,20 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
   /// （C32/B31：自取，不接受外部 context），并按结果决定要不要把界面让回去。
   Future<void> _runNfcRoute(LaunchRoute route) async {
     final navCtx = _rootNavContext();
-    if (navCtx == null) return;
+    if (navCtx == null) {
+      // 界面还没就绪（首帧前／根 Navigator 已销毁）：不执行、不吞掉——
+      // 冷启动队列那条来源的原生意图仍留在队列里，下一次 resumed 还能取。
+      unawaited(nfcDiagLog('贴卡：根 Navigator 未就绪，放弃本次（未消费）'));
+      return;
+    }
     try {
       final outcome = await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
       // 排障留痕：只记结果枚举，无卡号/指纹（不在 C11 红线内）。真机复现
       // 「贴卡没反应／没横幅」时，到 App 内日志页看这一行就知道走到了哪一支。
       AppLog.add('NFC 贴卡结果：$outcome（fromBackground=${route.fromBackground}）',
           src: LhLogLine.srcSystem);
+      unawaited(nfcDiagLog(
+          '贴卡结果：$outcome（fromBackground=${route.fromBackground}）'));
       // 批3（2026-10-17 产品令）：**「没办成需要看界面的事」的结果一律退回原处**。
       // 透明中转路径下 App 本来就没到前台，这一步无害（等于再确认一次）。
       // `nav.*`（记一笔等）不适用——它的目的就是打开某个页面；未识别卡也不适用

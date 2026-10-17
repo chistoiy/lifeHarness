@@ -165,8 +165,14 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
     );
   }
 
-  // 后台不冷起服务（Android 14+ FGS 限制）：不在跑且 app 不在前台 → 等回前台。
-  if (!_serviceOn && !appActive) return;
+  // 后台冷起 FGS 的 Android 14+ 限制：**持有「显示在其他应用上层」权限即属豁免**
+  //（系统白名单条款之一），故只有在没有该权限时才必须等回前台——而没权限的情形
+  // 上面已经早退，这里等于放行。
+  //
+  // 批3d（2026-10-17 真机实锤）：贴卡自批3c 起走**透明中转界面**，App 界面不出现、
+  // 生命周期停在后台；旧口径「不在跑且不在前台就 return」让「贴阅读卡开始计时」
+  // 永远等不到胶囊——用户听到的只有 NFC 那声震动，桌面上什么都没有。
+  if (!_serviceOn && !appActive && !canDraw) return;
 
   // 载荷总是取在跑会话（read 优先）——隐藏态也照推（通知文案用）。
   final SysPillState state;

@@ -13,7 +13,8 @@ import '../../features/nfc/domain/nfc_card.dart';
 import '../../features/read/data/read_repository.dart' show ReadRepository;
 import '../../features/read/presentation/read_providers.dart'
     show booksProvider, readRepositoryProvider, readTickProvider;
-import '../widgets/ui_kit.dart' show AppToast;
+import '../widgets/nfc_receipt.dart'
+    show nfcInAppNow, nfcReceipt, nfcReceiptNeedsBanner;
 import 'habit_mounts.dart';
 import 'maternity_mounts.dart';
 import 'timer_bar_overlay.dart' show endReadPillTimer;
@@ -509,8 +510,11 @@ Future<bool> nfcToggleTimer(
     final mins = (nowMin - running.startMin) < 0
         ? (1440 - running.startMin + nowMin)
         : (nowMin - running.startMin);
+    // 回执：界面在场走 toast，界面不在（透明中转路径）走系统横幅。
     if (host.mounted) {
-      AppToast.show(host, '已结束「$catName」· $mins 分钟');
+      nfcReceipt(host, '已结束「$catName」· $mins 分钟');
+    } else {
+      nfcReceipt(null, '已结束「$catName」· $mins 分钟');
     }
     return true;
   }
@@ -521,7 +525,9 @@ Future<bool> nfcToggleTimer(
   ref.invalidate(dayBlocksProvider(now));
   ref.invalidate(monthTimingDaysProvider((now.year, now.month)));
   if (host.mounted) {
-    AppToast.show(host, '开始「$catName」计时');
+    nfcReceipt(host, '开始「$catName」计时');
+  } else {
+    nfcReceipt(null, '开始「$catName」计时');
   }
   return true;
 }
@@ -547,18 +553,28 @@ Future<bool> nfcToggleRead(
   if (action == NfcToggleAction.end) {
     // 正在读这本 ⇒ 结束（单源：复用胶囊结束路径，含 toast ＋ autoAsk 弹层）。
     // endReadPillTimer 内部自会 `host.mounted` 复查（单源红线，不改它）。
+    final books = ref.read(booksProvider).valueOrNull ?? const [];
+    final title = books.where((b) => b.id == id).firstOrNull?.title ?? '阅读';
+    // 界面不在（贴卡走透明中转、App 停在后台）时 endReadPillTimer 的 toast
+    // 没人看得见 ⇒ 补一条系统横幅，否则用户只听到 NFC 那声震动。
+    final banner = nfcReceiptNeedsBanner(
+        inApp: nfcInAppNow(), hostUsable: host.mounted);
     if (!host.mounted) return true;
     await endReadPillTimer(host, ref, id);
+    if (banner) nfcReceipt(null, '《$title》已结束计时');
     return true;
   }
 
   // 未在跑（或跑的是别的书）⇒ 开始（startSession 自带先结束在跑会话）。
   await repo.startSession(id);
   ref.read(readTickProvider.notifier).state++;
+  final books = ref.read(booksProvider).valueOrNull ?? const [];
+  final title = books.where((b) => b.id == id).firstOrNull?.title ?? '阅读';
+  // 回执：前台 toast／后台系统横幅（贴卡时界面根本不出现·批3d）。
   if (host.mounted) {
-    final books = ref.read(booksProvider).valueOrNull ?? const [];
-    final title = books.where((b) => b.id == id).firstOrNull?.title ?? '阅读';
-    AppToast.show(host, '开始阅读《$title》');
+    nfcReceipt(host, '开始阅读《$title》');
+  } else {
+    nfcReceipt(null, '开始阅读《$title》');
   }
   return true;
 }

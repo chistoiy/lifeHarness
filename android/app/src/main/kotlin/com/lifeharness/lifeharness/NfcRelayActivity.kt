@@ -54,7 +54,7 @@ class NfcRelayActivity : Activity() {
             return
         }
 
-        val engine = MainActivity.engineRef
+        val engine = MainActivity.aliveEngine()
         if (engine != null) {
             // 引擎活着 ⇒ 直投 Dart。界面不出现，业务在后台跑（零闪现）。
             MethodChannel(engine.dartExecutor.binaryMessenger, MainActivity.NFC_CHANNEL)
@@ -64,7 +64,9 @@ class NfcRelayActivity : Activity() {
                 )
             Log.d("LH-NFC", "relay → dart：已投递（引擎活着）")
         } else {
-            // 进程刚起来：交给主界面走既有冷启动路径（handle → enqueueLaunch）。
+            // 进程刚起来（冷启动/引擎已被回收）：交给主界面走既有冷启动路径
+            // （handle → enqueueLaunch）。这条分支是**唯一**会闪一下界面的路径，
+            // 常驻引擎（MainActivity.provideFlutterEngine）把它的触发概率压到最低。
             startActivity(
                 Intent(this, MainActivity::class.java).apply {
                     action = intent?.action

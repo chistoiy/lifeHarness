@@ -146,6 +146,18 @@ abstract class NfcTagIo {
 /// 先例＝`MainActivity.requestOverlayPermission`（同为系统设置页跳转）。
 const MethodChannel kNfcChannel = MethodChannel('lh/nfc');
 
+/// 贴卡链路排障打点（批3d）：release 包也能在 logcat 看到 Dart 侧走到哪一支。
+///
+/// 用法＝`adb logcat -s LH-NFC`。**只传结果枚举/人话，禁传 cardId**（C11 红线）。
+/// 打点失败一律静默——它绝不能影响贴卡业务。
+Future<void> nfcDiagLog(String msg) async {
+  try {
+    await kNfcChannel.invokeMethod<void>('log', <String, String>{'msg': msg});
+  } catch (_) {
+    // catch-ok: 非 Android／通道缺失（单测）时无 logcat 可写，忽略。
+  }
+}
+
 /// `nfc_manager` 实现（生产用；测试一律注入假实现）。
 class NfcManagerTagIo implements NfcTagIo {
   NfcTag? _tag;

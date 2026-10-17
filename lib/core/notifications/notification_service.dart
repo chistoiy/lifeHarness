@@ -199,6 +199,47 @@ class NotificationService {
     await showHabitChecked(habitName: habitName, streak: streak);
   }
 
+  // ---- 贴卡回执（批3d · 2026-10-17）----
+
+  /// 贴卡执行结果回执（计时分类／阅读 toggle／卡失效·未绑定等）。
+  ///
+  /// **为什么必须用通知**：批3c 起贴卡走**透明中转界面**，App 界面全程不出现
+  /// （这正是「零闪现」的目的）。可代价是 Flutter 内的 SnackBar 挂在没人看的
+  /// widget 树上——真机表现就是「贴完只震动，什么也没有」。回执只能走系统层。
+  ///
+  /// 独立渠道（不复用 `reminders`／`habit_checkin`）：语义是「贴卡回执」，
+  /// 用户能在系统设置里单独关掉，不影响待办/日程提醒与打卡回执。
+  static const int nfcReceiptId = 900006;
+
+  static const _nfcReceiptCh = AndroidNotificationDetails(
+    'nfc_receipt',
+    '贴卡回执',
+    channelDescription: '贴卡执行结果（计时/阅读开关、卡片失效提示）',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+
+  /// 贴卡回执横幅。延后 [after] 再发——同 [showHabitCheckedAfterBack]：
+  /// App 若正在退后台，立刻发会被压成静默条目。`ready=false` 静默降级，不抛。
+  static Future<void> showNfcReceipt({
+    required String text,
+    Duration after = const Duration(milliseconds: 700),
+  }) async {
+    if (!ready) return;
+    if (after > Duration.zero) await Future<void>.delayed(after);
+    try {
+      await plugin.show(
+        nfcReceiptId,
+        '贴卡',
+        text,
+        const NotificationDetails(android: _nfcReceiptCh),
+      );
+    } catch (e) {
+      // 回执失败不能影响已完成的业务动作（计时/打卡已落库）——只留痕。
+      AppLog.add('贴卡回执通知展示失败：$e', level: LhLevel.error);
+    }
+  }
+
   // ---- V1.57 B 批：记账超支/月度小结 · 呵护儿保体检 ----
 
   static const int ledgerDigestId = 900010;
