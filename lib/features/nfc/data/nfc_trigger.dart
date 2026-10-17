@@ -33,7 +33,12 @@ import '../../../core/platform/desktop_actions.dart'
 import '../../../core/providers.dart' show settingsRepositoryProvider;
 import '../../../core/settings/settings_repository.dart';
 import '../../../shared/linkage/nfc_mounts.dart'
-    show NfcTargetState, nfcTargetStateOf, nfcToggleRead, nfcToggleTimer;
+    show
+        NfcTargetState,
+        nfcHabitCheckIn,
+        nfcTargetStateOf,
+        nfcToggleRead,
+        nfcToggleTimer;
 import '../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/nfc_card.dart';
@@ -65,6 +70,13 @@ enum NfcTriggerOutcome {
   /// 已执行（`nav.*` 的 go，或有状态卡的 toggle）。
   executed,
 
+  /// 已执行且**不需要用户看界面**（打卡卡 / 计时与阅读 toggle）。
+  ///
+  /// 与 [executed] 的区别只在「要不要把界面让回去」：贴卡时 App 若不在前台，
+  /// 系统已因 AAR 把本 App 拉到前台，这类动作执行完应立刻退回用户原来的界面，
+  /// 结果由横幅通知呈现（2026-10-17 产品令）。`nav.*` 不适用——它就是要去某个页面。
+  executedSilent,
+
   /// 目标失效：toast ＋ 回 `/`。
   targetGone,
 
@@ -89,6 +101,7 @@ class NfcTriggerDeps {
     this.toast,
     this.now,
     this.toggle,
+    this.habitCheckIn,
   });
 
   final SettingsRepository prefs;
@@ -118,6 +131,12 @@ class NfcTriggerDeps {
     String? targetName,
     String cardName,
   )? toggle;
+
+  /// 打卡卡出口（`nav.habit` ＋ `targetSub`＝习惯名）：返回打卡结果。
+  ///
+  /// null ＝ 名字对不上在册习惯（目标失效）。缺省 null ⇒ 该卡退化为「只跳页」
+  /// （与批2 行为一致，防注入缺失时误判）。
+  final Future<NfcHabitCheck?> Function(String? habitName)? habitCheckIn;
 
   /// 确认开关开时的确认框；缺省用真实 `lhConfirm`。测试可注入桩。
   final Future<bool> Function(BuildContext ctx, String title, String message)?
@@ -258,11 +277,36 @@ Future<NfcTriggerOutcome> _execute(
         targetName, // 目标名（计时分类名／书名；回执文案用·C22）
         card.name,
       );
-      return done ? NfcTriggerOutcome.executed : NfcTriggerOutcome.silent;
+      return done ? NfcTriggerOutcome.executedSilent : NfcTriggerOutcome.silent;
     } catch (_) {
       // 有状态卡 toggle 抛异常 ⇒ 静默不打断（C11：NFC 模块内零日志，卡号/指纹敏感）。
       return NfcTriggerOutcome.silent;
     }
+  }
+
+  // 打卡卡（`nav.habit` ＋ `target_sub`＝习惯名）：贴卡**直接打卡**，不只跳页
+  //（2026-10-17 产品令）。此前只 `go('/habits')`，用户还得自己在列表里找那条习惯
+  // 点一下——贴卡等于只是个快捷入口，卡上绑的具体习惯形同虚设。
+  if (card.targetRef == kNfcRefHabit) {
+    final sub = (card.targetSub ?? '').trim();
+    final check = deps.habitCheckIn;
+    if (sub.isNotEmpty && check != null) {
+      final r = await check(sub);
+      if (r == null) {
+        // 名字对不上在册习惯（已删/改名）⇒ 失效口径（与其它目标一致）。
+        _showToast(deps, kNfcTargetGoneToast);
+        _goHome(deps);
+        return NfcTriggerOutcome.targetGone;
+      }
+      if (r.checked) {
+        _showToast(deps, '${r.name} 已打卡 · 连续 ${r.streak} 天');
+      } else {
+        // 今天已打过：**不重复计、不撤销**，只回执（贴卡是「补一下」不是「切换」）。
+        _showToast(deps, '${r.name} 今天已打卡');
+      }
+      return NfcTriggerOutcome.executedSilent;
+    }
+    // 老卡只绑了动作 id、没绑具体习惯 ⇒ 退回跳页（保持批2 行为，不误判失效）。
   }
 
   // `nav.*`（含打卡 / 呵护宝宝两枚具体动作）：解析动作路由并 go/push。
@@ -285,7 +329,12 @@ Future<NfcTriggerOutcome> _execute(
   } else {
     deps.goRoute(path);
   }
-  // nav.* 不给 toast（C22：桌面模块口径＝贴卡命中不给 toast；只有有状态卡才回执）。
+  // 记一笔（2026-10-17 产品令·改冻结档 C22「nav.* 一律不给 toast」）：
+  // 贴卡直接跳进编辑页，页面上没有任何「这张卡被认出来了」的痕迹——给一行回执，
+  // 否则用户分不清是卡生效还是误触。其余 nav.* 仍静默（跳转本身已够显性）。
+  if (card.targetRef == 'ledger') {
+    _showToast(deps, '已打开记一笔');
+  }
   return NfcTriggerOutcome.executed;
 }
 
@@ -375,5 +424,8 @@ NfcTriggerDeps nfcTriggerDepsOf(WidgetRef ref, BuildContext navCtx) {
       }
       return false;
     },
+    // 打卡卡出口（2026-10-17 产品令）：经 linkage 直连习惯模块（守 R1），
+    // 按卡上 `target_sub` 的习惯名直接落库，不再只是跳页。
+    habitCheckIn: (habitName) => nfcHabitCheckIn(habitName),
   );
 }

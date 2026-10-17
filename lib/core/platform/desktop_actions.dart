@@ -273,13 +273,24 @@ String? resolveLaunchUri(Uri uri) =>
 
 /// 一条待投递的启动路由（L3 消费单元）。
 class LaunchRoute {
-  const LaunchRoute({required this.action, this.args = const <String, String>{}});
+  const LaunchRoute({
+    required this.action,
+    this.args = const <String, String>{},
+    this.fromBackground = false,
+  });
 
   /// 动作 id（`nfc:<cardId>` 形态表示透传给 NFC 模块的卡片）。
   final String action;
 
   /// 带参（写入类只预填 · C18）。
   final Map<String, String> args;
+
+  /// 投递这条意图的那一刻，App **是否不在前台**（原生按 Activity 的 resumed 态判）。
+  ///
+  /// 只对 NFC 有意义：贴卡时 App 若不在前台，系统仍会因 AAR 把它拉到前台，
+  /// 静默动作执行完要把界面让回去（见 `moveTaskToBack`）。
+  /// 冷启动与「后台被拉起」都是 true；用户本来就在 App 里贴卡是 false。
+  final bool fromBackground;
 
   bool get isNfc => action.startsWith('nfc:');
 

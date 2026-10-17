@@ -200,6 +200,32 @@ const String kNfcRefHabit = 'habit';
 /// 「呵护宝宝」目标的 `target_ref`（宝宝档案＋记录类型 · 批1b）。
 const String kNfcRefCare = 'care';
 
+/// 贴「打卡」卡的执行结果（2026-10-17 产品令：贴卡直接打卡，不只跳页）。
+///
+/// 定义在域层（而非 linkage 出口）是为了让 `data/nfc_trigger.dart` 与
+/// `shared/linkage/nfc_mounts.dart` 共用同一个值类型，避免 data 层反向依赖
+/// linkage 的具体实现（也避免循环 import）。
+class NfcHabitCheck {
+  const NfcHabitCheck({
+    required this.checked,
+    required this.already,
+    required this.name,
+    required this.streak,
+  });
+
+  /// 本次真的新打卡了（false ＋ [already] ＝ 今天早已打过）。
+  final bool checked;
+
+  /// 今天已打卡——**不撤销**（贴卡是「补一下」不是「切换」）。
+  final bool already;
+
+  /// 习惯名（已剥装饰符 · NFC 模块零 emoji）。
+  final String name;
+
+  /// 打卡后的连续天数。
+  final int streak;
+}
+
 /// 目标类名（徽标 chip 逐字 · B42：用目标类名如「学习」「《书名》」）。
 ///
 /// [bound]＝false（未绑定）时返回 null——**未绑定的卡不显徽标**，

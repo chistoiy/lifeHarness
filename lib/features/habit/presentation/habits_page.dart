@@ -1,7 +1,10 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/widgets/ui_kit.dart';
@@ -647,8 +650,14 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
     );
     final after = await repo.habitById(h.id);
     ref.read(habitTickProvider.notifier).state++;
+    final streak = after?.streak ?? 0;
     _toast(
-      '${h.name} 已打卡 · 连续 ${after?.streak ?? 0} 天 · 计入周报与目标（L7）',
+      '${h.name} 已打卡 · 连续 $streak 天 · 计入周报与目标（L7）',
+    );
+    // 2026-10-17 产品令：打卡成功另发一条 **Heads-Up 横幅**——toast 只在 App 前台
+    // 可见，用户放下手机/切走后就没确认了。通知失败不影响打卡（已落库）。
+    unawaited(
+      NotificationService.showHabitChecked(habitName: h.name, streak: streak),
     );
   }
 

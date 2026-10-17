@@ -16,6 +16,7 @@ import 'package:nfc_manager/ndef_record.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:nfc_manager/nfc_manager_android.dart';
 
+import '../domain/nfc_tag_content.dart';
 import '../domain/nfc_write_state.dart';
 
 /// 一张标签的探针结果（域层可判定的最小集合）。
@@ -25,6 +26,7 @@ class NfcTagProbe {
     required this.isWritable,
     this.existingUri,
     this.maxSize = 0,
+    this.records = const <NfcRawRecord>[],
   });
 
   /// 能否按 NDEF 处理（false＝B4「认不出这张卡」）。
@@ -38,6 +40,10 @@ class NfcTagProbe {
 
   /// 标签报出的可写容量（B5：**N 取系统报数，不写死**）；报不出时为 0。
   final int maxSize;
+
+  /// 整条 NDEF 消息的原始记录（批3 卡片内容工具：读取/修改/清空的底稿）。
+  /// 写卡层不用它；内容工具按它展示与回写。
+  final List<NfcRawRecord> records;
 
   bool get hasContent => (existingUri ?? '').trim().isNotEmpty;
 }
@@ -127,6 +133,11 @@ abstract class NfcTagIo {
 
   /// 把 [uri] 写成**单条 NDEF URI 记录**（本模块唯一一次 NDEF 写入）。
   Future<void> writeUri(String uri);
+
+  /// 把任意记录集写回标签（批3 卡片内容工具：改内容／清空共用）。
+  ///
+  /// 调用前必须已有一次成功读卡（[startRead] 的回调里拿到的 tag 会被记住）。
+  Future<void> writeRecords(List<NfcRawRecord> records);
 }
 
 /// 系统 NFC 设置页通道（`MainActivity` 侧 `ACTION_NFC_SETTINGS`，回落 `ACTION_WIRELESS_SETTINGS`）。
@@ -221,6 +232,24 @@ class NfcManagerTagIo implements NfcTagIo {
     );
   }
 
+  @override
+  Future<void> writeRecords(List<NfcRawRecord> records) async {
+    final tag = _tag;
+    if (tag == null) {
+      throw PlatformException(code: 'tag_not_found', message: '标签已离开');
+    }
+    final ndef = NdefAndroid.from(tag);
+    if (ndef == null) {
+      throw PlatformException(code: 'FormatException', message: '不是 NDEF 标签');
+    }
+    if (!ndef.isWritable) {
+      throw PlatformException(code: 'IOException', message: '标签只读');
+    }
+    await ndef.writeNdefMessage(
+      NdefMessage(records: records.map(ndefRecordOf).toList(growable: false)),
+    );
+  }
+
   /// 探针：把插件对象翻成域层可判定的最小集合。
   ///
   /// 只读判定用 `isWritable`（系统报的），**不试写**——试写会真的动到卡；
@@ -245,9 +274,45 @@ class NfcManagerTagIo implements NfcTagIo {
       isWritable: ndef.isWritable,
       maxSize: ndef.maxSize,
       existingUri: firstUriOf(msg),
+      records: rawRecordsOf(msg),
     );
   }
 }
+
+/// 整条消息 → 纯数据记录集（批3 卡片内容工具用；空消息给空表）。
+List<NfcRawRecord> rawRecordsOf(NdefMessage? msg) {
+  if (msg == null) return const <NfcRawRecord>[];
+  return msg.records
+      .map((r) => NfcRawRecord(
+            tnf: tnfCodeOf(r.typeNameFormat),
+            type: r.type,
+            payload: r.payload,
+          ))
+      .toList(growable: false);
+}
+
+/// 纯数据记录 → 插件记录（写回用；tnf/type/payload 逐字节保留）。
+///
+/// ⚠ `NdefRecord` 工厂对 TNF 有校验：EMPTY 记录不许带 type/id/payload、
+/// UNKNOWN 记录不许带 type——清空卡片用的正是 EMPTY 记录，故这里原样透传
+/// 即可（[nfcEmptyRecords] 造的就是全空）。
+NdefRecord ndefRecordOf(NfcRawRecord r) => NdefRecord(
+      typeNameFormat: tnfOfCode(r.tnf),
+      type: r.type,
+      identifier: Uint8List(0),
+      payload: r.payload,
+    );
+
+/// TNF 数值 → 插件枚举（与 [tnfCodeOf] 互逆）。
+TypeNameFormat tnfOfCode(int c) => switch (c) {
+      0 => TypeNameFormat.empty,
+      1 => TypeNameFormat.wellKnown,
+      2 => TypeNameFormat.media,
+      3 => TypeNameFormat.absoluteUri,
+      4 => TypeNameFormat.external,
+      5 => TypeNameFormat.unknown,
+      _ => TypeNameFormat.unknown,
+    };
 
 /// 取 NDEF 消息里**第一条 URI 记录**（其余记录忽略）；无则 null。
 String? firstUriOf(NdefMessage? msg) {

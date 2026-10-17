@@ -7,12 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'core/ai/ai_review.dart' show aiRootNavKey;
 import 'core/logging/app_log.dart' show AppLog, LhLogLine;
 import 'core/platform/launch_route.dart'
-    show markLaunchRouteReady, takeLaunchRoute;
+    show markLaunchRouteReady, moveTaskToBack, takeLaunchRoute;
 import 'core/platform/open_intent.dart'
     show classifyOpenIntent, kOpenUnsupportedToast, takeOpenFile;
 import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
-import 'features/nfc/data/nfc_trigger.dart' show nfcHandleLaunch, nfcTriggerDepsOf;
+import 'features/nfc/data/nfc_trigger.dart'
+    show NfcTriggerOutcome, nfcHandleLaunch, nfcTriggerDepsOf;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
 import 'shared/linkage/desktop_mounts.dart';
 import 'shared/linkage/desktop_widget_mounts.dart';
@@ -123,7 +124,15 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
         // 兜底：触发链内部已各自静默，这里的 catch 只防「未预期异常把冷启动消费打断」，
         // 落 AppLog 供真机排障（不弹层不 toast——贴卡是一次性动作，报错也不该打断用户）。
         try {
-          await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
+          final outcome = await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
+          // 批3（2026-10-17 产品令）：「不需要看界面」的动作（打卡 / 计时 / 阅读）
+          // 执行完把界面让回原处——贴卡时用户本来在桌面，系统却因 AAR 把本 App
+          // 拉到前台（Android 硬限制：NFC 事件必须交给某个组件）。这里退回原界面，
+          // 结果由横幅通知呈现；`nav.*` 卡不适用（它的目的就是打开某个页面）。
+          // 只在「投递时 App 不在前台」时让回——用户本来就在 App 里贴卡则留在原地。
+          if (outcome == NfcTriggerOutcome.executedSilent && route.fromBackground) {
+            await moveTaskToBack();
+          }
         } catch (e) {
           AppLog.reportError('NFC 贴卡触发失败：$e', src: LhLogLine.srcSystem);
         }

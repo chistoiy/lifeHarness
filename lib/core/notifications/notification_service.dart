@@ -144,6 +144,43 @@ class NotificationService {
 
   static const int habitNightlyId = 900004;
 
+  /// 打卡成功即时回执（2026-10-17 产品令）。
+  ///
+  /// **为什么用通知而不是 toast**：打卡完成后用户常把手机放下／切去别的 App，
+  /// AppToast 是 Flutter 内的 SnackBar，只在 App 前台可见——那一下的「成了没」
+  /// 就没人确认。走 high 渠道系统会弹 **Heads-Up 横幅**，锁屏/别处也看得见。
+  ///
+  /// **独立渠道**（不复用 `reminders`）：语义是「回执」不是「提醒」，用户能在
+  /// 系统设置里单独关掉打卡回执而不影响待办/日程提醒。
+  static const int habitCheckedId = 900005;
+
+  static const _habitCheckCh = AndroidNotificationDetails(
+    'habit_checkin',
+    '打卡回执',
+    channelDescription: '打卡成功后的即时确认',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+
+  /// 打卡成功横幅。`ready=false`（单测/平台未就绪）静默降级，不抛。
+  static Future<void> showHabitChecked({
+    required String habitName,
+    required int streak,
+  }) async {
+    if (!ready) return;
+    try {
+      await plugin.show(
+        habitCheckedId,
+        '打卡成功',
+        streak > 0 ? '$habitName · 连续 $streak 天' : habitName,
+        const NotificationDetails(android: _habitCheckCh),
+      );
+    } catch (e) {
+      // 通知失败绝不能影响打卡本身（已落库）——只留痕。
+      AppLog.add('打卡成功通知展示失败：$e', level: LhLevel.error);
+    }
+  }
+
   // ---- V1.57 B 批：记账超支/月度小结 · 呵护儿保体检 ----
 
   static const int ledgerDigestId = 900010;

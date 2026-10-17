@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/notifications/notification_service.dart';
 import '../../core/providers.dart';
 import '../../features/habit/data/habit_repository.dart';
 import '../../features/habit/domain/habit.dart';
 import '../../features/habit/domain/habit_calc.dart';
+import '../../features/habit/domain/habit_entry.dart';
 import '../../features/habit/presentation/habit_providers.dart';
 import '../../features/todo/domain/todo.dart';
 import '../../features/todo/presentation/todo_providers.dart';
@@ -113,4 +115,63 @@ class HabitOption {
 
   final String id;
   final String name;
+}
+
+/// 打卡结果（NFC 贴卡消费 · 2026-10-17）。
+class HabitCheckOutcome {
+  const HabitCheckOutcome({
+    required this.checked,
+    required this.already,
+    required this.name,
+    required this.streak,
+  });
+
+  /// 本次是否真的新打卡（false ＋ [already] ＝ 今天早就打过了）。
+  final bool checked;
+
+  /// 今天已打卡——**不撤销**（贴卡是「补一下」不是「切换」，误触不该抹掉记录）。
+  final bool already;
+
+  final String name;
+
+  /// 打卡后的连续天数。
+  final int streak;
+}
+
+/// 按习惯 id 打卡（NFC 贴卡出口 · 2026-10-17 产品令）。
+///
+/// 口径与打卡页手动打卡**同源**：`upsertEntry(checked:true, origin:manual)`，
+/// 连续天数由仓库重算后回读。**已打卡不重复计、也不撤销**。
+/// 打卡成功同时发一条 Heads-Up 横幅（与打卡页同一出口 ⇒ 两处行为一致）。
+///
+/// 返回 null ＝ 习惯不在册（已删）。
+Future<HabitCheckOutcome?> habitCheckInById(
+  String habitId, {
+  Database? db,
+  DateTime? now,
+}) async {
+  final repo = HabitRepository(db ?? AppDatabase.instance.db);
+  final h = await repo.habitById(habitId);
+  if (h == null) return null;
+  final t = now ?? DateTime.now();
+  final k = dayKey(t);
+  final entries = await repo.entriesOf(h.id);
+  if (entries[k]?.checked ?? false) {
+    return HabitCheckOutcome(
+        checked: false, already: true, name: h.name, streak: h.streak);
+  }
+  await repo.upsertEntry(
+    h.id,
+    day: k,
+    checked: true,
+    origin: HabitEntry.oManual,
+    checkAt: '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}',
+  );
+  final after = await repo.habitById(h.id);
+  final streak = after?.streak ?? 0;
+  // 通知失败不影响打卡（已落库），内部自吞异常。
+  await NotificationService.showHabitChecked(habitName: h.name, streak: streak);
+  return HabitCheckOutcome(
+      checked: true, already: false, name: h.name, streak: streak);
 }

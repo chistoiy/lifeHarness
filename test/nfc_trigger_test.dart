@@ -68,6 +68,9 @@ void main() {
     bool togglePresent = false,
     void Function(String kind, String? ref, String? sub, String name)? onToggle,
     bool hostUsable = true,
+    NfcHabitCheck? habitResult,
+    bool habitPresent = false,
+    void Function(String? name)? onHabitCheck,
   }) async {
     return NfcTriggerDeps(
       prefs: prefs,
@@ -87,6 +90,12 @@ void main() {
           ? (kind, ref, sub, name) async {
               onToggle?.call(kind, ref, sub, name);
               return toggleResult;
+            }
+          : null,
+      habitCheckIn: habitPresent
+          ? (name) async {
+              onHabitCheck?.call(name);
+              return habitResult;
             }
           : null,
     );
@@ -192,7 +201,7 @@ void main() {
 
       final r1 = await nfcHandleLaunch(route, deps);
       expect(r1, NfcTriggerOutcome.executed);
-      expect(toasts, isEmpty, reason: 'nav.* 首次不给 toast（C22）');
+      expect(toasts, isEmpty, reason: 'journal 跳转本身已够显性 ⇒ 不给 toast');
 
       now += 1000; // 窗口内
       final r2 = await nfcHandleLaunch(route, deps);
@@ -338,7 +347,93 @@ void main() {
           const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
       expect(r, NfcTriggerOutcome.executed);
       expect(goes, contains('/'));
-      expect(toasts, isEmpty);
+      expect(toasts, isEmpty, reason: 'today 跳转本身已够显性 ⇒ 仍不给 toast');
+    });
+
+    testWidgets('nav.ledger（记一笔）→ push 且给一行 toast（2026-10-17 产品令）',
+        (tester) async {
+      // 改冻结档 C22「nav.* 一律不给 toast」：记一笔跳进全屏编辑页后，
+      // 页面上没有任何「这张卡被认出来」的痕迹，用户分不清是卡生效还是误触。
+      final ctx = await host(tester);
+      final deps = await depsOf(ctx,
+          prefs: await prefsOf(), byId: (_) => cardOf(targetRef: 'ledger'));
+      final r = await nfcHandleLaunch(
+          const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
+      expect(r, NfcTriggerOutcome.executed);
+      expect(pushes, contains('/ledger/add'));
+      expect(toasts, contains('已打开记一笔'));
+    });
+
+    testWidgets('打卡卡 → 直接打卡（不跳页）＋回执（2026-10-17 产品令）',
+        (tester) async {
+      // 此前 nav.habit 只 go('/habits')，卡上绑的具体习惯形同虚设——
+      // 用户还得自己在列表里找那条点一下。现在按 target_sub 直接落库。
+      final ctx = await host(tester);
+      String? asked;
+      final deps = await depsOf(
+        ctx,
+        prefs: await prefsOf(),
+        byId: (_) => cardOf(targetRef: 'habit', targetSub: '喝水'),
+        habitPresent: true,
+        onHabitCheck: (n) => asked = n,
+        habitResult:
+            const NfcHabitCheck(checked: true, already: false, name: '喝水', streak: 7),
+      );
+      final r = await nfcHandleLaunch(
+          const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
+      expect(r, NfcTriggerOutcome.executedSilent);
+      expect(asked, '喝水', reason: '按卡上绑的习惯名打卡');
+      expect(goes, isEmpty, reason: '直接打卡了，不再跳打卡页');
+      expect(pushes, isEmpty);
+      expect(toasts, contains('喝水 已打卡 · 连续 7 天'));
+    });
+
+    testWidgets('打卡卡·今天已打过 → 只提示不重复计、不跳页', (tester) async {
+      final ctx = await host(tester);
+      final deps = await depsOf(
+        ctx,
+        prefs: await prefsOf(),
+        byId: (_) => cardOf(targetRef: 'habit', targetSub: '喝水'),
+        habitPresent: true,
+        habitResult: const NfcHabitCheck(
+            checked: false, already: true, name: '喝水', streak: 7),
+      );
+      final r = await nfcHandleLaunch(
+          const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
+      expect(r, NfcTriggerOutcome.executedSilent);
+      expect(goes, isEmpty);
+      expect(toasts, contains('喝水 今天已打卡'));
+    });
+
+    testWidgets('打卡卡·习惯已不在册 → 失效口径（提示＋回首页）', (tester) async {
+      final ctx = await host(tester);
+      final deps = await depsOf(
+        ctx,
+        prefs: await prefsOf(),
+        byId: (_) => cardOf(targetRef: 'habit', targetSub: '已删习惯'),
+        habitPresent: true,
+        habitResult: null, // 名字对不上在册习惯
+      );
+      final r = await nfcHandleLaunch(
+          const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
+      expect(r, NfcTriggerOutcome.targetGone);
+      expect(toasts, contains(kNfcTargetGoneToast));
+      expect(goes, contains('/'));
+    });
+
+    testWidgets('打卡卡·老卡只绑动作未绑习惯 → 退回跳页（不误判失效）',
+        (tester) async {
+      final ctx = await host(tester);
+      final deps = await depsOf(
+        ctx,
+        prefs: await prefsOf(),
+        byId: (_) => cardOf(targetRef: 'habit'), // targetSub 为空
+        habitPresent: true,
+      );
+      final r = await nfcHandleLaunch(
+          const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
+      expect(r, NfcTriggerOutcome.executed);
+      expect(goes, contains('/habits'), reason: '没绑具体习惯 ⇒ 保持批2 跳页行为');
     });
 
     testWidgets('nav.* 全屏栈目标 → push（V1.67 黑屏伤）', (tester) async {
@@ -379,7 +474,7 @@ void main() {
           });
       final r = await nfcHandleLaunch(
           const LaunchRoute(action: 'nfc:aBcD1234efGh'), deps);
-      expect(r, NfcTriggerOutcome.executed);
+      expect(r, NfcTriggerOutcome.executedSilent);
       expect(gotKind, 'read_book');
       expect(gotRef, 'bk1');
       expect(goes, isEmpty, reason: '有状态卡不跳屏');

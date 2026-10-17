@@ -45,5 +45,24 @@ Future<LaunchRoute?> takeLaunchRoute() async {
       if (k is String && v is String) args[k] = v;
     });
   }
-  return LaunchRoute(action: action, args: args);
+  return LaunchRoute(
+    action: action,
+    args: args,
+    fromBackground: raw['fromBackground'] == true,
+  );
+}
+
+/// 把界面让回原处（Android `moveTaskToBack(true)`）。
+///
+/// 批3（2026-10-17 产品令）：贴卡触发「不需要看界面」的动作（打卡/计时）时，
+/// 系统已因 AAR 把本 App 拉到前台——执行完调这里退回用户原来的界面，
+/// 结果由横幅通知呈现，用户不会被莫名其妙带到 App 里。
+///
+/// 失败静默：非 Android／通道缺失时什么都不做（不影响已完成的业务动作）。
+Future<void> moveTaskToBack() async {
+  try {
+    await _launchChannel.invokeMethod<void>('moveTaskToBack');
+  } catch (_) {
+    // catch-ok: 让不让得回去是体验问题，不是业务问题——动作已执行完，不该报错打断。
+  }
 }

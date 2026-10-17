@@ -830,15 +830,18 @@ class _ChipOpt {
 /// ⚠ **保留总闸**：冻结档 C42 的总闸 `nfc.enabled`（默认开·关时完全静默）在
 /// 原型 `sheetNfcSet` 里漏画了，但它是批1 已交付并过门的需求条目——本实现按
 /// 「需求 > 原型」保留在设置层最上方，层级仍是「总闸 ＞ 明细」（任一关即不触发）。
-Future<void> showNfcSettingsSheet(
+Future<bool> showNfcSettingsSheet(
   BuildContext context, {
   required SettingsRepository prefs,
-}) {
-  return showModalBottomSheet<void>(
+}) async {
+  final r = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     builder: (_) => _NfcSettingsSheet(prefs: prefs),
   );
+  // true ＝ 用户点了「卡片内容」——由调用方在本层关掉之后再开工具层
+  //（本层自己 pop 后 context 已失效，不能原地接着 show）。
+  return r ?? false;
 }
 
 class _NfcSettingsSheet extends StatefulWidget {
@@ -939,6 +942,43 @@ class _NfcSettingsSheetState extends State<_NfcSettingsSheet> {
                     style:
                         TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
               ),
+            const SizedBox(height: 10),
+            // 卡片内容工具（批3 · 产品令 2026-10-17）：读取/修改/清空任意 NDEF 卡片。
+            // 与上面三个开关不同层——那些管「贴卡行为」，这条是「直接操作卡片本身」。
+            Material(
+              color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                key: const ValueKey('nfc-set-tool'),
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.pop(context, true),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('卡片内容',
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 2),
+                            Text('读取卡里存了什么 · 改内容 · 清空（base64 会按原样编码写回）',
+                                style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: scheme.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right,
+                          size: 18, color: scheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,

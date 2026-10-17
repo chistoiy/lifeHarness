@@ -63,6 +63,31 @@ class MainActivity : FlutterActivity() {
     // 那时 Dart 还没起来；Dart 侧首帧完成后才 takeLaunchRoute 取一次。
     private var pendingLaunch: MutableMap<String, Any?>? = null
 
+    /**
+     * 本 Activity 是否处于前台（resumed）。
+     *
+     * 用途（批3 · 2026-10-17 产品令）：贴卡时若 App **不在前台**（桌面/别的 App），
+     * 系统仍会因 AAR 把本 Activity 拉到前台——这是 Android 的硬限制（NFC 事件必须
+     * 交给某个组件才能处理）。Dart 侧据此在「静默执行完」后立刻 [moveTaskToBack]，
+     * 把用户送回原来的界面，只留一条横幅通知。
+     *
+     * ⚠ 为什么不能用「冷启动/热启动」判：App 退到后台后 Activity 仍存活，再贴卡走
+     * `onNewIntent`（热启动）——可它同样是被 NFC 拉起来的。**只有 resumed 才是
+     * 「用户本来就在 App 里」**。onNewIntent 早于本次 onResume，此刻读到的值正好是
+     * 「拉起来之前」的真实前后台态。
+     */
+    private var resumed = false
+
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+    }
+
+    override fun onPause() {
+        resumed = false
+        super.onPause()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 6133 热修：系统悬浮窗的显隐由原生自测「本进程有没有已 start 的
@@ -226,6 +251,13 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "takeLaunchRoute" -> result.success(takeLaunch())
+                // 批3（2026-10-17 产品令）：把界面让回去。贴卡触发的是「不需要看界面」
+                // 的动作（打卡/计时）时，Dart 执行完调这里退回原界面，只留横幅通知。
+                // 用 moveTaskToBack 而非 finish：Activity 留在后台，下次贴卡仍是热启动。
+                "moveTaskToBack" -> {
+                    moveTaskToBack(true)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -897,6 +929,9 @@ class MainActivity : FlutterActivity() {
         pendingLaunch = HashMap<String, Any?>().apply {
             put("action", action)
             put("args", args)
+            // 批3：投递这一刻 App 是否在前台（见 [resumed] 的注释）。Dart 侧据此
+            // 决定「静默执行完要不要把界面让回去」——NFC 拉起的那次必然是 false。
+            put("fromBackground", !resumed)
         }
     }
 

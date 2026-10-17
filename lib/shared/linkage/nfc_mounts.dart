@@ -243,6 +243,38 @@ Future<bool> nfcHabitExists(String? habitName, [Database? db]) async {
   return false;
 }
 
+/// 贴「打卡」卡 → 给卡上绑定的习惯**直接打卡**（2026-10-17 产品令）。
+///
+/// 此前 `nav.habit` 只 `go('/habits')` 跳页，用户还得自己在列表里找那条习惯
+/// 点一下——贴卡等于只是个快捷入口。现在卡里既然存了 `target_sub`（剥离后的
+/// 习惯名），就按它直接落库。
+///
+/// 名字→id 的解析与 [nfcHabitExists] 同源（剥装饰符后比对）；本文件是 NFC
+/// 唯一能碰习惯模块的地方（守 R1）。
+/// 返回 null ＝ 名字对不上任何在册习惯（＝目标失效，调用方走失效分支）。
+Future<NfcHabitCheck?> nfcHabitCheckIn(String? habitName, [Database? db]) async {
+  final want = nfcStripEmoji(habitName ?? '');
+  if (want.isEmpty) return null;
+  final rows = await habitOptionList(db);
+  String? id;
+  for (final h in rows) {
+    if (nfcHabitDisplayName(h.name) == want) {
+      id = h.id;
+      break;
+    }
+  }
+  if (id == null) return null;
+  final r = await habitCheckInById(id, db: db);
+  if (r == null) return null;
+  return NfcHabitCheck(
+    checked: r.checked,
+    already: r.already,
+    // 回执用**剥离后**的名字（NFC 模块零 emoji）。
+    name: nfcHabitDisplayName(r.name),
+    streak: r.streak,
+  );
+}
+
 /// 一个可绑定的宝宝档案（「呵护宝宝」一级 · 批1b §3-3）。
 class NfcBabyOption {
   const NfcBabyOption({required this.id, required this.name});

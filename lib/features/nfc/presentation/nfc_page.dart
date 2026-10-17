@@ -10,6 +10,7 @@ import '../../../shared/linkage/nfc_mounts.dart';
 import '../data/nfc_repo.dart';
 import '../domain/nfc_card.dart';
 import 'nfc_sheets.dart';
+import 'nfc_tag_tool_sheet.dart';
 import 'nfc_write_sheet.dart';
 
 /// 「NFC 卡片」管理屏（原型 `p-sub-nfc`，家＝壳 `index.html`；本屏 Flutter 侧）。
@@ -147,7 +148,11 @@ class _NfcSettingsPageState extends ConsumerState<NfcSettingsPage> {
     }
   }
 
-  Future<void> _openSettings() => showNfcSettingsSheet(context, prefs: _prefs);
+  Future<void> _openSettings() async {
+    final openTool = await showNfcSettingsSheet(context, prefs: _prefs);
+    // 「贴卡设置」里点了「卡片内容」⇒ 本层关掉后再开工具层（同一时刻只留一层）。
+    if (openTool && mounted) await showNfcTagToolSheet(context);
+  }
 
   @override
   Widget build(BuildContext context) {
