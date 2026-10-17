@@ -136,13 +136,26 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="lh"/>
             </intent-filter>
-            <!-- NFC 卡片模块批2（冻结档 §4.4 贴卡两制 · C36/C37）：
-                 标签里写的是 `lh://nfc/<cardId>`（TNF absoluteUri 单条记录），
-                 系统读到 NDEF 后按 action=NDEF_DISCOVERED + data.scheme/host 派发，
-                 与上面 `ACTION_VIEW lh://` **共用同一解析分支**（handle → enqueueLaunch）。
-                 host 固定 `nfc`：把「本应用的标签」与其他 App 的 lh:// 链接在系统层择开，
-                 减少误唤起（更深一层的「是不是本机卡片」判定归 Dart 侧查表）。 -->
-            <intent-filter android:autoVerify="false">
+            <!-- NFC 卡片模块批3c（2026-10-17）：NDEF_DISCOVERED 过滤器**已移到
+                 NfcRelayActivity**（下方透明中转界面）。原先挂在主界面上时，系统一贴卡
+                 就把主界面拉到前台（真机 logcat 实测 `Displayed +261ms`），用户看到
+                 「闪一下 App 页面」；对照同类 App 的做法是让事件落在不显示界面的
+                 Activity 上。标签内容（`lh://nfc/<cardId>`）不变，已写好的卡无需重写。 -->
+        </activity>
+        <!-- NFC 卡片模块批3c：贴卡**透明中转界面**。
+             职责只有一件：把 `lh://nfc/<cardId>` 解析出来投给 Dart（引擎活着时）
+             或转交主界面（进程被杀时），然后立刻 finish——主界面全程不启动。
+             配置要点：透明主题（NfcRelayTheme）＋独立 task（taskAffinity 空，避免把
+             App 的 task 一并带到前台）＋不进最近任务＋不留历史。 -->
+        <activity
+            android:name=".NfcRelayActivity"
+            android:exported="true"
+            android:theme="@style/NfcRelayTheme"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:scheme="lh" android:host="nfc"/>

@@ -15,4 +15,16 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <!-- NFC 贴卡透明中转界面（批3c · 2026-10-17）。
+         对照同类 App 实测：贴卡要「零闪现」，NDEF 事件就必须落在一个**不显示界面**的
+         Activity 上——透明背景、无动画、不压暗、不进最近任务。处理完立刻 finish，
+         主界面全程不启动。见 NfcRelayActivity 顶部注释。 -->
+    <style name="NfcRelayTheme" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

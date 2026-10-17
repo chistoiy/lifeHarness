@@ -89,6 +89,13 @@ class MainActivity : FlutterActivity() {
         super.onPause()
     }
 
+    override fun onDestroy() {
+        // 批3c：引擎随本 Activity 销毁 ⇒ 清掉引用，中转界面据此走冷启动分支
+        // （否则会往已死的引擎投递，贴卡静默丢失）。
+        engineRef = null
+        super.onDestroy()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 6133 热修：系统悬浮窗的显隐由原生自测「本进程有没有已 start 的
@@ -182,6 +189,8 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // 批3c：透明中转界面（NfcRelayActivity）靠这个引用把贴卡事件直投 Dart。
+        engineRef = flutterEngine
         handle(intent)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "lh/intents"
@@ -277,7 +286,7 @@ class MainActivity : FlutterActivity() {
         // 系统设置页；先例＝本文件 requestOverlayPermission（同为系统设置页跳转）。
         // 通道只此一个方法，**不含任何业务**——NFC 业务一律在 Dart 侧。
         MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger, "lh/nfc"
+            flutterEngine.dartExecutor.binaryMessenger, NFC_CHANNEL
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "openSettings" -> {
@@ -843,6 +852,21 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
+        /**
+         * `lh/nfc` 通道名：NFC 设置页跳转（Dart→原生）＋ 贴卡事件投递（原生→Dart，
+         * 由透明中转界面 [NfcRelayActivity] 使用）。**禁第二处字面量**。
+         */
+        const val NFC_CHANNEL = "lh/nfc"
+
+        /**
+         * 当前 FlutterEngine 引用（批3c）：透明中转界面拿它把贴卡事件**直投 Dart**。
+         *
+         * 非空＝App 进程还在（引擎活着）⇒ 零闪现路径；为空＝进程刚起来 ⇒ 走冷启动。
+         * 在 [configureFlutterEngine] 赋值、[onDestroy] 清空。
+         */
+        @Volatile
+        var engineRef: FlutterEngine? = null
+
         private const val REQ_SAF_SAVE = 0x5AF1
         private const val REQ_SAF_TREE = 0x5AF3
         private const val REQ_SAF_FILES = 0x5AF4

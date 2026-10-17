@@ -6,12 +6,14 @@ import 'package:go_router/go_router.dart';
 
 import 'core/ai/ai_review.dart' show aiRootNavKey;
 import 'core/logging/app_log.dart' show AppLog, LhLogLine;
+import 'core/platform/desktop_actions.dart' show LaunchRoute;
 import 'core/platform/launch_route.dart'
     show markLaunchRouteReady, moveTaskToBack, takeLaunchRoute;
 import 'core/platform/open_intent.dart'
     show classifyOpenIntent, kOpenUnsupportedToast, takeOpenFile;
 import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
+import 'features/nfc/data/nfc_tag_io.dart' show kNfcChannel;
 import 'features/nfc/data/nfc_trigger.dart'
     show NfcTriggerOutcome, nfcHandleLaunch, nfcTriggerDepsOf;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
@@ -54,6 +56,8 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 批3c：接住透明中转界面直投的贴卡事件（进程活着时的零闪现路径）。
+    _listenNfcRelay();
     // 批B：系统悬浮窗同步器保活（listenManual＝订阅但不重建 UI；
     // 内部挂秒级 ticker，逐 tick 推内容/收视图/消费 ■结束 事件）。
     ref.listenManual(sysPillSyncProvider, (_, _) {});
@@ -72,6 +76,7 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
 
   @override
   void dispose() {
+    kNfcChannel.setMethodCallHandler(null);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -153,37 +158,7 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       // await 之后再复查一次：这中间可能已退出页面/销毁 Navigator。
       if (!navCtx.mounted) return;
       if (route.isNfc) {
-        // NFC 卡片模块批2：贴卡触发链（冻结档 §4.4）。总闸/去抖/查表/失效/确认/执行
-        // 全在 nfc_trigger 内；本处只负责组装 ref/host（C32/B31：自取，不接受外部 context）。
-        // 兜底：触发链内部已各自静默，这里的 catch 只防「未预期异常把冷启动消费打断」，
-        // 落 AppLog 供真机排障（不弹层不 toast——贴卡是一次性动作，报错也不该打断用户）。
-        try {
-          // ⚠ 批3c 真机实测（2026-10-17 · logcat 证据）：「执行前先退」这条路走不通——
-          // NDEF 派发会先把本 App 的窗口画出来（`Displayed +261ms`），而那一刻调
-          // `moveTaskToBack` 移的是**当前前台 task（com.android.nfc 的中转 task）**，
-          // 本 App 的窗口照样显示；反倒让冷启动也闪（查库耗时把窗口留在了屏幕上）。
-          // 所以恢复「执行完再退」，闪的彻底解法只能靠窗口级中转（待产品拍板）。
-          final outcome = await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
-          // 排障留痕：只记结果枚举，无卡号/指纹（不在 C11 红线内）。真机复现
-          // 「贴卡没反应／没横幅」时，到 App 内日志页看这一行就知道走到了哪一支。
-          AppLog.add('NFC 贴卡结果：$outcome（fromBackground=${route.fromBackground}）',
-              src: LhLogLine.srcSystem);
-          // 批3（2026-10-17 产品令）：**「没办成需要看界面的事」的结果一律退回原处**——
-          // 贴卡时用户本来在桌面，系统却因 AAR 把本 App 拉到前台（Android 硬限制：
-          // NFC 事件必须交给某个组件）。已执行完的静默动作、要补绑的、目标失效的、
-          // 以及总闸关等完全静默的，都不该把用户留在 App 里；结果由横幅/toast 呈现。
-          // `nav.*`（记一笔等）不适用——它的目的就是打开某个页面；未识别卡也不适用
-          // （B8 绑定引导需要留在 `/nfc`）。
-          if (route.fromBackground &&
-              (outcome == NfcTriggerOutcome.executedSilent ||
-                  outcome == NfcTriggerOutcome.needsRebind ||
-                  outcome == NfcTriggerOutcome.targetGone ||
-                  outcome == NfcTriggerOutcome.silent)) {
-            await moveTaskToBack();
-          }
-        } catch (e) {
-          AppLog.reportError('NFC 贴卡触发失败：$e', src: LhLogLine.srcSystem);
-        }
+        await _runNfcRoute(route);
         return;
       }
       // 目标路由查不到 → 走 unknownRouteFallback（B4），不抛 GoException。
@@ -201,6 +176,54 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       AppLog.reportError('启动路由消费失败：$e', src: LhLogLine.srcSystem);
     } finally {
       _launchConsuming = false;
+    }
+  }
+
+  /// 接收**透明中转界面**（原生 `NfcRelayActivity`）推来的贴卡事件（批3c）。
+  ///
+  /// App 进程活着时，系统的 NDEF 派发落在那个透明界面上，它把 `nfc:<cardId>` 直接
+  /// 推到这里——**主界面全程不出现**，所以贴卡零闪现（对照同类 App 实测做法）。
+  /// 进程被杀时走原生的冷启动分支（转交主界面），不会进到这里。
+  void _listenNfcRelay() {
+    kNfcChannel.setMethodCallHandler((call) async {
+      if (call.method != 'dispatch') return null;
+      final args = call.arguments;
+      final action = args is Map ? args['action'] as String? : null;
+      if (action == null || action.isEmpty) return null;
+      await _runNfcRoute(LaunchRoute(
+        action: action,
+        fromBackground: args is Map && args['fromBackground'] == true,
+      ));
+      return null;
+    });
+  }
+
+  /// 贴卡触发链的统一执行入口（两条来源：原生启动队列 / 透明中转直投）。
+  ///
+  /// 总闸/去抖/查表/失效/确认/执行全在 `nfc_trigger` 内；本处只负责组装 ref/host
+  /// （C32/B31：自取，不接受外部 context），并按结果决定要不要把界面让回去。
+  Future<void> _runNfcRoute(LaunchRoute route) async {
+    final navCtx = _rootNavContext();
+    if (navCtx == null) return;
+    try {
+      final outcome = await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
+      // 排障留痕：只记结果枚举，无卡号/指纹（不在 C11 红线内）。真机复现
+      // 「贴卡没反应／没横幅」时，到 App 内日志页看这一行就知道走到了哪一支。
+      AppLog.add('NFC 贴卡结果：$outcome（fromBackground=${route.fromBackground}）',
+          src: LhLogLine.srcSystem);
+      // 批3（2026-10-17 产品令）：**「没办成需要看界面的事」的结果一律退回原处**。
+      // 透明中转路径下 App 本来就没到前台，这一步无害（等于再确认一次）。
+      // `nav.*`（记一笔等）不适用——它的目的就是打开某个页面；未识别卡也不适用
+      // （B8 绑定引导需要留在 `/nfc`）。
+      if (route.fromBackground &&
+          (outcome == NfcTriggerOutcome.executedSilent ||
+              outcome == NfcTriggerOutcome.needsRebind ||
+              outcome == NfcTriggerOutcome.targetGone ||
+              outcome == NfcTriggerOutcome.silent)) {
+        await moveTaskToBack();
+      }
+    } catch (e) {
+      AppLog.reportError('NFC 贴卡触发失败：$e', src: LhLogLine.srcSystem);
     }
   }
 
