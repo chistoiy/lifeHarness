@@ -65,6 +65,7 @@ class NotificationService {
       ready = await plugin.initialize(settings) ?? false;
       if (ready) {
         AppLog.addKey('通知初始化：平台就绪');
+        await _clearLegacyNfcRecord();
       } else {
         AppLog.add('通知初始化：插件未就绪，全部提醒降级为不排程',
             level: LhLevel.warn);
@@ -225,34 +226,24 @@ class NotificationService {
     }
   }
 
-  // ---- 贴卡记录（批3e · 自绘横幅成功后的「静默留档」）----
+  // ---- 贴卡记录：**已废止**（2026-10-17 产品令：通知栏不留条目）----
 
-  /// 自绘悬浮横幅弹成功时，另发一条**静默**通知留档（2026-10-17 真机报障）。
-  ///
-  /// 为什么另开一条 low 渠道：横幅已经负责「看得见」，通知只负责「事后查得到」，
-  /// 不能再响一声、也不能再抢一次屏。渠道重要性一经创建不可改，故与
-  /// [nfcReceiptId] 分开建。
-  static const int nfcRecordId = 900007;
+  /// 批3e 曾用「静默留档」渠道 `nfc_record` 给自绘横幅补一条通知栏记录，产品看过
+  /// 真机效果后明确不要——横幅已经够了，通知栏再留一条就是重复打扰。渠道与条目
+  /// 都撤掉，只留这里的一次性清理：已发出去的条目会跨版本留存、渠道也留在系统设置
+  /// 里，升级后主动撤一次。**渠道 id `nfc_record` 属历史值，勿再复用**。
+  static const int _legacyNfcRecordId = 900007;
 
-  static const _nfcRecordCh = AndroidNotificationDetails(
-    'nfc_record',
-    '贴卡记录',
-    channelDescription: '贴卡执行结果的静默留档（不响铃、不弹横幅）',
-    importance: Importance.low,
-    priority: Priority.low,
-  );
-
-  static Future<void> showNfcRecord({required String text}) async {
-    if (!ready) return;
+  static Future<void> _clearLegacyNfcRecord() async {
     try {
-      await plugin.show(
-        nfcRecordId,
-        '贴卡',
-        text,
-        const NotificationDetails(android: _nfcRecordCh),
-      );
+      await plugin.cancel(_legacyNfcRecordId);
+      await plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.deleteNotificationChannel('nfc_record');
     } catch (e) {
-      AppLog.add('贴卡记录通知展示失败：$e', level: LhLevel.error);
+      // 清理失败不影响任何业务；下次启动会再试。
+      AppLog.add('清理旧「贴卡记录」通知失败：$e', level: LhLevel.warn);
     }
   }
 

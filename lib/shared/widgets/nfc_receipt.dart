@@ -59,13 +59,13 @@ Future<void> nfcReceiptLater(
 ///
 /// 为什么不信系统 Heads-Up：真机（HyperOS）上 high 渠道的通知只进通知栏不上浮
 /// （`dumpsys` 里 importance=4 已核），ROM 层静默且系统无强制手段。自绘悬浮窗与
-/// 悬浮胶囊同一套机制，真机可证可用。横幅弹成功时另发一条**静默记录**进通知栏
-/// （importance=low），这样「看得见」与「查得到」两件事都成立且不重复打扰。
+/// 悬浮胶囊同一套机制，真机可证可用。
+///
+/// 横幅弹成功时**不再往通知栏写任何条目**（2026-10-17 产品令：通知栏不留条目）——
+/// 用户只认那条横条，再留一条静默记录就是重复打扰。系统通知**只**在横幅根本弹不
+/// 出来（无悬浮窗权限／ROM 拒绝加窗）时兜底，宁可少一条回执也不能彻底没回执。
 Future<void> nfcBannerOrNotify(String msg) async {
   if (msg.trim().isEmpty) return;
-  if (await nfcShowBanner(msg)) {
-    await NotificationService.showNfcRecord(text: msg);
-    return;
-  }
+  if (await nfcShowBanner(msg)) return;
   await NotificationService.showNfcReceipt(text: msg);
 }
