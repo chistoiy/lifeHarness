@@ -105,12 +105,18 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
     if (_launchConsuming) return;
     _launchConsuming = true;
     try {
+      // ⚠ **先查根 Navigator 就绪、再 take**（2026-10-17 真机排障发现）：
+      // `takeLaunchRoute` 是**单次消费**（原生读即清空），先 take 后查会把路由
+      // 白白吃掉——冷启动首帧窗口内 `navCtx` 可能仍为 null，那一刻 take 出来的
+      // 意图既没执行也没法重试，表现为「贴卡把 App 拉起来了但什么都没发生」，
+      // 且违反 B31「冷启动贴有状态卡，计时必须落库」。顺序反过来＝没就绪就
+      // 不取，意图原样留在原生队列里，下一轮（首帧后／回前台）自然取到。
+      final navCtx = aiRootNavKey.value?.currentState?.context;
+      if (navCtx == null || !navCtx.mounted) return;
       final route = await takeLaunchRoute();
       if (route == null) return;
-      final navCtx = aiRootNavKey.value?.currentState?.context;
-      if (navCtx == null || !navCtx.mounted) {
-        return;
-      }
+      // await 之后再复查一次：这中间可能已退出页面/销毁 Navigator。
+      if (!navCtx.mounted) return;
       if (route.isNfc) {
         // NFC 卡片模块批2：贴卡触发链（冻结档 §4.4）。总闸/去抖/查表/失效/确认/执行
         // 全在 nfc_trigger 内；本处只负责组装 ref/host（C32/B31：自取，不接受外部 context）。
