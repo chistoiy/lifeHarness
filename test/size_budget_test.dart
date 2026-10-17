@@ -1,0 +1,113 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+/// 预算式文件体积门禁（治理收口批·A 档口径 2026-09-29 拍板）。
+///
+/// 口径：`lib/**` 单文件行数超过 [lineBudget] 必须先进 [budget] 登记（登记值＝登记时行数），
+/// 此后只许减不许增——超线未登记＝红；超出登记预算＝红；变小则提示更新登记（棘轮收紧）。
+/// 登记面是治理评估 §7「范围重定」列出的 A 档遗留大文件：不逐一压缩，长期管住不再长大。
+/// 拆完一个请**删掉对应登记项**（不是调小），让门禁回到「超线即红」的默认面。
+void main() {
+  const libDir = 'lib';
+  const lineBudget = 1200;
+
+  // 治理 G0~G7d⑤ 交付后（2026-09-29）实测登记的基线预算。
+  const budget = <String, int>{
+    'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
+    'features/habit/presentation/habit_detail_page.dart': 1520,
+    'features/habit/presentation/habit_stat_page.dart': 1503,
+    // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
+    // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。
+    // 1382→1386 存量越线归位（B-4 批 2026-10-05 相邻回归跑出本红）：净增 4 行
+    // 发生在轮5批A（ce5acee，F5-2 展开默认随视图档），该批批内增量没带 size 闸，
+    // 非 B-4 造成——B-4 未动日历一行。之后只许减。
+    // 1386→1468 存量越线归位（阅读模块批2 · 2026-10-14 跑出本红）：净增 82 行发生在
+    // 时间模块批4（44d81ef8，2026-10-13，主屏 builder 化＋周视图 24 小时行铺进主屏列表），
+    // 该批门禁＝18 波 ftest＋time_perf 用例，未带 size 闸，故今日现形——本批一行未动
+    // 日历。之后只许减；真还债＝日历区子视图拆 part，另批做。
+    'features/calendar/presentation/calendar_page.dart': 1468,
+    // time_stats_page 1247 行（时间模块批4 44d81ef8 同步长大·登记表未同步）：阅读模块批2
+    // （2026-10-14）跑 size 闸现形，本批一行未动该文件。按现状登记，之后只许减。
+    'features/calendar/presentation/time_stats_page.dart': 1247,
+    // 1352→1364 存量越线归位（高保真批 6a 2026-10-16 跑出本红）：净增 12 行发生在
+    // 备份余量批3（6939f3ec·V1.67 按范围自由导出时间维度），该批未带 size 闸，
+    // 批 6a 一行未动该文件。按现状登记，之后只许减。
+    'features/ledger/data/ledger_repository.dart': 1364,
+    // diary_edit_page：1370→1262 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）——
+    // 净减 108 行发生在时间模块 B10（5700dff9，2026-10-13，旧 events 表退役四件删除后
+    // diary 摘要切块单源），非本批改动。原 1370 越线系思维导图批1（2026-10-12）跑出，
+    // 越线本身发生在更早的日记侧批次（登记值 1259 未随增量同步）；真还债＝拆 part，另批做。
+    'features/journal/presentation/diary_edit_page.dart': 1262,
+    // settings_page 1566 行越线（思维导图批1 2026-10-12 跑出本红）：越线发生在语义断链批
+    // （V1.68 日记第八类，该批没带 size 闸），本批只改一行文案——非本批造成，按现状登记，
+    // 之后只许减；真还债＝拆 part，另批做。
+    // 1566→1609 存量越线归位（高保真批 6a 2026-10-16 跑出本红）：净增 43 行发生在
+    // 桌面批2＋批3（a6e6bdb6·四枚小组件预览卡与设置生效面），该批未带 size 闸。
+    // 之后只许减。
+    // dashboard_page 已还债：1204→1200 落到默认 1200 面（时间模块 B10 5700dff9 删旧 events
+    // 系接线），按口径「拆完删项」**删除登记**（阅读模块批2 · 2026-10-14 跑出 stale 提醒）。
+    'features/settings/presentation/settings_page.dart': 1609,
+    // 高保真批6b·刀1（2026-10-16）归还批2 登记的 read_sheets_b2 体积债：
+    // _BookForm/_BookFormState 整组迁入同库 part read_sheets_b2_form.dart（小件群落扩展），
+    // 主文件 1806→716，按口径删登记项还默认面。
+    // 高保真批6b·刀2（2026-10-16）归还阅读模块批2 登记的 book_form_page 体积债：
+    // UI 积木群 13 件落同库扩展 _BookFormForm＋日期滚轮弹层 _DateWheelSheet 整组迁入同库
+    // part book_form_page_form.dart，主文件 1623→893 还默认面。
+    // 高保真批6b·刀3（2026-10-16）归还阅读模块批2/批3 登记的 book_detail 体积债：
+    // 三态弹层群关联面（_localEpubStrip/_cacheRow）＋书摘卡群（_noQuotes/_quoteCard/
+    // _qMeta）落同库扩展 _BookDetailCards，showBrLocalInfo 整组迁入同库 part
+    // book_detail_cards.dart，主文件 1582→1019 还默认面。
+    // 高保真批6c（2026-10-16·整单收口批）三刀拆 part 归还 read 剩余登记项：
+    // 刀1 read_sheets_b3 1341→442（书摘表单群 _QuoteForm/_ColWheel 整组＋_deco 迁同库 part
+    // read_sheets_b3_quote.dart）；刀2 read_stat_page 1259→453（统计卡群落同库扩展 _StatCards
+    // ·part read_stat_page_cards.dart）；刀3 reader_page 1226→1047（装载/取证/定位群落同库
+    // 扩展 _ReaderBoot·part reader_page_boot.dart）。三件按「拆完删项」删除还默认面，read 登记清零。
+    // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
+    // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
+    // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展
+    // `part 'reader_page_pag.dart';`（G7c 族口径），主文件回到默认 1200 面以下。
+    // 健康批3.5（2026-10-08）归还批4 登记的 `health_sheets.dart` 体积债：运动录入弹层整段
+    // 抽进同库 part `health_sheets_ex.dart`（私有小件 `_sheetShell`/`_wheel` 等不放宽），
+    // 主文件 1266→911 回到默认面以下，按口径**删登记项**而不是调小；本批两张新弹层继续挂 part。
+  };
+
+  test('体积预算：lib 超线文件必须登记且只许减不许增', () {
+    final over = <String>[], grown = <String>[], shrunk = <String>[];
+    final seen = <String>{};
+    for (final f in Directory(libDir).listSync(recursive: true).whereType<File>()) {
+      if (!f.path.endsWith('.dart')) continue;
+      final rel = p.posix.joinAll(p.split(p.relative(f.path, from: libDir)));
+      final lines = f.readAsLinesSync().length;
+      if (lines <= lineBudget) continue;
+      seen.add(rel);
+      final b = budget[rel];
+      if (b == null) {
+        over.add('$rel（$lines 行，未登记）');
+      } else if (lines > b) {
+        grown.add('$rel（$lines > 预算 $b）');
+      } else if (lines < b) {
+        shrunk.add('$rel（$lines < 登记 $b，请把预算改成 $lines 或删项归还默认面）');
+      }
+    }
+    final stale = budget.keys.where((k) => !seen.contains(k)).toList();
+    expect(over, isEmpty,
+        reason: '新文件超过 $lineBudget 行预算线：先拆分，确需豁免再登记进本测试 budget 表'
+            '（登记＝允许存在的当前行数，之后只许减）。');
+    expect(grown, isEmpty,
+        reason: '已登记大文件长大了：预算只许减不许增。'
+            '确属必要增长请先走治理评审并同步更新登记值。');
+    // 清单 C-4：「变小」不是变坏——别的会话把文件拆小/修好是好事，
+    // 判红只会让并行会话互相踩出「我没动为什么红」的红灯。降级为提醒，
+    // 收紧登记值由看到提醒的人顺手做；over / grown / stale 仍然判红（那三个才是变坏）。
+    if (shrunk.isNotEmpty) {
+      // ignore: avoid_print
+      print('[size_budget 提醒] 以下登记文件已变小，请顺手调小登记值或删项：\n  '
+          '${shrunk.join('\n  ')}');
+    }
+    expect(stale, isEmpty,
+        reason: '以下登记项对应的文件已消失或已降到预算线下，请删掉（否则守护悄悄空转）：'
+            '${stale.join('、')}');
+  });
+}

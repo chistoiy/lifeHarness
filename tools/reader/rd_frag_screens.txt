@@ -1,0 +1,276 @@
+  <!-- ===================== 阅读器模块（V1.49 专版新增） ===================== -->
+  <style>
+  /* ---- 阅读器专用样式（追加段，勿回改上方既有样式） ---- */
+  #p-readerPage{background:#000}
+  .rd-stage{position:absolute;inset:0;overflow:hidden;transition:background .25s}
+  .rd-scroll{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .rdp{text-indent:2em;margin:0 0 .85em;word-break:break-all}
+  .rdp-h{font-weight:800;text-indent:0;margin:1.1em 0 .8em;font-size:1.25em;line-height:1.5}
+  .rdp-q{border-left:3px solid currentColor;opacity:.85;padding-left:.8em;text-indent:0;font-style:normal;margin:0 0 .95em}
+  .rdp-i{text-indent:0;margin:0 0 1em}
+  .rdp-i .rd-fig{width:100%;border-radius:10px;display:block}
+  .rdp-i figcaption{text-align:center;font-size:.62em;opacity:.55;margin-top:6px;text-indent:0}
+  .rdhl{border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .rd-dot{display:inline-block;width:8px;height:8px;border-radius:99px;background:#f97316;margin-left:4px;vertical-align:middle}
+  .rd-cur{background:rgba(99,102,241,.28);border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .rd-hit{outline:2px solid rgba(99,102,241,.65);border-radius:4px}
+  .rd-link{text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+  .rd-chrome{background:rgba(15,23,42,.86);backdrop-filter:blur(8px);color:#e2e8f0}
+  html.dark .rd-chrome,.rd-dark .rd-chrome{background:rgba(2,6,23,.92)}
+  #rdSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28)}
+  #rdSelBar .sdb{padding:9px 10px;border-radius:10px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;cursor:pointer}
+  #rdSelBar .sdb:active{background:rgba(148,163,184,.18)}
+  .rd-range{width:100%;accent-color:var(--accent);height:26px}
+  .rd-themecard{border:2px solid transparent;opacity:.55;cursor:pointer;transition:.15s}
+  .rd-themecard.on{border-color:var(--accent);opacity:1;box-shadow:0 0 0 3px rgba(99,102,241,.14)}
+  .rd-fs{border:2px solid #e2e8f0}.dark .rd-fs{border-color:#334155}
+  .rd-fs.on{border-color:var(--accent)!important;background:rgba(99,102,241,.08)}
+  .rd-zone{-webkit-tap-highlight-color:transparent}
+  .rd-swig{animation:rdSwig .22s ease}@keyframes rdSwig{from{transform:translateX(var(--sw,24px));opacity:.2}to{transform:none;opacity:1}}
+  .rd-pulse{width:7px;height:7px;border-radius:99px;background:var(--accent);animation:rdPl 1.6s infinite}@keyframes rdPl{0%,100%{opacity:1}50%{opacity:.25}}
+  </style>
+
+  <!-- ===== R1 书架（阅读器·首屏控制盘） ===== -->
+  <section id="p-readerShelf" class="page px-5 safe-pb no-scrollbar">
+    <div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20 mt-1">
+      <div class="flex items-center justify-between">
+        <b class="text-sm">我的书架 · <span id="rdShCount">0</span> 本</b>
+        <span class="text-[10px] bg-white/20 rounded-full px-2 py-0.5">仅本地 EPUB · 无书城</span>
+      </div>
+      <div class="mt-3 grid grid-cols-4 text-center gap-1">
+        <div><b class="text-lg font-black" id="rdHToday">—</b><div class="text-[9px] opacity-70">今日阅读</div></div>
+        <div><b class="text-lg font-black" id="rdHDoing">—</b><div class="text-[9px] opacity-70">在读</div></div>
+        <div><b class="text-lg font-black" id="rdHDone">—</b><div class="text-[9px] opacity-70">读完</div></div>
+        <div><b class="text-lg font-black" id="rdHMark">—</b><div class="text-[9px] opacity-70">高亮·批注</div></div>
+      </div>
+      <div class="mt-3 grid grid-cols-5 gap-1 text-center text-[10px]">
+        <button class="bg-white/15 rounded-xl py-2 active:bg-white/25" onclick="navTo('p-readerImport')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mx-auto"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>导入</button>
+        <button class="bg-white/15 rounded-xl py-2 active:bg-white/25" onclick="rdGotoNotes(-1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mx-auto"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7M8 17h4"/></svg>批注</button>
+        <button class="bg-white/15 rounded-xl py-2 active:bg-white/25" onclick="rdStatsAll()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mx-auto"><path d="M4 20V10m6 10V4m6 16v-7"/><path d="M2 20h20"/></svg>统计</button>
+        <button class="bg-white/15 rounded-xl py-2 active:bg-white/25" onclick="openSheet('sheetRtAppearance');rdApOpen('global')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mx-auto"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2"/></svg>外观</button>
+        <button class="bg-white/15 rounded-xl py-2 active:bg-white/25" onclick="navTo('p-readerSettings')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mx-auto"><path d="M4 7h16M4 12h10M4 17h7"/></svg>设置</button>
+      </div>
+    </div>
+    <button id="rdResumeBtn" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition !py-3" onclick="rdResume()">
+      <div id="rdResumeCover" class="w-9 h-13 rounded-lg shrink-0 bg-gradient-to-br from-slate-700 to-slate-900"></div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-bold truncate" id="rdResumeT">继续上次阅读</div>
+        <div class="text-[11px] text-slate-400" id="rdResumeSub">—</div>
+      </div>
+      <span class="rd-pulse"></span><span class="mini-btn !text-[11px]">继续</span>
+    </button>
+    <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar" id="rdStatusChips"></div>
+    <div class="mt-2.5 flex items-center gap-2">
+      <div class="flex-1 relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        <input id="rdShelfQ" class="w-full card !py-2 pl-9 text-xs font-medium outline-none bg-white dark:bg-slate-900" placeholder="搜索书名 / 作者" oninput="rdRenderShelf()">
+      </div>
+      <button id="rdViewBtn" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="切换 封面/列表" onclick="rdToggleView()">▦</button>
+    </div>
+    <div id="rdSelTop" class="hidden pt-3 items-center"><b class="text-[16px] font-black">已选 <span id="rdSelN" class="text-brand-500">0</span> 本</b><span class="text-[10px] text-slate-400 ml-2">返回键先退出多选</span></div>
+    <div id="rdShelfList" class="mt-3 pb-24"></div>
+    <div class="mt-2 text-[10px] text-slate-400 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/><path d="M12 8v5m0 3h.01"/></svg>不打开加密（DRM）书籍 · PDF 由独立模块承载 · 批注同步笔记库（联动 L18）</div>
+    <div id="rdSelBar2" class="hidden absolute left-4 right-4 bottom-20 z-40 rounded-2xl bg-slate-900/95 text-white p-2.5 flex items-center gap-2 shadow-xl">
+      <span class="text-xs font-bold flex-1">已选 <b id="rdSelN2">0</b> 本</span>
+      <button class="text-[11px] font-bold bg-white/15 rounded-lg px-3 py-1.5" onclick="rdBulkDelete()">删除</button>
+      <button class="text-[11px] font-bold bg-white/15 rounded-lg px-3 py-1.5" onclick="rdBulkDone()">标记读完</button>
+      <button class="text-[11px] text-white/60 px-2" onclick="rdExitSel()">取消</button>
+    </div>
+  </section>
+
+  <!-- ===== R2 导入 EPUB（四步向导） ===== -->
+  <section id="p-readerImport" class="page px-5 safe-pb no-scrollbar">
+    <div class="flex items-center gap-1.5 mt-1 mb-3" id="rdImpSteps"></div>
+    <!-- ① 存储授权（Android 13+） -->
+    <div id="rdImp1" class="hidden">
+      <div class="card">
+        <div class="flex items-center gap-2.5"><span class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5v5C4 16.5 7.4 20 12 21.5 16.6 20 20 16.5 20 11.5v-5z"/><path d="m9 12 2 2 4-4.5"/></svg></span>
+        <div class="flex-1"><div class="text-sm font-bold">Android 13+ · 无需「所有文件访问」</div><div class="text-[11px] text-slate-400 mt-0.5">通过系统文件选择器（SAF）读取所选 EPUB，应用只拿到该文件本身</div></div></div>
+        <div class="mt-3 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-5">
+          <div>· 13+：一次性读取授权，不落存储权限</div>
+          <div>· 12 及以下：仅申请单次读文件权限</div>
+          <div>· 全程本地解析，不上传、不联网下载书籍</div>
+        </div>
+        <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold active:scale-[.99]" onclick="rdImpNext(2)">允许访问手机存储 · 选择文件</button>
+      </div>
+      <div class="mt-3 card">
+        <div class="row-title text-sm font-extrabold">支持范围</div>
+        <div class="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 p-2.5 leading-5"><b>EPUB 2 / EPUB 3</b><br>图文混排 · 内/外链 · 目录</div>
+          <div class="rounded-xl bg-rose-50 dark:bg-rose-500/10 p-2.5 leading-5"><b>不支持</b><br>DRM 加密书 · PDF（独立模块）</div>
+        </div>
+      </div>
+    </div>
+    <!-- ② 选文件 -->
+    <div id="rdImp2" class="hidden">
+      <div class="flex items-center gap-1 text-[11px] text-slate-400 mb-2"><button class="font-bold" onclick="rdImpDir('download')">下载</button><span>/</span><button id="rdImpDirDocs" onclick="rdImpDir('docs')">文档</button><span>· 手机存储</span></div>
+      <div id="rdImpFiles" class="space-y-2.5"></div>
+      <div class="mt-3 text-[10px] text-slate-400 text-center">加密书籍与 PDF 置灰不可选 · 点击即打开系统选择器（模拟）</div>
+    </div>
+    <!-- ③ 解析 -->
+    <div id="rdImp3" class="hidden">
+      <div class="card text-center py-8">
+        <div class="w-14 h-14 mx-auto rounded-2xl grad flex items-center justify-center text-white"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16.5H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A2 2 0 0 1 6 18h13v4H6a2 2 0 0 1-2-2.5z"/></svg></div>
+        <div class="font-extrabold mt-3 text-sm" id="rdImpFile">—</div>
+        <div class="mt-4 mx-5 text-left space-y-2 text-[11px]" id="rdImpStepsList"></div>
+        <div class="mt-4 mx-6 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span id="rdImpBar" class="block h-full grad transition-all" style="width:0%"></span></div>
+      </div>
+    </div>
+    <!-- ④ 元信息核对 -->
+    <div id="rdImp4" class="hidden">
+      <div id="rdImpDup" class="hidden mb-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20 p-3 text-[11px] leading-5 text-amber-700 dark:text-amber-400"></div>
+      <div class="flex gap-4">
+        <div id="rdImpCover" class="w-24 h-36 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white p-2.5 text-[9px] leading-[14px] font-bold shadow-lg shrink-0"></div>
+        <div class="flex-1 space-y-2">
+          <input id="rdFM_t" class="w-full card !py-2 text-sm font-bold outline-none" placeholder="书名">
+          <input id="rdFM_a" class="w-full card !py-2 text-xs outline-none" placeholder="作者">
+          <div class="text-[10px] text-slate-400">以上字段从 EPUB 元数据自动读取 · 可修改</div>
+        </div>
+      </div>
+      <div class="mt-3 space-y-2">
+        <div class="flex gap-2"><input id="rdFM_press" class="flex-1 card !py-2 text-xs outline-none" placeholder="出版社"><input id="rdFM_pub" class="w-28 card !py-2 text-xs outline-none" placeholder="出版日期"></div>
+        <input id="rdFM_isbn" class="w-full card !py-2 text-xs outline-none" placeholder="ISBN / 标识符">
+        <textarea id="rdFM_intro" rows="4" class="w-full card text-xs outline-none leading-5" placeholder="简介（从 OPF description 读取，可编辑）"></textarea>
+        <div class="card !py-2.5 flex items-center justify-between"><span class="text-xs font-bold">封面未嵌入时自动生成书名卡</span><span class="text-[10px] text-slate-400" id="rdImpFmtTag">EPUB3 · 图文混排</span></div>
+      </div>
+      <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold active:scale-[.99]" id="rdImpSave" onclick="rdImpCommit()">加入书架 · 开始阅读</button>
+      <div class="mt-2 text-[10px] text-slate-400 text-center">源文件保留原位 · 书架仅登记与缓存解析结果</div>
+    </div>
+  </section>
+
+  <!-- ===== R3 书籍资料页 ===== -->
+  <section id="p-readerBook" class="page px-5 safe-pb no-scrollbar">
+    <div id="rdBookBody"></div>
+  </section>
+
+  <!-- ===== R4 阅读主屏（全屏沉浸） ===== -->
+  <section id="p-readerPage" class="page !px-0 relative overflow-hidden">
+    <div class="rd-stage" id="rdStage">
+      <div class="rd-scroll" id="rdScroll">
+        <div id="rdBody" class="mx-auto"></div>
+      </div>
+      <button class="rd-zone absolute left-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="rdFlip(-1)" aria-label="上一页"></button>
+      <button class="rd-zone absolute right-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="rdFlip(1)" aria-label="下一页"></button>
+      <div class="rd-zone absolute inset-x-[16%] top-[15%] bottom-[15%] z-[9]" onclick="rdTapCenter()"></div>
+      <!-- 顶栏 -->
+      <div id="rdTop" class="rd-chrome hidden absolute top-0 inset-x-0 z-[70] px-3 pt-3 pb-2.5">
+        <div class="flex items-center gap-2">
+          <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="rdBack()" title="返回"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
+          <div class="flex-1 min-w-0 text-center"><div class="text-xs font-bold truncate" id="rdTopTitle">—</div><div class="text-[9px] opacity-60 truncate" id="rdTopSub">—</div></div>
+          <span id="rdSessChip" class="text-[9px] rounded-full px-1.5 py-0.5 bg-white/10 tabular-nums">00:00</span>
+          <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="navTo('p-readerSearch')" title="全书检索"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+          <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="openSheet('sheetRtMore')" title="更多"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+        </div>
+        <div id="rdHitsBar" class="hidden mt-2 flex items-center gap-2 text-[10px]"><span class="opacity-70" id="rdHitsLbl">0 处匹配</span><span class="flex-1"></span><button class="px-2 py-1 rounded-lg bg-white/10" onclick="rdHitGo(-1)">上一处</button><button class="px-2 py-1 rounded-lg bg-white/10" onclick="rdHitGo(1)">下一处</button><button class="px-2 py-1 rounded-lg text-white/60" onclick="rdClearHit()">✕</button></div>
+      </div>
+      <!-- 底栏 -->
+      <div id="rdBottom" class="rd-chrome hidden absolute bottom-0 inset-x-0 z-[70] px-4 pt-2 pb-3">
+        <div class="flex items-center gap-2 text-[9px] opacity-70"><span id="rdCFi" class="tabular-nums truncate max-w-[52%]">—</span><span class="flex-1"></span><span id="rdPgLbl">—</span></div>
+        <input type="range" min="0" max="100" value="0" class="rd-range mt-0.5" id="rdProg" oninput="rdSeek(this.value)" onchange="toast('已定位 · 阅读位置记忆已更新')">
+        <div class="flex items-center justify-between mt-1">
+          <button class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold" onclick="openSheet('sheetRtToc');rdTocRender()">目录</button>
+          <div class="flex items-center gap-1 text-[10px]">
+            <button class="px-2 py-1 rounded-lg bg-white/10 font-bold" onclick="rdFsNudge(-1)">A-</button>
+            <button class="px-2 py-1 rounded-lg bg-white/10 font-bold" onclick="rdFsNudge(1)">A+</button>
+            <button class="px-2 py-1 rounded-lg" onclick="rdThemeCycle()" id="rdThemeBtn">日间</button>
+            <button class="px-2 py-1 rounded-lg" onclick="rdModeToggle()" id="rdModeBtn">滚动</button>
+          </div>
+          <button class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold" onclick="openSheet('sheetRtAppearance');rdApOpen('book')">外观</button>
+        </div>
+      </div>
+      <!-- 选中浮出菜单 -->
+      <div id="rdSelBar" class="hidden absolute z-[72] rd-chrome rounded-2xl px-1.5 py-1">
+        <div class="flex items-center overflow-x-auto no-scrollbar max-w-[320px]" id="rdSelActs"></div>
+      </div>
+      <div id="rdColorPop" class="hidden absolute z-[73] rd-chrome rounded-xl px-2 py-2 flex items-center gap-2"></div>
+      <!-- 朗读条 -->
+      <div id="rdTts" class="hidden absolute bottom-14 inset-x-3 z-[69] rd-chrome rounded-2xl px-3 py-2.5">
+        <div class="flex items-center gap-2 text-[10px]">
+          <button class="w-8 h-8 rounded-full grad text-white flex items-center justify-center" onclick="rdTtsToggle()" id="rdTtsPlay"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+          <div class="flex-1 min-w-0"><b>朗读中 · <span id="rdTtsCh">—</span></b><div class="opacity-60 truncate" id="rdTtsNext">下一段：…</div></div>
+          <button class="px-1.5 py-1 rounded-lg bg-white/10" onclick="rdTtsRate()" id="rdTtsRate">1.0x</button>
+          <button class="text-white/60 px-1" onclick="rdTtsOff()">✕</button>
+        </div>
+      </div>
+      <!-- 章末过场提示 -->
+      <div id="rdToast2" class="hidden absolute left-1/2 -translate-x-1/2 bottom-28 z-[71] text-[10px] rd-chrome rounded-full px-3 py-1.5"></div>
+    </div>
+  </section>
+
+  <!-- ===== R5 全书检索 ===== -->
+  <section id="p-readerSearch" class="page px-5 safe-pb no-scrollbar">
+    <div class="flex items-center gap-2 mt-1">
+      <div class="flex-1 relative">
+        <input id="rdSq" class="w-full card !py-2.5 pl-9 pr-8 text-sm outline-none" placeholder="在本书中搜索关键词" oninput="rdSearchRender()">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        <button class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hidden" id="rdSqX" onclick="$('#rdSq').value='';rdSearchRender()">✕</button>
+      </div>
+    </div>
+    <div class="mt-2 text-[10px] text-slate-400 flex items-center gap-2"><span id="rdSInfo">输入关键词检索全书正文</span><span class="flex-1"></span><button class="seg-pill !text-[10px]" id="rdSAllBtn" onclick="rdToggleAllHits()">跨章高亮全开</button></div>
+    <div id="rdSHits" class="mt-3 space-y-2.5"></div>
+  </section>
+
+  <!-- ===== R6 批注与高亮总览 ===== -->
+  <section id="p-readerNotes" class="page px-5 safe-pb no-scrollbar">
+    <div id="rdNotesHead"></div>
+    <div class="mt-3 flex items-center gap-2">
+      <div class="flex gap-1.5 flex-1 overflow-x-auto no-scrollbar" id="rdNotesTabs"></div>
+      <button class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="导出" onclick="openSheet('sheetRtExport')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4m0 0L8 8m4-4 4 4"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg></button>
+    </div>
+    <div id="rdNotesSelTop" class="hidden pt-2 items-center"><b class="text-[15px] font-black">已选 <span id="rdNotesSelN" class="text-brand-500">0</span> 条</b></div>
+    <div id="rdNotesList" class="mt-3 space-y-2.5"></div>
+    <div class="mt-3 card !py-2.5 flex items-center gap-2 text-[11px]" id="rdNotesSync">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="flex-1" id="rdNotesSyncTxt">—</span>
+      <button class="link-act" onclick="rdGotoNoteLib()">查看笔记库</button>
+    </div>
+    <div id="rdNotesBar" class="hidden absolute left-4 right-4 bottom-20 z-40 rounded-2xl bg-slate-900/95 text-white p-2.5 flex items-center gap-2 shadow-xl">
+      <span class="text-xs font-bold flex-1">已选 <b id="rdNotesSelN2">0</b> 条</span>
+      <button class="text-[11px] font-bold bg-white/15 rounded-lg px-3 py-1.5" onclick="rdMarkSelRead()">标已读</button>
+      <button class="text-[11px] font-bold bg-rose-500/80 rounded-lg px-3 py-1.5" onclick="rdNotesBulkDel()">删除</button>
+      <button class="text-[11px] text-white/60 px-2" onclick="rdNotesExitSel()">取消</button>
+    </div>
+  </section>
+
+  <!-- ===== R7 阅读统计 ===== -->
+  <section id="p-readerStats" class="page px-5 safe-pb no-scrollbar">
+    <div id="rdStatsBody"></div>
+  </section>
+
+  <!-- ===== R8 阅读器设置 ===== -->
+  <section id="p-readerSettings" class="page px-5 safe-pb no-scrollbar">
+    <div class="mt-1 card">
+      <div class="row-title text-sm font-extrabold">外观与翻页</div>
+      <div class="mt-2 space-y-3 text-xs">
+        <button class="w-full flex items-center justify-between py-1 text-left" onclick="openSheet('sheetRtAppearance');rdApOpen('global')"><span class="font-bold">默认外观（全局）</span><span class="text-[10px] text-slate-400" id="rdSetApSum">—</span></button>
+        <div class="flex items-center justify-between"><span>翻页方式</span><div class="flex gap-1.5" id="rdAnimSeg"></div></div>
+        <div class="flex items-center justify-between"><span>音量键翻页</span><span class="toggle" onclick="tgl(this);rdSetPut('volPage',this.classList.contains('on'));toast(rdCfg.volPage?'可用音量「+/-」键翻页':'已关闭音量键翻页')"></span></div>
+        <div class="flex items-center justify-between"><span>屏幕常亮</span><span class="toggle" onclick="tgl(this);rdSetPut('bright',this.classList.contains('on'));toast(rdCfg.bright?'阅读时屏幕保持常亮':'已恢复系统息屏策略')"></span></div>
+        <div class="flex items-center justify-between"><span>自动翻页</span><span class="flex items-center gap-2"><b class="text-[10px] text-slate-400" id="rdSetAutoLbl">关</b><span class="toggle" onclick="tgl(this);rdAutoToggle(this)"></span></span></div>
+      </div>
+    </div>
+    <div class="mt-3 card">
+      <div class="row-title text-sm font-extrabold">内容策略</div>
+      <div class="mt-2 space-y-3 text-xs">
+        <div><div class="flex items-center justify-between"><span>书籍内外部链接</span></div><div class="mt-1.5 flex gap-1.5" id="rdLinkSeg"></div><div class="text-[10px] text-slate-400 mt-1">章节内跳转不受限制 · 外链可禁止 / 每次询问 / 允许</div></div>
+        <div class="flex items-center justify-between"><span>正文朗读（TTS）音色</span><span class="text-[10px] text-slate-400" id="rdSetTtsV">离线标准女声</span></div>
+        <div class="flex items-center justify-between py-0.5 cursor-pointer" onclick="openSheet('sheetRtVoice')"><span>朗读音色管理</span><span class="text-slate-300">›</span></div>
+      </div>
+    </div>
+    <div class="mt-3 card">
+      <div class="row-title text-sm font-extrabold">数据与联动</div>
+      <div class="mt-2 space-y-3 text-xs">
+        <div class="flex items-center justify-between"><span>高亮·批注同步到笔记库</span><span class="toggle on" onclick="tgl(this);rdSetPut('noteSync',this.classList.contains('on'));toast(rdCfg.noteSync?'新批注将进入笔记库（联动 L18）':'已停止同步 · 既有笔记保留')"></span></div>
+        <div class="flex items-center justify-between"><span>AI 解读入口</span><span class="toggle on" onclick="tgl(this);rdSetPut('aiOn',this.classList.contains('on'));toast(rdCfg.aiOn?'选中菜单将显示「AI 解读」':'已隐藏 AI 解读入口')"></span></div>
+        <div class="flex items-center justify-between py-0.5 cursor-pointer" onclick="navTo('p-sub-data')"><span>批注数据备份与恢复</span><span class="text-[10px] text-slate-400">随整体备份走</span></div>
+        <div class="flex items-center justify-between py-0.5 cursor-pointer" onclick="rdExportAll()"><span>导出全部书籍批注</span><span class="text-[10px] text-slate-400">Markdown</span></div>
+      </div>
+    </div>
+    <div class="mt-3 card">
+      <div class="row-title text-sm font-extrabold">逐书记忆</div>
+      <div class="text-[10px] text-slate-400 mt-1 mb-2">每本书独立保存位置 / 主题 / 字号，退出重进自动恢复</div>
+      <div id="rdPerBook" class="space-y-2 text-xs"></div>
+      <button class="mt-3 w-full py-2 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-500 text-xs font-bold" onclick="rdResetPrefs()">重置为出厂默认</button>
+    </div>
+    <div class="mt-3 text-[10px] text-slate-400 text-center">阅读器不内置在线书城 · 不联网下载 · DRM 加密书籍无法打开</div>
+  </section>

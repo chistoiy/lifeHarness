@@ -1,0 +1,71 @@
+{
+ "file": "index-settings.html",
+ "total": 105019,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-sub-appearance",
+   "kind": "screen",
+   "title": "外观",
+   "role": "home",
+   "size": 5954,
+   "hash": "c9d22ff0"
+  },
+  {
+   "id": "p-sub-notify",
+   "kind": "screen",
+   "title": "提醒通知",
+   "role": "home",
+   "size": 2820,
+   "hash": "35d45e0e"
+  },
+  {
+   "id": "p-sub-recmg",
+   "kind": "screen",
+   "title": "记录管理",
+   "role": "home",
+   "size": 2633,
+   "hash": "cb24ad58"
+  },
+  {
+   "id": "p-sub-trash",
+   "kind": "screen",
+   "title": "回收站",
+   "role": "home",
+   "size": 2089,
+   "hash": "8c97f143"
+  },
+  {
+   "id": "sheetTrashKeep",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 728,
+   "hash": "7b73e592"
+  },
+  {
+   "id": "p-sub-desktop",
+   "kind": "screen",
+   "title": "桌面与快捷方式",
+   "role": "home",
+   "size": 1972,
+   "hash": "1cd3bc79"
+  },
+  {
+   "id": "sheetThemeMarket",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 769,
+   "hash": "8e05ea35"
+  },
+  {
+   "id": "sheetTrashPurge",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 894,
+   "hash": "6944b61b"
+  }
+ ]
+}

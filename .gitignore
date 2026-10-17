@@ -1,11 +1,24 @@
 # Flutter/Dart
 .dart_tool/
-.packages
-build/
 .flutter-plugins
 .flutter-plugins-dependencies
-pubspec.lock
-.metadata
+packages/
+build/
+build_*/
+flutter_*.log
+*.lproj
+
+# Android
+android/.gradle/
+android/app/.cxx/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# 符号/构建产物
+*.symbol
+app.*.map.json
 
 # IDE
 .idea/
@@ -17,11 +30,62 @@ Thumbs.db
 .DS_Store
 
 # 备份与临时产物（永不入库）
+*.apk
 *.lhbak
 *.bak
 tmp/
 backup/
+# 反向规则：`backup/` 是为备份产物目录设的，误伤了源码目录 lib/core/backup/
+!lib/core/backup/
 
 # 密钥/配置（WebDAV 凭据等，若后续生成本地配置文件）
 secrets/
 *.local.json
+tools/.cloud_verify.env
+# AI 本地验证通道的 DeepSeek Key（仅本机 CLI 用，永不入库）
+tools/.ai_verify.env
+
+# 治理 G1：设备取证与临时产物（本机残留，不入库）
+device_logcat.txt
+logcat*.txt
+tmp_bs.js
+.snapshots/
+.workbuddy/
+.chrome-probe/
+tools/*.log
+tools/*snapshot*.html
+# 无头浏览器逐屏走查留下的原生用户目录（单个 8~90MB、纯可再生缓存；别让它污染 git status）
+tools/**/.chrome-*/
+tools/**/.*-profile/
+tools/.*-probe/
+
+# 真机走查取证临时区（截图/logcat/ui dump，不入库）
+.walkthrough/
+# adb 逐屏走查的原生截图与 uiautomator dump（结论进 docs/验收清单与 docs/*.png，原始帧留本机）
+prototype/shots/
+tools/ui*.xml
+tools/ui[0-9]*.xml
+
+# 阅读域校验器运行日志（长活校验器原地保留，日志不入库）
+tools/reader/*.log
+
+# 无头浏览器在 tools 子目录里的原生用户目录（可再生·别污染 git status）
+tools/**/.chrome-*/
+
+# Python 字节码缓存（预研脚本被工具复跑时产生）
+__pycache__/
+
+# 治理二轮（20261002）：验收截图与一次性脚本坟场永不入库（历史已出仓，留底 D:/dev_workplace/lh-artifacts-keep）
+docs/acceptance*
+tools/attic/
+
+# 20261007 并行会话残留登记（可再生取证/临时件，不入库；本会话开工前盘点）
+tempWork/
+.zcodeignore
+/tmp_*.js
+tools/**/.*-probe*/
+tools/**/*_before.html
+tools/**/*.xml
+# 小工具模块已下架（V1.58）：tools/kits 未入库的一次性施工脚本原地留底即可（34 枚已跟踪文件不受影响）
+tools/kits/
+.workbuddy-ai/

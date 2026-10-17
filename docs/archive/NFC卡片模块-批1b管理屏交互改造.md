@@ -1,0 +1,134 @@
+# NFC 卡片模块 · 批1b 管理屏交互改造（原型已过门 · 待实现）
+
+> **状态**：原型已改完并经产品过门（2026-10-17 00:5x）· **实现已落地**（2026-10-17 · 见 §9）
+> **上游**：`docs/handoff/NFC卡片模块-冻结版开发方案-20261015.md`（V3 冻结档·C 条目体系）
+> ＋`docs/handoff/NFC卡片模块-批1数据层与管理屏.md`（批1 已收口 `b4e98058`）
+> **可执行规格**：原型 `prototype/index.html` 的 nfc 段 ＋ `tools/nfc_proto_check.js` **15 条断言**（N1~N15）
+> ——断言文案即验收口径，逐条对着实现写测试即可。
+
+## §0 本轮相对批1 已交付管理屏的七处改动
+
+批1 交付＝列表单行卡 ＋ 弹层「名称＋目标三区块平铺＋保存」。产品走查后提七条，**全部已在原型落地**：
+
+| # | 产品令 | 原型落地形态 |
+|---|---|---|
+| 1 | 计时分类要复用时间模块的分类/子类选择框 | 「计时分类」大类＝一级分组 11 枚 → 子分组联动（同源时间模块 `CATS`/`SUBS`） |
+| 2 | 阅读书目改下拉、且要能搜索 | 「阅读书目」大类＝收起一行（显示已选书名）＋展开搜索框＋可滚列表 |
+| 3 | 打卡要能选具体打卡条目 | 「打卡」**独立成横向大类**，列出习惯模块的习惯条目 |
+| 4 | 呵护宝宝也可添加并记相应记录 | 「呵护宝宝」**独立成横向大类**，宝宝档案 → 记录类型两级 |
+| 5 | 三大类应横向排列，点哪个下方显示哪块 | 目标区＝**五段横向 tab**，一次只显示一区 |
+| 6 | 已添加卡片＝一条目两节点，左右可点各自编辑 | 列表行＝左「绑定目标」—虚线链条—右「卡片」 |
+| 7 | 贴卡行为移到右上角设置为设置 | 屏内撤掉该卡，右上角齿轮 → 贴卡设置弹层 |
+
+**口径沉淀（后续沿用）**：**凡带二级选择的目标，一律提升为横向大类**，不再塞进「快捷动作」做二级。
+
+## §1 目标区最终形态（实现侧照抄）
+
+五段横向 tab，**顺序固定**：`快捷动作 ｜ 打卡 ｜ 呵护宝宝 ｜ 计时分类 ｜ 阅读书目`
+
+- **快捷动作**：6 枚动作胶囊——速记／记待办／记一笔／写日记／记物品／回今天页
+- **打卡**：习惯条目列表（同源习惯模块）；⚠ **习惯名须剥离装饰符**（习惯模块数据自带 emoji，NFC 模块零 emoji 是硬要求，原型做法＝渲染前剥离，`target_sub` 存剥离后的名字、失效判定亦按剥离后比对）
+- **呵护宝宝**：宝宝档案（一级）→ 记录类型（二级：喂奶／睡眠／换尿布）
+- **计时分类**：一级分组 → 子分组联动；**选子类后父子双高亮**；**再点同一子类＝退回父级**；无次级的一级给「该分类无次级 · 可直接保存」
+- **阅读书目**：收起态一行 ＋ 展开搜索框 ＋ 可滚列表；无匹配显示「没有匹配的书」
+
+**唯一选中目标**：任一时点只有一份 `{kind, ref, sub}`；切 tab **不改变已选**（各区各自记住上次选择），切离书目区自动收起下拉。
+
+## §2 数据层（DB v48 → v49）
+
+卡片表 `nfc_cards` 现有列：`id / name / target_kind / target_ref / tag_key / tag_kind / created_at / last_used_at / use_count / written_at`。
+
+本轮需加三列：
+
+| 列 | 类型 | 语义 |
+|---|---|---|
+| `desc_text` | TEXT | 卡片「默认描述」（选填 ≤16 字）。**勿用 `desc`——SQLite 保留字** |
+| `color` | INTEGER | 卡片颜色索引（0~5，色表进域层常量；原型 `NFC_COLORS` 六色） |
+| `target_sub` | TEXT | 二级参数：打卡＝习惯名；呵护宝宝＝`<babyId>/<kindId>`；其余为 NULL |
+
+**迁移写法照批1 惯例**：语句表在 `lib/core/database/schema/nfc.dart`，`mig[48]` 追加 ALTER 三条，`DbSchema.version` 同步改 49。
+⚠ 批1 教训（S6）：**漏改 `version` ⇒ 真机 onUpgrade 不触发**，守护在 `nfc_card_dao_test`。
+⚠ 老口径语句表一字不加（v45/v47 既有教训：mindmap 批2 因老口径带新列导致直升崩）。
+
+模型 `NfcCard` 同步加 `descText` / `color` / `targetSub` 三字段（`fromRow`/`toRow`/`copyWith` 三处都要动）。
+
+**打卡/呵护宝宝的目标表示**：沿用 `target_kind='nav'`（动作大类），`target_ref` 分别取 `'habit'` / `'care'`，二级落 `target_sub`。
+即不新增 `NfcTargetKind` 枚举值；「打卡」「呵护宝宝」是 nav 大类下的两枚具体动作。
+`targetKindLabelOf` 需相应处理（打卡卡显示「打卡」、呵护宝宝卡显示「呵护宝宝」，而非笼统的「快捷动作」）。
+
+## §3 出口层（`lib/shared/linkage/nfc_mounts.dart`）
+
+批1 已有：`nfcCategoryOptions`（扁平带路径）/ `nfcBookOptions` / `nfcCategoryExists` / `nfcBookExists` / `nfcCardCount`。
+
+本轮需补：
+
+1. **分类层级结构**——现有 `nfcCategoryOptions` 只给扁平带路径列表（`工作 › 开门`），两级选择需要**一级/子级可辨**的结构（父 id / 是否子级 / 同级顺序），排序仍沿用 `parent_id IS NOT NULL, sort ASC, id ASC`。
+2. **习惯条目出口**——`nfcHabitOptions`：id＋名称（**名称剥离装饰符后再给 UI**）；复用 `lib/shared/linkage/habit_mounts.dart` 既有出口，勿直连习惯表。
+3. **母婴出口**——`nfcBabyOptions`（宝宝档案 id＋名）＋`nfcCareKindOptions`（记录类型 id＋名）。⚠ 母婴模块当前**无 `maternity_mounts.dart`**，需新建该出口文件（R1 红线：`features/nfc/**` 禁 import 其他 feature，跨模块只经 `shared/linkage`）。
+4. 失效判定扩展：`nfcCategoryExists`/`nfcBookExists` 之外补 `nfcHabitExists`/`nfcBabyCareExists`（目标被删后列表要标「已失效」）。
+
+## §4 弹层（`lib/features/nfc/presentation/nfc_sheets.dart`）
+
+批1 现为：`_sectionTitle` ＋ `_chips` 三区块平铺，`_kind`/`_ref` 一份共享选中态。
+
+本轮改为**两形态 + 五段大类**：
+
+- **形态＝卡片信息**（点列表右节点进入）：名称（必填 ≤12）／默认描述（选填 ≤16）／6 色色板／绑定目标**只读摘要**／写入卡片／删除卡片／保存。
+  **保存只写卡片字段，不动目标。**
+- **形态＝绑定目标**（点列表左节点进入）：只显示五段大类目标区＋保存。
+  **保存只写目标，不动卡片字段。**
+- **新建**：全量形态（卡片信息 ＋ 目标区一次填完），保存后走既有「自动续写卡」链路（C16）。
+
+## §5 列表双节点（`nfc_page.dart`）
+
+一行＝**左节点 — 链条 — 右节点**：
+
+- **左＝绑定目标**：目标色浅底块，主行＝目标标签（`计时 · 学习` / `阅读 · 书名` / `打卡 · 晨间跑步 30min` / `呵护宝宝 · 小满 · 喂奶` / 动作名），副行＝「用过 N 次 · 最后时间」；点击 → **绑定目标**形态。已失效时主行替换为「已失效」。
+- **中间＝虚线＋链条图标**（线性 SVG·禁 emoji）。
+- **右＝卡片**：目标色实底块，主行＝卡片名，副行＝描述（无描述时回落显示「已写入／未写入」）；点击 → **卡片信息**形态。
+- 「● 计时中」动态标记仍挂在左节点（C23 同源回显）。
+
+⚠ 批1 的「写入」按钮从行内**撤到卡片信息形态**（列表更干净）。
+
+## §6 贴卡设置层
+
+屏内「贴卡行为」卡撤掉；右上角加齿轮按钮（线性 SVG）→ 打开「贴卡设置」弹层，内含原两开关（`nfc.confirmBeforeRun` 默认关／`nfc.promptUnbound` 默认开）＋完成按钮。
+
+⚠ 两开关的**默认态与语义不变**（C5/B17），只是入口位置变了。屏内「锁屏不派发／NTAG 选型」两行灰字仍在原位。
+
+## §7 测试与验收
+
+- **可执行规格＝`tools/nfc_proto_check.js` 15 条断言**（N1~N15），逐条对着写 Dart 测试；N15 专测两形态「只改目标不动卡片／只改卡片不动目标」两向。
+- 批1 既有常驻 34 例（dao 19／backup_scope 6／linkage 5／privacy 4）须**全绿不回归**；新增三列的 dao 读写例、v48→v49 迁移例（含 S6 漏改 version 守护）。
+- 备份：`desc_text`/`color`/`target_sub` 三列进 C8-V3 备份投影与恢复；备份范围例须覆盖新列。
+- 原型闸基线：protogate strict（290 屏登记 0 违例）·registry 294/294 · cards 15/15 · doclint PASS。
+
+## §8 不做的事
+
+- 不改「标签只存编号」（C1）、`written_at` 唯一写入判据（C31）、`id` 12 位 base62（C33）三条铁律。
+- 不做写卡状态机与贴卡触发分发（属**批2**）；本轮只动管理屏与数据层。
+- 不引入 emoji 装饰（NFC 模块零 emoji 硬要求，含引用其他模块数据时）。
+- 不改 UI 组件规范以外的既有交互口径；`docs/UI组件规范.md` LH-S41 需按本轮形态同步（弹层锚点与两形态口径）。
+
+## §9 实现落地记录（2026-10-17 · 零原型改动）
+
+- **数据层**：DB **v48→v49** 加三列（`desc_text`/`color`/`target_sub`）。基础 DDL 升为 v49 全量口径、
+  `mig[47]` 拆出 **v48 老口径**语句表（`nfcMig47Statements`）——不拆则老库直升先建含新列的表、
+  再 ALTER 同列 ⇒ duplicate column（v45/v47 既有教训）。`NfcCard` 补三字段；域层加标签全文
+  （`nfcTargetLabelOf`）、二级参数拼拆、装饰符剥离（`nfcStripEmoji`/`nfcHabitDisplayName`）、六色表。
+- **仓库层**：`NfcRepo.updateCardInfo`（只写卡片三列）／`updateTarget`（只写目标三列·`target_sub` 可清空）
+  ——N15 两向语义钉在数据层，不靠 UI 自觉；两向都不碰 `written_at`/`tag_key`（C3）。
+- **出口层**：`nfcCategoryTree`（两级结构）／`nfcHabitOptions`（经 `habit_mounts.habitOptionList`，不直连习惯表）／
+  `nfcBabyOptions`＋`nfcCareKindOptions`（**新建** `lib/shared/linkage/maternity_mounts.dart`）／
+  `nfcHabitExists`＋`nfcBabyCareExists`（失效判定）／`nfcTargetStates`（列表与摘要的批量解析口，一次读三张表）。
+- **表现层**：`nfc_sheets.dart` 改两形态＋五段大类＋色板＋描述＋设置层（`showNfcSettingsSheet`）；
+  `nfc_page.dart` 改双节点行（左目标浅底／右卡片实底／中链条），屏内「贴卡行为」卡撤到右上角齿轮，
+  写入与删除收进卡片信息形态。`UI组件规范.md` LH-C24／LH-S41 重写、新增 LH-S43（设置层）。
+- **测试**：`nfc_card_dao_test` 19→32 例（含 v47→v49 真升级、v48→v49 补列、老库直升不撞列）、
+  `nfc_linkage_test` 5→15 例、`backup_scope_test` 6→7 例；批1 常驻 34 例全绿不回归；
+  变异三刀（摘新列 ALTER／两向写串味／摘装饰符剥离）各红其位；原型闸 `nfc_proto_check` 15/15 不回归。
+- **两处实现口径说明（待产品复核）**：
+  ① 原型 `sheetNfcSet` 只画了两开关，**冻结档 C42 的总闸 `nfc.enabled`（批1 已交付）漏画** ⇒
+  按「需求 > 原型」在设置层最上方**保留总闸**（层级仍是「总闸 ＞ 明细」），其余形态照原型；
+  ② 「记录类型」取**母婴内置 12 类**（`kEventBaseKeys` 剔 `custom`，同 `care_stats_page` 口径），
+  非原型演示用的 3 类 mock（`milk/sleep/dia`）——真模块无「喂奶」单键，奶类是母乳亲喂/瓶喂母乳/配方奶三条。

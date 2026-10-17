@@ -1,0 +1,39 @@
+{
+ "file": "index-desktop.html",
+ "total": 57780,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "dt-desk",
+   "kind": "screen",
+   "title": "桌面全貌（示意）",
+   "role": "home",
+   "size": 4872,
+   "hash": "e5ca6171"
+  },
+  {
+   "id": "dt-menu",
+   "kind": "screen",
+   "title": "长按图标菜单",
+   "role": "home",
+   "size": 1706,
+   "hash": "0b99db9a"
+  },
+  {
+   "id": "dt-widget",
+   "kind": "screen",
+   "title": "小组件规格",
+   "role": "home",
+   "size": 22049,
+   "hash": "603234e6"
+  },
+  {
+   "id": "dt-map",
+   "kind": "screen",
+   "title": "设置页与桌面关系",
+   "role": "home",
+   "size": 4468,
+   "hash": "5a7741d5"
+  }
+ ]
+}

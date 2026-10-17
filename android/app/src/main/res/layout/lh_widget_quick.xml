@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  4×1 快捷记录小组件（F2-2）· 冻结档 §5.6：
+  左半＝「记一笔」按钮（点击走动作表 quick.ledger → lh://ledger/add）；
+  右半＝名称＋今日支出金额位（开启「隐藏金额」时显示 ••••）；
+  整个 widget 是单一点击区（§4.4），点击同样落 /ledger/add。
+  读数由 QuickRecordWidget 从 SharedPreferences 快照写入（C5）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lh_wg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/lh_wg_card"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/lh_wg_btn"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/lh_wg_btn"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="17dp"
+            android:layout_height="17dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_lh_wg_add" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:text="@string/lh_widget_quick_action"
+            android:textColor="@color/lh_wg_btn_fg"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="13dp"
+        android:paddingEnd="12dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="@string/lh_widget_quick_name"
+            android:textColor="@color/lh_wg_sub"
+            android:textSize="9sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_label_today_cost"
+                android:textColor="@color/lh_wg_sub"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/lh_wg_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="@string/lh_widget_no_data"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

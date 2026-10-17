@@ -1,0 +1,128 @@
+import 'package:flutter/material.dart';
+
+import 'theme_tokens.dart';
+import 'app_typography.dart' show kFontUi;
+
+export 'theme_tokens.dart' show ThemeTokens, ThemeMeta;
+
+/// 通过 [ThemeExtension] 把设计令牌注入 widget 树，页面可 `context.tokens` 取用。
+@immutable
+class AppTokens extends ThemeExtension<AppTokens> {
+  const AppTokens({required this.tokens});
+
+  final ThemeTokens tokens;
+
+  /// 无扩展时的兜底（内置默认主题/测试环境）。
+  static const AppTokens fallback = AppTokens(tokens: ThemeTokens.defaults);
+
+  @override
+  AppTokens copyWith({ThemeTokens? tokens}) =>
+      AppTokens(tokens: tokens ?? this.tokens);
+
+  @override
+  AppTokens lerp(ThemeExtension<AppTokens>? other, double t) {
+    if (other is! AppTokens) return this;
+    // 令牌为离散主题，不做逐值插值，直接切换。
+    return t < 0.5 ? this : other;
+  }
+}
+
+/// 由设计令牌构建 [ThemeData]（Material 3）。
+class AppTheme {
+  const AppTheme._();
+
+  static ThemeData build(ThemeTokens tokens, {required bool isDark}) {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: tokens.accent,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+      primary: tokens.accent,
+    );
+
+    // LH-F01 全局字族：默认走 **UI 无衬线链**（标题·底栏·按钮·标签·表单都是这一档），
+    // 主题 json 里设了 `--app-font`（复古/秋日暖调走衬线）就**整档跟随主题**——
+    // 产品 2026-10-03 拍板口径＝角色链作默认、主题字体令牌作整档覆盖。
+    // 回落链固定给 UI 那份：主题指定的族名本机取不到时也不至于掉回引擎默认字。
+    // 长文正文（阅读器/日记/笔记/书摘）另按 body 角色取，见 `app_typography.dart`。
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: tokens.page,
+      splashFactory: InkSparkle.splashFactory,
+      fontFamily: tokens.appFont ?? kFontUi.first,
+      fontFamilyFallback: kFontUi.fallback,
+    );
+
+    return base.copyWith(
+      extensions: <ThemeExtension<dynamic>>[AppTokens(tokens: tokens)],
+      appBarTheme: AppBarTheme(
+        backgroundColor: tokens.page,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
+        centerTitle: false,
+        // V1.29轮8：对齐原型 topHead 紧凑头部（pt-1 pb-2 + 20px 标题），
+        // 默认 56 会在标题与内容行间留下大片空白。
+        toolbarHeight: 48,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: scheme.onSurface,
+          fontFamily: tokens.appFont,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: tokens.card,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.cardRadius),
+          side: tokens.cardBorder == Colors.transparent
+              ? BorderSide.none
+              : BorderSide(color: tokens.cardBorder),
+        ),
+      ),
+      scaffoldBackgroundColor: tokens.page,
+      // V1.28⑥ 全局统一 toast 风格（原型 #toast：深 slate 半透明胶囊 · 白小字 · 浮起）。
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Color(0xE60F172A),
+        contentTextStyle:
+            TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(28))),
+        elevation: 6,
+        width: 320,
+      ),
+      dividerColor: tokens.cardBorder,
+      // V1.29轮9f：全局统一滚动条（细 4px · 全圆角 · 半透明 onSurface），
+      // 替换 Flutter 3.38 Android 默认粗滚动条风格。
+      scrollbarTheme: ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(false),
+        thickness: const WidgetStatePropertyAll(4),
+        radius: const Radius.circular(4),
+        interactive: true,
+        minThumbLength: 28,
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => scheme.onSurface
+              .withValues(alpha: states.contains(WidgetState.hovered) ? .45 : .28),
+        ),
+        trackColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+    );
+  }
+}
+
+/// 便捷访问：`context.tokens.page` 等。
+extension AppTokensContext on BuildContext {
+  ThemeTokens get tokens =>
+      Theme.of(this).extension<AppTokens>()?.tokens ?? AppTokens.fallback.tokens;
+
+  /// 卡片统一外观（圆角 + 描边 + 令牌阴影）。
+  BoxDecoration get cardDecoration => BoxDecoration(
+        color: tokens.card,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: tokens.cardBorder == Colors.transparent
+            ? null
+            : Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow,
+      );
+}

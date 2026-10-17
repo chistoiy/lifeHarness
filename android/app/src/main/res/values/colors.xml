@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面模块批2 · 原生小组件色档（浅色档 · 冻结档 §5.4 / §5.6）。
+  ⚠ 只做「浅/深」两档原生色档，跟随系统深浅色（C6：不跟随 App 7 主题——
+    RemoteViews 吃不到 Flutter 令牌）。深色档＝values-night/colors.xml。
+  ⚠ 原生色值不在 Dart 色值棘轮（tools/color_ratchet.py 只扫 lib/**.dart）管辖内，
+    但新增原生色值同规须登记：见 docs/UI组件规范.md 〇B「色值」条。
+-->
+<resources>
+    <!-- 卡片底 / 主文本 / 次文本 / 强调（§5.4 冻结四色） -->
+    <color name="lh_wg_bg">#FFFFFF</color>
+    <color name="lh_wg_fg">#0F172A</color>
+    <color name="lh_wg_sub">#64748B</color>
+    <color name="lh_wg_acc">#6366F1</color>
+
+    <!-- 快捷记录按钮文字：浅色档强调色 #6366F1 上白字对比 ≥4.5:1，用白字 -->
+    <color name="lh_wg_btn_fg">#FFFFFF</color>
+
+    <!-- 描边 1dp＝次文本 10% 透明；进度槽＝次文本 18% 透明（§5.6 / 原型 .wg-bar） -->
+    <color name="lh_wg_stroke">#1A64748B</color>
+    <color name="lh_wg_track">#2E64748B</color>
+
+    <!-- 批3 · 配置弹窗（弹窗不是 widget，但同一套色档纪律：只跟系统深浅色）
+         页面底＝比卡片底更深一档的浅灰，卡片底＝纯白，与 App 内 token.card 的层级一致。 -->
+    <color name="lh_cfg_bg">#F1F5F9</color>
+    <color name="lh_cfg_card_bg">#FFFFFF</color>
+</resources>

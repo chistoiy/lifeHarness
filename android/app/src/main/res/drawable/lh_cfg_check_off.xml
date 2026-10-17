@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 未勾选态：次文本描边空心圆（2.5dp 描边，24dp 画布） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M12,2A10,10 0 1,0 22,12A10,10 0 1,0 12,2Z"
+        android:strokeColor="@color/lh_wg_sub"
+        android:strokeWidth="1.8" />
+</vector>

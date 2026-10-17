@@ -1,0 +1,6 @@
+function pickTier(el){
+  el.parentNode.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.remove('on'); });
+  el.classList.add('on');
+  if(el.textContent.indexOf('严格 MD5')>-1) toast('严格 MD5 · 仅远端存在 32 位十六进制 ETag 时可选 · 默认关');
+  computeDiff();
+}

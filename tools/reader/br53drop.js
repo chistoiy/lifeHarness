@@ -1,0 +1,15 @@
+const fs = require('fs');
+const f = 'lib/features/read/presentation/book_detail.dart';
+const src = fs.readFileSync(f, 'utf8');
+const EOL = src.includes('\r\n') ? '\r\n' : '\n';
+const lines = src.split(EOL);
+const a = lines.findIndex((l) => l.includes('/// 本地 EPUB 卡（原型 brDcard · V1.50）'));
+const b = lines.findIndex((l) => l.includes('/// 本地副本与缓存行（原型 brDcache'));
+if (a < 0 || b < 0 || b <= a) throw new Error('未定位 _localEpubCard 区间');
+const seg = lines.slice(a, b).join(EOL);
+if (!seg.includes('Widget _localEpubCard(ColorScheme cs, Book b)')) throw new Error('区间缺锚点');
+if (!seg.includes("ValueKey('br-d-open')")) throw new Error('区间缺三钮锚点');
+if (seg.split(EOL).length > 140) throw new Error('区间异常长：' + seg.split(EOL).length);
+lines.splice(a, b - a);
+fs.writeFileSync(f, lines.join(EOL), 'utf8');
+console.log('删除 ' + (b - a) + ' 行（旧整卡）');

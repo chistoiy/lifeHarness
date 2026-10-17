@@ -1,0 +1,283 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 通知与定时提醒（M0末A）：Android 13+ 运行时申请；开机重传排程 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- NFC 卡片模块批2（冻结档 §6.2 的 Manifest 改动面之一）：
+         NFC 权限用于**前台**读写标签（`nfc_manager` 内部即 NfcAdapter）。
+         `uses-feature required=false`＝**不因 NFC 被应用商店过滤**——
+         本 App 的 NFC 是增强功能，没 NFC 的设备照常用（B1：入口行置灰）。
+         ⚠ 不声明 `uses-feature required=true`，也不加任何后台/常驻相关权限。 -->
+    <uses-permission android:name="android.permission.NFC"/>
+    <uses-feature android:name="android.hardware.nfc" android:required="false"/>
+    <!-- 批B（工单 悬浮胶囊增强批-20261014 §7）：app 外系统悬浮窗。
+         SYSTEM_ALERT_WINDOW＝「显示在其他应用上层」特殊访问，运行时经
+         Settings.canDrawOverlays 探问、ACTION_MANAGE_OVERLAY_PERMISSION 引导；
+         FOREGROUND_SERVICE＝FGS 基础权限（API 28+ 起必需，6128 实伤：只声明了
+         子类型权限漏了基础权限，startForeground 即 SecurityException 主进程崩）；
+         FOREGROUND_SERVICE_SPECIAL_USE＝API 34+ specialUse 型前台服务声明
+         （非 Play 分发，subtype property 仅作文档）。 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <!-- V1.41 同步与备份：INTERNET 用于用户自行配置的 WebDAV/S3 同步与
+         既有天气查询（open-meteo）/ISBN 书目查询（豆瓣）；除此之外 App
+         零网络请求（离线优先 / 隐私红线·终审修复波 Minor-3 如实登记）。 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <application
+        android:label="lifeharness"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:enableOnBackInvokedCallback="false">
+        <!-- U2（UX 审计真机批 2026-10-05）返回通道判别记录，三轮实测都在这里：
+             · 6071（不写该属性）＝一次返回退 app；6072/6073（写 true）＝同样退。
+               targetSdk 35+ 缺省即启用预测返回，所以「不写」与「写 true」同形。
+             · 6073 带插桩实测：壳层页（今天/宫格模块页）按返回后 **120ms 内焦点已离开**，
+               应用内日志页 `U2BACK` 留痕 0 条 ⇒ HomeShell 的 PopScope 根本没被咨询，
+               不是「来不及落盘」（同码在雷电 API28 走 legacy 按键通道，7/7 正常且留痕读到）。
+             · 同机对照：push 路由（记账→统计报表）返回正常弹回 ⇒ Flutter 在「顶路由可弹」时
+               确实注册并处理了回调；壳层是 `canPop:false`，预测返回通道下这个 back 不归它，
+               平台按默认动作把应用挪后台。
+             ⇒ 本轮试 **显式 false**（退回 legacy 按键通道），让壳层那套「今天」唯一根出口
+               判定重新被咨询。判据＝tile_back_probe 七条翻绿＋今天页首次返回出提醒条＋
+               `U2BACK` 留痕出现。若 false 仍退，则回到 Dart 侧改拦截位置（app 根层），
+               不许把这条当已修。 -->
+
+        <!-- ⚠ `taskAffinity` 禁再写回空串（2026-10-15 8147 装机实锤·产品定案修根因）：
+               M0 骨架（`9b726ffa`）随手带过 `android:taskAffinity=""`，它不是任何需求的
+               实现手段，却让本 app 任务**不归属任何 affinity**——从桌面进（图标／长按菜单／
+               小组件 PendingIntent／通知）时系统找不到可归并的任务，**每次都新建一个**：
+               实测 `dumpsys activity recents` 积出三个 lifeharness 任务（#9287/#9286/#9276），
+               且 `A=` 字段全是隐式 `I=`（别的 app 都是 `A=<appId>`），退出后最近任务里
+               出现多张 LifeHarness 卡片。
+               去掉后回归 Android 默认＝包名 `com.lifeharness.lifeharness`，**所有入口归并
+               到同一任务**；`launchMode="singleTop"` 一字未动，桌面批1 的热启动语义不变。
+               治标做法（在点击意图加 `CLEAR_TOP`）已证明不够——无 affinity 可匹配时该标志
+               找不到复用目标，仍会另起任务，故必须改这里。 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <!-- R3-1（真机轮3 P0）：关掉 embedding 的 deeplink 路由通路。默认为开：
+                 冷启动把 VIEW intent 的 data（content://…）当初始路由塞给 go_router
+                 （GoException 错误页），热启动同走 pushRouteInformation。本 App 没有
+                 URL 深链需求，打开方式文件由 MainActivity lh/intents 入队、Dart 侧
+                 takeOpenFile 消费，不依赖这条路由，整路掐掉。activity 级元数据，
+                 FlutterActivity 只读 ActivityInfo.metaData，不放 application 级。 -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- V1.53.4⑥ 系统「打开方式」接收本地 EPUB：
+                 VIEW+content（主流文件管理器/微信附件走 SAF content uri）、
+                 VIEW+file pathPattern（个别旧文件管理器给 file://）、
+                 SEND+EXTRA_STREAM（「发送→其他应用」兜底通道）。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content" android:mimeType="application/epub+zip"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\.epub"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/epub+zip"/>
+            </intent-filter>
+            <!-- V1.64 批1 N-3（工单 交棒话术-20261004 §2 · 拍板已过门）：
+                 md/markdown/text 同三路（content VIEW / file pathPattern / SEND），
+                 导入落笔记「系统打开」临时夹；txt 吃 text/plain 广谱入口。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content" android:mimeType="text/markdown"/>
+                <data android:scheme="content" android:mimeType="text/plain"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\.md"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\.markdown"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/markdown"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
+            <!-- V1.67 桌面批1（冻结档 §2.0/§前置A.3 lh:// 寻址契约）：
+                 自建链接一律 ACTION_VIEW + data scheme=lh，C15 要求与既有
+                 content/file filter 用 data 维度区分（禁只 setAction 误匹配）。 -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="lh"/>
+            </intent-filter>
+            <!-- NFC 卡片模块批3c（2026-10-17）：NDEF_DISCOVERED 过滤器**已移到
+                 NfcRelayActivity**（下方透明中转界面）。原先挂在主界面上时，系统一贴卡
+                 就把主界面拉到前台（真机 logcat 实测 `Displayed +261ms`），用户看到
+                 「闪一下 App 页面」；对照同类 App 的做法是让事件落在不显示界面的
+                 Activity 上。标签内容（`lh://nfc/<cardId>`）不变，已写好的卡无需重写。 -->
+        </activity>
+        <!-- NFC 卡片模块批3c：贴卡**透明中转界面**。
+             职责只有一件：把 `lh://nfc/<cardId>` 解析出来投给 Dart（引擎活着时）
+             或转交主界面（进程被杀时），然后立刻 finish——主界面全程不启动。
+             配置要点：透明主题（NfcRelayTheme）＋独立 task（taskAffinity 空，避免把
+             App 的 task 一并带到前台）＋不进最近任务＋不留历史。 -->
+        <activity
+            android:name=".NfcRelayActivity"
+            android:exported="true"
+            android:theme="@style/NfcRelayTheme"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="lh" android:host="nfc"/>
+            </intent-filter>
+        </activity>
+        <!-- flutter_local_notifications：定时通知发送 + 开机重传（需 ScheduleNotificationReceiver 权限声明） -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+        <!-- 批B：app 外系统悬浮窗载体（前台 Service＋WindowManager 悬浮视图）。
+             起服务只从 app 前台触发（Dart 侧 sync 口径·规避 Android 14+ 后台
+             起 FGS 限制）；「■ 结束」经意图拉起 MainActivity 入队、Dart 侧
+             takePillEvent 消费（与 lh/intents 同模式）。 -->
+        <service
+            android:name=".TimerPillService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the user's active reading/media timer visible as a system overlay while the app is in the background" />
+        </service>
+        <!-- V1.67 桌面批2（冻结档 §2.2 / §6.2）：两枚入口型小组件。
+             读数只读 SharedPreferences 快照（C5·不直读 sqlite）；updatePeriodMillis=0
+             ⇒ App 存活时按需刷新（§6.3 禁轮询/常驻定时器）。 -->
+        <receiver
+            android:name=".TodayOverviewWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_overview_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_overview_info" />
+        </receiver>
+        <receiver
+            android:name=".QuickRecordWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_quick_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_quick_info" />
+        </receiver>
+
+        <!-- 批3 · 2×2 待办清单：行左圈点一下直接闭环（产品令「可以直接点击闭环」）。
+             configure 同指配置页，长按「编辑」的落点也在这里（一份偏好 · 禁两套）。 -->
+        <receiver
+            android:name=".TodoListWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_todo_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_todo_info" />
+        </receiver>
+
+        <!-- 批3 · 2×2 记账概览：今日支出／本月支出／本月结余三行读数。 -->
+        <receiver
+            android:name=".LedgerOverviewWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_ledger_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_ledger_info" />
+        </receiver>
+
+        <!-- 批3 · 待办勾圈的闭环执行器（**内部广播，不导出**）。
+             ⚠ `exported=false` 是硬要求：它能被任意 app 用来改我们的待办库。
+             勾圈的 PendingIntent 由本进程发出，同进程投递到未导出 receiver 不受此限。 -->
+        <receiver
+            android:name=".TodoActionReceiver"
+            android:exported="false" />
+
+        <!-- V1.67 桌面批2（F2-4）：拖到桌面时的配置页（可选「显示什么」）。
+             与设置页共用同一份偏好（FlutterSharedPreferences 的 desktop.* 键 · 禁两套）。
+
+             ⚠ 这处 `taskAffinity` 刻意与 MainActivity **不同**（2026-10-15 产品定案）：
+               配置页需要一个不属于主任务的独立栈，否则它会跟主任务一起被收进最近任务卡片里。
+               但也不能写空串——空 affinity 与 MainActivity 那处同病（无 affinity 可归并）；
+               这里给一个**带包名前缀的独立值**，既独立又合法。MainActivity 那边则是
+               **反过来去掉该属性**，让所有桌面入口归并到同一任务。 -->
+        <activity
+            android:name=".WidgetConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity="com.lifeharness.lifeharness.widgetconfig"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

@@ -1,0 +1,21 @@
+name: probe
+description: A sample command-line application.
+version: 1.0.0
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.10.8
+
+# Add regular dependencies here.
+dependencies:
+  path: ^1.9.0
+  html: ^0.15.7
+  xml: ^6.6.1
+  http: ^1.6.0
+  gbk_codec: ^0.4.0
+  fast_gbk: ^1.0.0
+  quickjs: ^1.0.1
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

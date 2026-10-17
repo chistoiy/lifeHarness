@@ -1,0 +1,44 @@
+/* ---- V1.53 轮3 · 底栏五图标 + 进度/亮度/字号三面板 + 长按选区（参考图1~4） ---- */
+const BR_BGS=['#faf6ee','#f5edda','#f2f3f5','#f6e7d3','#dfe8f4'];
+let brPanelK='',brLumMaskV=100;
+function brHidePanels(){['brPnlProg','brPnlBright','brPnlFont'].forEach(i=>{const e=document.getElementById(i);if(e)e.classList.add('hidden')});
+  ['brBtnProg','brBtnBright','brBtnFont'].forEach(i=>{const e=document.getElementById(i);if(e)e.classList.remove('on')});brPanelK=''}
+function brShowChrome(){brV.chrome=true;['brTop','brBottom'].forEach(id=>{const e=document.getElementById(id);if(e){e.classList.remove('hidden');e.classList.add('flex')}})}
+function brTogglePanel(k){if(!brV.chrome)brShowChrome();
+  if(brPanelK===k){brHidePanels();return}
+  brHidePanels();brPanelK=k;
+  const map={prog:'brPnlProg',bright:'brPnlBright',font:'brPnlFont'};
+  const btn={prog:'brBtnProg',bright:'brBtnBright',font:'brBtnFont'};
+  const el=document.getElementById(map[k]);if(el)el.classList.remove('hidden');
+  const b=document.getElementById(btn[k]);if(b)b.classList.add('on');
+  if(k==='bright')brRenderBrightPanel();if(k==='font')brRenderFontPanel();brChromeLabels()}
+function brRenderBrightPanel(){const st=brSt(brV.b);
+  document.getElementById('brBtColors').innerHTML=Object.entries(BR_THEMES).map(([k,v])=>
+    `<button class="br-bt ${st.theme===k?'on':''}" style="background:${v.bg};color:${v.fg}" onclick="brThemePick('${k}')">${k==='night'?'<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/></svg>':v.n}</button>`).join('')+
+    `<button class="br-bt ${(st.theme==='custom')?'on':''}" style="background:conic-gradient(#fca5a5,#fcd34d,#86efac,#93c5fd);color:#334" onclick="openSheet('sheetBrAppearance');brApOpen()">自定义</button>`;
+  document.getElementById('brBtBgs').innerHTML=BR_BGS.map((c,i)=>
+    `<button class="br-bg ${st.theme==='custom'&&st.bg===c?'on':''}" style="background:${c}" onclick="brBgPick(${i})"></button>`).join('')}
+function brThemePick(k){brCfg.theme=k;brCfg.bg=BR_THEMES[k].bg;brCfg.fg=BR_THEMES[k].fg;brPagCache={};brPersist();brRenderPage();brRenderBrightPanel();brFlash('颜色 · '+BR_THEMES[k].n)}
+function brBgPick(i){const c=BR_BGS[i];brCfg.theme='custom';brCfg.bg=c;brCfg.fg=brLumIsDark(c)?'#3b3630':'#3b3630';brPagCache={};brPersist();brRenderPage();brRenderBrightPanel();brFlash('背景已切换')}
+function brLumIsDark(){return false}
+function brBrightSet(v){brLumMaskV=+v;const m=document.getElementById('brLumMask');if(m)m.style.opacity=String((100-brLumMaskV)/100*0.55)}
+function brRenderFontPanel(){const st=brSt(brV.b);
+  const sl=document.getElementById('brFsSl');if(sl)sl.value=st.fs;const n=document.getElementById('brFsNum');if(n)n.textContent=st.fs;
+  const id=document.getElementById('brBtnIndent');if(id)id.textContent='首行缩进 · '+(brV.indent===false?'关':'开')+' ›'}
+function brFsSlSet(v){const bid=brV.b;const fs=Math.min(30,Math.max(14,+v));brBooksCfg[bid]=Object.assign(brBooksCfg[bid]||{},{fs});brPagCache={};brPersist();brRenderPage();const n=document.getElementById('brFsNum');if(n)n.textContent=fs}
+function brMarNudge(d){const bid=brV.b;const mar=Math.min(40,Math.max(8,(brSt(bid).mar||16)+d*4));brBooksCfg[bid]=Object.assign(brBooksCfg[bid]||{},{mar});brPagCache={};brPersist();brRenderPage();brFlash('边距 · '+(mar<=12?'窄':mar>=36?'宽':'中'))}
+function brLhNudge(d){const bid=brV.b;const lh=Math.min(2.4,Math.max(1.3,+((brSt(bid).lh||1.6)+d*0.1).toFixed(2)));brBooksCfg[bid]=Object.assign(brBooksCfg[bid]||{},{lh});brPagCache={};brPersist();brRenderPage();brFlash('行距 · '+lh.toFixed(1))}
+function brIndentToggle(){brV.indent=brV.indent!==false?false:true;document.getElementById('brStage').classList.toggle('no-indent',brV.indent===false);brRenderFontPanel();brFlash(brV.indent===false?'首行缩进 · 关':'首行缩进 · 开')}
+function brQuickToggleAuto(){const bid=brV.b;const on=!brSt(bid).auto;brBooksCfg[bid]=Object.assign(brBooksCfg[bid]||{},{auto:on,autoSecs:brSt(bid).autoSecs||10});brPersist();
+  if(on){brAutoStart();toast('自动翻页已开启 · 点正文任意处暂停')}else{brAutoStop();toast('自动翻页已关闭')}brChromeLabels()}
+function brGoHome(){const h=brV.home;if(!h)return;brV.ci=h.ci;brV.pg=h.pg;brSavePos();brRenderPage();document.getElementById('brBackPos').classList.add('hidden');brFlash('已返回原进度')}
+/* 长按选区：段落与中心热区都支持（点按＝收放 chrome，长按＝弹摘抄工具条） */
+let _brLpT=0,_brLpFired=false;
+function brLpStart(e,pi){_brLpFired=false;clearTimeout(_brLpT);_brLpT=setTimeout(()=>{_brLpFired=true;brSelect(pi,pi)},520)}
+function brZoneLpStart(e){_brLpFired=false;clearTimeout(_brLpT);const cx=e.clientX,cy=e.clientY;
+  _brLpT=setTimeout(()=>{_brLpFired=true;const z=document.getElementById('brZoneC');if(z)z.style.pointerEvents='none';
+    const el=document.elementFromPoint(cx,cy);if(z)z.style.pointerEvents='';
+    const p=el&&el.closest?el.closest('[data-pi]'):null;if(p)brSelect(+p.dataset.pi,+p.dataset.pi)},520)}
+function brLpEnd(){clearTimeout(_brLpT)}
+function brLpCancel(){clearTimeout(_brLpT)}
+function brParaTap(pi){if(_brLpFired){_brLpFired=false;return}brTapCenter()}

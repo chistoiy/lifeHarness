@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "defaults": {
+    "baseUrl": "https://api.deepseek.com/v1",
+    "model": "deepseek-flash"
+  },
+  "tasks": [
+    {
+      "id": "tool.verify",
+      "module": "小工具",
+      "name": "AI API 验证",
+      "expect": "text",
+      "placeholders": ["prompt"],
+      "system": "你是接口连通性验证助手。按用户要求作答，回答保持简短。",
+      "user": "{{prompt}}",
+      "sample": { "prompt": "请只回复四个字：连接成功" }
+    },
+    {
+      "id": "todo.quadrant",
+      "module": "待办",
+      "name": "AI 判象限",
+      "expect": "json",
+      "placeholders": ["title"],
+      "system": "你是艾森豪威尔四象限分类器。只输出一个 JSON 对象，禁止输出解释、前后缀或代码块标记。",
+      "user": "根据待办标题判断所属象限。\n判定口径：\n- 重要：对长期目标、健康、人际或职责有实质影响\n- 紧急：有明确临近截止或被外部催促\n象限编号：1=重要且紧急，2=重要不紧急，3=紧急不重要，4=不紧急不重要\n待办标题：{{title}}\n输出格式：{\"quadrant\": 1, \"reason\": \"不超过20字的中文理由\"}",
+      "sample": { "title": "今晚12点前提交季度汇报终稿" }
+    },
+    {
+      "id": "todo.nl_parse",
+      "module": "待办",
+      "name": "自然语言速记解析",
+      "expect": "json",
+      "placeholders": ["text", "today"],
+      "system": "你是待办速记解析器，把口语化一句话拆成结构化字段。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。无法确定的字段一律填 null，不要编造。",
+      "user": "今天日期：{{today}}（星期请自行推算）。\n解析下面这句速记，拆出标题、截止日、提醒时间、象限：\n「{{text}}」\n输出格式：{\"title\": \"精炼后的任务标题\", \"dueDate\": \"YYYY-MM-DD 或 null\", \"remindTime\": \"HH:mm 或 null\", \"quadrant\": 1}\nquadrant 取 1~4；标题去掉日期时间等修饰词，只留事情本身。",
+      "sample": { "text": "下周三下午记得交租房合同，提前一天提醒我", "today": "2026-09-25" }
+    },
+    {
+      "id": "todo.subtask",
+      "module": "待办",
+      "name": "复杂任务拆子任务",
+      "expect": "json",
+      "placeholders": ["title"],
+      "system": "你是任务分解助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。子任务必须可执行、按时间先后排序、数量为 3~6 条。",
+      "user": "把下面这个较复杂的待办拆成可勾选的子任务：\n「{{title}}」\n输出格式：{\"subtasks\": [\"子任务一\", \"子任务二\", \"子任务三\"]}\n每条不超过 15 字，动词开头。",
+      "sample": { "title": "筹备一场 20 人的团队年度复盘会" }
+    },
+    {
+      "id": "inbox.triage",
+      "module": "收集箱",
+      "name": "AI 一键分流",
+      "expect": "json",
+      "placeholders": ["content"],
+      "system": "你是个人知识管理分流器。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。target 只能取 todo、journal、note、quote 四者之一。",
+      "user": "把下面这条收集箱碎片归到最合适的去向：\n- todo：需要做的事、有行动项\n- journal：当天的经历、感受、生活记录\n- note：可复用的知识、想法、资料\n- quote：摘录自他处的原文句子\n内容：{{content}}\n输出格式：{\"target\": \"note\", \"reason\": \"不超过20字的中文理由\", \"draft\": \"清洗后的建议正文（去掉冗余口语）\"}",
+      "sample": { "content": "突然想到写作的时候应该先讲结论再讲过程，像金字塔原理那样" }
+    },
+    {
+      "id": "journal.reflect",
+      "module": "日记",
+      "name": "AI 反思草稿",
+      "expect": "text",
+      "placeholders": ["content"],
+      "system": "你是日记反思引导助手。用第一人称写一段 60~120 字的反思草稿，语气平实不煽情，不复述原文，而是点出这一天的关键、值得延续之处和一个可改进的小动作。只输出草稿正文，不要标题、不要解释、不要加引号。",
+      "user": "以下是今天的日记概览/片段：\n{{content}}\n请生成反思段落。",
+      "sample": { "content": "上午开会拖了两小时，方案还是没定；下午独自写文档效率很高，提前交了。晚上和朋友吃饭聊了很多，睡得晚。" }
+    },
+    {
+      "id": "read.toc",
+      "module": "阅读",
+      "name": "目录 AI 补全",
+      "expect": "json",
+      "placeholders": ["title", "author"],
+      "system": "你是图书目录结构助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。若该书确实未知，返回空 chapters 数组，不要编造内容简介。",
+      "user": "为下面这本书给出通行的章节目录（部分+节两级，不确定部分可填 null）：\n书名：{{title}}\n作者：{{author}}\n输出格式：{\"chapters\": [{\"part\": \"第一部分 原则\", \"title\": \"1. 我的历程\", \"sections\": [\"工作原则\", \"生活原则\"]}]}\nsections 可为 null；章节数按该书实际目录给出（常见 8~60 条），不要为凑数拆分或合并。",
+      "sample": { "title": "原则", "author": "瑞·达利欧" }
+    },
+    {
+      "id": "read.quote_insight",
+      "module": "阅读",
+      "name": "摘录感想生成",
+      "expect": "json",
+      "placeholders": ["quote", "book"],
+      "system": "你是读书笔记助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。感想要落在使用者自身场景，不空泛吹捧、不引用原文。",
+      "user": "为下面这条摘录写一段可选感想草稿（40~80 字），并给 1~3 个标签：\n书名：{{book}}\n摘录：{{quote}}\n输出格式：{\"insight\": \"感想正文\", \"tags\": [\"标签一\", \"标签二\"]}",
+      "sample": { "book": "原则", "quote": "痛苦 + 反思 = 进步。" }
+    },
+    {
+      "id": "read.explain",
+      "module": "阅读",
+      "name": "词句解释",
+      "expect": "text",
+      "placeholders": ["text", "book"],
+      "system": "你是《{{book}}》的随行注疏助手。对读者选中的词或句，依次给出：①释义（字词义/句意）②背景（概念出处与作者语境）③简析（一句话说明它在书中论证里的位置）。总计不超过 180 字，直接输出正文，不客套、不整句复述原文。",
+      "user": "书名：{{book}}\n选中：{{text}}\n请解释。",
+      "sample": { "book": "思考，快与慢", "text": "锚定效应" }
+    },
+    {
+      "id": "read.xray_refine",
+      "module": "阅读",
+      "name": "X-Ray 词条精化",
+      "expect": "json",
+      "placeholders": ["book", "batch"],
+      "system": "你是全书索引（X-Ray）的词条质检助手，只对送来的词条批次做判断，禁止臆造批次里没有出现过的词。remove 只收明显不是实体的词（通用词、章节序号、单字、口语片段）；retype 只收类型判错的词，type 限 per/loc/org/term/abbr/book 六种；add 只收批次提示明显漏掉、在书里反复出现的实体名。拿不准就三项都不动，宁空勿造。只输出一个 JSON 对象，禁止代码块标记、禁止解释文字。",
+      "user": "书名：{{book}}\n待精化词条（每行「词 | 类型 | 出现次数 | 跨章数」）：\n{{batch}}\n输出格式：{\"remove\": [\"词一\"], \"retype\": [{\"word\": \"词二\", \"type\": \"loc\"}], \"add\": [{\"word\": \"词三\", \"type\": \"per\"}]}",
+      "sample": { "book": "思考，快与慢", "batch": "系统1 | term | 480 | 12\n几乎 | term | 90 | 9\n第十一章 | abbr | 30 | 8" }
+    },
+    {
+      "id": "schedule.weekly_review",
+      "module": "日程",
+      "name": "周报 AI 点评",
+      "expect": "text",
+      "placeholders": ["stats"],
+      "system": "你是时间使用分析师。输入只有聚合统计数字，不含任何原始记录。用中文写 80~150 字点评：先说时间结构特征，再指出一个失衡点和一个具体可执行的下周调整建议。不下医疗或心理判断，不使用「您」，语气客观简练。只输出点评正文。",
+      "user": "本周时间结构统计：\n{{stats}}\n请给出点评。",
+      "sample": { "stats": "总记录 112 小时；睡眠均值 6.4h（最低 4.5h）；工作 52h；运动 1.5h；人际/家庭 3h；屏幕娱乐 18h；工作日平均首次记录 08:10，末次记录 23:40。" }
+    },
+    {
+      "id": "care.cycle_insight",
+      "module": "呵护",
+      "name": "AI 周期解读",
+      "expect": "text",
+      "placeholders": ["stats"],
+      "system": "你是女性周期数据的趋势摘要助手。输入仅为聚合统计，不含原始记录。用中文写 80~140 字趋势描述，只陈述数据事实与波动范围，必须包含「不构成医学诊断，如有不适请咨询医生」这一提示。禁止给出用药、诊断或治疗建议，禁止使用恐吓性措辞。只输出正文。",
+      "user": "周期聚合统计：\n{{stats}}\n请生成趋势摘要。",
+      "sample": { "stats": "近 6 个周期长度：28、29、27、31、34、30 天，平均 29.8 天，标准差 2.4；经期天数 5、4、5、6、4、5 天；痛经记录出现在 3 个周期，集中在经期第 1~2 天。" }
+    },
+    {
+      "id": "ledger.categorize",
+      "module": "记账",
+      "name": "AI 辅助归类",
+      "expect": "json",
+      "placeholders": ["items", "cats"],
+      "system": "你是账单分类器。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。category 必须严格从给定候选分类中选，无法判断时填「其他」，不要新造分类名。",
+      "user": "候选分类：{{cats}}\n请按商户名/交易说明逐条归类：\n{{items}}\n输出格式：{\"items\": [{\"name\": \"原始商户名\", \"category\": \"候选分类之一\"}]}\n顺序与输入一致，条目数必须相同。",
+      "sample": { "cats": "餐饮, 交通, 居住, 购物, 医疗, 娱乐, 其他", "items": "美团外卖\n滴滴出行\n全家便利店\n中国移动\n山姆会员店" }
+    }
+  ]
+}

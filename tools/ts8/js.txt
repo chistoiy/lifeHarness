@@ -1,0 +1,27 @@
+/* ================= V1.57 时间账本 · 分类明细下钻（缺口盘点批 #8） =================
+ * 分类时长汇总每行都是真入口：列出该时段内此分类的全部分段，谓词与 tsAgg 同源（含跨零点拆分）。 */
+let tsCat=null;
+function tsHHMM(m){m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function tsCatSegs(){const {from,to}=tsPeriod(tsSpan,tsAnchor);const out=[];
+  blocks.forEach(b=>{if(b.cat!==tsCat)return;const d0=b.day||TODAY,e=bend(b);
+    const parts=[[d0,Math.min(e,1439)]];if(e>1439)parts.push([d0+1,e-1440]);
+    parts.forEach(([d,end])=>{const mins=Math.max(0,end-b.s);if(!mins||d<from||d>to)return;
+      out.push({d:d,s:b.s,e:end,mins:mins,note:b.note||'',cross:e>1439})})});
+  out.sort((x,y)=>x.d-y.d||x.s-y.s);return out}
+function tsOpenCat(c){tsCat=c;tsCatRender();openSheet('sheetTsCat')}
+function tsCatRender(){const segs=tsCatSegs(),P=tsPeriod(tsSpan,tsAnchor),span=P.to-P.from+1;
+  const sum=segs.reduce((t,x)=>t+x.mins,0),mx=Math.max(1,...segs.map(x=>x.mins));
+  const dot=document.getElementById('tscDot');if(dot)dot.style.background=tsColor(tsCat);
+  document.getElementById('tscTitle').textContent=tsCat;
+  document.getElementById('tscPeriod').textContent={d:'当日',w:'本周',m:'本月',y:'全年'}[tsSpan]+' · '+P.label;
+  document.getElementById('tscStat').innerHTML=[[segs.length,'段数'],[tsHM(sum),'合计'],[tsHM(Math.round(sum/span)),'日均']]
+    .map(x=>`<div class="rounded-2xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block">${x[0]}</b><span class="text-[9px] text-slate-400">${x[1]}</span></div>`).join('');
+  document.getElementById('tscList').innerHTML=segs.length?segs.map(x=>`<div class="flex items-center gap-3 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <span class="w-9 shrink-0 text-[11px] font-extrabold" style="color:${tsColor(tsCat)}">${x.d}日</span>
+    <div class="flex-1 min-w-0"><div class="text-[12px] font-semibold truncate">${x.note||tsCat}</div>
+      <div class="text-[10px] text-slate-400">${tsHHMM(x.s)}–${tsHHMM(x.e)}${x.cross?' · 跨零点':''}</div>
+      <div class="h-1 rounded-full bg-slate-100 dark:bg-slate-800 mt-1 overflow-hidden"><div class="h-full rounded-full" style="width:${Math.round(x.mins/mx*100)}%;background:${tsColor(tsCat)}"></div></div></div>
+    <b class="text-[12px] shrink-0">${tsHM(x.mins)}</b></div>`).join('')
+    :'<div class="text-xs text-slate-400 py-6 text-center">该时段没有此分类的时间块</div>'}
+
+let tsScope='w';

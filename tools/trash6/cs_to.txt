@@ -1,0 +1,1 @@
+function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');if(key==='trash')recSetChanged(key);}

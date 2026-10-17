@@ -1,0 +1,223 @@
+{
+ "file": "index-maternity_bady.html",
+ "total": 319545,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-care",
+   "kind": "screen",
+   "title": "母婴呵护",
+   "role": "home",
+   "size": 4066,
+   "hash": "52f3e8c8"
+  },
+  {
+   "id": "p-baby",
+   "kind": "screen",
+   "title": "呵护 · 宝宝",
+   "role": "home",
+   "size": 4354,
+   "hash": "c3f7b424"
+  },
+  {
+   "id": "p-milestones",
+   "kind": "screen",
+   "title": "发育里程碑",
+   "role": "home",
+   "size": 582,
+   "hash": "f138149f"
+  },
+  {
+   "id": "p-cycleCal",
+   "kind": "screen",
+   "title": "周期日历",
+   "role": "home",
+   "size": 2258,
+   "hash": "99dd3dd6"
+  },
+  {
+   "id": "p-cycleStats",
+   "kind": "screen",
+   "title": "周期统计",
+   "role": "home",
+   "size": 1757,
+   "hash": "dff0521e"
+  },
+  {
+   "id": "p-symHistory",
+   "kind": "screen",
+   "title": "感受历史",
+   "role": "home",
+   "size": 427,
+   "hash": "46656b49"
+  },
+  {
+   "id": "p-careRemind",
+   "kind": "screen",
+   "title": "呵护提醒",
+   "role": "home",
+   "size": 2847,
+   "hash": "50af3d47"
+  },
+  {
+   "id": "p-babies",
+   "kind": "screen",
+   "title": "宝宝档案",
+   "role": "home",
+   "size": 1156,
+   "hash": "160d5f8d"
+  },
+  {
+   "id": "p-babyDay",
+   "kind": "screen",
+   "title": "全天记录",
+   "role": "home",
+   "size": 1421,
+   "hash": "fad2bb99"
+  },
+  {
+   "id": "p-growth",
+   "kind": "screen",
+   "title": "生长曲线",
+   "role": "home",
+   "size": 1753,
+   "hash": "c515aed4"
+  },
+  {
+   "id": "p-vaccine",
+   "kind": "screen",
+   "title": "疫苗计划",
+   "role": "home",
+   "size": 1297,
+   "hash": "6c73dc66"
+  },
+  {
+   "id": "p-babyStats",
+   "kind": "screen",
+   "title": "呵护 · 汇总",
+   "role": "home",
+   "size": 1572,
+   "hash": "1499c85e"
+  },
+  {
+   "id": "sheetBabyMeasure",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1280,
+   "hash": "1608a18b"
+  },
+  {
+   "id": "sheetCycleDay",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2562,
+   "hash": "dfdbda79"
+  },
+  {
+   "id": "sheetBabySwitch",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 858,
+   "hash": "a151192a"
+  },
+  {
+   "id": "sheetAddBaby",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2364,
+   "hash": "07d4e2c5"
+  },
+  {
+   "id": "sheetCarer",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 931,
+   "hash": "5e230121"
+  },
+  {
+   "id": "sheetCareDate",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1561,
+   "hash": "fa50de2a"
+  },
+  {
+   "id": "sheetEvManage",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 613,
+   "hash": "2585614e"
+  },
+  {
+   "id": "sheetEvForm",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1547,
+   "hash": "575af099"
+  },
+  {
+   "id": "sheetVaxAdd",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1957,
+   "hash": "6839b52a"
+  },
+  {
+   "id": "sheetMilestone",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1718,
+   "hash": "00029164"
+  },
+  {
+   "id": "sheetEventLog",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 9842,
+   "hash": "d9a7b588"
+  },
+  {
+   "id": "sheetEvPanel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 674,
+   "hash": "2b85eeb2"
+  },
+  {
+   "id": "sheetDayFilter",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 818,
+   "hash": "8141335d"
+  },
+  {
+   "id": "sheetAllergy",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1113,
+   "hash": "7f509755"
+  },
+  {
+   "id": "sheetBsFilter",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 867,
+   "hash": "6c9c3d34"
+  }
+ ]
+}

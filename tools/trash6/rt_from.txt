@@ -1,0 +1,2 @@
+    <span class="w-3 h-3 rounded-full ${D.quads[t.q].cls} shrink-0" title="${D.quads[t.q].name}"></span></div>`).join('');
+}

@@ -1,0 +1,122 @@
+{
+  "cat": "clip",
+  "channels": [
+    {
+      "id": "clip_weread",
+      "cat": "clip",
+      "name": "微信读书",
+      "fmt": "自动识别",
+      "fields": "复制即得划线与书名",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+(?:\\n(?!——)[^\\n]+)*)\\n+——《(?<book>[^》\\n]+)》[^\\n]*"
+      },
+      "sample": "所谓门槛，能力够了就是门，能力不够就是槛。\n——《人生算法》 第三章 边界 P42\n\n当你Basics掌握了，剩下的只是重复。\n——《原子习惯》 P118"
+    },
+    {
+      "id": "clip_zj",
+      "cat": "clip",
+      "name": "掌阅精选",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+(?:\\n(?!——)[^\\n]+)*)\\n+——《(?<book>[^》\\n]+)》[^\\n]*"
+      },
+      "sample": "所有命运赠送的礼物，早已在暗中标好了价格。\n——《斯蒂芬茨威格》 页码：58"
+    },
+    {
+      "id": "clip_jd",
+      "cat": "clip",
+      "name": "静读天下",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+)\\n(?:作者[:：][^\\n]+\\n)?书名[:：]《?(?<book>[^》\\n]+)》?(?:\\n(?:位置|页码)[:：]?(?<loc>[\\d,\\.]+))?"
+      },
+      "sample": "人不能两次踏入同一条河流。\n作者：赫拉克利特\n书名：理想国\n位置：3.14"
+    },
+    {
+      "id": "clip_dk",
+      "cat": "clip",
+      "name": "多看阅读",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+(?:\\n(?!摘自)[^\\n]+)*)\\n+摘自《(?<book>[^》\\n]+)》[^\\n]*"
+      },
+      "sample": "生活不可能像你想象的那么好，但也不会像你想象的那么糟。\n摘自《一世长安》 第7章 P96"
+    },
+    {
+      "id": "clip_dd",
+      "cat": "clip",
+      "name": "当当云阅读",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+(?:\\n(?!-《)[^\\n]+)*)\\n+-《(?<book>[^》\\n]+)》[^\\n]*"
+      },
+      "sample": "世界是属于勇敢者的，最终是属于对决成功的勇敢者的。\n-《亮剑》 P203"
+    },
+    {
+      "id": "clip_wy",
+      "cat": "clip",
+      "name": "网易蜗牛",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+(?:\\n(?!——)[^\\n]+)*)\\n+——《(?<book>[^》\\n]+)》[^\\n]*"
+      },
+      "sample": "一个人只拥有此生此世是不够的，他还应该拥有诗意的世界。\n——《万寿寺》 P31"
+    },
+    {
+      "id": "clip_fq",
+      "cat": "clip",
+      "name": "番茄小说",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 章",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+(?:\\n(?!——)[^\\n]+)*)\\n+——《(?<book>[^》\\n]+)》[^\\n]*"
+      },
+      "sample": "从前从前的从前，也总有一个故事，是讲给你听的。\n——《从你的全世界路过》 第三章"
+    },
+    {
+      "id": "clip_ddao",
+      "cat": "clip",
+      "name": "得到",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+(?:\\n(?!——)[^\\n]+)*)\\n+——《(?<book>[^》\\n]+)》[^\\n]*"
+      },
+      "sample": "所谓专业，就是在你最困难的时候还有人在等你。\n——《高手》 P76"
+    },
+    {
+      "id": "clip_rigo",
+      "cat": "clip",
+      "name": "Readigo",
+      "fmt": "自动识别",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "clip",
+      "config": {
+        "pattern": "(?<body>[^\\n]+?)\\s*\\((?<book>[^,)]+),\\s*p\\.\\s*(?<page>\\d+)\\)"
+      },
+      "sample": "The first principle is that you must not fool yourself. (Richard Feynman, p. 12)"
+    }
+  ]
+}

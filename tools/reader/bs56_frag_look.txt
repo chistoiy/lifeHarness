@@ -1,0 +1,37 @@
+        <div>
+          <div class="flex items-center justify-between text-xs font-bold"><span>亮度</span><b id="brApLumV" class="text-brand-500">100</b></div>
+          <input type="range" min="30" max="100" step="1" class="br-range" id="brApLum" oninput="brApSet('lum',+this.value)">
+          <div class="text-[9px] text-slate-400 -mt-0.5">低于 100 时在正文上叠一层半透明黑，模拟暗光阅读（不影响分页）</div>
+        </div>
+        <div><div class="text-xs font-bold mb-1.5">主题</div><div class="grid grid-cols-3 gap-2" id="brApThemes"></div></div>
+        <div>
+          <div class="text-xs font-bold mb-1.5">背景色</div>
+          <div class="flex gap-2 flex-wrap" id="brApBgs"></div>
+          <div class="mt-3 text-[11px] font-bold">自定义颜色</div>
+          <div class="mt-1.5 flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-xl border border-slate-200/70 dark:border-slate-700 shrink-0" id="brApSwBg" style="background:#faf6ee"></span>
+            <span class="w-9 h-9 rounded-xl border border-slate-200/70 dark:border-slate-700 shrink-0 flex items-center justify-center text-[14px] font-black" id="brApSwFg" style="color:#3b3630">A</span>
+            <div class="flex-1 min-w-0 space-y-1.5">
+              <input type="range" min="0" max="360" step="1" class="br-range" id="brApHue" oninput="brApPick()">
+              <input type="range" min="0" max="100" step="1" class="br-range" id="brApLite" oninput="brApPick()">
+            </div>
+          </div>
+          <div class="mt-2 flex items-center gap-1.5 text-[10px] font-bold" id="brApPickTgt">
+            <button class="seg-pill on" data-t="bg" onclick="brApTgt('bg')">改底色</button>
+            <button class="seg-pill" data-t="fg" onclick="brApTgt('fg')">改字色</button>
+            <span class="flex-1"></span>
+            <span class="text-slate-400 tabular-nums" id="brApHex">—</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-bold mb-1.5">图片背景</div>
+          <div class="flex gap-2 flex-wrap" id="brApTex"></div>
+          <div class="mt-2 flex items-center gap-2">
+            <button class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold" onclick="brApPickImg()">从相册选择图片…</button>
+            <input type="file" accept="image/*" id="brApImgFile" class="hidden" onchange="brApImgChose(this)">
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-[11px]"><span class="shrink-0 text-slate-400">淡化</span>
+            <input type="range" min="0" max="90" step="5" class="br-range flex-1" id="brApDim" oninput="brApSet('dim',+this.value)">
+            <b id="brApDimV" class="text-brand-500 w-7 text-right">60</b></div>
+          <div class="text-[9px] text-slate-400">越淡越好读；点「无」回到纯色背景</div>
+        </div>

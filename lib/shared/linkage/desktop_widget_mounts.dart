@@ -1,0 +1,170 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/database/app_database.dart';
+import '../../core/platform/desktop_widget.dart';
+import '../../core/providers.dart';
+import '../../features/habit/domain/habit_calc.dart' show dayKey;
+import '../../features/habit/presentation/habit_providers.dart'
+    show habitDataProvider;
+import '../../features/ledger/domain/ledger_calc.dart' show mStat, monthKey;
+import '../../features/ledger/presentation/ledger_providers.dart'
+    show ledgerDataProvider;
+import 'stats_providers.dart' show Todo, todosProvider, todoRepositoryProvider;
+
+/// 桌面模块批2 · 小组件快照同步挂载点（app.dart watch，仿 `desktopShortcutSeedProvider`）。
+///
+/// 规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md §2.2 F2-3 / §4.4 / §6.3。
+///
+/// **为什么在组合根挂**：R1 守护下 App 只经 `shared/linkage` 编排跨模块能力；
+/// 「今日待办数 / 习惯打卡进度 / 今日支出」分属三个 feature，本文件是**唯一聚合点**
+/// （features 之间不互相 import）。
+///
+/// **刷新口径（§6.3）**：App 存活时**按需刷新**——三源数据变化或设置页改动
+/// （[desktopWidgetKickProvider]）各触发一次下发；**无常驻 Timer、无轮询**。
+/// 系统侧调频导致的延迟不视为缺陷（C4）；widget 永不直读 sqlite（C5）。
+///
+/// **测试环境**：`AppDatabase` 未初始化（全 app widget 测试）直接不挂，
+/// 与 `ledger_mounts` 同口径。
+final desktopWidgetSyncProvider = Provider<void>((ref) {
+  if (!AppDatabase.instance.isInitialized) return;
+
+  // 聚合逻辑见文件下方 buildSnapshot —— 与设置页预览卡共用同一真源，禁在此另算一套。
+  void push() {
+    final snap = buildSnapshot(ref.read);
+    if (snap == null) return;
+    Future(() => pushDesktopWidgetSnapshot(snap));
+  }
+
+  // 桌面勾圈闭环的补写队列排空（批3）。见 [drainPendingWidgetToggles] 的来由。
+  Future(() => drainPendingWidgetToggles(ref));
+
+  ref.listen(todosProvider, (_, _) => push());
+  ref.listen(habitDataProvider, (_, _) => push());
+  ref.listen(ledgerDataProvider, (_, _) => push());
+  ref.listen(desktopWidgetKickProvider, (_, _) => push());
+  Future(push);
+});
+
+/// 排空「桌面勾圈没当场写成的待办」（批3）。
+///
+/// **来由**：桌面勾圈走原生广播直接 UPDATE sqlite（`TodoActionReceiver`），那一刻
+/// App 可能没起过、库被 sqflite 独占 ⇒ 写失败。Receiver 会把 id 存进
+/// `desktop.widget_pending_toggles`；本函数在 App 启动时（库已开）补写。
+///
+/// 幂等：重复执行安全——`UPDATE … WHERE done=0` 对已完成者是 no-op；
+/// 队列为空时立即返回，**无快照无监听**（不常驻）。
+Future<void> drainPendingWidgetToggles(Ref ref) async {
+  if (!AppDatabase.instance.isInitialized) return;
+  final repo = ref.read(settingsRepositoryProvider);
+  final ids = repo.loadDesktopPendingToggles();
+  if (ids.isEmpty) return;
+  try {
+    for (final id in ids) {
+      await ref.read(todoRepositoryProvider).completeById(id);
+    }
+    await repo.saveDesktopPendingToggles(const <int>[]);
+    ref.read(desktopWidgetKickProvider.notifier).state++;
+  } catch (_) {
+    // catch-ok: 补写失败就保留队列，下次启动再试（不丢闭环意图）。
+  }
+}
+
+/// 设置页改动小组件偏好后踢一脚（隐藏金额 / 两个读数开关）。
+///
+/// 与 `ledgerTickProvider` 同款手法：跨模块不需要直连，只借一个计数源触发重算。
+final desktopWidgetKickProvider = StateProvider<int>((ref) => 0);
+
+/// 读取函数别名：Provider 挂载点（[Ref]）与设置页（`WidgetRef`）都提供
+/// 签名完全一致的 `read`，取出来当参数传即可——**不用 dynamic**。
+///
+/// ⚠ 2026-10-15 踩坑：曾把 [buildSnapshot] 的 `ref` 参数声明为 `dynamic`「走 duck
+/// typing」，结果 `ref.read(...)` 的静态返回类型退化为 `dynamic`，于是
+/// `AsyncValue.valueOrNull` 这个**扩展方法不再参与解析**，真机运行到就抛
+/// `NoSuchMethodError: Class 'AsyncData...>' has no instance getter
+/// 'valueOrNull'`。而 `flutter analyze` 对 `dynamic` 成员调用不做检查，守护测试
+/// 又是扫源码文本 ⇒ analyze 与全绿测试都漏了，只在真机炸。
+/// **教训：只要用到扩展方法，就必须保住静态类型。**
+typedef WidgetSnapshotRead = T Function<T>(ProviderListenable<T> provider);
+
+/// 今日三项聚合快照（[desktopWidgetSyncProvider] 与设置页预览卡的**唯一真源**）。
+///
+/// 设置页的预览卡（2026-10-15 产品改口「先看样式、再勾选」）直接读本函数，
+/// **禁在 UI 层另算一套**——预览与桌面上的实际读数必须一致，否则预览就是骗人的。
+///
+/// 三源都还没首次到达时返回 null ⇒ 预览显示占位（B6 · 与桌面同口径）。
+///
+/// [read] 传 `ref.read`（两个调用点各传自己那个），保住 `AsyncValue` 静态类型，
+/// `valueOrNull` 扩展才可用——**别改回 dynamic**。
+DesktopWidgetSnapshot? buildSnapshot(WidgetSnapshotRead read) {
+  // 测试环境（AppDatabase 未初始化）直接不出快照，与挂载点同口径。
+  if (!AppDatabase.instance.isInitialized) return null;
+  final todos = read(todosProvider).valueOrNull;
+  final habit = read(habitDataProvider).valueOrNull;
+  final ledger = read(ledgerDataProvider).valueOrNull;
+  // 三源都还没首次到达 ⇒ 不出快照（小组件保持占位 · B6）。
+  if (todos == null && habit == null && ledger == null) return null;
+
+  final now = DateTime.now();
+  final k = dayKey(now);
+
+  // 今日待办数＝截止日落在今天（口径与今天页问候卡逐字一致：逾期不混计）。
+  final todoCount =
+      (todos ?? const <Todo>[]).where((t) => _isOnToday(t.dueAt, now)).length;
+
+  // 今日习惯：应打卡集合（dueToday）＋其中已完成（okOn）。
+  var habitTotal = 0;
+  var habitDone = 0;
+  if (habit != null) {
+    final due = habit.dueToday(now);
+    habitTotal = due.length;
+    habitDone = due.where((h) => habit.okOn(h, k)).length;
+  }
+
+  // 今日支出：当前账本、排除「不计入」（nb）；refund 按 mStat 口径冲抵。
+  // 记账 2×2 要三行读数 ⇒ 今日/本月各算一次，结余＝本月收入−本月支出（口径同 mStat）。
+  double? todayExp;
+  double? monthExp;
+  double? monthBal;
+  if (ledger != null) {
+    todayExp =
+        mStat(ledger.txns.where((t) => !t.nb && t.date == k)).exp;
+    final mk = monthKey(now);
+    final monthStat = mStat(
+      ledger.txns.where((t) => !t.nb && t.date.startsWith(mk)),
+    );
+    monthExp = monthStat.exp;
+    monthBal = monthStat.inc - monthStat.exp;
+  }
+
+  // 待办 2×2 的行数据：今天到期 + 已逾期（都还没完事的），按截止日升序取前3。
+  // ⚠ 与 `todo_count` 口径**故意不同**：那张卡报的是「今天要做几件」，这张卡要的是
+  //「桌面上能直接点的三件事」——逾期待办同样该出现在桌面上。
+  final pool = (todos ?? const <Todo>[])
+      .where((t) => !t.done && !t.dropped && !t.trashed && t.dueAt != null)
+      .where((t) => _isOnToday(t.dueAt, now) || t.dueAt!.isBefore(now))
+      .toList()
+    ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
+  final rows = pool.take(kWidgetTodoRows).toList();
+
+  final hide = read(settingsRepositoryProvider).loadDesktopHideAmount();
+  return DesktopWidgetSnapshot(
+    todoCount: todoCount,
+    habitDone: habitDone,
+    habitTotal: habitTotal,
+    amountCell: widgetAmountCell(todayExp, hideAmount: hide),
+    monthAmountCell: widgetAmountCell(monthExp, hideAmount: hide),
+    balanceCell: widgetBalanceCell(monthBal, hideAmount: hide),
+    todoItems: <WidgetTodoItem>[
+      for (final t in rows)
+        WidgetTodoItem(id: t.id ?? 0, done: t.done, title: t.title),
+    ],
+    todoOverflow: pool.length - rows.length,
+  );
+}
+
+/// 截止日是否落在今天（今天页问候卡同口径）。
+bool _isOnToday(DateTime? dueAt, DateTime now) =>
+    dueAt != null &&
+    dueAt.year == now.year &&
+    dueAt.month == now.month &&
+    dueAt.day == now.day;

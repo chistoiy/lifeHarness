@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面模块批2 · 小组件文案（§5.6：名称＝「LifeHarness · 小部件名」）。
+  文案口径＝原型 prototype/index-desktop.html 屏 dt-widget（同字）。
+-->
+<resources>
+    <string name="lh_widget_overview_name">LifeHarness · 今日概览</string>
+    <string name="lh_widget_overview_desc">今日待办与习惯打卡进度</string>
+    <string name="lh_widget_quick_name">LifeHarness · 快捷记录</string>
+    <string name="lh_widget_quick_desc">一键记一笔，并显示今日支出</string>
+
+    <string name="lh_widget_no_data">暂无数据，打开 App 后同步</string>
+    <!-- 总开关关闭后的空态（8148 装机实锤修「死开关」时新增） -->
+    <string name="lh_widget_disabled">已在「外观与交互」中停用</string>
+    <string name="lh_widget_hint_none">今天没有要打卡的习惯</string>
+    <string name="lh_widget_hint_all">今天已全部打卡</string>
+    <string name="lh_widget_hint_left">还差 %1$d 项就全勤</string>
+    <string name="lh_widget_a11y_overview">今日待办 %1$d 项，习惯 %2$d/%3$d 已完成</string>
+    <string name="lh_widget_label_todo">待办</string>
+    <string name="lh_widget_label_habit">打卡</string>
+    <string name="lh_widget_label_today_cost">今日支出</string>
+    <string name="lh_widget_quick_action">记一笔</string>
+
+    <!-- 批3 · 2×2 待办清单 -->
+    <string name="lh_widget_todo_name">LifeHarness · 今日待办</string>
+    <string name="lh_widget_todo_desc">最近待办，点勾圈直接完成</string>
+    <string name="lh_widget_todo_toggle">完成这条待办</string>
+    <string name="lh_widget_todo_empty">今天没有待办</string>
+    <string name="lh_widget_todo_more">还有 %1$d 条</string>
+    <string name="lh_widget_a11y_todo">%1$d 条待办，点左圈可完成</string>
+
+    <!-- 批3 · 2×2 记账概览（三行读数：今日支出／本月支出／本月结余） -->
+    <string name="lh_widget_ledger_name">LifeHarness · 记账概览</string>
+    <string name="lh_widget_ledger_desc">今日、本月支出与结余</string>
+    <string name="lh_widget_label_month_cost">本月支出</string>
+    <string name="lh_widget_label_balance">本月结余</string>
+    <string name="lh_widget_ledger_hint">点一下记一笔</string>
+    <string name="lh_widget_a11y_ledger">今日支出 %1$s，本月支出 %2$s，本月结余 %3$s</string>
+
+    <!-- 配置 Activity（F2-4） -->
+    <string name="lh_widget_cfg_title">选择显示内容</string>
+    <string name="lh_widget_cfg_title_of">配置：%1$s</string>    <string name="lh_widget_cfg_hint">与「设置 › 桌面与快捷方式」共用同一份偏好，改哪边都生效。</string>
+    <string name="lh_widget_cfg_summary">今日概览读数</string>
+    <string name="lh_widget_cfg_quick">快捷记录入口</string>
+    <string name="lh_widget_cfg_todo_list">今日待办清单</string>
+    <string name="lh_widget_cfg_ledger">记账概览</string>
+    <string name="lh_widget_cfg_hide_amount">隐藏金额</string>
+    <string name="lh_widget_cfg_ok">完成</string>
+    <string name="lh_widget_cfg_cancel">取消</string>
+    <string name="lh_widget_cfg_wheres">在哪里改</string>
+    <string name="lh_widget_cfg_wheres_body">设置 › 桌面与快捷方式 › 小组件，改哪边都生效。</string>
+
+    <!-- 设置页「添加到桌面」选择器（批2）：系统没有公开的「打开小部件中心」入口（§4.9 降级矩阵），
+         故用系统对话框选一枚小组件后走 requestPinAppWidget。 -->
+    <string name="lh_widget_add_unsupported">当前桌面不支持自动添加，请长按桌面手动拖出小部件</string>
+</resources>

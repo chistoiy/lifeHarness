@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="" data-theme="minimal">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeHarness · 高保真UI原型 · AI 域专版 V1.0</title>
+<!--
+  LifeHarness · AI 域专版高保真原型（事实源 prototype/index-ai.html）
+  所有权：AI 增强及其二级屏 / 弹层在本副本内定稿 ——
+    p-sub-ai / p-sub-aiVerify / p-sub-aiPrompts / p-sub-aiPromptEdit / p-aiUsage
+    sheetAiUsageCfg / sheetAiPick / sheetAiProv
+  共享面（壳层顶栏、全局弹层风格、设计令牌、深色三档）唯一写者为 prototype/index.html；
+  本副本对应部分仅作基线参照、不得在副本内定稿；如需改动登记到工单「回灌成句」，由收口人回灌 index.html。
+  来源：2026-10-16 高保真体量整改批 3（规格＝docs/handoff/交棒话术-20261015-高保真体量整改.md §3 批3；
+        定家件＝docs/handoff/评估结论-20261016-p-profile屏级漂移比对与定家建议.md §5 Q2「AI 归 AI 域专版」）。
+  只搬不改：屏体 / 弹层 / 引擎 JS / 演示数据 / 底栏（栏位表·图标表·渲染函数）自 index.html 逐字迁入，零视觉与交互改动。
+  专版壳两处差异（已登记）：① 侧栏说明与本文件同源，顶栏保留返回 + 标题 + 深浅色切换；
+                            ② 底栏角标数据源（`NAV_BADGE_SRC`，壳层 `D.todos` 实算）不随迁 ⇒ 本专版待办枚不画角标，
+                               栏位/图标/高亮/跳转行为与壳一致（`main` 取 calc(100% - 148px)、`p-aiUsage` 隐藏底栏）。
+  校验：node tools/protojscheck.js prototype/index-ai.html / python tools/protogate.py --strict /
+        node tools/proto_registry.js --check；行为闸＝tools/aiverifycheck.js · aiusagecheck.js · aiprovcheck.js（已改指向本文件）。
+-->
+<link rel="icon" type="image/jpeg" href="assets/lh_img_45a3aab0.jpg">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { fontFamily: { sans: ['Inter','Noto Sans SC','Source Han Sans SC','PingFang SC','Microsoft YaHei','system-ui','sans-serif'] },
+    colors: { brand: {50:'#eef2ff',100:'#e0e7ff',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca'},
+      mint:'#2dd4bf', peach:'#fb7185', sun:'#f59e0b' } } }
+}
+</script>
+<style>
+  /* LH-F01 全局字体角色（产品 2026-10-02 定）：正文＝衬线（长文阅读），标题·UI·底栏＝无衬线，数字·代码＝等宽。
+     全部走系统回落链，不随包字体文件（Android 无 Microsoft YaHei，故它只作 Windows 预览兜底）。 */
+  :root{--f-ui:Inter,'Noto Sans SC','Source Han Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+        --f-body:'Noto Serif SC','Source Han Serif SC','Songti SC','STSong','SimSun',Georgia,serif;
+        --f-code:ui-monospace,'JetBrains Mono',Consolas,Menlo,monospace}
+  .f-body{font-family:var(--f-body)}.f-code{font-family:var(--f-code)}
+  /* 〇A 字体角色 · 数字用等宽（2026-10-05 批五补落原型）：金额/计数列逐行对齐不抖。
+     只挂 OpenType `tnum`（等宽数字字形），**不换字族、不动观感**；
+     Flutter 侧同口径＝LH-K33 `TabularNums`（批四 T12）。字段级等宽字族（--f-code：
+     计时/日志/代码）另按 〇A 走，两者不冲突。 */
+  body{font-variant-numeric:tabular-nums}
+  html,body{height:100%;background:#0f172a;font-family:var(--f-ui);}
+  /* ---- 设计令牌 & 4套主题：简约minimal / 小清新fresh / 复古retro / 轻拟态neumorph ---- */
+  :root{--accent:#6366f1;--accent-l:#818cf8;--g1:#6366f1;--g2:#8b5cf6;--g3:#d946ef;--page:#f8fafc;--card:#fff;--card-bd:#f1f5f9;--card-r:20px;--card-sh:0 1px 3px rgba(15,23,42,.05);--nav-bg:rgba(255,255,255,.85);--nav-bd:#e2e8f0}
+  html.dark{--page:#020617;--card:#0f172a;--card-bd:#1e293b;--nav-bg:rgba(2,6,23,.85);--nav-bd:#1e293b}
+  html[data-theme="fresh"]{--accent:#10b981;--accent-l:#34d399;--g1:#34d399;--g2:#22d3ee;--g3:#60a5fa;--page:#f1faf4;--card-bd:#e2f2e9;--card-r:26px;--nav-bg:rgba(255,255,255,.88)}
+  html[data-theme="fresh"].dark{--page:#07130e;--card:#0c1a13;--card-bd:#16321f;--nav-bg:rgba(7,19,14,.88);--nav-bd:#16321f}
+  html[data-theme="retro"]{--accent:#b45309;--accent-l:#d97706;--g1:#b45309;--g2:#92400e;--g3:#7c2d12;--page:#f4ecdc;--card:#fdf6e9;--card-bd:#e0cfa9;--card-r:12px;--card-sh:3px 3px 0 #e2d3b1;--nav-bg:#f4ecd9;--nav-bd:#e0cfa9}
+  html[data-theme="retro"] #phone{font-family:var(--f-body);letter-spacing:.01em}
+  html[data-theme="retro"] .grad{background:linear-gradient(135deg,#b45309 0%,#7c2d12 100%)}
+  html[data-theme="retro"] .card{border-width:2px}
+  html[data-theme="retro"].dark{--page:#171008;--card:#241a0e;--card-bd:#4a3722;--card-sh:3px 3px 0 #0c0702;--nav-bg:#211709;--nav-bd:#4a3722}
+  html[data-theme="neumorph"]{--accent:#5b7cfa;--accent-l:#93a7ff;--g1:#7c93f5;--g2:#6272e8;--g3:#5565e0;--page:#e9eef5;--card:#e9eef5;--card-bd:transparent;--card-r:22px;--card-sh:8px 8px 18px #c9d2e3,-8px -8px 18px #ffffff;--nav-bg:#e9eef5;--nav-bd:#d7dfec}
+  html[data-theme="neumorph"] .card{border-width:0}
+  html[data-theme="neumorph"] .grad{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),6px 6px 14px rgba(91,124,250,.35)}
+  html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342}
+  #phone{background-color:var(--page)!important;background-image:var(--page-img,none)!important;font-family:var(--app-font,inherit)}
+  nav{background:var(--nav-bg)!important;border-color:var(--nav-bd)!important;font-family:var(--f-ui)}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+  .page{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .page.active{display:block;animation:slideIn .22s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+  .sheet-open{display:flex!important}
+  .sheet-panel{animation:sheetUp .25s cubic-bezier(.2,.8,.2,1)}
+  .ring-progress{transform:rotate(-90deg)}
+  .q-card.dragging{opacity:.4}
+  .q-drop.drag-over{outline:2px dashed #6366f1;outline-offset:-4px;background:rgba(99,102,241,.06)}
+  .ripple{position:relative;overflow:hidden}
+  input[type=range]{accent-color:#6366f1}
+  .grad{background:linear-gradient(135deg,var(--g1) 0%,var(--g2) 55%,var(--g3) 100%)}
+  .safe-pb{padding-bottom:96px}
+  /* ===== 「我的」页·版式三选（2026-10-12 · 待产品过门；定形并落实现后本段整体摘除）=====
+     版式：body.lay-hero（默认·记录仪表）｜lay-chapters（编辑章节）｜lay-minimal（极简卷轴）。
+     入口＝「设置 › 外观 › 我的页版式」；控制台 setMyLayout('hero'|'chapters'|'minimal')；
+     持久化＝localStorage lh.myLayout；地址带 ?mylayout= 可强制（不写持久化）。
+     hero＝渐变身份卡 .pf-hero（头像嵌连击环＋读数带＋里程碑），隐藏旧顶区 .pf-legacy；下半页常驻圆角卡。
+     chapters＝显 .pf-legacy（身份行＋去卡读数带）；组标题编号化(01..04)＋发丝；卡片去卡→连续卷轴；签名页脚。
+     minimal＝显 .pf-legacy；组标题淡小字；卡片去卡去发丝→纯间距；极简页脚。
+     全程只做形态覆盖，零业务逻辑改动。 */
+  .pf-hero{display:none}
+  body.lay-hero .pf-hero{display:block}
+  body.lay-hero .pf-legacy{display:none!important}
+  .pf-ro b{font-variant-numeric:tabular-nums}
+
+  /* —— 方向二「编辑章节」—— */
+  body.lay-chapters #p-profile .pf-gt{display:flex;align-items:center;gap:9px;margin:34px 0 3px;font-size:12px;letter-spacing:.06em}
+  body.lay-chapters #p-profile .pf-gt::before{content:attr(data-n);font-variant-numeric:tabular-nums;color:var(--accent);font-weight:800;opacity:.55}
+  body.lay-chapters #p-profile .pf-gt::after{content:'';flex:1;height:1px;background:currentColor;opacity:.13}
+  body.lay-chapters #p-profile>.card{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;margin-top:0!important}
+  body.lay-chapters #p-profile .pf-legacy .card{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+  body.lay-chapters #p-profile .pf-legacy b{font-size:21px}
+  body.lay-chapters #p-profile #pfAbout{margin-top:42px!important;text-align:center;letter-spacing:.05em;background:transparent!important;border:0!important;box-shadow:none!important}
+  body.lay-chapters #p-profile #pfAbout>div:first-child{justify-content:center}
+
+  /* —— 方向三「极简卷轴」—— */
+  body.lay-minimal #p-profile .pf-gt{margin:42px 0 4px;font-size:11px;letter-spacing:.05em;opacity:.7}
+  body.lay-minimal #p-profile>.card{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;margin-top:0!important}
+  body.lay-minimal #p-profile>.card button{border-top:0!important;padding-top:15px;padding-bottom:15px}
+  body.lay-minimal #p-profile .pf-legacy .card{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+  body.lay-minimal #p-profile .pf-legacy b{font-size:23px}
+  body.lay-minimal #p-profile #pfAbout{margin-top:46px!important;text-align:center;font-size:10.5px;background:transparent!important;border:0!important;box-shadow:none!important}
+  body.lay-minimal #p-profile #pfAbout>div:first-child{justify-content:center}
+  /* 底栏收起态样张（2026-10-11 · 待产品过门，非正式形态；定形并落实现后本段整体摘除）：
+     双指张开＝底栏收起·内容通底；双指捏合＝底栏回来。收起后 main 吃回 70px 底栏高、
+     页面底留白 96→28；底部另给一条「可见线索」防「东西去哪了」。
+     **方向口径（产品 2026-10-11 二次裁定）＝张开收起 / 捏合还原**（回轮4 原始需求；
+     早先文案写反成「捏合收起」，已改）。
+     产品 2026-10-11 拍板：两条线索都保留、由「设置 › 外观 › 底栏手势」切换（A 细握把／B 胶囊折角）；
+     线索距底可调（走 --tb-gap，设置滑杆实时改）；悬浮球保持原位、不随底栏落底；
+     手势总开关**默认关**（新装用户零行为变化）。
+     演示开关＝地址带 ?tbdemo=grab|badge|gest；也可控制台 setTbDemo('grab') / setTbDemo('')。 */
+  body.tbdemo #tabNav{display:none!important}
+  body.tbdemo main{height:calc(100% - 78px)!important}
+  body.tbdemo .page.safe-pb{padding-bottom:28px!important}
+  /* 线索两条都居中贴底（右下角有悬浮球，角标式线索会被它压住——实测踩过，故不用右下角）：
+     A＝一条素净细握把；B＝带向上折角的胶囊（更像「可拉起」）。两者都不占点击区（纯线索）。 */
+  #tbGrab,#tbBadge,#tbGest{display:none;position:absolute;pointer-events:none}
+  #tbGrab{left:0;right:0;bottom:0;z-index:29;justify-content:center;align-items:flex-end;padding-bottom:var(--tb-gap,16px)}
+  #tbGrab i{display:block;width:56px;height:4px;border-radius:999px;background:#94a3b8;opacity:.7}
+  .dark #tbGrab i{background:#64748b}
+  #tbBadge{left:0;right:0;bottom:0;z-index:29;justify-content:center;align-items:flex-end;padding-bottom:var(--tb-gap,16px)}
+  #tbBadge i{display:flex;align-items:center;justify-content:center;width:44px;height:20px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.10)}
+  .dark #tbBadge i{background:#1e293b;border-color:#334155;color:#a5b4fc;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  /* 线索样式由设置项开（本体 tb-line-a／tb-line-b），距底走 --tb-gap（设置滑杆实时改，全屏与预览同源） */
+  body.tbdemo.tb-line-a #tbGrab,body.tbdemo.tb-gest #tbGrab{display:flex}
+  body.tbdemo.tb-line-b #tbBadge{display:flex}
+  /* 捏合示意＝整屏薄纱＋居中卡片（避免与悬浮球/内容抢位，也一眼看出是「示意」） */
+  #tbGest{inset:0;z-index:31;align-items:center;justify-content:center;background:rgba(15,23,42,.34)}
+  body.tbdemo.tb-gest #tbGest{display:flex}
+  /* 设置卡内的预览框（外观屏·底栏手势卡）：一条迷你底边虚线 + 线索，实时反映形态与距底 */
+  #tbSetPrev{position:relative;height:112px;border-radius:14px;overflow:hidden;background:var(--page);border:1px solid var(--card-bd)}
+  #tbSetPrev::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:repeating-linear-gradient(90deg,#cbd5e1 0 7px,transparent 7px 13px)}
+  .dark #tbSetPrev::after{background:repeating-linear-gradient(90deg,#475569 0 7px,transparent 7px 13px)}
+  #tbSetPrev .tpHint{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:flex-end;padding-bottom:var(--tb-gap,16px)}
+  #tbSetPrev .tpA{display:none;width:56px;height:4px;border-radius:999px;background:#94a3b8;opacity:.7}
+  .dark #tbSetPrev .tpA{background:#64748b}
+  #tbSetPrev .tpB{display:none;align-items:center;justify-content:center;width:44px;height:20px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.10)}
+  .dark #tbSetPrev .tpB{background:#1e293b;border-color:#334155;color:#a5b4fc;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  body.tb-line-a #tbSetPrev .tpA{display:block}
+  body.tb-line-b #tbSetPrev .tpB{display:flex}
+  .blur-bd{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+  /* ---- 组件类 ---- */
+  .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--card-r);padding:14px 16px;box-shadow:var(--card-sh)}
+  .row-title{font-size:13px;font-weight:800}
+  button.mood{font-size:22px;opacity:.5;filter:grayscale(.4);transition:.15s}
+  #editMood button.mood{font-size:17px} /* 轮12-8：编辑页心情图标缩小 */
+  /* 轮12-9：日记富文本框（contenteditable）所见样式 */
+  .diary-rich:empty::before{content:''}
+  .diary-rich blockquote{border-left:3px solid rgba(99,102,241,.5);padding-left:10px;margin:6px 0;color:#94a3b8}
+  .diary-rich ul{list-style:disc;padding-left:20px;margin:6px 0}
+  .diary-rich b{font-weight:800}
+  .diary-chk{color:#6366f1;font-weight:800}
+  button.mood:active{transform:scale(1.15)}
+  .mood-on{opacity:1!important;transform:scale(1.25);filter:none!important}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .seg-on{background:var(--card);color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.12)}
+  .dark .seg-on{color:var(--accent-l)}
+  .wheelbox{height:78px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .wheelbox::-webkit-scrollbar{display:none}
+  .tp-catgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;max-height:82px;overflow-y:auto;scrollbar-width:none}
+  .tp-catgrid::-webkit-scrollbar{display:none}
+  .tp-catgrid .tag-chip{padding:5px 2px;font-size:10px;justify-content:center;gap:3px;min-width:0}
+  .tp-subgrid .tag-chip{padding:5px 7px;font-size:10px;gap:3px;flex:none}
+  .tp-catgrid .tag-chip i{width:7px!important;height:7px!important;flex:none}
+  .tp-catgrid > span{grid-column:1/-1;text-align:center;padding:4px 0}
+  .tp-subgrid{display:flex;flex-wrap:wrap;gap:4px;background:rgb(241 245 249 / .8);border-radius:12px;padding:6px;max-height:82px;overflow-y:auto}
+  .dark .tp-subgrid{background:rgb(30 41 59 / .6)}
+  .witem{height:26px;line-height:26px;scroll-snap-align:center;text-align:center;font-size:12px;color:#94a3b8;font-weight:600;user-select:none;transition:color .15s}
+  .witem.on{font-size:19px;font-weight:800;color:var(--accent)}
+  .dark .witem.on{color:var(--accent-l)}
+  /* 时间维度自定义区：.exW3 只作三列等宽布局容器，滚动/吸附由内层 .wheelbox 承担 */
+  .exW3{flex:1;min-width:0}
+  .nav-arrow{width:32px;height:32px;border-radius:50%;font-size:18px;color:#94a3b8;line-height:1}
+  .chip{font-size:11px;padding:5px 10px;border-radius:999px;background:#e2e8f0;color:#64748b;font-weight:600}
+  .dark .chip{background:#1e293b;color:#94a3b8}
+  .chip-on{background:var(--accent);color:#fff!important}
+  .chk{width:22px;height:22px;border-radius:50%;border:2px solid #cbd5e1;font-size:12px;color:transparent;flex-shrink:0;line-height:1}
+  .dark .chk{border-color:#475569}
+  .chk-on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .qbadge{width:20px;height:20px;border-radius:6px;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .mini-btn{font-size:11px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:6px 10px;border-radius:10px}
+  .dark .mini-btn{color:var(--accent-l)}
+  /* NFC 卡片：写卡等待呼吸环（本模块唯一允许的循环动画·离开层即停） */
+  .nfc-ring{width:104px;height:104px;border-radius:9999px;border:2px dashed var(--card-bd);animation:nfcPulse 1.6s ease-in-out infinite}
+  @keyframes nfcPulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.06);opacity:1}}
+  .link-act{color:var(--accent);font-weight:700}
+  .qtag{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .quote-line{border-left:3px solid var(--accent);padding-left:10px;font-size:12px;line-height:1.7;color:#475569}
+  .dark .quote-line{color:#94a3b8}
+  .border-l-peach{border-left-color:#fb7185!important}.border-l-mint{border-left-color:#2dd4bf!important}
+  .grabber{width:36px;height:4px;border-radius:99px;background:#cbd5e1;margin:0 auto 10px}
+  /* V1.50 批3.6 V4 · 日志行版式（补齐搬移缺失：等宽/级别配色/来源标签/行分隔；色值沿用 sync 专版口径；字号滚轮经 #logBoxWrap 级联） */
+  #logBoxWrap{font-size:11px}
+  .logline{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:1em;line-height:1.7;padding:5px 12px;border-bottom:1px solid color-mix(in srgb,var(--card-bd) 60%,transparent);cursor:pointer}
+  /* 真机反馈轮4④：点行勾选多条复制（长按=复制该行不变）·选中态=描边+底色 */
+  .logline.logsel{background:color-mix(in srgb,var(--accent) 12%,transparent);box-shadow:inset 3px 0 0 var(--accent)}
+  /* 真机反馈轮4②：hero 行数字可点直达（LH-K15 同款虚线下划线语义·白卡上用半透明白） */
+  .tapnum{border-bottom:1px dashed rgba(255,255,255,.55);cursor:pointer}
+  /* 轮4③：我的页统计数字可点（LH-K15 灰底版·与 hero 同语义） */
+  .numtap{border-bottom:1px dashed rgba(100,116,139,.5)}
+  /* V1.53.4 R14-11：日志行不分栏（时间/级别/来源/正文同一段行内流，长内容不再被挤进右栏） */
+  .logline>span{display:inline}
+  .logline:last-child{border-bottom:none}
+  .logline .lt{color:#94a3b8}
+  .dark .logline .lt{color:#64748b}
+  .logline .ll{font-weight:800;color:#0ea5e9}
+  .logline.lv-WARN .ll{color:#f59e0b}
+  .logline.lv-ERROR .ll{color:#ef4444}
+  .logline .ls{font-size:9px;font-weight:800;color:#64748b;background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:1px 5px}
+  .logline .lm{color:#0f172a}
+  .dark .logline .lm{color:#e2e8f0}
+  .logline.lv-WARN{background:color-mix(in srgb,#f59e0b 5%,transparent)}
+  .logline.lv-ERROR{background:color-mix(in srgb,#ef4444 6%,transparent)}
+  /* V1.53.4 R14-11：回填堆栈行默认折一行，点开看全文（否则单条吃掉整屏，最新日志被顶出屏幕） */
+  .logline .lstk{display:block;color:#94a3b8;word-break:break-all}
+  .logline .lstk:not(.open){max-height:1.7em;overflow:hidden}
+  .logline .lmore{display:inline-block;font-size:9px;font-weight:800;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:5px;padding:0 5px;margin-top:2px;cursor:pointer}
+  /* ===== V1.53 AI 使用记录（p-aiUsage · 全屏明细 · 与 .logline 同族视觉，行内可展开正文） ===== */
+  .ailine{border-bottom:1px solid color-mix(in srgb,var(--card-bd) 60%,transparent);padding:8px 12px}
+  .ailine:last-child{border-bottom:none}
+  .ailine .ah{display:flex;align-items:center;gap:7px;font-size:11px}
+  .ailine .at{color:#94a3b8;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:10px;flex-shrink:0}
+  .dark .ailine .at{color:#64748b}
+  .ailine .am{font-weight:700;color:#0f172a;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dark .ailine .am{color:#e2e8f0}
+  .ailine .as{flex-shrink:0;font-size:9px;font-weight:800;border-radius:5px;padding:1px 5px}
+  .ailine .aq{flex-shrink:0;font-size:9.5px;color:#64748b;font-family:ui-monospace,Consolas,Menlo,monospace}
+  .ailine.st-ok .as{color:#10b981;background:color-mix(in srgb,#10b981 14%,transparent)}
+  .ailine.st-fail .as{color:#ef4444;background:color-mix(in srgb,#ef4444 14%,transparent)}
+  .ailine.st-cancel .as{color:#f59e0b;background:color-mix(in srgb,#f59e0b 14%,transparent)}
+  .ailine.st-denied .as{color:#64748b;background:color-mix(in srgb,#64748b 16%,transparent)}
+  .ailine.st-fail{background:color-mix(in srgb,#ef4444 5%,transparent)}
+  .ailine .ab{display:none;margin-top:8px}
+  .ailine.open .ab{display:block}
+  .ailine .ab h5{font-size:10px;font-weight:800;color:#64748b;margin:8px 0 3px}
+  .ailine .ab pre{white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:10.5px;line-height:1.65;background:color-mix(in srgb,var(--accent) 5%,transparent);border:1px solid color-mix(in srgb,var(--card-bd) 70%,transparent);border-radius:10px;padding:8px;max-height:170px;overflow-y:auto;margin:0;color:#334155}
+  .dark .ailine .ab pre{color:#cbd5e1}
+  .ailine .ab pre.err{background:color-mix(in srgb,#ef4444 7%,transparent);border-color:color-mix(in srgb,#ef4444 25%,transparent)}
+  .ailine .ops{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .ailine .cut{color:#f59e0b;font-size:9.5px;font-weight:700}
+  .au-h{font-size:10px;font-weight:800;color:#64748b;margin:10px 0 4px}
+  .au-cap{font-size:9px;font-weight:800;color:#94a3b8;flex-shrink:0;padding:0 2px}
+  .au-div{width:1px;height:14px;background:color-mix(in srgb,var(--card-bd) 90%,transparent);flex-shrink:0;margin:0 4px}
+  .auf{flex-shrink:0;font-size:10.5px;font-weight:700;color:#64748b;background:color-mix(in srgb,var(--accent) 7%,transparent);border:1px solid color-mix(in srgb,var(--card-bd) 80%,transparent);border-radius:99px;padding:3px 9px;white-space:nowrap}
+  .auf.on{background:var(--accent);color:#fff;border-color:transparent}
+  /* V1.50批3.6 V5：横滑选择器（hpick）——左右滑动/点选切换，选中态对齐 seg-on；首尾 hsp 弹性占位保证首末项可居中 */
+  .hpick{position:relative;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:5px;border-radius:14px;background:color-mix(in srgb,var(--card-bd) 55%,transparent)}
+  .hpick::-webkit-scrollbar{display:none}
+  .hsp{flex:0 0 calc(50% - 30px);min-width:10px}
+  .hopt{flex:0 0 auto;min-width:52px;text-align:center;padding:9px 10px;border-radius:11px;font-size:13px;font-weight:700;color:#64748b;scroll-snap-align:center;opacity:.72;transition:opacity .15s,box-shadow .15s}
+  .dark .hopt{color:#94a3b8}
+  .hopt.hon{background:var(--card);color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.12);opacity:1}
+  .dark .hopt.hon{color:var(--accent-l)}
+  .dark .grabber{background:#475569}
+  .toggle{width:40px;height:23px;border-radius:99px;background:#cbd5e1;position:relative;transition:.2s;flex-shrink:0;display:inline-block;cursor:pointer}
+  .toggle::after{content:'';position:absolute;left:2px;top:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .toggle.on{background:var(--accent)}
+  .toggle.on::after{left:19px}
+  .dark .toggle{background:#475569}
+  /* U10：固定栏目＝开且不可改的锁定态，不给「可关」观感 */
+  .toggle.lock{opacity:.45;cursor:default;pointer-events:none}
+  .set-ic{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .vchip{font-size:9px;background:#e2e8f0;color:#64748b;border-radius:6px;padding:1px 5px;vertical-align:middle}
+  .dark .vchip{background:#334155;color:#94a3b8}
+  .navtab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#94a3b8;font-weight:600;padding-top:6px}
+  .navtab svg{width:22px;height:22px}
+  .navtab.on{color:var(--accent)}
+  .navtab.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:18px;height:3px;border-radius:0 0 4px 4px;background:var(--accent)}
+  .dark .navtab{color:#64748b}.dark .navtab.on{color:var(--accent-l)}.dark .navtab.on::after{background:var(--accent-l)}
+  /* T11 底栏角标（批六原型门 · 交互整改）：逾期/待处理计数挂对应枚，进入该栏目即清。
+     纯数字胶囊，禁 emoji；>99 收敛成 99+；颜色走强调玫红（与表单错误同族，不与 brand 混） */
+  .navbadge{position:absolute;top:2px;left:calc(50% + 7px);min-width:15px;height:15px;padding:0 4px;border-radius:999px;background:#e11d48;color:#fff;font-size:9px;font-weight:800;line-height:15px;text-align:center;font-style:normal}
+  .dark .navbadge{background:#fb7185;color:#0f172a}
+  .setnav svg{width:16px;height:16px;color:#94a3b8}
+  .pw-ic-btn{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:inherit;flex-shrink:0}
+  .pw-ic-btn:active{background:rgba(120,110,90,.12)}
+  .pw-ic-btn.on{background:rgba(99,102,241,.18);color:#6366f1}
+  .pw-body{font-size:15px;line-height:2.15;letter-spacing:.03em}
+  /* V1.29轮9m：⋯ 笔记选项弹层行卡=透明底+随纸色描边（配色跟随纸色） */
+  #sheetNoteKit .card,#sheetNoteShare .card{background:transparent;border:1px solid color-mix(in srgb,var(--pw-fg) 14%,transparent)}
+  /* V1.29轮9p：纯文本行号=纸面左侧段序号（⋯ 内开关·默认关·仅纯文本显示该行） */
+  #pwBody.pw-ln{counter-reset:pwl}
+  #pwBody.pw-ln p{position:relative;padding-left:2.4em}
+  #pwBody.pw-ln p::before{counter-increment:pwl;content:counter(pwl);position:absolute;left:0;top:.2em;font-size:10px;opacity:.35;font-variant-numeric:tabular-nums}
+.fld-err{display:none;font-size:10.5px;font-weight:700;color:#f43f5e;padding:3px 0 0 4px}
+.fld-bad{box-shadow:inset 0 0 0 1.5px #f43f5e}
+  .pw-body p{margin-bottom:1.15em;transition:opacity .25s;cursor:text;border-radius:8px;padding:2px 6px;margin-left:-6px}
+  .pw-body p.pw-cur{background:rgba(120,110,90,.07)}
+  .dark .pw-body p.pw-cur{background:rgba(255,255,255,.04)}
+  /* V1.29轮9j补正2：聚焦=纸面默认开（当前段高亮·其余淡出）·开关在 ⋯ 笔记选项内 */
+  .pw-body.pw-focus p:not(.pw-cur){opacity:.22}
+  .fab-act{display:block;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 12px;box-shadow:0 4px 12px rgba(15,23,42,.12);text-align:left}
+  .dark .fab-act{background:#1e293b;border-color:#334155;color:#e2e8f0}
+  .inp{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fff;outline:none;font-size:13px;width:100%}
+  .dark .inp{background:#0f172a;border-color:#334155;color:#e2e8f0}
+  .sel{border:1px solid #e2e8f0;border-radius:10px;padding:7px 8px;background:#fff;font-size:11px;outline:none}
+  .dark .sel{background:#0f172a;border-color:#334155;color:#e2e8f0}
+  .tag-chip{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:99px;background:#f1f5f9;color:#64748b;font-weight:600}
+  .dark .tag-chip{background:#1e293b;color:#94a3b8}
+  .tag-chip.on{background:var(--accent);color:#fff}
+  .pick-chip{padding:8px 0;border-radius:12px;border:1.5px solid #e2e8f0;color:#64748b;font-weight:700;text-align:center}
+  .dark .pick-chip{border-color:#334155;color:#94a3b8}
+  .pick-chip.on{border-color:#fb7185;color:#fb7185;background:rgba(251,113,133,.08)}
+  .tri{flex:1;padding:6px 0;border-radius:10px;background:#f1f5f9;color:#475569;font-weight:700}
+  .dark .tri{background:#1e293b;color:#94a3b8}
+  .imp-dot{width:22px;height:22px;border-radius:50%;background:#e2e8f0;color:#94a3b8;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+  .dark .imp-dot{background:#1e293b;color:#64748b}
+  .imp-on{background:var(--accent);color:#fff}.imp-done{background:#2dd4bf;color:#fff}
+  .q-ask{border:1.5px dashed #cbd5e1;border-radius:14px;padding:10px;font-size:12px;font-weight:700;color:#64748b;text-align:left;line-height:1.4}
+  .dark .q-ask{border-color:#334155;color:#94a3b8}
+  .q-ask-on{border-color:var(--accent);border-style:solid;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent)}
+  .dark .q-ask-on{color:var(--accent-l)}
+  .q-move{padding:8px 0;border-radius:12px;border:1.5px solid #e2e8f0;font-weight:700;color:#64748b;font-size:11px}
+  .dark .q-move{border-color:#334155;color:#94a3b8}
+  .q-move.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tl-dot{position:absolute;left:-23px;top:3px;width:9px;height:9px;border-radius:50%;border:2px solid #fff}
+  .dark .tl-dot{border-color:#0f172a}
+  .life-btn{border-radius:16px;padding:12px 0;font-size:12px;font-weight:800;line-height:1.6}
+  .fin-add{background:#fff;border:1px solid #f1f5f9;border-radius:14px;padding:8px 0;font-weight:600;font-size:10px;line-height:1.6}
+  .dark .fin-add{background:#0f172a;border-color:#1e293b;color:#cbd5e1}
+  .task-row{transition:transform .1s}
+  .task-row:active{transform:scale(.99)}
+  /* ---- Markdown 实时渲染视图 ---- */
+  .md-p{margin:0 0 .9em;line-height:2.05;font-size:15px;letter-spacing:.03em}
+  .md-h1{font-size:22px;font-weight:800;margin:.5em 0 .45em;line-height:1.4}
+  .md-h2{font-size:18px;font-weight:800;margin:1em 0 .45em;line-height:1.4}
+  .md-h3{font-size:16px;font-weight:800;margin:.9em 0 .4em}
+  .md-h4{font-size:14.5px;font-weight:800;margin:.8em 0 .35em}
+  .md-quote{border-left:3px solid var(--accent);padding:3px 0 3px 13px;margin:0 0 1.1em;color:#64748b;font-size:14px;line-height:1.95}
+  .dark .md-quote{color:#94a3b8}
+  .md-ul,.md-ol{margin:0 0 1.1em 1.4em;font-size:14.5px;line-height:2}
+  .md-hr{border:none;border-top:1.5px dashed rgba(120,110,90,.4);margin:1.5em 0}
+  .md-table{border-collapse:collapse;margin:0 0 1.1em;font-size:12.5px;width:100%}
+  .md-table th,.md-table td{border:1px solid rgba(120,110,90,.32);padding:5px 9px;text-align:left}
+  .md-table th{background:rgba(120,110,90,.09);font-weight:800}
+  .md-pre{background:rgba(120,110,90,.09);border-radius:10px;padding:10px 12px;font-family:var(--f-code);font-size:11.5px;line-height:1.7;overflow-x:auto;margin:0 0 1.1em;white-space:pre}
+  .md-view code{background:rgba(120,110,90,.12);border-radius:5px;padding:1px 5px;font-family:var(--f-code);font-size:.85em}
+  .md-task{display:flex;gap:8px;align-items:flex-start;font-size:14.5px;margin:0 0 .5em;line-height:1.8}
+  .md-task input{accent-color:var(--accent);margin-top:5px;flex-shrink:0}
+  .md-done{opacity:.5;text-decoration:line-through}
+  .md-tasks{margin:0 0 1.1em}
+  .texi{font-family:var(--f-body);background:color-mix(in srgb,var(--accent) 10%,transparent);border-radius:5px;padding:0 5px;white-space:nowrap}
+  .tex-block{font-family:var(--f-body);text-align:center;font-size:17px;margin:1.1em 0;padding:12px 8px;background:rgba(120,110,90,.07);border-radius:12px;border:1px dashed rgba(120,110,90,.35);line-height:2.4;overflow-x:auto}
+  .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.8em;line-height:1.2;margin:0 2px}
+  .frac em{font-style:normal;display:block;padding:0 4px}
+  .frac em:first-child{border-bottom:1.2px solid currentColor}
+  .pw-ta{width:100%;height:60vh;background:transparent;outline:none;resize:none;font-family:var(--f-code);font-size:12.5px;line-height:1.9;letter-spacing:.02em}
+  .pw-mode-btn{padding:5px;border-radius:9px;opacity:.45;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:inherit}
+  .pw-mode-btn svg{width:19px;height:19px}
+  .pw-mode-btn.on{opacity:1;background:color-mix(in srgb,var(--pw-fg) 12%,transparent)}
+  /* 批3：编辑页三段基线归一（头/体/尾统一 px-5）＋ 头部滚动浮出吸顶分隔 ＋ 视图/工具条淡入 */
+  #pwHead.pw-stuck{box-shadow:0 1px 0 rgba(120,110,90,.12)}
+  .dark #pwHead.pw-stuck{box-shadow:0 1px 0 rgba(255,255,255,.09)}
+  #pwTitle.pw-hid{opacity:0}
+  @keyframes pwIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .pw-anim-in{animation:pwIn .18s ease}
+  .note-sw{position:relative;overflow:hidden;border-radius:var(--card-r)}
+  .note-del{position:absolute;right:0;top:0;bottom:0;width:84px;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:0 var(--card-r) var(--card-r) 0;opacity:0;transition:opacity .15s}
+  .note-sw.show-del .note-del{opacity:1}
+  .note-card{position:relative;transition:transform .18s ease;background:var(--card-bg,#fff)}
+  .dark .note-card{background:#0f172a}
+  .note-card.open{transform:translateX(-84px)}
+  .nchk{width:17px;height:17px;border-radius:50%;border:1.6px solid #94a3b8;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:transparent;flex-shrink:0;transition:all .12s}
+  .nchk.on{background:#6366f1;border-color:#6366f1;color:#fff}
+  .nt-row{display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
+  .nt-row:active{background:rgba(99,102,241,.08)}
+  .nt-row.nt-on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  .nt-caret{width:14px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:#94a3b8}
+  .nt-ic{display:inline-flex;align-items:center;justify-content:center}
+  .pw-tool{width:30px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0;color:inherit;opacity:.75}
+  .pw-tool:active{background:color-mix(in srgb,var(--pw-fg) 12%,transparent);opacity:1}
+  .seg-pill{background:#e2e8f0;color:#64748b;padding:6px 14px;border-radius:999px;white-space:nowrap;font-weight:700;font-size:12px}
+  /* ---- 主页自由编排模式 ---- */
+  .dash-card{position:relative}
+  .dash-handle{display:none;position:absolute;top:8px;right:8px;z-index:20;gap:4px}
+  .dash-edit .dash-card{outline:2px dashed var(--accent);outline-offset:5px}
+  .dash-edit .dash-card{cursor:grab}
+  .dash-edit .dash-handle{display:flex}
+  .dash-card.dragging{opacity:.35}
+  .mv-btn{width:26px;height:26px;border-radius:8px;background:var(--card);box-shadow:0 2px 8px rgba(15,23,42,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--accent);border:none}
+  /* ---- 阅读/观影计时与目录 ---- */
+  .toc-row{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid rgba(148,163,184,.15);font-size:12px;font-weight:600}
+  .toc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .prog-chip{padding:6px 14px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:11px;font-weight:700;color:#64748b}
+  .dark .prog-chip{border-color:#334155;color:#94a3b8}
+  .prog-chip.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent)}
+  .gc{padding:4px 10px;border-radius:8px;background:#e2e8f0;color:#64748b;font-weight:700;font-size:10px}
+  .gc.on{background:var(--accent);color:#fff}
+  .dark .gc{background:#1e293b;color:#94a3b8}.dark .gc.on{background:var(--accent);color:#fff}
+  .seg-pill.on{background:var(--accent);color:#fff}
+  .dark .seg-pill{background:#1e293b;color:#94a3b8}.dark .seg-pill.on{background:var(--accent);color:#fff}
+  .fmt-btn{width:30px;height:28px;border-radius:8px;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+  .fmt-btn:active{background:#e2e8f0}
+  .dark .fmt-btn:active{background:#334155}
+  .grid-cell{height:100%;min-height:0;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;cursor:pointer}
+  .cell-sel{outline:2px solid #6366f1;outline-offset:-2px}
+  #gridCells{height:min(52vh,470px);grid-auto-rows:1fr;overflow:hidden;align-content:start}
+  .live-card{border:1.5px solid #fb7185;animation:livePulse 1.6s infinite}
+  .wk-cell{height:17px;border-radius:4px;cursor:pointer}
+  .cat-btn{display:block;width:100%;padding:8px 0;border-radius:12px;color:#fff;font-size:11px;font-weight:800;box-shadow:0 2px 8px rgba(15,23,42,.12)}
+  .cat-btn:active{transform:scale(.95)}
+  @keyframes livePulse{0%,100%{box-shadow:0 0 0 2px rgba(251,113,133,.12)}50%{box-shadow:0 0 0 7px rgba(251,113,133,.22)}}
+  /* 切天平滑过渡动画 */
+  @keyframes stripL{from{transform:translateX(16px);opacity:.25}to{transform:none;opacity:1}}
+  @keyframes stripR{from{transform:translateX(-16px);opacity:.25}to{transform:none;opacity:1}}
+  .strip-l{animation:stripL .26s ease}.strip-r{animation:stripR .26s ease}
+  /* V1.28 月历切月/展开收起平滑动画 */
+  @keyframes mShiftL{from{transform:translateX(30px);opacity:.2}to{transform:none;opacity:1}}
+  @keyframes mShiftR{from{transform:translateX(-30px);opacity:.2}to{transform:none;opacity:1}}
+  .mshift-l{animation:mShiftL .3s cubic-bezier(.22,.61,.36,1)}.mshift-r{animation:mShiftR .3s cubic-bezier(.22,.61,.36,1)}
+  @keyframes mExpand{from{transform:translateY(-12px) scaleY(.9);opacity:0;transform-origin:top center}to{transform:none;opacity:1}}
+  .mexpand{animation:mExpand .3s cubic-bezier(.22,.61,.36,1)}
+  @keyframes wReveal{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+  .wreveal{animation:wReveal .26s ease}
+  /* ---- INS 风格卡片流 & 习惯 & 主题市场 ---- */
+  .ins-card{position:relative;background:var(--card);border-radius:22px;overflow:hidden;margin-bottom:18px;color:var(--ink);box-shadow:0 4px 24px rgba(15,23,42,.12)}
+  .ins-hd{display:flex;align-items:center;gap:9px;padding:11px 14px}
+  .ins-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g3));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
+  .ins-imgs{display:grid;grid-template-columns:1fr 1fr;gap:2px}
+  .ins-img{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:22px}
+  /* V1.29轮9b：笔记卡片视图=瀑布流错落（非行对齐 grid） */
+  .note-masonry{column-gap:10px}
+  .note-masonry .note-sw{break-inside:avoid;margin-bottom:10px}
+  /* V1.29轮9c：纯文本插图=文末正方形缩略卡·右上✕删除·点图看大图 */
+  .pw-img-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:1}
+  .ins-act{display:flex;gap:14px;padding:9px 14px 2px;font-size:19px}
+  .ins-act button{opacity:.85;transition:transform .12s}
+  .ins-act button:active{transform:scale(1.25)}
+  .ins-ref{margin:8px 14px 0;background:color-mix(in srgb,var(--accent) 8%,transparent);border-left:3px solid var(--accent);border-radius:10px;padding:7px 10px;font-size:11px;line-height:1.7;color:var(--ink)}
+  .hb-dot{width:21px;height:21px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+  .mkt-card{border:1px solid var(--card-bd);background:var(--card);border-radius:18px;padding:11px;margin-bottom:9px}
+
+  .brand-tile{width:46px;height:46px;border-radius:13px;overflow:hidden;position:relative;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  .brand-tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .brand-cap{font-size:9px;line-height:1.4;color:#64748b;text-align:center}
+  .glow-btn{box-shadow:0 0 14px color-mix(in srgb,var(--accent) 45%,transparent)}
+</style>
+</head>
+<body class="lay-hero flex items-center justify-center">
+
+<div class="hidden md:flex flex-col items-center gap-3 mr-8 text-slate-400 select-none">
+  <div class="flex items-center gap-2"><img src="assets/lh_img_5f9613d2.jpg" class="w-9 h-9 rounded-xl shadow-lg" alt="LifeHarness">
+  <div class="text-lg font-bold text-slate-200">LifeHarness · AI 域专版</div></div>
+  <div class="text-xs leading-6 text-left max-w-[250px]">
+    · 仅 UI 占位模拟，无真实业务数据<br>
+    · 入口＝「我的 › AI 增强」；底栏与壳同源（跨域栏位点击经重定向表回壳）<br>
+    · 屏：AI 增强 / API 验证 / 提示词管理 / 提示词编辑 / 使用记录<br>
+    · 弹层：记录设置 / 选择服务商 / 服务商添加编辑<br>
+    · 深浅色与设计令牌与壳层同源
+  </div>
+</div>
+
+<div id="phone" class="relative w-full h-screen md:w-[400px] md:h-[840px] md:rounded-[44px] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 shadow-2xl overflow-hidden md:border-8 md:border-slate-800">
+
+  <!-- 状态栏（模拟安卓） -->
+  <div class="h-9 px-6 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 select-none bg-transparent relative z-30">
+    <span id="clock">9:41</span>
+    <span class="absolute left-1/2 top-2 -translate-x-1/2 w-20 md:hidden"></span>
+    <span class="flex items-center gap-1">
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l-2.93-2.93c-.41-.17-.86-.27-1.34-.27-.83 0-1.5.67-1.5 1.5 0 .48.1.92.27 1.34L8.1 20.56A4.94 4.94 0 0 1 7 22c-2.76 0-5-2.24-5-5s2.24-5 5-5V7zm5.64 9.36A7.03 7.03 0 0 0 19 12c0-3.87-3.13-7-7-7v2c2.76 0 5 2.24 5 5 0 1.07-.34 2.06-.92 2.86l1.56 1.5zM12 3C6.95 3 2.55 5.61.03 9.5l1.73 1c2.27-3.19 5.99-5 10.24-5s7.97 1.81 10.24 5l1.73-1C19.45 5.61 15.05 3 12 3z" opacity=".4"/><path d="M12 15c.83 0 1.5-.67 1.5-1.5S12.83 12 12 12s-1.5.67-1.5 1.5S11.17 15 12 15zm0 7l3.5-3.5c-.55-.36-1.13-.66-1.76-.86L12 22z"/></svg>
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+    </span>
+  </div>
+
+  <!-- 顶栏（专版壳：返回 + 标题 + 深浅色） -->
+  <header id="topHead" class="px-5 pb-2 pt-1 flex items-center gap-2 relative z-20">
+    <button id="btnBack" onclick="goBack()" class="hidden w-9 h-9 -ml-2 rounded-full items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <div class="flex-1 min-w-0">
+      <div id="pageTitle" class="text-xl font-extrabold tracking-tight truncate">AI 增强</div>
+      <div id="pageSub" class="text-[11px] text-slate-400 -mt-0.5 truncate">Opt-in · 逐项授权</div>
+    </div>
+    <button onclick="toggleTheme()" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" aria-label="切换深浅色" title="切换深浅色">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+  </header>
+
+  <!-- ========== 页面容器（专版壳＝顶栏 78 + 底栏 70；与壳同口径） ========== -->
+  <main class="h-[calc(100%-148px)] overflow-hidden relative">
+    <!-- ===== P12c 二级：AI 增强 ===== -->
+    <section id="p-sub-ai" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="flex items-center justify-between"><div class="row-title">服务商</div><button class="mini-btn" onclick="aiProvEdit(null)">+ 添加服务商</button></div>
+        <button id="aiCurRow" onclick="aiPickOpen()" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5 text-left flex items-center gap-2 active:opacity-70">
+          <span class="flex-1 min-w-0"><b id="aiCurName" class="text-[12.5px] block truncate"></b>
+            <span id="apCur" class="text-[10.5px] text-slate-400 block truncate"></span></span>
+          <span class="text-slate-300 shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 9 12 4l5 5M7 15l5 5 5-5"/></svg></span>
+        </button>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">请求只发往所选地址 · 应用自身零埋点；Key 存系统级加密区：不入备份明文、不落日志、不随同步导出。</div>
+        <div class="flex justify-between items-center mt-2"><span>验证状态</span>
+          <b id="apVerifyState" class="text-emerald-500 text-[11px]">✓ 今日 08:12 通过 · 812ms</b></div>
+        <button class="mt-2 w-full py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="aiVfOpen()">重新验证 / 测试新 Key</button>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">AI 总开关</div><span class="toggle" onclick="tgl(this);toast(this.classList.contains('on')?'总开关已开：各能力仍逐项授权':'总开关已关：全应用零 AI 请求')"></span></div>
+        <div class="mt-2 text-[11px] font-bold text-slate-500">能力矩阵（逐项授权）</div>
+        <div class="mt-1 text-xs space-y-2">
+          <div class="flex items-center justify-between"><span>待办：自然语言速记 + AI 判象限</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>日记：复盘生成 / KPT 草稿</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>阅读：目录 AI 补全 / 摘录感想 / 词句解释</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>收集箱：智能分流建议</span><span class="toggle" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>周报 AI 点评（只发聚合数据）</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>呵护：周期趋势解读（仅聚合统计·原始记录不出本机）</span><span class="toggle" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between opacity-50"><span>记账/物品智能归类（V2）</span><span class="toggle" onclick="tgl(this)"></span></div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：每次调用前弹层展示完整发送内容可审阅；敏感模块支持「仅摘要发送」；AI 结果带标识，写入前需确认。</div>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">AI 使用记录</div><button class="mini-btn" onclick="navTo('p-aiUsage');auRender()">查看全部 ›</button></div>
+        <div class="mt-2 grid grid-cols-4 gap-2 text-center">
+          <div><div class="text-[9px] text-slate-400">今日次数</div><b id="auK1" class="text-[13px]">0</b></div>
+          <div><div class="text-[9px] text-slate-400">今日 tokens</div><b id="auK2" class="text-[13px]">0</b></div>
+          <div><div class="text-[9px] text-slate-400">近 7 天</div><b id="auK3" class="text-[13px]">0</b></div>
+          <div><div class="text-[9px] text-slate-400">累计</div><b id="auK4" class="text-[13px]">0</b></div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">每次调用记一条：能力点 · 状态 · 入/出 token · 耗时 · 发送内容与返回正文。正文只存本机（随整包备份走），可在「记录设置」改为只记用量或调整保留天数；API Key 永不入库。</div>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">提示词管理</div><button class="mini-btn" onclick="navTo('p-sub-aiPrompts');aiRenderPrompts()">按模块调整 ›</button></div>
+        <div class="text-[10px] text-slate-400 mt-1 leading-5">每个 AI 能力点的 System / User 模板可查看与覆盖；保存后立即生效，调整请求内容不需要修改代码。占位符（如 title、today）按当次数据注入。</div>
+      </div>
+    </section>
+
+    <!-- ===== P12c1b 二级：AI API 验证（实现真页 /settings/ai/verify 对齐 · 三态＝通过/凭据错误/网络失败） ===== -->
+    <section id="p-sub-aiVerify" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="row-title">端点与凭据</div>
+        <div id="avChips" class="flex flex-wrap gap-2 mt-2"></div>
+        <input id="avUrl" class="inp w-full mt-3 font-mono text-[11px]" type="text" placeholder="https://api.xxx.com/v1">
+        <div class="flex gap-2 mt-2">
+          <div class="relative flex-1">
+            <input id="avKey" class="inp w-full pr-10 font-mono text-[11px]" type="password" placeholder="API Key">
+            <button id="avEye" class="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 active:bg-slate-100 dark:active:bg-slate-800" onclick="apPeek('avKey','avEye')" title="显示或隐藏明文" aria-label="显示或隐藏明文"></button>
+          </div>
+          <input id="avModel" class="inp flex-1 text-[11px]" type="text" placeholder="模型名">
+        </div>
+        <textarea id="avPrompt" class="inp w-full mt-2 text-[11px]" rows="2" placeholder="请只回复四个字：连接成功"></textarea>
+        <button id="avSend" class="w-full py-3 mt-3 rounded-xl grad text-white text-sm font-bold" onclick="aiVfSend()">真实发送验证</button>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">验证结果</div><span id="avLat" class="text-[10px] text-slate-400"></span></div>
+        <div id="avRes" class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 px-3 py-2.5 font-mono text-[10.5px] leading-5" style="white-space:pre-wrap;color:#94a3b8">结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 · 404 模型名 · 429 限流 · 超时）。</div>
+      </div>
+      <div class="text-[10px] text-slate-400 mt-2 leading-5">请求仅发往上方地址 · 应用自身零埋点；Key 存系统加密区，不入备份明文、不落日志。</div>
+    </section>
+
+    <!-- ===== P12c2 二级：提示词管理（AI批 · 能力点模板按模块查看/覆盖 · 默认来自内置资产） ===== -->
+    <section id="p-sub-aiPrompts" class="page px-5 safe-pb no-scrollbar">
+      <div class="text-[10px] text-slate-400 leading-5">共 11 个能力点 · 默认模板来自内置资产；覆盖只对本机生效，「恢复默认」随时回退。</div>
+      <div id="aiPromptRows" class="mt-2 space-y-4"></div>
+    </section>
+
+    <!-- ===== P12c3 二级：提示词编辑（System + User 模板 · 占位符说明 · 覆盖/恢复） ===== -->
+    <section id="p-sub-aiPromptEdit" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="flex items-center justify-between"><div class="row-title" id="apeTitle">编辑提示词</div><span id="apeBadge" class="text-[10px] text-slate-400">默认</span></div>
+        <div class="text-[10px] text-slate-400 mt-1">占位符：<span id="apeVars" class="font-mono"></span>（保留原样即可注入当次数据）</div>
+        <div class="mt-3 text-xs font-bold">System 设定</div>
+        <textarea id="apeSys" rows="4" class="inp mt-1 w-full text-[11px] font-mono leading-5"></textarea>
+        <div class="mt-3 text-xs font-bold">User 模板</div>
+        <textarea id="apeUser" rows="9" class="inp mt-1 w-full text-[11px] font-mono leading-5"></textarea>
+        <div class="mt-4 flex gap-3">
+          <button onclick="aiPromptReset()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">恢复默认</button>
+          <button onclick="aiPromptSave()" class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold">保存覆盖</button>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">保存后该能力点即刻使用此模板发起请求；清空内容等同恢复默认。</div>
+      </div>
+    </section>
+
+    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 无底栏 · 筛选合一行 · 统计与删除上移） ===== -->
+    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 无底栏 · 三胶囊点开横向选项 · 列表通底） ===== -->
+    <section id="p-aiUsage" class="page px-5 no-scrollbar">
+      <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-500 dark:text-slate-400">
+        <span id="auSum" class="truncate">0 条 · 入 0/出 0 tokens · 未成功 0</span>
+        <button class="mini-btn ml-auto shrink-0" onclick="openSheet('sheetAiUsageCfg')">记录设置</button>
+        <button class="mini-btn shrink-0" onclick="auCopyAll()">复制</button>
+        <button class="mini-btn shrink-0" style="color:#ef4444" onclick="auDelFiltered()">删除筛选结果</button>
+      </div>
+      <!-- 时间 / 状态 / 模块 收成三个胶囊：点某个胶囊才横向展开该组选项，纵向空间尽量留给列表 -->
+      <div class="flex items-center gap-1.5 mt-1.5" id="auBar"></div>
+      <div id="auPop" class="hidden"></div>
+      <input id="auKw" class="inp w-full mt-1.5" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
+      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 258px);overflow-y:auto"></div>
+      <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 mb-3" id="auHint">点一行展开输入与输出全文 · 长按一行复制该行摘要</div>
+    </section>
+  </main>
+
+  <!-- ================= 底栏（与壳同源：栏位表/图标表/渲染函数逐字迁入 · 批3） ================= -->
+  <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
+    <div class="flex h-full pb-1.5" id="navBar"></div>
+  </nav>
+
+  <!-- ===== V1.53 AI 记录设置（正文开关 · 保留天数 · 清除/清空） ===== -->
+  <div id="sheetAiUsageCfg" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAiUsageCfg')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">AI 记录设置</div>
+      <div class="mt-3 text-xs">
+        <div class="flex items-center justify-between"><span>记录输入与输出正文</span><span id="auCfgBody" class="toggle on" onclick="auToggleBody(this)"></span></div>
+        <div class="text-[10px] text-slate-400 mt-1 leading-5">关闭后只记用量（能力点 · 状态 · token · 耗时），不再留存发送内容与返回正文；已存的正文可用下方按钮单独清除。</div>
+        <div class="au-h">保留天数</div>
+        <div class="flex flex-wrap gap-2" id="auKeepRow">
+          <button class="chip" data-k="7" onclick="auKeep(7)">7 天</button>
+          <button class="chip" data-k="15" onclick="auKeep(15)">15 天</button>
+          <button class="chip chip-on" data-k="30" onclick="auKeep(30)">30 天</button>
+          <button class="chip" data-k="90" onclick="auKeep(90)">90 天</button>
+          <button class="chip" data-k="0" onclick="auKeep(0)">不限</button>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1 leading-5">超期记录自动丢弃；单条正文超过 <b>8000</b> 字按上限截断并标「已截断」。当前占用 <b id="auSize">0.0 MB</b>。</div>
+        <button onclick="auClearBody()" class="mt-3 w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">清除已存正文（保留用量记录）</button>
+        <button onclick="auClearAll()" class="mt-2 w-full py-2.5 rounded-xl text-white text-xs font-bold" style="background:#ef4444">清空全部 AI 使用记录</button>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：记录只写在本机数据库（ai_calls 表），随本地备份 .lhbak 与云同步快照一起走；API Key 存系统加密区，永不出现在记录、日志与备份明文中。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== V1.53.1 服务商添加/编辑（Base URL · 模型 · 协议 · 独立 Key · 实测连接） ===== -->
+  <div id="sheetAiPick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAiPick')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
+      <div class="grabber"></div>
+      <div class="font-extrabold">选择服务商</div>
+      <div class="mt-3 space-y-2 text-xs" id="aiProvList"></div>
+      <div class="text-[10px] text-slate-400 mt-3 leading-5">预置只是默认值，<b>不是白名单</b>：官方、中转站/自建网关、局域网 Ollama 都能添加，Base URL、模型名、协议都可改。</div>
+    </div>
+  </div>
+  <div id="sheetAiProv" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAiProv')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto">
+      <div class="grabber"></div>
+      <div class="font-extrabold" id="apTitle">添加服务商</div>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="text-[10px] font-bold text-slate-500">名称</div>
+        <input id="apName" class="inp w-full" placeholder="自己看得懂就行，如「公司中转站」「家里 Ollama」">
+        <div class="text-[10px] font-bold text-slate-500 mt-2">Base URL（必填 · 按端点要求填完整前缀）</div>
+        <input id="apUrl" class="inp w-full font-mono text-[11px]" placeholder="https://relay.example.com/v1 或 http://192.168.31.20:11434/v1" oninput="apHintCheck()">
+        <div class="text-[10px] text-slate-400 leading-5">请求会拼 <b class="font-mono">/chat/completions</b>（OpenAI 兼容）或 <b class="font-mono">/messages</b>（Anthropic）。中转站若要求别的后缀（如 <span class="font-mono">/v1/api</span>），直接把它写进 Base URL 即可。</div>
+        <div class="text-[10px] font-bold text-slate-500 mt-2">模型名（必填）</div>
+        <input id="apModel" class="inp w-full font-mono text-[11px]" placeholder="deepseek-chat / qwen2.5:7b / claude-3-5-haiku">
+        <div class="text-[10px] font-bold text-slate-500 mt-2">协议</div>
+        <div class="flex gap-2" id="apProto">
+          <button class="auf on" data-p="openai" onclick="aiProtoSet('openai')">OpenAI 兼容</button>
+          <button class="auf" data-p="anthropic" onclick="aiProtoSet('anthropic')">Anthropic Messages</button>
+        </div>
+        <div class="text-[10px] font-bold text-slate-500 mt-2">API Key（该服务商单独保存）</div>
+        <div class="relative">
+          <input id="apKey" class="inp w-full pr-10 font-mono text-[11px]" type="password" placeholder="未设置 · 填入即保存">
+          <button id="apEye" class="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 active:bg-slate-100 dark:active:bg-slate-800" onclick="apPeek('apKey','apEye')" title="显示或隐藏明文" aria-label="显示或隐藏明文"></button>
+        </div>
+        <div id="apKeyHint" class="text-[10px] text-slate-400 mt-1 leading-4"></div>
+        <div class="text-[10px] text-slate-400">存系统级加密区（flutter_secure_storage）：不进备份明文、不落日志、不随云同步导出。</div>
+        <div id="apHttpRow" class="hidden flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-3 py-2">
+          <span class="text-[10.5px] leading-4">地址是 <b>http 明文</b>：仅建议局域网/回环端点，公网请用 https</span>
+          <span id="apHttpOk" class="toggle" onclick="tgl(this)"></span>
+        </div>
+        <div id="apRes" class="mt-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-3 py-2 min-h-[40px] text-[10.5px] font-mono leading-5 break-all text-slate-500 dark:text-slate-400"></div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="aiProvPing()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">测试连接</button>
+          <button id="apDelBtn" onclick="aiProvDel(apEdit)" class="px-4 py-2.5 rounded-xl text-white text-xs font-bold hidden" style="background:#ef4444">删除</button>
+        </div>
+        <button onclick="aiProvSave()" class="mt-2 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存服务商</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-24 z-[60] bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-xl max-w-[85%] text-center"></div>
+</div><!-- /phone -->
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+
+/* ================= 路由与导航（专版壳·精简版：只保留本专版可达的屏；TITLES 与壳同源整表保留，
+   重定向 toast 要用它读屏名，故不裁表） ================= */
+const stack=[]; let curPage='p-sub-ai';
+const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
+ 'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
+ 'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-sub-aiVerify':['AI API 验证','端点 · Key · 模型连通性'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','八类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删'],'p-sub-desktop':['桌面与快捷方式','长按菜单 · 铺到桌面 · 小部件 · 链接直达'],'p-sub-nfc':['NFC 卡片','贴卡触发动作 · 卡片数据可改']};
+
+function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);return;}
+  $$('.page').forEach(s=>s.classList.remove('active'));
+  $('#'+p).classList.add('active'); $('#'+p).scrollTop=0;
+  const [t,s]=TITLES[p]||['LifeHarness','']; $('#pageTitle').textContent=t; $('#pageSub').textContent=s;
+  $('#btnBack').classList.toggle('hidden', stack.length===0); $('#btnBack').classList.toggle('flex', stack.length!==0);
+  /* p-aiUsage 是全屏明细页：隐藏底栏 + main 吃掉 70px 底栏高、直达屏底（与壳同口径；壳里这两行现由本专版承接） */
+  const _tn=$('#tabNav'); if(_tn)_tn.classList.toggle('hidden', p==='p-aiUsage');
+  const _mn=document.querySelector('main');
+  if(_mn)_mn.style.height=(p==='p-aiUsage')?'calc(100% - 78px)':'';
+  $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
+  navClear(p); renderNav();
+  curPage=p;
+}
+function navTo(p){/*LH-GOV-G*/if(!document.getElementById(p)){lhGone(p);return;} if(p!==curPage){ stack.push(curPage); setPage(p); } }
+function goBack(){
+  if(stack.length){ setPage(stack.pop()); return; }
+  if(curPage!=='p-sub-ai'){ setPage('p-sub-ai'); return; }
+  /* 专版入口在壳：栈尽即回「我的」（入口行的出发页），避免困在专版里 */
+  location.href='index.html#p-profile';
+}
+function navTab(p){ stack.length=0; setPage(p); }
+
+/* ================= 底部导航（栏位表 / 图标表 / 渲染函数 · 自 index.html 逐字迁入 · 批3） ================= */
+const ICONS={
+ 'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
+ 'p-todo':'<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="m8.5 12 2.4 2.4L15.5 9.5"/>',
+ 'p-calendar':'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+ 'p-records':'<path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/>',
+ 'p-inbox':'<path d="M3.5 12.5h5l1.5 3h4l1.5-3h5"/><path d="M5.2 12.5 7.3 5h9.4l2.1 7.5V19a1.7 1.7 0 0 1-1.7 1.7H6.9a1.7 1.7 0 0 1-1.7-1.7z"/>',
+ 'p-finance':'<rect x="3" y="6" width="18" height="13" rx="2.8"/><path d="M3 10.2h18M16.2 14.7h2"/>',
+ 'p-items':'<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
+ 'p-days':'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M12 11.3c.9-1.8 3.7-1 2.9 1L12 16.4l-2.9-4.1c-.8-2 2-2.8 2.9-1z"/>',
+ 'p-health':'<path d="M12 20.4S4.2 15.6 3 10C2.2 6.3 5.1 3.9 8 4.8c1.6.5 2.9 1.8 4 3.2 1.1-1.4 2.4-2.7 4-3.2 2.9-.9 5.8 1.5 5 5.2-1.2 5.6-9 10.4-9 10.4z"/>',
+ 'p-goals':'<circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4"/>',
+ 'p-profile':'<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-3.7 3.9-5.4 7.5-5.4s6.3 1.7 7.5 5.4"/>',
+
+ 'p-care':'<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10.5" r=".9"/><circle cx="15" cy="10.5" r=".9"/><path d="M9 14.5c.9.9 1.9 1.3 3 1.3s2.1-.4 3-1.3"/>',
+ 'p-habits':'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
+};
+const NAV_MODS=[['p-dashboard','今天',''],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-profile','我的','']];
+let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
+function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
+/* T11 角标数据源属壳层（`D.todos` 实算），不随迁 ⇒ 本专版恒 0；壳里待办枚角标仍由壳自己画。
+   若日后要给本专版挂角标，照壳的接法把数据源填进本表即可。 */
+const NAV_BADGE_SRC={};
+const navSeen={};
+function navBadge(p){if(!NAV_BADGE_SRC[p]||navSeen[p])return 0;return NAV_BADGE_SRC[p]()}
+function navClear(p){navSeen[p]=1}
+function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);const bn=navBadge(p);
+  return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span>${bn?`<span class="navbadge">${bn>99?'99+':bn}</span>`:''}</button>`}).join('');}
+
+/* ================= 通用交互（与壳同源精简版） ================= */
+let toastTimer;
+function toast(msg){ const t=$('#toast'); t.textContent=msg;
+ t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2800); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); }
+function closeSheet(id){ const s=$('#'+id); if(!s)return; s.classList.remove('sheet-open'); s.classList.add('hidden'); }
+function tgl(el){ el.classList.toggle('on'); }
+function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'';e.style.display=msg?'block':'none'}if(fldId){const f=$('#'+fldId);if(f)f.classList.toggle('fld-bad',!!msg)}}
+
+/* ================= 深色三档（跟随系统 / 浅色 / 深色 · 与壳同口径；专版不挂主题风格系统） ================= */
+let DARK_MODE=(function(){try{return localStorage.getItem('lh.darkMode')||'system'}catch(e){return 'system'}})();
+function darkWant(){return (DARK_MODE==='dark')||(DARK_MODE==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)}
+function darkApply(){document.documentElement.classList.toggle('dark',darkWant())}
+function toggleTheme(){DARK_MODE=(darkWant()?'light':'dark');try{localStorage.setItem('lh.darkMode',DARK_MODE)}catch(e){}
+ darkApply();toast(DARK_MODE==='dark'?'已锁定深色':'已锁定浅色')}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(DARK_MODE==='system')darkApply()});
+
+/* ================= AI 引擎（自 index.html 逐字迁入 · 批3） ================= */
+/* ================= V1.53 AI 使用记录（ai_calls 明细 · 全屏页 p-aiUsage · 模块/状态/关键词筛选 · 行内展开正文 · 查删） ================= */
+/* 演示数据口径与实现一致：d=几天前（范围筛选用），st=ok|fail|cancel|denied，
+   it/ot=入出 tokens，ms=耗时，sys/usr/out=发送与返回正文（关闭「记正文」后置空），cut=1 表示按上限截断过。 */
+var AI_CALLS=[
+ {i:1,d:0,t:'09-28 08:12:04',m:'阅读',id:'read.toc',n:'目录 AI 补全',st:'ok',it:173,ot:4216,ms:13443,cut:1,
+  sys:'你是图书目录结构化助手。只输出一个 JSON 对象，禁止解释与代码块标记：{"toc":[{"title":"字符串","start_page":整数}]}。',
+  usr:'书名：人类简史：从动物到上帝\n章节片段（原文顺序，含页码线索）：\n第 1 部分 认知革命 · 第 1 章 人类：一种也没什么特别的动物 /13\n第 1 章 知能革命 /21\n第 2 章 神秘的火 /33\n第 2 部分 农业革命 /57\n…（共 20 条）',
+  out:'{"toc":[{"title":"认知革命","start_page":13},{"title":"人类：一种也没什么特别的动物","start_page":21},{"title":"神秘的火","start_page":33},{"title":"农业革命","start_page":57}]}',err:''},
+ {i:2,d:0,t:'09-28 07:58:31',m:'待办',id:'todo.nl_parse',n:'自然语言速记解析',st:'ok',it:96,ot:142,ms:1120,cut:0,
+  sys:'你是待办速记解析器，把口语化一句话拆成结构化字段。只输出 JSON：{"title","due_at","quadrant","tags":[],"subtasks":[]}。',
+  usr:'今天：2026-09-28\n原句：下周三前把报销单交给财务，顺便约老王对齐排期',
+  out:'{"title":"提交报销单给财务","due_at":"2026-10-01","quadrant":2,"tags":["财务"],"subtasks":["约老王对齐排期"]}',err:''},
+ {i:3,d:0,t:'09-28 07:30:12',m:'日记',id:'journal.reflect',n:'当日复盘草稿',st:'ok',it:612,ot:988,ms:6820,cut:0,
+  sys:'你是个人复盘助手。基于当天日记条目生成 KPT 三段草稿，每段不超过 3 条，短句，禁止编造未出现的事实。',
+  usr:'日期：2026-09-27\n条目：\n1. 上午把时间模块的统一弹层改完，合并逻辑返工两次\n2. 晚上读了 40 页\n3. 睡前刷手机到 1 点',
+  out:'Keep：改动当天即自测，返工成本可控\nProblem：睡前刷手机把入睡推到 1 点\nTry：给手机设 23:30 停用提醒；合并类逻辑先写用例再动实现',err:''},
+ {i:4,d:0,t:'09-28 06:58:02',m:'小工具',id:'tool.verify',n:'AI API 验证',st:'ok',it:18,ot:4,ms:812,cut:0,
+  sys:'你是接口连通性验证助手。按用户要求作答，回答保持简短。',
+  usr:'请只回复四个字：连接成功',out:'连接成功',err:''},
+ {i:5,d:0,t:'09-28 06:40:55',m:'阅读',id:'read.quote_insight',n:'摘录感想生成',st:'fail',it:520,ot:0,ms:21300,cut:0,
+  sys:'你是阅读摘录的感想助手。用第一人称写 60~120 字感想，不复述原文，不下判断性结论。',
+  usr:'摘录：「农业革命是史上最大的骗局。」\n书名：人类简史',
+  out:'',err:'aborted: Connection closed while receiving data（响应未收全，长回复常见）· 请重试'},
+ {i:6,d:1,t:'09-27 21:14:07',m:'待办',id:'todo.quadrant',n:'AI 判象限',st:'cancel',it:88,ot:0,ms:9400,cut:0,
+  sys:'你是艾森豪威尔四象限分类器。只输出一个 JSON 对象：{"quadrant":1-4,"reason":"不超过20字"}。',
+  usr:'标题：整理去年发票并归档',out:'',err:'等待期间用户点「取消」/按返回，应答若迟到将被丢弃（不计成功，token 已消耗）'},
+ {i:7,d:1,t:'09-27 19:02:44',m:'收集箱',id:'inbox.triage',n:'AI 一键分流',st:'ok',it:340,ot:276,ms:3910,cut:0,
+  sys:'你是个人知识管理分流器。只输出 JSON：{"target":"todo|note|journal|quote","title","reason"}。',
+  usr:'内容：记得周五交季度总结；另外「深工作需要 90 分钟 uninterrupted」这句值得存',
+  out:'{"target":"todo","title":"交季度总结（周五）","reason":"含明确截止日，属可执行事项；后半句建议另存笔记"}',err:''},
+ {i:8,d:2,t:'09-26 20:31:19',m:'日程',id:'schedule.weekly_review',n:'周报 AI 点评',st:'ok',it:1204,ot:812,ms:8600,cut:0,
+  sys:'你是周度回顾点评助手。只依据给定聚合数据点评，禁止臆造具体事件。输出 3 条短句。',
+  usr:'本周聚合：工作 32.5h · 睡眠 47h · 阅读 4.2h · 运动 1.5h · 待办完成 38/52 · 逾期 6',
+  out:'1. 工作占比略高，运动 1.5h 低于你上周设定的 3 次目标\n2. 逾期 6 条集中在周四之后，建议周中做一次清空\n3. 阅读时长稳定，可考虑把碎片时段并入',err:''},
+ {i:9,d:3,t:'09-25 09:12:50',m:'呵护',id:'care.cycle_insight',n:'周期趋势解读',st:'denied',it:0,ot:0,ms:0,cut:0,
+  sys:'',usr:'',out:'',err:'该能力未授权（呵护：周期趋势解读）：请在 AI 增强页的能力矩阵中开启 · 零请求'},
+ {i:10,d:5,t:'09-23 14:05:33',m:'阅读',id:'read.toc',n:'目录 AI 补全',st:'fail',it:173,ot:0,ms:2200,cut:0,
+  sys:'你是图书目录结构化助手。只输出一个 JSON 对象，禁止解释与代码块标记。',
+  usr:'书名：置身事内\n章节片段：…（共 18 条）',out:'',err:'rateLimited: 429 Too Many Requests · Retry-After: 8 · 请稍后再试'},
+ {i:11,d:12,t:'09-16 22:41:08',m:'日记',id:'journal.reflect',n:'当日复盘草稿',st:'ok',it:580,ot:904,ms:7100,cut:0,
+  sys:'你是个人复盘助手。基于当天日记条目生成 KPT 三段草稿，每段不超过 3 条。',
+  usr:'日期：2026-09-16\n条目：3 条',out:'Keep：…（正文已按上限截断）',err:''},
+ {i:12,d:26,t:'09-02 08:02:15',m:'阅读',id:'read.quote_insight',n:'摘录感想生成',st:'ok',it:498,ot:126,ms:4200,cut:0,
+  sys:'你是阅读摘录的感想助手。用第一人称写 60~120 字感想，不复述原文。',
+  usr:'摘录：「所有重大事件都以巧合的方式发生。」',out:'这句话让我想到最近两次计划外的进展——真正改变节奏的，往往不在日程上。',err:''},
+ {i:13,d:28,t:'08-31 16:20:41',m:'待办',id:'todo.subtask',n:'复杂任务拆子任务',st:'ok',it:150,ot:238,ms:3400,cut:0,
+  sys:'你是任务分解助手。只输出 JSON：{"subtasks":["…"]}，3~6 条，每条不超过 15 字。',
+  usr:'标题：筹备十月技术分享',out:'{"subtasks":["定题与大纲","整理示例代码","做幻灯片","预讲一次","收集反馈问题"]}',err:''}
+];
+var auD=0,auSt='all',auMod='all',auBodyOn=true,auKeepDays=30,auArm=null,auPop=null;
+function auEsc(s){return (s||'').replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function auInRange(r){return auD>=9999?true:(auD===0?r.d===0:r.d<auD);}
+function auList(){
+  var kw=($('#auKw')?$('#auKw').value:'').trim().toLowerCase();
+  return AI_CALLS.filter(function(r){
+    if(!auInRange(r))return false;
+    if(auSt!=='all'&&r.st!==auSt)return false;
+    if(auMod!=='all'&&r.m!==auMod)return false;
+    if(kw){var hay=(r.n+' '+r.m+' '+r.id+' '+r.sys+' '+r.usr+' '+r.out+' '+r.err).toLowerCase();
+      if(hay.indexOf(kw)<0)return false;}
+    return true;
+  }).sort(function(a,b){return a.d===b.d?(a.t<b.t?1:-1):a.d-b.d;});
+}
+function auStTxt(st){return st==='ok'?'成功':st==='fail'?'失败':st==='cancel'?'取消':'未启用';}
+function auMsTxt(ms){return ms>=1000?(ms/1000).toFixed(1)+'s':ms+'ms';}
+function auSumOf(list){var n=list.length,it=0,ot=0,f=0;
+  list.forEach(function(r){it+=r.it;ot+=r.ot;if(r.st==='fail'||r.st==='cancel')f++;});
+  return {n:n,it:it,ot:ot,f:f};}
+/* 三组选项的候选集（模块组按当前时间范围计数） */
+function auOpts(g){
+  if(g==='d')return [['0','今日'],['7','7 天'],['30','30 天'],['9999','全部']];
+  if(g==='st')return [['all','全部'],['ok','成功'],['fail','失败'],['cancel','取消'],['denied','未启用']];
+  var pool=AI_CALLS.filter(auInRange),cnt={};
+  pool.forEach(function(r){cnt[r.m]=(cnt[r.m]||0)+1;});
+  return [['all','全部 '+pool.length]].concat(Object.keys(cnt).sort().map(function(m){return [m,m+' '+cnt[m]];}));
+}
+function auCur(g){return g==='d'?String(auD):(g==='st'?auSt:auMod);}
+function auLblOf(g,v){var o=auOpts(g).filter(function(x){return x[0]===v;})[0];return o?o[1]:'全部';}
+/* 点胶囊=横向弹出该组选项；再点同一胶囊=收起 */
+function auPopToggle(g){auPop=(auPop===g?null:g);auRender();}
+function auPopPick(g,v){
+  if(g==='d')auD=+v;else if(g==='st')auSt=v;else auMod=v;
+  auPop=null;auRender();
+}
+function auPills(){
+  var cur={d:auLblOf('d',String(auD)),st:auLblOf('st',auSt),mod:auLblOf('mod',auMod)};
+  $('#auBar').innerHTML=[['d','时间'],['st','状态'],['mod','模块']].map(function(p){
+    var on=auPop===p[0];
+    return '<button id="aup-'+p[0]+'" class="auf'+(on?' on':'')+'" onclick="auPopToggle(\''+p[0]+'\')">'
+      +p[1]+' · '+cur[p[0]]+' <span class="au-ar">'+(on?'▾':'▸')+'</span></button>';
+  }).join('');
+}
+function auPopRender(){
+  auPills();
+  var box=$('#auPop');if(!box)return;
+  if(!auPop){box.className='hidden';box.innerHTML='';return;}
+  box.className='';
+  box.innerHTML='<div class="flex gap-1 overflow-x-auto no-scrollbar mt-1.5 pb-1">'
+    +auOpts(auPop).map(function(o){
+      return '<button class="auf'+(o[0]===auCur(auPop)?' on':'')+'" onclick="auPopPick(\''+auPop+'\',\''+o[0]+'\')">'+o[1]+'</button>';
+    }).join('')+'</div>';
+}
+function auRender(){
+  auPopRender();
+  var list=auList(),h='';
+  if(!list.length){h='<div class="p-6 text-center text-[11px] text-slate-400">该范围暂无 AI 调用记录<br><span class="opacity-70">换时间范围或清掉关键词再看</span></div>';}
+  list.forEach(function(r){
+    var open=r.open?' open':'';
+    h+='<div class="ailine st-'+r.st+open+'" data-i="'+r.i+'">'
+      +'<div class="ah" onclick="auToggle('+r.i+')" oncontextmenu="event.preventDefault();auCopyLine('+r.i+')">'
+      +'<span class="at">'+r.t+'</span><span class="as">'+auStTxt(r.st)+'</span>'
+      +'<span class="am">'+r.m+' · '+r.n+'</span>'
+      +'<span class="aq">'+(r.it||r.ot?('入'+r.it+'/出'+r.ot):'—')+' · '+auMsTxt(r.ms)+'</span></div>'
+      +'<div class="ab">'
+      +(r.err?('<h5>'+(r.st==='ok'?'提示':'原因')+'</h5><pre class="err">'+auEsc(r.err)+'</pre>'):'')
+      +(r.sys?('<h5>System · 发送设定</h5><pre>'+auEsc(r.sys)+'</pre>'):'')
+      +(r.usr?('<h5>User · 本次输入</h5><pre>'+auEsc(r.usr)+(r.cut?' <span class="cut">…已截断（上限 8000 字）</span>':'')+'</pre>'):'')
+      +(r.out?('<h5>输出</h5><pre>'+auEsc(r.out)+'</pre>'):'')
+      +(!r.sys&&!r.usr&&!r.out?'<div class="text-[10px] text-slate-400 mt-2">本条未存正文（记录设置里「记录输入与输出正文」已关闭）</div>':'')
+      +'<div class="ops">'
+      +'<button class="mini-btn" onclick="event.stopPropagation();auCopy('+r.i+',\'usr\')">复制输入</button>'
+      +'<button class="mini-btn" onclick="event.stopPropagation();auCopy('+r.i+',\'out\')">复制输出</button>'
+      +'<button class="mini-btn" onclick="event.stopPropagation();auCopy('+r.i+',\'all\')">复制全部</button>'
+      +'<button class="mini-btn" style="color:#ef4444" onclick="event.stopPropagation();auDel('+r.i+',this)">删除本条</button>'
+      +'</div></div></div>';
+  });
+  $('#auBox').innerHTML=h;
+  var s=auSumOf(list);
+  var today=auSumOf(AI_CALLS.filter(function(r){return r.d===0;}));
+  $('#auSum').textContent='筛选 '+list.length+' 条 · 入 '+s.it+'/出 '+s.ot+' tokens · 未成功 '+s.f
+    +' · 今日 '+today.n+' 次';
+  auKpi();
+}
+/* 长按一行＝复制该行摘要（与日志页同交互） */
+function auCopyLine(i){var r=auFind(i);if(!r)return;
+  var t='['+r.t+'] '+r.m+' · '+r.n+' · '+auStTxt(r.st)+' · 入'+r.it+'/出'+r.ot+' · '+auMsTxt(r.ms)
+    +(r.err?('\n'+r.err):'');
+  navigator.clipboard.writeText(t).then(function(){toast('已复制该行记录');}).catch(function(){toast('复制失败');});}
+/* 入口卡摘要要在进页前就有数：DOM 就绪即渲染一次（脚本先于 section 时静默跳过） */
+function auBootRender(){if(document.getElementById('auBox'))auRender();}
+function auKpi(){
+  var t=auSumOf(AI_CALLS.filter(function(r){return r.d===0;}));
+  var w=auSumOf(AI_CALLS.filter(function(r){return r.d<7;}));
+  var a=auSumOf(AI_CALLS);
+  [['auK1',t.n],['auK2',t.it+t.ot],['auK3',w.n],['auK4',a.n]].forEach(function(p){
+    var el=document.getElementById(p[0]);if(el)el.textContent=p[1];});
+}
+function auSeg(id,ids){ids.forEach(function(i){var b=document.getElementById(i);if(b)b.classList.remove('on');});
+  var on=document.getElementById(id);if(on)on.classList.add('on');}
+function auSetRange(d){auD=+d;auRender();}
+function auSetSt(st){auSt=st;auRender();}
+function auPickMod(m){auMod=m;auRender();}
+function auToggle(i){var r=AI_CALLS.filter(function(x){return x.i===i;})[0];if(!r)return;
+  r.open=!r.open;auRender();}
+function auFind(i){return AI_CALLS.filter(function(x){return x.i===i;})[0];}
+function auCopy(i,part){var r=auFind(i);if(!r)return;
+  var t=part==='all'?('['+r.t+'] '+r.m+' · '+r.n+' · '+auStTxt(r.st)+'\n--- System ---\n'+r.sys+'\n--- User ---\n'+r.usr+'\n--- 输出 ---\n'+r.out+(r.err?('\n--- 原因 ---\n'+r.err):''))
+    :(part==='usr'?(r.sys?r.sys+'\n\n'+r.usr:r.usr):r.out);
+  if(!t){toast('本条没有可复制的正文');return;}
+  navigator.clipboard.writeText(t).then(function(){toast(part==='all'?'已复制整条记录':(part==='usr'?'已复制输入内容':'已复制输出内容'));}).catch(function(){toast('复制失败');});}
+function auCopyAll(){var list=auList();if(!list.length){toast('当前筛选没有记录');return;}
+  var t=list.map(function(r){return '['+r.t+'] '+r.m+' · '+r.n+' · '+auStTxt(r.st)+' · 入'+r.it+'/出'+r.ot+' · '+auMsTxt(r.ms);}).join('\n');
+  navigator.clipboard.writeText(t).then(function(){toast('已复制 '+list.length+' 条摘要');}).catch(function(){toast('复制失败');});}
+function auDel(i,btn){var idx=-1;AI_CALLS.forEach(function(x,k){if(x.i===i)idx=k;});
+  if(idx<0)return;var gone=AI_CALLS[idx];AI_CALLS.splice(idx,1);auRender();
+  toast('🗑 已删除「'+gone.n+'」1 条');}
+function auArmTwice(btn,label,fn){
+  if(btn.dataset.arm==='1'){btn.dataset.arm='';btn.textContent=label;fn();return;}
+  btn.dataset.arm='1';btn.textContent='再点一次确认';
+  setTimeout(function(){if(btn.dataset.arm==='1'){btn.dataset.arm='';btn.textContent=label;}},3000);}
+function auDelFiltered(){var btn=event&&event.target;var list=auList();
+  if(!list.length){toast('当前筛选没有记录');return;}
+  var run=function(){var ids=list.map(function(r){return r.i;});
+    AI_CALLS=AI_CALLS.filter(function(r){return ids.indexOf(r.i)<0;});auRender();
+    toast('已删除筛选结果 '+ids.length+' 条');};
+  if(btn)auArmTwice(btn,'删除筛选结果',run);else run();}
+function auClearAll(){var btn=event&&event.target;
+  var run=function(){AI_CALLS=[];auRender();toast('已清空全部 AI 使用记录');closeSheet('sheetAiUsageCfg');};
+  if(btn)auArmTwice(btn,'清空全部 AI 使用记录',run);else run();}
+function auClearBody(){AI_CALLS.forEach(function(r){r.sys='';r.usr='';r.out='';});auRender();
+  toast('已清除正文，用量记录保留');}
+function auToggleBody(el){el.classList.toggle('on');auBodyOn=el.classList.contains('on');auRender();
+  toast(auBodyOn?'开始记录输入与输出正文':'已停记正文：新调用只记用量');}
+function auKeep(k){auKeepDays=k;
+  $$('#auKeepRow .chip').forEach(function(b){b.classList.toggle('chip-on',+b.dataset.k===k);});
+  if(k){var before=AI_CALLS.length;AI_CALLS=AI_CALLS.filter(function(r){return r.d<k;});
+    toast('保留 '+k+' 天：丢弃超期 '+(before-AI_CALLS.length)+' 条');}
+  auRender();}
+
+/* ================= V1.53.1 服务商可增删改（预置=默认值而非白名单 · 支持中转站与局域网 Ollama） =================
+   与实现同口径：业务模块只调 aiRunWithReview，端点/模型/协议/Key 全在 AI 侧，
+   所以这一层的可配置性不需要任何模块配合改动。 */
+/* ===== AI API 验证屏（p-sub-aiVerify · 对齐实现 AiVerifyPage：三态＝通过/凭据错误/网络失败） ===== */
+let avBusy=false,avTimer=null;
+const AV_IDLE='结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 · 404 模型名 · 429 限流 · 超时）。';
+function aiVfNorm(u){return String(u||'').trim().replace(/\/+$/,'');}
+function aiVfProto(u){var p=aiProvs().filter(function(x){return aiVfNorm(x.u)===aiVfNorm(u);})[0];return p?p.p:'openai';}
+function aiVfChips(){var box=document.getElementById('avChips');if(!box)return;
+ box.innerHTML=aiProvs().map(function(p){var on=aiVfNorm(p.u)===aiVfNorm(document.getElementById('avUrl').value);
+  return '<button class="mini-btn" style="'+(on?'background:#0f172a;color:#fff':'')+'" data-avp="'+p.id+'" onclick="aiVfPick(\''+p.id+'\')">'+p.n+'</button>';}).join('');}
+function aiVfPick(id){var p=aiProvById(id);if(!p)return;
+ document.getElementById('avUrl').value=p.u;document.getElementById('avModel').value=p.m;
+ document.getElementById('avKey').value=p.k?'sk-demo-'+p.id:'';aiVfChips();}
+function aiVfFill(){var p=aiCurProv();
+ document.getElementById('avUrl').value=p.u;document.getElementById('avModel').value=p.m;
+ document.getElementById('avKey').value=p.k?'sk-demo-'+p.id:'';
+ document.getElementById('avPrompt').value='请只回复四个字：连接成功';
+ document.getElementById('avRes').textContent=AV_IDLE;
+ document.getElementById('avRes').style.color='#94a3b8';
+ document.getElementById('avLat').textContent='';
+ document.getElementById('avEye').innerHTML=AP_EYE;aiVfChips();}
+function aiVfOpen(){navTo('p-sub-aiVerify');aiVfFill();}
+function aiVfJudge(u,m,k){
+ if(!/^https?:\/\//.test(u))return {ok:false,lat:0,t:'✕ 网络失败：无法连接 '+(u||'（地址为空）')+'\n请检查 Base URL 是否带 http(s):// 且拼写正确'};
+ if(!k)return {ok:false,lat:0,t:'✕ 401 未授权：API Key 无效或未填\n该服务商的 Key 请在「服务商管理」里补齐'};
+ if(!m)return {ok:false,lat:0,t:'✕ 404 模型不存在：模型名留空或拼写错误'};
+ return {ok:true,lat:812,t:'✓ 812ms · 200 OK\n模型回复：连接成功\nusage: 12 + 4 tokens\n验证通过 · 可回 AI 增强页逐项开启能力矩阵'};}
+function aiVfSend(){if(avBusy)return;
+ var u=document.getElementById('avUrl').value,m=document.getElementById('avModel').value.trim(),k=document.getElementById('avKey').value.trim();
+ var path=aiVfProto(u)==='anthropic'?'/messages':'/chat/completions';
+ avBusy=true;var btn=document.getElementById('avSend');btn.classList.add('opacity-40');btn.textContent='请求中…';
+ var res=document.getElementById('avRes');res.style.color='#64748b';
+ res.textContent='⏳ POST '+aiVfNorm(u)+path+' · model='+(m||'—')+' …';
+ clearTimeout(avTimer);
+ avTimer=setTimeout(function(){avBusy=false;btn.classList.remove('opacity-40');btn.textContent='真实发送验证';
+  var r=aiVfJudge(u,m,k);res.textContent=r.t;res.style.color=r.ok?'#10b981':'#f43f5e';
+  document.getElementById('avLat').textContent=r.ok?'延迟 '+r.lat+'ms':'未通过';
+  var s=document.getElementById('apVerifyState');
+  if(s){s.textContent=r.ok?'✓ 刚刚通过 · '+r.lat+'ms':'✕ 刚刚失败';s.style.color=r.ok?'#10b981':'#f43f5e';}
+  toast(r.ok?'验证通过 · Key 已存入该服务商加密槽':'验证未通过 · 原因见结果区');
+ },620);}
+function aiVfBusy(){return avBusy;}
+let AI_PROVS=null,apEdit=null;
+
+function aiProvSeed(){return [
+ {id:'deepseek',n:'DeepSeek',u:'https://api.deepseek.com/v1',m:'deepseek-flash',p:'openai',k:1,b:1,cur:true},
+ {id:'anthropic',n:'Anthropic claude',u:'https://api.anthropic.com/v1',m:'claude-3-5-haiku-latest',p:'anthropic',k:0,b:1,cur:false},
+ {id:'ollama',n:'Ollama（局域网）',u:'http://192.168.31.20:11434/v1',m:'qwen2.5:7b',p:'openai',k:0,b:1,cur:false},
+ {id:'relay',n:'自建中转站',u:'https://relay.mydomain.com/v1/api',m:'deepseek-chat',p:'openai',k:1,b:0,cur:false}
+];}
+function aiProvs(){if(!AI_PROVS)AI_PROVS=aiProvSeed();return AI_PROVS;}
+function aiProvById(id){return aiProvs().filter(function(p){return p.id===id;})[0];}
+function aiCurProv(){return aiProvs().filter(function(p){return p.cur;})[0]||aiProvs()[0];}
+function aiProvRender(){
+ var box=$('#aiProvList');if(!box)return;
+ box.innerHTML=aiProvs().map(function(p){
+  var cur=p===aiCurProv();
+  return '<div class="rounded-xl px-3 py-2 '+(cur?'bg-slate-100 dark:bg-slate-800':'bg-slate-50 dark:bg-slate-800/50')+'">'
+   +'<div class="flex items-center justify-between gap-2">'
+   +'<div class="min-w-0"><div class="truncate font-bold">'+p.n+(p.b?' <span class="text-[9px] font-normal text-slate-400">预置</span>':'')+'</div>'
+   +'<div class="truncate font-mono text-[10px] opacity-70">'+p.u+'</div></div>'
+   +'<div class="flex items-center gap-1 shrink-0">'
+   +(cur?'<b class="text-[10px]" style="color:#10b981">● 当前</b>':'<button class="mini-btn" onclick="aiProvUse(\''+p.id+'\')">选用</button>')
+   +'<button class="mini-btn" onclick="aiProvEdit(\''+p.id+'\')">编辑</button>'
+   +(cur?'':'<button class="mini-btn" style="color:#ef4444" onclick="aiProvDel(\''+p.id+'\')">删</button>')
+   +'</div></div>'
+   +'<div class="text-[9.5px] opacity-60 mt-0.5 truncate">'+p.m+' · '+(p.p==='anthropic'?'Anthropic Messages':'OpenAI 兼容')
+   +' · Key '+(p.k?'已单独保存':'未填')+(p.u.indexOf('http://')===0?' · <span style="color:#f59e0b">http 明文（局域网）</span>':'')+'</div>'
+   +'</div>';
+ }).join('');
+ var c=aiCurProv();
+ var cur=$('#apCur');
+ var nm=document.getElementById('aiCurName');
+ if(nm)nm.textContent=c.n+' · '+(c.p==='anthropic'?'Anthropic Messages':'OpenAI 兼容');
+ if(cur)cur.innerHTML='<span class="font-mono">'+c.u+'</span> · '+c.m+' · Key '+(c.k?'已单独保存':'未填');
+ ['gkEye','apEye'].forEach(function(id){var b=document.getElementById(id);if(b&&!b.innerHTML)b.innerHTML=AP_EYE;});
+}
+function aiPickOpen(){aiProvRender();openSheet('sheetAiPick')}
+function aiProvUse(id){aiProvs().forEach(function(p){p.cur=p.id===id;});closeSheet('sheetAiPick');aiProvRender();
+ toast('已切换到「'+aiProvById(id).n+'」· 后续 AI 请求走该端点与其 Key');}
+function aiProvEdit(id){apEdit=id;
+ var p=id?aiProvById(id):null;
+ $('#apTitle').textContent=p?('编辑服务商 · '+p.n):'添加服务商';
+ $('#apName').value=p?p.n:'';$('#apUrl').value=p?p.u:'';$('#apModel').value=p?p.m:'';
+ var stored=apKeyStored(p);
+ $('#apKey').type='password';$('#apKey').value=stored;$('#apEye').innerHTML=AP_EYE;
+ $('#apKeyHint').textContent=stored?('已存 Key（末 4 位 '+stored.slice(-4)+'）· 覆盖即改，清空后保存＝删除该 Key')
+   :'该服务商还没有 Key · 填入后即刻存入系统加密区';
+ aiProtoSet(p?p.p:'openai');apHintCheck();
+ $('#apDelBtn').classList.toggle('hidden',!p||p===aiCurProv());
+ $('#apRes').innerHTML='<span class="opacity-50">「测试连接」向该 Base URL 发一次最小请求，回真实状态码与耗时。</span>';
+ openSheet('sheetAiProv');}
+function aiProtoSet(v){$$('#apProto .auf').forEach(function(b){b.classList.toggle('on',b.dataset.p===v);});}
+function apHintCheck(){var row=$('#apHttpRow');if(row)row.classList.toggle('hidden',$('#apUrl').value.trim().indexOf('http://')!==0);}
+/* Key 明文显隐（默认掩码）：线性 SVG 眼睛，禁 emoji（全局 UI 规则） */
+const AP_EYE='<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+const AP_EYE_OFF='<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M3 3l18 18M10.5 5.8A11 11 0 0112 5.5c6.4 0 10 6.5 10 6.5a17.5 17.5 0 01-3.1 3.9M6.3 8A16.7 16.7 0 002 12s3.6 6.5 10 6.5a10.4 10.4 0 003.7-.7"/></svg>';
+function apPeek(inpId,btnId){var el=document.getElementById(inpId),b=document.getElementById(btnId);
+  var show=el.type==='password';el.type=show?'text':'password';
+  b.innerHTML=show?AP_EYE_OFF:AP_EYE;}
+function apKeyStored(p){return p&&p.k?('sk-demo-'+p.id.slice(-4)+'f2a'):'';}
+function aiProvProto(){var on=$$('#apProto .auf.on')[0];return on?on.dataset.p:'openai';}
+function aiProvSave(){
+ var n=$('#apName').value.trim(),u=$('#apUrl').value.trim().replace(/\/+$/,''),m=$('#apModel').value.trim(),k=$('#apKey').value.trim();
+ if(!n){toast('✕ 请填写服务商名称');return}
+ if(!/^https?:\/\//.test(u)){toast('✕ Base URL 需以 http:// 或 https:// 开头');return}
+ if(!m){toast('✕ 请填写模型名');return}
+ if(u.indexOf('http://')===0&&!$('#apHttpOk').classList.contains('on')){toast('✕ http 明文端点需先确认是局域网/回环地址');return}
+ var ps=aiProvs(),p=apEdit?aiProvById(apEdit):null;
+ if(p){p.n=n;p.u=u;p.m=m;p.p=aiProvProto();p.k=k?1:0;}
+ else{var id='p'+Date.now();ps.push({id:id,n:n,u:u,m:m,p:aiProvProto(),k:k?1:0,b:0,cur:false});aiProvUse(id);}
+ closeSheet('sheetAiProv');apEdit=null;aiProvRender();toast('✔ 已保存 · 端点即刻生效（业务模块无需任何改动）');}
+function aiProvDel(id){var btn=(typeof event!=='undefined'&&event)?event.target:null;
+ var run=function(){AI_PROVS=aiProvs().filter(function(p){return p.id!==id;});
+   apEdit=null;aiProvRender();closeSheet('sheetAiProv');toast('已删除该服务商（其 Key 一并从加密区清除）');};
+ if(btn&&btn.dataset!=='')auArmTwice(btn,btn.textContent,run);else run();}
+/* 表单内实测：直连该端点发一次最小请求（浏览器预览受 CORS 限制，App 内为直连） */
+async function aiProvPing(){
+ var u=$('#apUrl').value.trim().replace(/\/+$/,''),m=$('#apModel').value.trim(),k=$('#apKey').value.trim();
+ var anth=aiProvProto()==='anthropic',box=$('#apRes');
+ if(!/^https?:\/\//.test(u)){box.innerHTML='<span style="color:#fb7185">✖ 先填合法 Base URL</span>';return}
+ if(!m){box.innerHTML='<span style="color:#fb7185">✖ 先填模型名</span>';return}
+ box.innerHTML='<span class="opacity-60">POST '+u+(anth?'/messages':'/chat/completions')+' · model='+m+' …</span>';
+ var t0=Date.now();
+ try{
+  var ctl=new AbortController(),to=setTimeout(function(){ctl.abort();},12000);
+  var r=await fetch(u+(anth?'/messages':'/chat/completions'),{method:'POST',signal:ctl.signal,
+   headers:anth?{'Content-Type':'application/json','x-api-key':k||'probe','anthropic-version':'2023-06-01'}
+               :{'Content-Type':'application/json','Authorization':'Bearer '+(k||'probe')},
+   body:JSON.stringify(anth?{model:m,max_tokens:8,messages:[{role:'user',content:'ping'}]}
+                          :{model:m,max_tokens:8,messages:[{role:'user',content:'ping'}]})});
+  clearTimeout(to);var ms=Date.now()-t0;
+  box.innerHTML=r.ok?'<span style="color:#10b981">✔ HTTP '+r.status+' · '+ms+'ms · 端点可用</span>'
+   :'<span style="color:#fb7185">✖ HTTP '+r.status+' · '+ms+'ms</span><div class="opacity-70">'
+    +(r.status===401?'Key 无效或未授权 · 核对这家服务商的 Key':r.status===403?'Key 无该模型权限':r.status===404?'路径或模型名不对 · 检查 Base URL 后缀与模型名':r.status===429?'限流 · 稍后再试':'请核对 Base URL 与模型名')+'</div>';
+ }catch(e){clearTimeout&&0;
+  box.innerHTML='<span style="color:#fb7185">✖ 未送达：'+String((e&&e.name==='AbortError')?'超时 12s':((e&&e.message)||e))+'</span>'
+   +'<div class="opacity-70">局域网 http 端点需与设备同网段；浏览器预览的跨域失败不代表端点有问题（App 内为原生直连，无 CORS）。</div>';}
+}
+/* —— 提示词管理（AI批 · 与 assets/ai_prompts/prompts.json 同源的默认模板镜像） —— */
+const AI_PROMPTS_DEFAULT=[
+{id:'tool.verify',m:'小工具',n:'AI API 验证',v:['prompt'],s:'你是接口连通性验证助手。按用户要求作答，回答保持简短。',u:'{{prompt}}'},
+{id:'todo.quadrant',m:'待办',n:'AI 判象限',v:['title'],s:'你是艾森豪威尔四象限分类器。只输出一个 JSON 对象，禁止输出解释、前后缀或代码块标记。',u:'根据待办标题判断所属象限。\n判定口径：\n- 重要：对长期目标、健康、人际或职责有实质影响\n- 紧急：有明确临近截止或被外部催促\n象限编号：1=重要且紧急，2=重要不紧急，3=紧急不重要，4=不紧急不重要\n待办标题：{{title}}\n输出格式：{"quadrant": 1, "reason": "不超过20字的中文理由"}'},
+{id:'todo.nl_parse',m:'待办',n:'自然语言速记解析',v:['text','today'],s:'你是待办速记解析器，把口语化一句话拆成结构化字段。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。无法确定的字段一律填 null，不要编造。',u:'今天日期：{{today}}（星期请自行推算）。\n解析下面这句速记，拆出标题、截止日、提醒时间、象限：\n「{{text}}」\n输出格式：{"title": "精炼后的任务标题", "dueDate": "YYYY-MM-DD 或 null", "remindTime": "HH:mm 或 null", "quadrant": 1}\nquadrant 取 1~4；标题去掉日期时间等修饰词，只留事情本身。'},
+{id:'todo.subtask',m:'待办',n:'复杂任务拆子任务',v:['title'],s:'你是任务分解助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。子任务必须可执行、按时间先后排序、数量为 3~6 条。',u:'把下面这个较复杂的待办拆成可勾选的子任务：\n「{{title}}」\n输出格式：{"subtasks": ["子任务一", "子任务二", "子任务三"]}\n每条不超过 15 字，动词开头。'},
+{id:'inbox.triage',m:'收集箱',n:'AI 一键分流',v:['content'],s:'你是个人知识管理分流器。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。target 只能取 todo、journal、note、quote 四者之一。',u:'把下面这条收集箱碎片归到最合适的去向：\n- todo：需要做的事、有行动项\n- journal：当天的经历、感受、生活记录\n- note：可复用的知识、想法、资料\n- quote：摘录自他处的原文句子\n内容：{{content}}\n输出格式：{"target": "note", "reason": "不超过20字的中文理由", "draft": "清洗后的建议正文（去掉冗余口语）"}'},
+{id:'journal.reflect',m:'日记',n:'AI 反思草稿',v:['content'],s:'你是日记反思引导助手。用第一人称写一段 60~120 字的反思草稿，语气平实不煽情，不复述原文，而是点出这一天的关键、值得延续之处和一个可改进的小动作。只输出草稿正文，不要标题、不要解释、不要加引号。',u:'以下是今天的日记概览/片段：\n{{content}}\n请生成反思段落。'},
+{id:'read.toc',m:'阅读',n:'目录 AI 补全',v:['title','author'],s:'你是图书目录结构助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。若该书确实未知，返回空 chapters 数组，不要编造内容简介。',u:'为下面这本书给出通行的章节目录（部分+节两级，不确定部分可填 null）：\n书名：{{title}}\n作者：{{author}}\n输出格式：{"chapters": [{"part": "第一部分 原则", "title": "1. 我的历程", "sections": ["工作原则", "生活原则"]}]}\nsections 可为 null；章节数控制在 8~30 条。'},
+{id:'read.quote_insight',m:'阅读',n:'摘录感想生成',v:['quote','book'],s:'你是读书笔记助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。感想要落在使用者自身场景，不空泛吹捧、不引用原文。',u:'为下面这条摘录写一段可选感想草稿（40~80 字），并给 1~3 个标签：\n书名：{{book}}\n摘录：{{quote}}\n输出格式：{"insight": "感想正文", "tags": ["标签一", "标签二"]}'},
+{id:'read.explain',m:'阅读',n:'词句解释',v:['text','book'],s:'你是《{{book}}》的随行注疏助手。对读者选中的词或句，依次给出：①释义（字词义/句意）②背景（概念出处与作者语境）③简析（一句话说明它在书中论证里的位置）。总计不超过 180 字，直接输出正文，不客套、不整句复述原文。',u:'书名：{{book}}\n选中：{{text}}\n请解释。'},
+{id:'schedule.weekly_review',m:'日程',n:'周报 AI 点评',v:['stats'],s:'你是时间使用分析师。输入只有聚合统计数字，不含任何原始记录。用中文写 80~150 字点评：先说时间结构特征，再指出一个失衡点和一个具体可执行的下周调整建议。不下医疗或心理判断，不使用「您」，语气客观简练。只输出点评正文。',u:'本周时间结构统计：\n{{stats}}\n请给出点评。'},
+{id:'care.cycle_insight',m:'呵护',n:'AI 周期解读',v:['stats'],s:'你是女性周期数据的趋势摘要助手。输入仅为聚合统计，不含原始记录。用中文写 80~140 字趋势描述，只陈述数据事实与波动范围，必须包含「不构成医学诊断，如有不适请咨询医生」这一提示。禁止给出用药、诊断或治疗建议，禁止使用恐吓性措辞。只输出正文。',u:'周期聚合统计：\n{{stats}}\n请生成趋势摘要。'},
+{id:'ledger.categorize',m:'记账',n:'AI 辅助归类',v:['items','cats'],s:'你是账单分类器。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。category 必须严格从给定候选分类中选，无法判断时填「其他」，不要新造分类名。',u:'候选分类：{{cats}}\n请按商户名/交易说明逐条归类：\n{{items}}\n输出格式：{"items": [{"name": "原始商户名", "category": "候选分类之一"}]}\n顺序与输入一致，条目数必须相同。'}
+];
+const aiPromptOver={};let aiPromptCur=null;
+function aiRenderPrompts(){const g={};AI_PROMPTS_DEFAULT.forEach(t=>(g[t.m]=g[t.m]||[]).push(t));
+ $('#aiPromptRows').innerHTML=Object.entries(g).map(([m,arr])=>`<div><div class="text-[10px] text-slate-400 font-bold mb-1">${m}</div><div class="space-y-2">`+arr.map(t=>`<div class="card !p-3 flex items-center justify-between" onclick="aiPromptEdit('${t.id}')"><div><div class="text-xs font-bold">${t.n}</div><div class="text-[10px] font-mono text-slate-400 mt-0.5">${t.id}</div></div><span class="text-[10px] ${(aiPromptOver[t.id]&&aiPromptOver[t.id].s!==undefined)?'text-amber-500':'text-slate-400'}">${(aiPromptOver[t.id]&&aiPromptOver[t.id].s!==undefined)?'● 已覆盖':'默认'} ›</span></div>`).join('')+`</div></div>`).join('');}
+function aiPromptEdit(id){aiPromptCur=id;const t=AI_PROMPTS_DEFAULT.find(x=>x.id===id);const o=aiPromptOver[id]||{};
+ $('#apeTitle').textContent=t.n+' · 提示词';$('#apeVars').textContent=t.v.map(x=>'{{'+x+'}}').join(' ');
+ $('#apeSys').value=o.s!==undefined?o.s:t.s;$('#apeUser').value=o.u!==undefined?o.u:t.u;
+ $('#apeBadge').textContent=(o.s!==undefined||o.u!==undefined)?'已覆盖':'默认';navTo('p-sub-aiPromptEdit');}
+function aiPromptSave(){aiPromptOver[aiPromptCur]={s:$('#apeSys').value,u:$('#apeUser').value};$('#apeBadge').textContent='已覆盖';
+ toast('覆盖已保存 · 即刻生效，无需改代码');const p=stack.pop();setPage(p||'p-sub-aiPrompts');aiRenderPrompts();}
+function aiPromptReset(){const t=AI_PROMPTS_DEFAULT.find(x=>x.id===aiPromptCur);delete aiPromptOver[aiPromptCur];
+ $('#apeSys').value=t.s;$('#apeUser').value=t.u;$('#apeBadge').textContent='默认';toast('已恢复内置默认模板');}
+/* ================= 启动 ================= */
+darkApply();
+renderNav(); /* 批3：底栏栏位渲染（与壳同源；进入任一屏时由 setPage 重画高亮） */
+aiProvRender(); /* V1.53.1 服务商列表运行时渲染 */
+auBootRender(); /* V1.53 AI 使用记录：入口卡摘要先出数 */
+</script>
+
+<script>/*LH-GOV-START*/
+/* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
+(function(){
+var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index-time.html","index-time.html"],"p-records":["index.html","壳与跨模块"],"p-profile":["index.html","壳与跨模块"]};
+var DROP=window.LH_DROPPED={};
+var SELF=window.LH_SELF={};
+window.LH_LANDING="p-sub-ai";
+window.lhGone=function(id){
+  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
+  var r=RED[id];
+  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+(r[2]||id);},700);return;}
+  if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}
+  console.warn('[lh-gov] 目标不在本版:',id);
+};
+function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
+  if(!h){var L=window.LH_LANDING;if(L&&!document.querySelector('.page.active')&&typeof navTab==='function')navTab(L);return;}
+  if(!h)return;var el=document.getElementById(h);
+  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
+  if(SELF[h]){location.replace('#'+SELF[h]);return;}
+  var r=RED[h];if(r)location.replace(r[0]+'#'+(r[2]||h));}
+window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};
+window.lhBoot();
+window.addEventListener('load',function(){window.lhBoot();});
+})();
+/*LH-GOV-END*/</script>
+</body>
+</html>

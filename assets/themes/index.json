@@ -1,0 +1,4 @@
+{
+  "default": "minimal",
+  "themes": ["minimal", "fresh", "retro", "neumorph", "cyber", "autumn", "ocean"]
+}
