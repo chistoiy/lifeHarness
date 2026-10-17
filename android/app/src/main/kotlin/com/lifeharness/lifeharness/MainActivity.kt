@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -104,6 +105,16 @@ class MainActivity : FlutterActivity() {
 
     private fun handle(intent: Intent?) {
         if (intent == null) return
+        // 批3c 排障行（2026-10-17）：只记「系统给了本 Activity 什么 intent」——
+        // **只记 action 与 scheme/host，不记 path/query（cardId 在 path 里·C11 红线）**。
+        // 判据：NDEF_DISCOVERED ＋ scheme=lh ⇒ 系统正常派发（问题在 Dart 执行链）；
+        // action=MAIN 且无 data ⇒ 系统走了 AAR 的 startApp 兜底（NDEF filter 未命中），
+        // 此时 Dart 侧永远收不到 NFC 路由——真机「闪一下 App 页面、日志无 NFC 行」即此。
+        // 真机复现「贴卡没反应」时：`adb logcat -s LH-NFC`。
+        Log.d(
+            "LH-NFC",
+            "intent action=${intent.action} scheme=${intent.data?.scheme} host=${intent.data?.host}"
+        )
         // 批B：悬浮窗「■ 结束」意图（点胶囊结束钮/通知结束动作）——入队等
         // Dart 侧 takePillEvent 消费。
         if (intent.action == ACTION_PILL_END) {

@@ -231,12 +231,23 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
                     : nfcNewTextRecord(stored),
       ];
     }
+    // 批3c（2026-10-17 真机报障·根因①）：**写本 App 网址必须同时带 AAR**。
+    // 「清空」那一步会把 AAR 一起抹掉（EMPTY 记录是唯一的），之后写回时底稿里
+    // 已经没有 AAR 可保留——于是系统只弹「NFC 卡片」通知、不启动本 App，贴卡等于
+    // 没反应（读回内容却完全正常，正是用户报的「改写过的卡不触发」）。
+    final withAar = nfcEnsureSelfAar(next, kNfcAarPackage);
+    final addedAar = withAar.length > next.length;
     setState(() {
-      _pendingWrite = next;
+      _pendingWrite = withAar;
       _stage = _Stage.writing;
       _error = null;
     });
-    AppToast.show(context, '把卡片贴回手机背面，贴稳就写');
+    AppToast.show(
+      context,
+      addedAar
+          ? '已补上本 App 绑定记录，把卡片贴回手机背面，贴稳就写'
+          : '把卡片贴回手机背面，贴稳就写',
+    );
   }
 
   Future<void> _confirmClear() async {
@@ -595,7 +606,12 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
           ),
         ),
       if (_content.isLifeHarnessCard)
-        _tiny(scheme, '这是本 App 的卡片：改掉里面的 lh:// 内容会让卡片失效'),
+        _tiny(
+          scheme,
+          _content.hasAar
+              ? '这是本 App 的卡片：改掉里面的 lh:// 内容会让卡片失效'
+              : '这张卡缺本 App 绑定记录（贴卡不会被系统拉起）；保存时会自动补上',
+        ),
     ];
   }
 

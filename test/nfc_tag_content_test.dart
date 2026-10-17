@@ -219,6 +219,64 @@ void main() {
     });
   });
 
+  group('NFC 卡片内容 · 写本 App 网址补 AAR（批3c 根因①）', () {
+    const pkg = 'com.lifeharness.lifeharness';
+
+    test('缺 AAR ⇒ 补一条（追加在末尾，URI 仍是首条）', () {
+      final next = nfcEnsureSelfAar([_uri('lh://nfc/abc123DEF456')], pkg);
+      expect(next.length, 2);
+      // URI 必须在前：系统的 `intent.data` 取自首条 URI 记录。
+      expect(next[0].type, Uint8List.fromList(const [0x55]));
+      expect(next[1].tnf, 4);
+      expect(next[1].typeText, 'android.com:pkg');
+      expect(utf8.decode(next[1].payload), pkg);
+      expect(nfcHasAar(next, pkg), true);
+    });
+
+    test('已有 AAR ⇒ 原样返回（不重复补）', () {
+      final src = [_uri('lh://nfc/abc123DEF456'), _aar()];
+      final next = nfcEnsureSelfAar(src, pkg);
+      expect(identical(next, src), true);
+      expect(next.length, 2);
+    });
+
+    test('普通网址（非 lh://）不补 AAR', () {
+      final src = [_uri('https://a.com/x', 4)];
+      expect(identical(nfcEnsureSelfAar(src, pkg), src), true);
+    });
+
+    test('纯文本不补 AAR', () {
+      final src = [_text('hello')];
+      expect(identical(nfcEnsureSelfAar(src, pkg), src), true);
+    });
+
+    test('AAR 指向别的包 ⇒ 仍补本包那条', () {
+      final next = nfcEnsureSelfAar(
+          [_uri('lh://nfc/abc123DEF456'), _aar('com.other.app')], pkg);
+      expect(next.length, 3);
+      expect(utf8.decode(next[2].payload), pkg);
+    });
+
+    test('补完读回：网址 ＋ 本 App 绑定两条都在', () {
+      final c =
+          nfcContentOf(nfcEnsureSelfAar([_uri('lh://nfc/abc123DEF456')], pkg));
+      expect(c.records.length, 2);
+      expect(c.records[0].kind, NfcContentKind.uri);
+      expect(c.records[1].kind, NfcContentKind.aar);
+      expect(c.hasAar, true);
+    });
+
+    test('清空 → 写入本 App 网址 → 写回集含 AAR（真机报障主链路）', () {
+      // 真机实况：清空把 AAR 一起抹掉（EMPTY 记录是唯一的），写回时底稿里
+      // 已经没有 AAR 可保留 ⇒ 系统只弹通知不启动 App。修法＝写前补齐。
+      final base = nfcContentOf(nfcEmptyRecords()).raw;
+      final next = nfcEnsureSelfAar(
+          [...base, nfcNewUriRecord('lh://nfc/abc123DEF456')], pkg);
+      expect(next.length, 2);
+      expect(next[1].tnf, 4);
+    });
+  });
+
   group('NFC 卡片内容工具 · 弹层', () {
     testWidgets('贴卡 → 展示原文与类型；只读记录标「只读」', (tester) async {
       final io = _FakeIo();
@@ -378,10 +436,15 @@ void main() {
 
       // 写出去的必须是 RTD-URI，且是**首条**（读回来系统才认）。
       final w = io.written!;
-      expect(w.length, 1);
+      // 批3c（2026-10-17 真机报障·根因①）：写本 App 网址时**必须同时带 AAR**——
+      // 缺它系统只弹「NFC 卡片」通知、不启动本 App（贴卡等于没反应）。
+      expect(w.length, 2);
       expect(w[0].tnf, 1);
       expect(w[0].type, Uint8List.fromList(const [0x55]));
       expect(utf8.decode(w[0].payload.sublist(1)), 'lh://nfc/abc123DEF456');
+      expect(w[1].tnf, 4);
+      expect(w[1].typeText, 'android.com:pkg');
+      expect(utf8.decode(w[1].payload), 'com.lifeharness.lifeharness');
       // 模拟再读一次：显示为网址。
       io.tap(_probeOf(w));
       await tester.pumpAndSettle();
@@ -414,6 +477,40 @@ void main() {
       expect(w.length, 1);
       expect(w[0].type, Uint8List.fromList(const [0x55])); // 已换成 RTD-URI
       expect(utf8.decode(w[0].payload.sublist(1)), 'https://a.com/x');
+    });
+
+    testWidgets('本 App 卡缺 AAR ⇒ 列表下提示「保存时会自动补上」', (tester) async {
+      final io = _FakeIo();
+      await _pump(tester, io);
+      io.tap(_probeOf([_uri('lh://nfc/abc123DEF456')])); // 只有 URI，没有 AAR
+      await tester.pumpAndSettle();
+      expect(
+          find.text('这张卡缺本 App 绑定记录（贴卡不会被系统拉起）；保存时会自动补上'),
+          findsOneWidget);
+    });
+
+    testWidgets('改写本 App 网址 ⇒ 写回集自动补上 AAR（批3c 真机报障①）',
+        (tester) async {
+      final io = _FakeIo();
+      await _pump(tester, io);
+      // 清空过的卡：底稿里已无 AAR 可保留（这正是报障现场）。
+      io.tap(_probeOf(nfcEmptyRecords()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('nfc-tool-edit')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('nfc-tool-text')), 'lh://nfc/abc123DEF456');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('nfc-tool-edit-save')));
+      await tester.pumpAndSettle();
+      io.tap(_probeOf(nfcEmptyRecords()));
+      await tester.pumpAndSettle();
+      expect(find.text('已写入'), findsOneWidget);
+
+      final w = io.written!;
+      expect(w.length, 2);
+      expect(w[1].tnf, 4);
+      expect(utf8.decode(w[1].payload), 'com.lifeharness.lifeharness');
     });
 
     testWidgets('关层 ⇒ 停会话（不留后台 NFC 监听）', (tester) async {

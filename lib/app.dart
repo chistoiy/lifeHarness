@@ -25,6 +25,12 @@ import 'shared/linkage/sys_pill_sync.dart'
         sysPillSyncProvider;
 import 'shared/widgets/ui_kit.dart' show AppToast;
 
+/// 冷启动首帧窗口内根 Navigator 可能还没挂上：等它就绪再取路由（批3c）。
+///
+/// 8 × 80ms＝最多等 640ms，只发生在「有启动意图、界面还没就绪」的那一次。
+const int _kLaunchCtxRetries = 8;
+const Duration _kLaunchCtxRetryGap = Duration(milliseconds: 80);
+
 /// 应用根 Widget：主题三件套（light/dark/mode）+ go_router。
 /// V1.53.4⑥：兼作系统「打开方式」EPUB 意图的消费点——冷启动首帧后取一次，
 /// 热启动（singleTop onNewIntent 入队）在 resumed 时再取；弹层挂根 Navigator
@@ -96,6 +102,14 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
     }
   }
 
+  /// 根 Navigator 的 context（未挂载／已销毁时 null）。
+  ///
+  /// 抽成方法是因为它现在有两个调用点：重试等待期间反复探、取到路由后再复查。
+  BuildContext? _rootNavContext() {
+    final ctx = aiRootNavKey.value?.currentState?.context;
+    return (ctx != null && ctx.mounted) ? ctx : null;
+  }
+
   /// 桌面批1 · `lh://` 启动路由消费（L3 单一消费端 · B15/B16）。
   ///
   /// **单次消费**：原生侧读到即清空，二次调用拿不到（防重放）。
@@ -106,16 +120,36 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
     if (_launchConsuming) return;
     _launchConsuming = true;
     try {
-      // ⚠ **先查根 Navigator 就绪、再 take**（2026-10-17 真机排障发现）：
+      // ⚠ **先等根 Navigator 就绪、再 take**（2026-10-17 真机排障发现）：
       // `takeLaunchRoute` 是**单次消费**（原生读即清空），先 take 后查会把路由
       // 白白吃掉——冷启动首帧窗口内 `navCtx` 可能仍为 null，那一刻 take 出来的
       // 意图既没执行也没法重试，表现为「贴卡把 App 拉起来了但什么都没发生」，
       // 且违反 B31「冷启动贴有状态卡，计时必须落库」。顺序反过来＝没就绪就
       // 不取，意图原样留在原生队列里，下一轮（首帧后／回前台）自然取到。
-      final navCtx = aiRootNavKey.value?.currentState?.context;
-      if (navCtx == null || !navCtx.mounted) return;
+      //
+      // 批3c（2026-10-17 真机报障·报障②）：只「没就绪就不取」还不够——冷启动
+      // 时首帧回调往往只跑一次，那一刻 `currentState` 偶尔仍为 null，于是意图
+      // **永久滞留**在原生队列里（真机现象：贴卡闪一下 App 页面、日志无任何 NFC
+      // 行）。改为在首帧窗口内**短暂重试等它就绪**（≤640ms），仍不就绪才放弃
+      // （此时队列未取，下一次 resumed 还有机会）。
+      var navCtx = _rootNavContext();
+      for (var i = 0; navCtx == null && i < _kLaunchCtxRetries; i++) {
+        await Future<void>.delayed(_kLaunchCtxRetryGap);
+        if (!mounted) return;
+        navCtx = _rootNavContext();
+      }
+      if (navCtx == null) return;
       final route = await takeLaunchRoute();
       if (route == null) return;
+      // 排障留痕（只记「收到了」与前后台态，**不记 cardId**·C11 红线）。
+      // 真机再报「贴卡没反应」时，日志里有没有这一行就能一刀切开两类原因：
+      // 没有 ⇒ 系统根本没把 NFC 意图派给本 App（丢 AAR / 只弹通知）；
+      // 有 ⇒ 派到了，问题在执行链。
+      if (route.isNfc) {
+        AppLog.add(
+            'NFC 贴卡：已收到系统派发（fromBackground=${route.fromBackground}）',
+            src: LhLogLine.srcSystem);
+      }
       // await 之后再复查一次：这中间可能已退出页面/销毁 Navigator。
       if (!navCtx.mounted) return;
       if (route.isNfc) {

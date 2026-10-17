@@ -121,6 +121,12 @@ class NfcTagContent {
         (r) => r.kind == NfcContentKind.uri && r.text.startsWith('lh://nfc/'),
       );
 
+  /// 是否含 AAR（`android.com:pkg`）——没有它，系统贴卡只会弹通知不启动 App。
+  ///
+  /// 批3c：本 App 卡片缺这条时，工具层要提示「保存时会自动补上」。
+  bool get hasAar =>
+      raw.any((r) => r.tnf == 4 && r.typeText == kNfcAarTypeName);
+
   /// 空内容（清空后的态）。
   static const NfcTagContent empty =
       NfcTagContent(records: <NfcContentRecord>[], raw: <NfcRawRecord>[]);
@@ -395,6 +401,60 @@ NfcRawRecord nfcNewTextRecord(String text) {
   body[2] = 0x6E; // 'n'
   body.setRange(3, 3 + utf8.encode(text).length, utf8.encode(text));
   return NfcRawRecord(tnf: 1, type: Uint8List.fromList(const [0x54]), payload: body);
+}
+
+/// 本 App 卡片的 URI 前缀（`lh://nfc/<cardId>`）。
+///
+/// 批3c（2026-10-17 真机报障）：内容工具改写过的卡**丢了 AAR** ⇒ 系统只弹通知、
+/// 不启动 App ⇒ 贴卡等于没反应。凡是写进这类网址，就必须同时带 AAR。
+const String kNfcSelfUriPrefix = 'lh://nfc/';
+
+/// 一条 **AAR 纯数据记录**（`tnf=4` ＋ type `android.com:pkg` ＋ payload 包名）。
+///
+/// 域层不持有包名常量（唯一来源＝`nfc_tag_io.dart` 的 `kNfcAarPackage`，那里有
+/// 与 `build.gradle.kts` 的交叉断言守护）——调用方传入，避免第二处字面量漂移。
+NfcRawRecord nfcAarRawRecordOf(String packageName) => NfcRawRecord(
+      tnf: 4,
+      type: Uint8List.fromList(utf8.encode(kNfcAarTypeName)),
+      payload: Uint8List.fromList(utf8.encode(packageName)),
+    );
+
+/// 记录集里是否已有指向 [packageName] 的 AAR。
+bool nfcHasAar(List<NfcRawRecord> records, String packageName) => records.any(
+      (r) =>
+          r.tnf == 4 &&
+          r.typeText == kNfcAarTypeName &&
+          utf8.decode(r.payload, allowMalformed: true) == packageName,
+    );
+
+/// 记录集里是否有本 App 网址（`lh://nfc/…`，RTD-URI 与绝对 URI 两种形态都认）。
+bool nfcHasSelfUri(List<NfcRawRecord> records) {
+  for (final r in records) {
+    if (r.tnf == 1 && r.type.length == 1 && r.type[0] == 0x55) {
+      if (_uriOfPayload(r.payload).startsWith(kNfcSelfUriPrefix)) return true;
+    } else if (r.tnf == 3) {
+      if (utf8
+          .decode(r.payload, allowMalformed: true)
+          .startsWith(kNfcSelfUriPrefix)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/// **写入前补齐本 App 绑定记录**（批3c 根因①的修法）。
+///
+/// 只在「含 `lh://nfc/…` 网址、却没有任何指向本包的 AAR」时补一条（追加在末尾——
+/// URI 必须在前才能成为系统的 `intent.data`，AAR 放最后是 NDEF 惯例）。
+/// 其它情况原样返回（同一个 List 实例，调用方可按长度变化判断是否补过）。
+List<NfcRawRecord> nfcEnsureSelfAar(
+  List<NfcRawRecord> records,
+  String packageName,
+) {
+  if (!nfcHasSelfUri(records)) return records;
+  if (nfcHasAar(records, packageName)) return records;
+  return <NfcRawRecord>[...records, nfcAarRawRecordOf(packageName)];
 }
 
 /// 清空后的记录集：**一条 TNF=EMPTY 空记录**（合法 NDEF、读侧 `firstUriOf` 得 null）。
