@@ -343,6 +343,11 @@ class MainActivity : FlutterActivity() {
                     Log.i("LH-NFC", "[dart] ${call.argument<String>("msg") ?: ""}")
                     result.success(null)
                 }
+                // 批3e：贴卡结果**悬浮横幅**（自绘，绕开 ROM 对 Heads-Up 的静默策略）。
+                // 返回 false＝弹不出来（无悬浮窗权限/被拒），Dart 侧退回系统通知。
+                "banner" -> {
+                    result.success(NfcBanner.show(this, call.argument<String>("text") ?: ""))
+                }
                 else -> result.notImplemented()
             }
         }

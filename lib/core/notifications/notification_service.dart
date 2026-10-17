@@ -181,31 +181,16 @@ class NotificationService {
     }
   }
 
-  /// 打卡成功横幅 · **退到后台后再发**（批3 · 2026-10-17 真机实锤）。
-  ///
-  /// 场景＝贴卡打卡：App 被 NFC 拉起 → 执行打卡 → 立刻 `moveTaskToBack` 退回桌面。
-  /// 若横幅在「App 还在前台那一瞬间」发出去，系统会把它压成一条**静默的通知栏
-  /// 条目**，横幅根本不弹（8161 实测：同样的打卡，8160 App 留在前台时横幅正常，
-  /// 8161 加了 moveTaskToBack 后横幅消失）。
-  ///
-  /// 故这里等一小会儿再发——那时 App 已退到后台，横幅必然弹出。
-  /// **只给「用户不在 App 里」的场景用**；App 内点打卡仍走 [showHabitChecked]（即时）。
-  static Future<void> showHabitCheckedAfterBack({
-    required String habitName,
-    required int streak,
-    Duration after = const Duration(milliseconds: 700),
-  }) async {
-    await Future<void>.delayed(after);
-    await showHabitChecked(habitName: habitName, streak: streak);
-  }
-
   // ---- 贴卡回执（批3d · 2026-10-17）----
 
   /// 贴卡执行结果回执（计时分类／阅读 toggle／卡失效·未绑定等）。
   ///
-  /// **为什么必须用通知**：批3c 起贴卡走**透明中转界面**，App 界面全程不出现
+  /// **为什么必须走系统层**：批3c 起贴卡走**透明中转界面**，App 界面全程不出现
   /// （这正是「零闪现」的目的）。可代价是 Flutter 内的 SnackBar 挂在没人看的
-  /// widget 树上——真机表现就是「贴完只震动，什么也没有」。回执只能走系统层。
+  /// widget 树上——真机表现就是「贴完只震动，什么也没有」。
+  ///
+  /// 批3e 起主路径改成**原生自绘悬浮横幅**（`NfcBanner`），本方法降为兜底
+  /// （无悬浮窗权限／ROM 拒绝加窗时用）。
   ///
   /// 独立渠道（不复用 `reminders`／`habit_checkin`）：语义是「贴卡回执」，
   /// 用户能在系统设置里单独关掉，不影响待办/日程提醒与打卡回执。
@@ -219,11 +204,11 @@ class NotificationService {
     priority: Priority.high,
   );
 
-  /// 贴卡回执横幅。延后 [after] 再发——同 [showHabitCheckedAfterBack]：
+  /// 贴卡回执横幅（**兜底档**·批3e）。延后 [after] 再发——同 [showHabitCheckedAfterBack]：
   /// App 若正在退后台，立刻发会被压成静默条目。`ready=false` 静默降级，不抛。
   static Future<void> showNfcReceipt({
     required String text,
-    Duration after = const Duration(milliseconds: 700),
+    Duration after = Duration.zero,
   }) async {
     if (!ready) return;
     if (after > Duration.zero) await Future<void>.delayed(after);
@@ -237,6 +222,37 @@ class NotificationService {
     } catch (e) {
       // 回执失败不能影响已完成的业务动作（计时/打卡已落库）——只留痕。
       AppLog.add('贴卡回执通知展示失败：$e', level: LhLevel.error);
+    }
+  }
+
+  // ---- 贴卡记录（批3e · 自绘横幅成功后的「静默留档」）----
+
+  /// 自绘悬浮横幅弹成功时，另发一条**静默**通知留档（2026-10-17 真机报障）。
+  ///
+  /// 为什么另开一条 low 渠道：横幅已经负责「看得见」，通知只负责「事后查得到」，
+  /// 不能再响一声、也不能再抢一次屏。渠道重要性一经创建不可改，故与
+  /// [nfcReceiptId] 分开建。
+  static const int nfcRecordId = 900007;
+
+  static const _nfcRecordCh = AndroidNotificationDetails(
+    'nfc_record',
+    '贴卡记录',
+    channelDescription: '贴卡执行结果的静默留档（不响铃、不弹横幅）',
+    importance: Importance.low,
+    priority: Priority.low,
+  );
+
+  static Future<void> showNfcRecord({required String text}) async {
+    if (!ready) return;
+    try {
+      await plugin.show(
+        nfcRecordId,
+        '贴卡',
+        text,
+        const NotificationDetails(android: _nfcRecordCh),
+      );
+    } catch (e) {
+      AppLog.add('贴卡记录通知展示失败：$e', level: LhLevel.error);
     }
   }
 

@@ -158,6 +158,23 @@ Future<void> nfcDiagLog(String msg) async {
   }
 }
 
+/// 弹一条**自绘悬浮横幅**（批3e）。返回 false ＝ 弹不出来（无悬浮窗权限/被 ROM 拒）。
+///
+/// 为什么不用系统 Heads-Up：真机（HyperOS）上 `Importance.high` 的通知只进通知栏
+/// 不上浮（`dumpsys` 里 importance=4 已核），系统层没有强制手段。改走悬浮窗——
+/// 与悬浮胶囊同一套权限与机制，真机可证可用。失败时调用方退回系统通知。
+Future<bool> nfcShowBanner(String text) async {
+  if (text.trim().isEmpty) return false;
+  try {
+    final ok = await kNfcChannel
+        .invokeMethod<bool>('banner', <String, String>{'text': text});
+    return ok == true;
+  } catch (_) {
+    // catch-ok: 非 Android／通道缺失（单测）⇒ 当作弹不出来，走通知兜底。
+    return false;
+  }
+}
+
 /// `nfc_manager` 实现（生产用；测试一律注入假实现）。
 class NfcManagerTagIo implements NfcTagIo {
   NfcTag? _tag;
