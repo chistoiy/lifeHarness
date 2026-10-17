@@ -205,8 +205,12 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
   void _saveEdit() {
     final i = _editIndex;
     if (i < 0) return;
-    final input = _text.text;
+    // ⚠ 存网址时**必须 trim**（批3c 真机报障）：从卡片里长按复制出来的网址常带
+    // 尾随空格/换行，原样写进 RTD-URI ⇒ 系统解析出的 path 带空白 ⇒ cardId 校验
+    // 不过 ⇒ 贴卡静默无反应（用户只看到「没反应」）。文本记录保留原样（可能有意换行）。
     final wantUri = _editKind == 'uri';
+    final input = wantUri ? _text.text.trim() : _text.text;
+    if (input.isEmpty) return;
     List<NfcRawRecord> next;
     if (i >= _content.raw.length) {
       // 新增：按选定的类型造一条（底稿已被 nfcContentOf 滤掉 EMPTY，

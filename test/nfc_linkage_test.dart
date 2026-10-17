@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/database/schema/nfc.dart' show NfcTargetKind;
 import 'package:lifeharness/features/nfc/domain/nfc_card.dart';
 import 'package:lifeharness/shared/linkage/nfc_mounts.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -337,6 +338,92 @@ void main() {
     test('空列表不查库（列表为空时不该因为读目标把屏打红）', () async {
       final st = await nfcTargetStates(const <NfcCard>[], db);
       expect(st, isEmpty);
+    });
+  });
+
+  group('批3c · 贴卡执行前是否先退界面（消除热启动闪现）', () {
+    test('计时卡开始 ⇒ 先退（只改数据＋起胶囊）', () {
+      expect(
+        nfcHidesBeforeRunPure(
+          targetKind: NfcTargetKind.timerCat,
+          targetRef: '3',
+          targetSub: null,
+          runningSameTarget: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('计时卡结束 ⇒ 不退（留前台看「已结束·N 分钟」toast）', () {
+      expect(
+        nfcHidesBeforeRunPure(
+          targetKind: NfcTargetKind.timerCat,
+          targetRef: '3',
+          targetSub: null,
+          runningSameTarget: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('阅读卡开始 ⇒ 先退', () {
+      expect(
+        nfcHidesBeforeRunPure(
+          targetKind: NfcTargetKind.readBook,
+          targetRef: 'b1',
+          targetSub: null,
+          runningSameTarget: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('阅读卡结束 ⇒ 不退（要弹「记进度」层）', () {
+      expect(
+        nfcHidesBeforeRunPure(
+          targetKind: NfcTargetKind.readBook,
+          targetRef: 'b1',
+          targetSub: null,
+          runningSameTarget: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('打卡卡（已绑具体习惯）⇒ 先退', () {
+      expect(
+        nfcHidesBeforeRunPure(
+          targetKind: NfcTargetKind.nav,
+          targetRef: kNfcRefHabit,
+          targetSub: '晨间跑步',
+          runningSameTarget: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('打卡卡（没绑习惯）⇒ 不退（要 toast＋回首页让人补绑）', () {
+      expect(
+        nfcHidesBeforeRunPure(
+          targetKind: NfcTargetKind.nav,
+          targetRef: kNfcRefHabit,
+          targetSub: '  ',
+          runningSameTarget: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('普通 nav.*（记一笔等）⇒ 不退（目的就是打开页面）', () {
+      expect(
+        nfcHidesBeforeRunPure(
+          targetKind: NfcTargetKind.nav,
+          targetRef: 'ledger',
+          targetSub: null,
+          runningSameTarget: false,
+        ),
+        isFalse,
+      );
     });
   });
 }
