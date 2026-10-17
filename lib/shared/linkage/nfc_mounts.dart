@@ -478,68 +478,6 @@ NfcToggleAction nfcTimerToggleAction({int? runningCatId, required int targetCatI
 NfcToggleAction nfcReadToggleAction({String? runningBookId, required String targetBookId}) =>
     runningBookId == targetBookId ? NfcToggleAction.end : NfcToggleAction.start;
 
-/// 「执行前是否先退界面」的**纯判定**（可单测；状态查询在 [nfcShouldHideBeforeRun]）。
-///
-/// [runningSameTarget]＝当前是否正跑这张卡的目标（计时分类/书目）。跑着＝这次是
-/// 「结束」：计时卡结束只 toast（可静默）、**阅读卡结束要弹记进度层（必须留前台）**。
-bool nfcHidesBeforeRunPure({
-  required String? targetKind,
-  required String? targetRef,
-  required String? targetSub,
-  required bool runningSameTarget,
-}) {
-  if (targetKind == NfcTargetKind.timerCat) return !runningSameTarget;
-  if (targetKind == NfcTargetKind.readBook) return !runningSameTarget;
-  if (targetRef == kNfcRefHabit && (targetSub ?? '').trim().isNotEmpty) {
-    return true;
-  }
-  return false;
-}
-
-/// 贴卡**执行前**是否该先把界面让回去（批3c · 消除热启动「闪一下 App 页面」）。
-///
-/// 真机三次贴卡的差异来自「冷启动时窗口还没画出来就退了（不闪）」vs「热启动时
-/// 窗口立刻可见、业务耗时全暴露在屏幕上（闪）」——与业务逻辑无关，是窗口可见性
-/// 的时序问题。修法＝**对完全不需要界面的动作，先退回原界面再执行**（执行在后台
-/// 完成，用户只看到胶囊/横幅的变化）。
-///
-/// 只有这三类算「不需要界面」：
-/// · 计时分类卡**开始**：只改数据＋起胶囊（回执 toast 在后台看不到，不影响结果）；
-/// · 阅读卡**开始**：同上；**结束不在此列**——结束要弹「记进度」层，必须留在前台；
-/// · 打卡卡（已绑具体习惯）：直接落库＋横幅。
-/// 其余（`nav.*`、未绑定、目标失效、卡不存在）都要界面做引导/回执 ⇒ false。
-Future<bool> nfcShouldHideBeforeRun(WidgetRef ref, NfcCard card) async {
-  if (!card.hasTarget) return false;
-  if (card.targetKind == NfcTargetKind.timerCat) {
-    final id = int.tryParse(card.targetRef ?? '');
-    if (id == null) return false;
-    final running = await ref.read(timeBlockDaoProvider).activeTiming();
-    return nfcHidesBeforeRunPure(
-      targetKind: card.targetKind,
-      targetRef: card.targetRef,
-      targetSub: card.targetSub,
-      runningSameTarget: running?.catId == id,
-    );
-  }
-  if (card.targetKind == NfcTargetKind.readBook) {
-    final id = (card.targetRef ?? '').trim();
-    if (id.isEmpty) return false;
-    final running = await ref.read(readRepositoryProvider).runningSession();
-    return nfcHidesBeforeRunPure(
-      targetKind: card.targetKind,
-      targetRef: card.targetRef,
-      targetSub: card.targetSub,
-      runningSameTarget: running?.bookId == id,
-    );
-  }
-  return nfcHidesBeforeRunPure(
-    targetKind: card.targetKind,
-    targetRef: card.targetRef,
-    targetSub: card.targetSub,
-    runningSameTarget: false,
-  );
-}
-
 /// 时间侧 toggle：贴时间卡 ⇒ 该分类计时中则结束、否则开始（C19 同一次贴卡反向操作）。
 ///
 /// 返回 true＝已执行（开始或结束），false＝目标不可用（分类已删／未绑定）。

@@ -13,18 +13,13 @@ import 'core/platform/open_intent.dart'
 import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
 import 'features/nfc/data/nfc_trigger.dart'
-    show
-        NfcTriggerOutcome,
-        nfcCardIdOfRoute,
-        nfcHandleLaunch,
-        nfcTriggerDepsOf;
+    show NfcTriggerOutcome, nfcHandleLaunch, nfcTriggerDepsOf;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
 import 'shared/linkage/desktop_mounts.dart';
 import 'shared/linkage/desktop_widget_mounts.dart';
 import 'shared/linkage/habit_mounts.dart';
 import 'shared/linkage/journal_mounts.dart';
 import 'shared/linkage/ledger_mounts.dart';
-import 'shared/linkage/nfc_mounts.dart' show nfcShouldHideBeforeRun;
 import 'shared/linkage/sys_pill_sync.dart'
     show drainPillEvents, sysPillAppActiveProvider, sysPillMarkStale,
         sysPillSyncProvider;
@@ -163,19 +158,12 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
         // 兜底：触发链内部已各自静默，这里的 catch 只防「未预期异常把冷启动消费打断」，
         // 落 AppLog 供真机排障（不弹层不 toast——贴卡是一次性动作，报错也不该打断用户）。
         try {
-          final deps = nfcTriggerDepsOf(ref, navCtx);
-          // 批3c（2026-10-17 真机报障②）：热启动时系统已把本 App 的窗口带到前台，
-          // 若等业务执行完再退，用户会看到「闪一下 App 页面」（冷启动反而不明显——
-          // 窗口还没画出来就退了）。对**完全不需要界面**的动作（计时开始／阅读开始／
-          // 打卡）先退回原界面再执行：业务在后台照常完成，用户只看到胶囊/横幅变化。
-          if (route.fromBackground) {
-            final cardId = nfcCardIdOfRoute(route);
-            final card = cardId == null ? null : await deps.byId(cardId);
-            if (card != null && await nfcShouldHideBeforeRun(ref, card)) {
-              await moveTaskToBack();
-            }
-          }
-          final outcome = await nfcHandleLaunch(route, deps);
+          // ⚠ 批3c 真机实测（2026-10-17 · logcat 证据）：「执行前先退」这条路走不通——
+          // NDEF 派发会先把本 App 的窗口画出来（`Displayed +261ms`），而那一刻调
+          // `moveTaskToBack` 移的是**当前前台 task（com.android.nfc 的中转 task）**，
+          // 本 App 的窗口照样显示；反倒让冷启动也闪（查库耗时把窗口留在了屏幕上）。
+          // 所以恢复「执行完再退」，闪的彻底解法只能靠窗口级中转（待产品拍板）。
+          final outcome = await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
           // 排障留痕：只记结果枚举，无卡号/指纹（不在 C11 红线内）。真机复现
           // 「贴卡没反应／没横幅」时，到 App 内日志页看这一行就知道走到了哪一支。
           AppLog.add('NFC 贴卡结果：$outcome（fromBackground=${route.fromBackground}）',
