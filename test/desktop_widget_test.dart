@@ -175,9 +175,25 @@ void main() {
       expect(manifest, contains('android:taskAffinity="com.lifeharness.lifeharness.widgetconfig"'),
           reason: '配置页用带包名前缀的独立 affinity（独立但合法）');
       // 全清单扫**标签**而非全文：注释里会出现该字面量（来由说明），不能算命中。
+      // ⚠ 2026-10-18 产品裁定补**有条件豁免**（跨线存量红归口·NFC 批3c 撞本守卫）：
+      //   `NfcRelayActivity`（贴卡透明中转界面）**有意**用空 affinity——它的使命就是
+      //   不归属任何 affinity（避免把 App 主任务带到前台＝贴卡闪现 App，正是批3c 要修的
+      //   现象）。8147 那类「最近任务两张卡」的伤，成因是**面向桌面的入口**每次新建
+      //   任务；而本界面 `excludeFromRecents`＋`noHistory` 双在＝永不进最近任务、
+      //   不显示 UI，与入口不同类。故豁免不等于放行：空 affinity **必须同时**带这两个
+      //   属性，缺一照红（ invariants 比属性清单更重要——防将来有人照抄空 affinity
+      //   却忘了这两个保命属性）。
       for (final tag in RegExp(r'<activity[\s\S]*?>').allMatches(manifest)) {
-        expect(tag.group(0), isNot(contains('android:taskAffinity=""')),
-            reason: 'activity 标签禁空 taskAffinity：${tag.group(0)}');
+        final t = tag.group(0) ?? '';
+        if (t.contains('.NfcRelayActivity')) {
+          expect(t, contains('android:excludeFromRecents="true"'),
+              reason: 'NfcRelayActivity 空 affinity 豁免条件一：必须 excludeFromRecents');
+          expect(t, contains('android:noHistory="true"'),
+              reason: 'NfcRelayActivity 空 affinity 豁免条件二：必须 noHistory');
+          continue;
+        }
+        expect(t, isNot(contains('android:taskAffinity=""')),
+            reason: 'activity 标签禁空 taskAffinity：$t');
       }
 
       expect(support, contains('fun clickIntent('),

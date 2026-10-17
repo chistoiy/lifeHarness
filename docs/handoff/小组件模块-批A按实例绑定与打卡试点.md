@@ -75,3 +75,19 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
   - **架构纪律**：provider 未进 `core/providers.dart`（R2：core 禁依赖 features·组合根白名单只有 router）——store 构造注入自足，provider 留配置页那刀随 feature 侧 providers 文件一起加（免死代码）。
   - **存量红上报（非本批引入）**：`test/desktop_widget_test.dart` 1 例红＝守卫「activity 禁空 taskAffinity」（10-15 桌面批3 立）撞 `NfcRelayActivity` 空 affinity（10-17 NFC 批3c 故意为之·excludeFromRecents＋noHistory 的中转界面）。跨线冲突，按互斥纪律不动 NFC 线 Manifest/守卫，**待 NFC 在飞线收口时裁定**（守卫加白名单条目或收窄扫描面二选一）。
 - **下一步（按 §2 五层）**：选择层（共享五段选择器参数化·新组件不碰 nfc_sheets.dart）→ 配置页 → 渲染层/交互闭环（后两层待 NFC 线收口解封 android/**）。
+
+### §7.1 产品追加需求：记一笔「不打开 App 直接弹窗记账」（2026-10-18 拍板走 A 路）
+
+- **依据**：`docs/handoff/拍板记录-20261018-记一笔弹窗记账与零输入口径改判.md`（三路对比＋口径改判＋真机门四项）。
+- **调研结论**：widget 自身弹不出——RemoteViews 不输出弹窗/对话框 token，也不接受输入控件；唯一可行路＝**对话框主题的 Activity**（`Theme.DeviceDefault.Dialog`＋带包名前缀 taskAffinity＋`excludeFromRecents`），本仓已有两块先例（`WidgetConfigActivity`／`NfcRelayActivity`）。A 原生对话框（推荐·轻·任务栈干净）／B Flutter 对话框（视觉最好但小窗＋IME 风险）／C 悬浮窗（权限与生命周期脏·不推荐）。
+- **口径改判**：覆盖 2026-10-17 评估件 Q3④「不采用」——**widget 自身不放输入控件这条不变**；仅「记账录入」允许对话框形态轻量 Activity 收集、交 Dart 侧写库（C15 唯一意图出口不变·C18 写入类仅预填不变）。
+- **原型样张已交付**：`#dt-desk` 记一笔按钮真弹窗（遮罩＋对话框：金额键盘/分类/备注三区＋保存/取消）＋`#dt-widget` 弹窗规格卡（深浅双档）；`tools/widget_acheck.js` **27/27**（增钉弹窗三动作与规格卡双档·变异一刀红后 md5 复原全等）。
+- **待过门**：三张截图（弹窗开／保存回显／规格卡）落仓库外 `tempWork/wa-shots`；过门后才动 `android/**`（与 NFC 在飞线串行）·已登排期池 #20。
+
+### §7.2 跨线存量红已按产品授权收口（2026-10-18）
+
+`test/desktop_widget_test.dart` 那 1 例改为**有条件豁免**：`NfcRelayActivity` 允许空 `taskAffinity`，但必须同时带 `excludeFromRecents="true"` 与 `noHistory="true"`（二者缺一即红·变异验证＝抠 `noHistory` 后该例转红）；其余 activity 仍禁空 affinity。裁定依据与取证（守卫 10-15 立、`NfcRelayActivity` 10-17 加）见拍板件 §四。现该文件全绿。
+
+### §7.3 体量黄灯不瘦的理由
+
+`docs/交接文档.md` 100%、`docs/排期池.md` 90% 两处黄灯均属**存量累积**（本批只在排期池加 #20 一行＋一条注，净增 <400 字节）；瘦身须整件重排（跨多批变更日志归并），混在本批做会把「批A 增量」与「历史流水压缩」缠在一起、影响回溯——故本批不瘦，另立瘦身批处理（沿用 2026-10 前几批口径）。

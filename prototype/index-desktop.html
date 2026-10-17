@@ -19,6 +19,8 @@
   页内切换：header 下方四枚 chip（#scrSw）可点直达四屏，与返回栈/深链同径同步高亮。
   2026-10-18（产品反馈整改）：4×1 快捷记录两区→三区（记一笔｜今日支出｜本月结余·信息密度上调）；
   待办勾圈示意层可点（切换完成态·真机落库即消失、无撤销条）。
+  2026-10-18 拍板（A 路）：4×1「记一笔」点击＝对话框弹窗记账（不开 App·不进最近任务），
+  零输入口径改判＝widget 自身不放输入控件不变／记账录入允许对话框形态·拍板件见 handoff。
 -->
 <html lang="zh-CN" data-theme="minimal">
 <head>
@@ -223,6 +225,27 @@ tailwind.config = {
                  color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   html.dark .scr-sw button{color:#94a3b8}
   .scr-sw button.on{background:var(--accent);color:#fff}
+
+  /* 记一笔弹窗（2026-10-18 拍板·A 路）：对话框形态浮在桌面上，不开全屏 App、
+     不进最近任务；色值走 w-* 令牌（跟随系统深浅·不吃 App 四主题·C6 同口径）。 */
+  .qp-mask{position:absolute;inset:0;z-index:40;background:rgba(15,23,42,.45);
+           display:flex;align-items:center;justify-content:center;padding:24px}
+  .qp-dlg{width:100%;max-width:300px;background:var(--w-bg);border-radius:20px;
+          padding:16px;box-shadow:0 18px 50px rgba(15,23,42,.35);color:var(--w-fg)}
+  .qp-t{font-size:15px;font-weight:800;text-align:center}
+  .qp-amt{display:flex;align-items:baseline;justify-content:center;gap:4px;margin-top:12px}
+  .qp-amt span{font-size:14px;color:var(--w-sub);font-weight:700}
+  .qp-amt b{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+  .qp-cats{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+  .qp-cats span{font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;
+                border:1px solid color-mix(in srgb,var(--w-sub) 30%,transparent);color:var(--w-sub)}
+  .qp-cats span.on{border-color:var(--w-acc);color:var(--w-acc);
+                   background:color-mix(in srgb,var(--w-acc) 10%,transparent)}
+  .qp-btns{display:flex;gap:8px;margin-top:14px}
+  .qp-btns button{flex:1;height:38px;border-radius:12px;font-size:13px;font-weight:800}
+  .qp-btns .qp-no{background:color-mix(in srgb,var(--w-sub) 12%,transparent);color:var(--w-sub)}
+  .qp-btns .qp-ok{background:var(--w-acc);color:#fff}
+  .force-dark .qp-btns .qp-ok,html.dark .qp-btns .qp-ok{color:#1E293B}
 </style>
 </head>
 <body class="flex items-center justify-center">
@@ -314,7 +337,7 @@ tailwind.config = {
     <div style="margin:0 14px 12px">
       <div class="wg" style="height:74px">
         <div class="wg-corner"></div>
-        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔走 quick.ledger → /ledger/add')">
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="qpOpen()">
           <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
         <div style="position:absolute;left:30%;top:12px;bottom:12px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
@@ -327,6 +350,16 @@ tailwind.config = {
           <span class="wg-lab" style="font-size:9px">本月结余</span>
           <span class="wg-read wg-acc" style="font-size:16px">¥3,580</span>
         </div>
+      </div>
+    </div>
+
+    <!-- 记一笔弹窗（2026-10-18 拍板·A 路·示意）：点 4×1「记一笔」浮起，不开 App -->
+    <div id="qpDlg" class="qp-mask hidden" onclick="if(event.target===this)qpClose()">
+      <div class="qp-dlg">
+        <div class="qp-t">记一笔</div>
+        <div class="qp-amt"><span>¥</span><b>35.50</b></div>
+        <div class="qp-cats"><span class="on">餐饮</span><span>交通</span><span>购物</span><span>日用</span></div>
+        <div class="qp-btns"><button class="qp-no" onclick="qpClose()">取消</button><button class="qp-ok" onclick="qpSave()">保存</button></div>
       </div>
     </div>
 
@@ -352,7 +385,7 @@ tailwind.config = {
 
   <div class="px-5 py-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
     <div class="spec"><span class="demo-tag">示意</span> 点 LifeHarness 图标＝长按菜单（系统硬限 4 枚，默认 速记/记待办/记一笔/打卡）。<br>
-      读数型小部件点击均走 §2.0 动作表，四路导航栈一致；4×1 快捷记录＝记一笔｜今日支出｜本月结余三区（2026-10-18 密度上调），待办勾圈可点（示意层切换完成态）；<b>批 A 起</b>桌面可出现动作型「打卡-单习惯」2×2——按实例绑定，点击打卡不起 App（本地回显 → 后台 isolate → 快照收敛）。</div>
+      读数型小部件点击均走 §2.0 动作表，四路导航栈一致；4×1 快捷记录＝记一笔｜今日支出｜本月结余三区（2026-10-18 密度上调），「记一笔」点击弹记账对话框（不起 App·可点演示），待办勾圈可点（示意层切换完成态）；<b>批 A 起</b>桌面可出现动作型「打卡-单习惯」2×2——按实例绑定，点击打卡不起 App（本地回显 → 后台 isolate → 快照收敛）。</div>
   </div>
 </section>
 
@@ -504,10 +537,10 @@ tailwind.config = {
 
   <div class="card mt-3">
     <div class="row-title">4×1 快捷记录</div>
-    <div class="spec mt-1 mb-3"><b>2026-10-18 三区改版</b>（产品令：原「左按钮＋右金额」两区占整行、信息密度低）：<b>记一笔</b>｜<b>今日支出</b>｜<b>本月结余</b> 三区并列——一次看见「记入口＋今天花了多少＋本月还剩多少」；条内不显名（名称由桌面添加列表 label 承载）。「记一笔」走动作表 <span style="font-family:ui-monospace,monospace">quick.ledger</span>；开启「隐藏金额」时两个金额位一律 ••••（B7）。</div>
+    <div class="spec mt-1 mb-3"><b>2026-10-18 三区改版</b>（产品令：原「左按钮＋右金额」两区占整行、信息密度低）：<b>记一笔</b>｜<b>今日支出</b>｜<b>本月结余</b> 三区并列——一次看见「记入口＋今天花了多少＋本月还剩多少」；条内不显名（名称由桌面添加列表 label 承载）。「记一笔」点击＝<b>弹窗记账</b>（2026-10-18 拍板·不开 App·保存交 Dart 写库）；开启「隐藏金额」时两个金额位一律 ••••（B7）。</div>
       <div class="wg force-light" style="height:80px">
         <div class="wg-corner"></div>
-        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔走 quick.ledger → /ledger/add')">
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔＝弹窗记账（不开 App）· 回桌面屏可点演示')">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
         <div style="position:absolute;left:30%;top:13px;bottom:13px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
@@ -525,7 +558,7 @@ tailwind.config = {
 
       <div class="wg force-dark mt-3" style="height:80px">
         <div class="wg-corner"></div>
-        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔走 quick.ledger → /ledger/add')">
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:30%" onclick="toast('4×1 快捷记录 · 记一笔＝弹窗记账（不开 App）· 回桌面屏可点演示')">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
         </div>
         <div style="position:absolute;left:30%;top:13px;bottom:13px;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
@@ -766,8 +799,40 @@ tailwind.config = {
   <div class="card mt-3">
     <div class="row-title">禁做清单</div>
     <div class="spec mt-1">禁滑动、禁输入、禁动画；字号固定，不随系统字体放大截断（改用缩略号）。<br>
-      小部件读数来自最近一次同步快照，<b>不是实时</b>；widget 不直读 sqlite。</div>
+      小部件读数来自最近一次同步快照，<b>不是实时</b>；widget 不直读 sqlite。<br>
+      ⚠ 2026-10-18 起「禁输入」按拍板件改释：widget 自身（RemoteViews）仍不放输入控件；<b>「记一笔」的录入改走对话框形态 Activity</b>（见下方弹窗卡）。</div>
   </div>
+
+  <div class="card mt-3">
+    <div class="row-title">记一笔 · 弹窗记账<span class="spec" style="font-weight:400;margin-left:8px">2026-10-18 拍板 · A 路</span></div>
+    <div class="spec mt-1 mb-3">点 4×1「记一笔」＝<b>对话框浮在桌面上</b>（不开全屏 App、不进最近任务）：金额＋常用分类 → 保存 → <b>交 Dart 写库</b>（引擎活着直投／不在入 pending 队列、App 启动排空）→ 快照收敛。取消/遮罩/返回即消；深色跟随系统（不吃 App 四主题）；软键盘不遮挡等四项真机门待验。<br>可点演示：回「桌面全貌」屏点 4×1 的「记一笔」即弹此框。</div>
+    <div class="flex gap-3">
+      <div class="flex-1">
+        <div class="force-light" style="position:relative;height:224px;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#dbeafe,#e0e7ff)">
+          <div class="qp-dlg" style="position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);max-width:none;width:auto">
+            <div class="qp-t">记一笔</div>
+            <div class="qp-amt"><span>¥</span><b>35.50</b></div>
+            <div class="qp-cats"><span class="on">餐饮</span><span>交通</span><span>购物</span><span>日用</span></div>
+            <div class="qp-btns"><button class="qp-no">取消</button><button class="qp-ok">保存</button></div>
+          </div>
+        </div>
+        <div class="cap spec">浅色档</div>
+      </div>
+      <div class="flex-1">
+        <div class="force-dark" style="position:relative;height:224px;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#1e293b,#312e81)">
+          <div class="qp-dlg" style="position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);max-width:none;width:auto">
+            <div class="qp-t">记一笔</div>
+            <div class="qp-amt"><span>¥</span><b>35.50</b></div>
+            <div class="qp-cats"><span class="on">餐饮</span><span>交通</span><span>购物</span><span>日用</span></div>
+            <div class="qp-btns"><button class="qp-no">取消</button><button class="qp-ok">保存</button></div>
+          </div>
+        </div>
+        <div class="cap spec">深色档</div>
+      </div>
+    </div>
+    <div class="spec mt-2"><b>口径改判</b>：桌面零输入＝widget 自身（RemoteViews）不放输入控件不变；<b>记账录入允许对话框形态轻量 Activity</b>（覆盖 2026-10-17 评估件 Q3④ 原判·拍板件＝<span style="font-family:ui-monospace,monospace">docs/handoff/拍板记录-20261018-记一笔弹窗记账与零输入口径改判.md</span>）。实现批＝原生对话框只收集、Dart 写库（禁原生复刻记账规则·R1）＋C15 唯一意图出口。</div>
+  </div>
+
   <div class="card mt-3">
     <div class="row-title">2×2 打卡-单习惯<span class="spec" style="font-weight:400;margin-left:8px">批 A 新增 · 按实例绑定试点</span></div>
     <div class="spec mt-1 mb-3">命名改「功能-形态」口径（一叶日记同款）。一枚只绑一个习惯，与 NFC「一卡一目标」同构；
@@ -1126,6 +1191,12 @@ function scrSync(){ var b=$('#scrSw'); if(!b)return;
     x.classList.toggle('on', x.getAttribute('data-scr')===curPage); }); }
 function scrGo(p){ navTo(p); }
 /* 待办勾圈示意层：切换完成态（可逆，便于演示）；真机勾圈即落库、该行消失、无撤销条 */
+/* 记一笔弹窗（2026-10-18 拍板·A 路·示意层）：保存＝交 Dart 写库（引擎活着直投／
+   不在入 pending 队列 App 启动排空）；取消/遮罩即消；真机另有过最近任务不进、
+   返回即消、深色跟随系统、软键盘不遮挡四项门。 */
+function qpOpen(){ var d=document.getElementById('qpDlg'); if(d)d.classList.remove('hidden'); }
+function qpClose(){ var d=document.getElementById('qpDlg'); if(d)d.classList.add('hidden'); }
+function qpSave(){ qpClose(); toast('已入账 · 交 Dart 写库（引擎活着直投／不在入队 App 启动排空）· 快照收敛'); }
 function wgTodoChk(el){
   var row=el.closest?el.closest('.wg-todo'):null; if(!row)return;
   var on=row.classList.toggle('done');
