@@ -15,7 +15,8 @@
   真实像素以原生实现为准；不表达系统壁纸、状态栏运营商与电量等非本模块内容。
   禁 emoji 图标（一律线性 SVG stroke 1.8）；禁硬编码主题色（走 :root 令牌）。
   校验：node tools/dtcheck.js（结构断言）＋ doclint 链（protogate strict / proto_registry / vm_script_check）。
-  深链直达：index-desktop.html#dt-desk｜#dt-menu｜#dt-widget｜#dt-map（启动读 location.hash 落屏，与 time/media/bookshelf 专版同口径）。
+  深链直达：index-desktop.html#dt-desk｜#dt-menu｜#dt-widget｜#dt-map（启动读 location.hash 落屏，与 time/media/bookshelf 专版同口径）。
+  页内切换：header 下方四枚 chip（#scrSw）可点直达四屏，与返回栈/深链同径同步高亮。
 -->
 <html lang="zh-CN" data-theme="minimal">
 <head>
@@ -207,6 +208,16 @@ tailwind.config = {
   .demo-tag{display:inline-block;font-size:9px;font-weight:800;color:#b45309;background:#fef3c7;
             padding:2px 6px;border-radius:6px;letter-spacing:.02em}
   html.dark .demo-tag{color:#fde68a;background:rgba(180,83,9,.28)}
+
+  /* 专版屏切换条（spec chrome·非 App UI）：四屏可点直达；与深链 #dt-* 同径。
+     桌面专版四屏在壳内无入口（dt-* 是系统桌面侧示意，非 App 屏），
+     故本专版自带切换条——2026-10-17 产品反馈「找不到屏」后补。 */
+  .scr-sw{display:flex;gap:4px;padding:6px 12px;background:var(--nav-bg);
+          border-bottom:1px solid var(--nav-bd);flex:0 0 auto}
+  .scr-sw button{flex:1;font-size:10px;font-weight:700;padding:6px 0;border-radius:9px;
+                 color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  html.dark .scr-sw button{color:#94a3b8}
+  .scr-sw button.on{background:var(--accent);color:#fff}
 </style>
 </head>
 <body class="flex items-center justify-center">
@@ -237,7 +248,13 @@ tailwind.config = {
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
       </button>
     </header>
-    <main class="h-[calc(100%-78px)] overflow-hidden relative">
+    <div class="scr-sw" id="scrSw">
+      <button data-scr="dt-desk" onclick="scrGo('dt-desk')">桌面全貌</button>
+      <button data-scr="dt-menu" onclick="scrGo('dt-menu')">长按菜单</button>
+      <button data-scr="dt-widget" onclick="scrGo('dt-widget')">小组件规格</button>
+      <button data-scr="dt-map" onclick="scrGo('dt-map')">设置页关系</button>
+    </div>
+    <main class="h-[calc(100%-114px)] overflow-hidden relative">
 
 <!-- ================= 屏 1 · dt-desk 桌面全貌（示意） =================
      长按图标 → 菜单 4 枚；桌面常驻 2×2 与 4×1 两枚小组件。动作全部走 §2.0 动作表，
@@ -1043,8 +1060,12 @@ function setPage(p){
   el.classList.add('active'); el.scrollTop=0;
   const t=TITLES[p]||['桌面','']; $('#pageTitle').textContent=t[0]; $('#pageSub').textContent=t[1];
   const bb=$('#btnBack'); if(bb){bb.classList.toggle('hidden',!stack.length);bb.classList.toggle('flex',!!stack.length);}
-  curPage=p;
+  curPage=p; scrSync();
 }
+function scrSync(){ var b=$('#scrSw'); if(!b)return;
+  Array.prototype.forEach.call(b.querySelectorAll('button'),function(x){
+    x.classList.toggle('on', x.getAttribute('data-scr')===curPage); }); }
+function scrGo(p){ navTo(p); }
 function navTo(p){ if(p===curPage)return; if(!document.getElementById(p)){toast('屏 '+p+' 未在本专版内');return;} stack.push(curPage); setPage(p); }
 function goBack(){ if(stack.length){ setPage(stack.pop()); return; } setPage('dt-desk'); }
 function toast(msg){

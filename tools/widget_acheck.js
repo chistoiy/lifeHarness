@@ -51,6 +51,20 @@ async function toastText() { return (await ev("var t=document.getElementById('to
   await cmd('Page.navigate', { url: DESK });
   if (!await ready('setPage')) { bad('专版主脚本就绪（setPage）'); return finish() }
   ok('专版主脚本就绪');
+  /* 页内切换条（2026-10-17 产品反馈「找不到屏」后补·scr-sw）：四枚 chip 可点直达四屏 */
+  const r0 = await ev("var b=document.getElementById('scrSw');var bs=b?b.querySelectorAll('button'):[];"
+    + "var labels=[];for(var i=0;i<bs.length;i++)labels.push(bs[i].textContent);"
+    + "return {n:bs.length,labels:labels,def:document.querySelector('.page.active').id};");
+  (r0 && r0.n === 4 && r0.def === 'dt-desk') ? ok('页内切换条四枚 chip 在位（默认落 dt-desk）', (r0.labels || []).join('/')) : bad('切换条缺失或默认屏错', JSON.stringify(r0));
+  const r0b = await ev("var b=document.getElementById('scrSw');"
+    + "var t=Array.prototype.filter.call(b.querySelectorAll('button'),function(x){return x.getAttribute('data-scr')==='dt-widget'})[0];"
+    + "t.click();return document.querySelector('.page.active').id;");
+  r0b === 'dt-widget' ? ok('点「小组件规格」chip → 直达 dt-widget（无需深链/控制台）', r0b) : bad('chip 点击切换失效', String(r0b));
+  const r0c = await ev("var b=document.getElementById('scrSw');"
+    + "var on=Array.prototype.filter.call(b.querySelectorAll('button'),function(x){return x.classList.contains('on')});"
+    + "return on.length===1?on[0].getAttribute('data-scr'):'multi:'+on.length;");
+  r0c === 'dt-widget' ? ok('chip 高亮与当前屏同步') : bad('chip 高亮不同步', String(r0c));
+  await shot('scr-switch');
   const r1 = await ev("navTo('dt-widget');var s=document.getElementById('dt-widget');return {on:s.classList.contains('active'),"
     + "name:(s.textContent.match(/打卡-单习惯/g)||[]).length,"
     + "wgName:(s.querySelectorAll('.wg-name').length),"
