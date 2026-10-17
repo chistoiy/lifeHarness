@@ -27,7 +27,7 @@
   一律 `bash tools/ftest_waves.sh <批次名> <文件…>` **一文件一波**；**本批动 `android/**` ⇒ 收口必跑 `bash tools/kotlin_check.sh`**。
 - **变异刀清单（≤3 刀 · md5 复原）**＝① 绑定层摘「老实例回落全局默认」→ 老实例读空全变占位的用例红；
   ② 交互出口改原生直写（绕 isolate）→ 同源性守护例红；③ 摘本地回显（执行后不写显示态）→ 回显收敛例红。
-- **新增常驻用例**＝三件新文件（例数随落刀进度回填）：**① `test/widget_binding_test.dart` 已落（16 例全绿·2026-10-18）**；② `test/widget_picker_test.dart`（待选择层）；③ `test/widget_checkin_echo_test.dart`（待交互闭环）。
+- **新增常驻用例**＝四件新文件（例数随落刀进度回填）：**① `test/widget_binding_test.dart` 已落（16 例全绿·2026-10-18）**；**② `test/widget_picker_test.dart` 已落（20 例全绿）**；**③ `test/widget_config_test.dart` 已落（15 例全绿·配置页先选后落）**；④ `test/widget_checkin_echo_test.dart`（待交互闭环）。
 - **回灌成句**＝原型侧新增打卡四格形态＋「先选后落」流程样张（五段目标区沿用 NFC 弹层），过门后回灌 `prototype/index-desktop.html` 与本壳入口/角标；
   同步 `docs/UI组件规范.md` 登记小组件组件段与失效三态口径。
 - **复测包编号**＝**6174 已出·已装机**（2026-10-18·arm64 单 ABI·versionCode 8174·md5 `cffb8d72`·无线装 `192.168.31.173:38151`·`install -r` 保数据·启动无 FATAL）。**下一枚＝攒 6175（未构建）**——实现批动 `android/**`（新 provider＋弹窗 Activity＋配置页改造＋清单），按攒批口径并入下一枚（产品令装机时一次钉版 `0.2.15+<编号+2000>`，形态以机上包为准）。
@@ -83,7 +83,12 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
   - **架构纪律**：provider 未进 `core/providers.dart`（R2：core 禁依赖 features·组合根白名单只有 router）——store 构造注入自足，provider 留配置页那刀随 feature 侧 providers 文件一起加（免死代码）。
   - **存量红上报（非本批引入）**：`test/desktop_widget_test.dart` 1 例红＝守卫「activity 禁空 taskAffinity」（10-15 桌面批3 立）撞 `NfcRelayActivity` 空 affinity（10-17 NFC 批3c 故意为之·excludeFromRecents＋noHistory 的中转界面）。跨线冲突，按互斥纪律不动 NFC 线 Manifest/守卫，**待 NFC 在飞线收口时裁定**（守卫加白名单条目或收窄扫描面二选一）。
 - **选择层已落（Dart 侧第二刀·2026-10-18 晚）**：`lib/features/widget/presentation/widget_target_picker.dart`——五段横向大类共享选择器，`WidgetPickerMode`（nfc｜widget）只改按钮文案与区标签（「保存」/「添加到桌面」·「贴卡后做什么」/「点击后做什么」），写卡专属分支不进组件；数据一律经 `nfc_mounts` linkage 出口（同库同函数·同一数据源）；返回 `WidgetTarget` 三件套由调用点决定去向（widget 侧绑实例键）。`test/widget_picker_test.dart` **20 例全绿**（五区各返三件套／切区不改变已选／再点子级退父级／进区默认选中／空习惯确认键置灰／同源守护≡NFC 侧 tab 表·ref 常量·care 子格式／写卡分支隔离源码扫描）。⚠ 与 NFC 侧两处登记（tab 表/ref 常量）靠测试守护防漂移，NFC 侧参数化时（R7）二选一销一份。变异一刀（habit/care 换序）⇒ 同源守护红其位·md5 复原全等。
-- **下一步（按 §2 五层）**：配置页（设置页小部件卡「添加小组件」→ picker（initialTab habit）→ 预选绑定落 prefs → pinDesktopWidget → 配置页无感回写）→ 渲染层/交互闭环（android/** 已解禁·对话框 Activity 第一刀见 §5）。
+- **配置页已落（Dart 侧第三刀·2026-10-18 夜）**：① 域层增「预选绑定」交接位——`kWidgetBindPendingKey`＝`desktop.widget_bind.pending`＋`WidgetPendingBind`（五段编码＝种类·kind·ref·sub·时刻；TTL 2min＋60s 回拨容忍）；② store 增 `setPendingTarget`／`pendingBindFor`／`clearPendingBind`，`loadAll` 明写跳过 `pending`/`default`（预选键**不得**被当成一枚实例列出来）；③ `widget_target_picker.dart` 增 `widgetTargetLabel`（`打卡 · 早起`／`快捷动作 · 记一笔`／呵护·计时·阅读只给大类——二级参数是机器码不上屏）；④ 新建 `lib/shared/linkage/widget_bind_mounts.dart`＝设置页唯一出口（R1：`features/settings` 禁 import `features/widget`），`addHabitWidgetFromSettings` 一键 ①②③（选择器打卡段预开 → 落预选 → 请系统 pin 打卡枚），**取消即什么都不落**（不写预选、不调 pin）；⑤ 设置页小组件卡增头部「添加小组件」＋末行「打卡-单习惯（2×2）／添加」（与原型 `p-sub-desktop` 同序），并加 `addWidgetFlow` 测试注入缝（生产不传＝走真流程）。
+  `test/widget_config_test.dart` **15 例全绿**（预选编解码·脏值·有效期·交接位不进实例清单·标签·真链路三步·设置页接线两入口）。变异一刀（`pendingBindFor` 摘种类校验）⇒ 仅「种类不匹配取不到」转红·md5 `058c9a7a` 复原全等。闸：五文件五波 **ALL-GREEN 72 例**（config／desktop_settings／binding／picker／architecture）。
+  - **为什么预选要带「种类」＋期限**：`requestPinAppWidget` 的 appWidgetId 由系统在落桌面那一刻才分配，App 侧拿不到 ⇒「先选」与「后落」之间必须有交接位；而用户在**系统**弹窗里点取消时没人消费它——不设期限、不校验种类，下次随手从部件库拖出的别的枚就会被误绑（「我没选过它，它自己绑上了」）。
+  - **第④步（配置页读预选无感回写）未随本刀落**：它要在原生 `WidgetConfigActivity.onCreate` 里按 provider 类名认出「这是哪一枚」，而打卡枚 provider 属渲染层——两处各猜一个类名必漂移，故与 provider **同刀落**（同一次提交里定名，守护测试交叉核对键/格式/TTL）。
+  - **测试工装口径（新坑）**：`AppDatabase.instance.open()` 走 sqflite 全局工厂，在 Windows 测试环境会**卡死**（实测 2 分钟超时零输出，`.timeout` 也救不了——ffi no-isolate 下同步阻塞）⇒ 一律用 picker 既有的 `db:` 注入缝，不在测试里初始化整库。
+- **下一步（按 §2 五层）**：渲染层（打卡四格 provider：标题/副文案/主按钮/状态点共享模板＋深浅色＋失效三态布局；**配置页无感回写同刀**）→ 交互闭环（点击→乐观回显→后台 isolate→同源仓库出口；失败入待排空队列·App 启动排空）。
 
 ### §7.1 产品追加需求：记一笔「不打开 App 直接弹窗记账」（2026-10-18 拍板走 A 路）
 

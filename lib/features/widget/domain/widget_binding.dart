@@ -33,6 +33,31 @@ const String kWidgetBindKeyPrefix = 'desktop.widget_bind.';
 /// 必须有回落与一次性迁移口径，测试覆盖「老实例升级」。
 const String kWidgetBindDefaultKey = '${kWidgetBindKeyPrefix}default';
 
+/// 「先选后落」的**预选绑定**键（一次性·工单 §2 配置页层）。
+///
+/// 来由：系统 `requestPinAppWidget` 是异步的，`appWidgetId` 只有落桌面那一刻
+/// 才由系统分配，App 侧**拿不到**（`onSuccess` 回调里才有 id，且不在本进程的
+/// Dart 侧）。故「先选」与「后落」之间必须有个**交接位**：App 把选好的目标写这里，
+/// 原生配置页在 `onCreate` 拿到 `EXTRA_APPWIDGET_ID` 后读它写成本实例键、随即清除
+/// ——用户看不到配置页（无感回写），桌面直接出现「打卡-单习惯」。
+///
+/// ⚠ 键尾 `pending` **不是**数字，[WidgetBindingStore.loadAll] 会跳过（不做实例）。
+const String kWidgetBindPendingKey = '${kWidgetBindKeyPrefix}pending';
+
+/// 预选绑定的有效期（毫秒）。
+///
+/// 为什么必须有期限：用户在**系统**那个「是否添加到主屏幕」弹窗里点取消时，
+/// 预选就没有任何人来消费。不设期限，下次从桌面小部件库里随手拖一枚别的
+/// 小组件出来，就会把这枚陈年预选吃掉——「我没选过它，它自己绑上了」。
+const int kWidgetBindPendingTtlMs = 2 * 60 * 1000;
+
+/// 允许的时钟回拨窗口（毫秒）：时间戳落在「未来」的脏值不该永久有效。
+const int kWidgetBindPendingSkewMs = 60 * 1000;
+
+/// 打卡-单习惯小组件的种类 id（与原生 `pinWidgetById` 的 when 分支、
+/// `WidgetConfigActivity` 的 provider 判定**逐字一致**·守护测试交叉核对）。
+const String kWidgetKindHabit = 'habit';
+
 /// 一个桌面实例绑定的动作目标（NFC 目标三件套的 widget 侧同构体）。
 class WidgetTarget {
   const WidgetTarget({required this.kind, required this.ref, this.sub});
@@ -192,3 +217,66 @@ WidgetInstanceState widgetInstanceState({
 
 /// 实例绑定键（键带实例 id·原生 Provider 读自己那一枚）。
 String widgetBindingKeyOf(int appWidgetId) => '$kWidgetBindKeyPrefix$appWidgetId';
+
+/// 「先选后落」的预选绑定记录（一次性交接位·见 [kWidgetBindPendingKey]）。
+///
+/// 编码＝`<widgetKind>␟<kind>␟<ref>␟<sub>␟<atMs>`（五段·分隔符与目标同族）。
+/// 带 [widgetKind] 是为了**防止串味**：预选是给「打卡-单习惯」选的，若用户在
+/// 系统弹窗里取消、随后又从小部件库拖了一枚待办出来，配置页据种类不匹配即
+/// 不消费（宁可让它过期，也不能把别的枚绑到不相关的目标上）。
+class WidgetPendingBind {
+  const WidgetPendingBind({
+    required this.widgetKind,
+    required this.target,
+    required this.atMs,
+  });
+
+  /// 目标小组件种类（`habit` …·与原生 provider 判定同值）。
+  final String widgetKind;
+
+  /// 预选的目标三件套。
+  final WidgetTarget target;
+
+  /// 落盘时刻（epoch ms·判过期用）。
+  final int atMs;
+
+  String encode() =>
+      '$widgetKind$kWidgetBindFieldSep${target.encode()}$kWidgetBindFieldSep$atMs';
+
+  /// 解码；脏值一律 null（按「无预选」处理，绝不猜）。
+  static WidgetPendingBind? decode(String? raw) {
+    final s = (raw ?? '').trim();
+    if (s.isEmpty) return null;
+    final f = s.split(kWidgetBindFieldSep);
+    if (f.length != 5) return null;
+    final widgetKind = f[0].trim();
+    if (widgetKind.isEmpty) return null;
+    // 中间三段原样交回目标解码（sub 可为空段）。
+    final target = WidgetTarget.decode(
+      '${f[1]}$kWidgetBindFieldSep${f[2]}$kWidgetBindFieldSep${f[3]}',
+    );
+    if (target == null) return null;
+    final at = int.tryParse(f[4].trim());
+    if (at == null || at <= 0) return null;
+    return WidgetPendingBind(widgetKind: widgetKind, target: target, atMs: at);
+  }
+
+  /// 是否仍在有效期内（[kWidgetBindPendingTtlMs] ＋ 时钟回拨容忍）。
+  bool isFreshAt(int nowMs) {
+    final age = nowMs - atMs;
+    return age <= kWidgetBindPendingTtlMs && age >= -kWidgetBindPendingSkewMs;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is WidgetPendingBind &&
+      other.widgetKind == widgetKind &&
+      other.target == target &&
+      other.atMs == atMs;
+
+  @override
+  int get hashCode => Object.hash(widgetKind, target, atMs);
+
+  @override
+  String toString() => 'WidgetPendingBind($widgetKind → $target @$atMs)';
+}

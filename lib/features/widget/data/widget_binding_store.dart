@@ -33,7 +33,44 @@ class WidgetBindingStore {
   WidgetTarget? get globalDefault =>
       WidgetTarget.decode(_prefs.getString(kWidgetBindDefaultKey));
 
-  /// 全部在册绑定（配置页列表用；按 key 前缀扫描，**跳过默认键**）。
+  /// 「先选后落」的预选绑定（原始记录·**不判过期**；判过期用 [pendingBindFor]）。
+  WidgetPendingBind? get pendingBind =>
+      WidgetPendingBind.decode(_prefs.getString(kWidgetBindPendingKey));
+
+  /// 预选绑定（限本类小组件 ＋ 未过期）。[nowMs] 供测试注入时钟。
+  ///
+  /// 种类不匹配或已过期一律返回 null（调用方按「没有预选」处理）。
+  WidgetPendingBind? pendingBindFor(String widgetKind, {int? nowMs}) {
+    final p = pendingBind;
+    if (p == null || p.widgetKind != widgetKind) return null;
+    return p.isFreshAt(nowMs ?? DateTime.now().millisecondsSinceEpoch) ? p : null;
+  }
+
+  /// 落预选绑定（「先选后 pin」的交接位·原生配置页读完即清）。
+  ///
+  /// 目标无效 ⇒ 不写（与 [bind] 同口径：半成品状态不落盘）。
+  Future<void> setPendingTarget(
+    String widgetKind,
+    WidgetTarget target, {
+    int? nowMs,
+  }) async {
+    if (widgetKind.isEmpty || !target.isValid) return;
+    await _prefs.setString(
+      kWidgetBindPendingKey,
+      WidgetPendingBind(
+        widgetKind: widgetKind,
+        target: target,
+        atMs: nowMs ?? DateTime.now().millisecondsSinceEpoch,
+      ).encode(),
+    );
+  }
+
+  /// 清预选绑定（用户取消／配置页消费后由原生清，此处供 App 侧兜底）。
+  Future<void> clearPendingBind() async {
+    await _prefs.remove(kWidgetBindPendingKey);
+  }
+
+  /// 全部在册绑定（配置页列表用；按 key 前缀扫描，**跳过默认键与预选键**）。
   ///
   /// 脏值一律跳过（宁少不错——配置页少列一条好过把猜测值显示成绑定）。
   Map<int, WidgetBinding> loadAll() {
@@ -41,7 +78,7 @@ class WidgetBindingStore {
     for (final key in _prefs.getKeys()) {
       if (!key.startsWith(kWidgetBindKeyPrefix)) continue;
       final tail = key.substring(kWidgetBindKeyPrefix.length);
-      if (tail.isEmpty || tail == 'default') continue;
+      if (tail.isEmpty || tail == 'default' || tail == 'pending') continue;
       final id = int.tryParse(tail);
       if (id == null || id <= 0) continue;
       final t = WidgetTarget.decode(_prefs.getString(key));

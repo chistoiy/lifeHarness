@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/platform/desktop_actions.dart';
 import '../../../core/platform/desktop_shortcuts.dart';
@@ -12,6 +13,8 @@ import '../../../core/settings/settings_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/desktop_widget_mounts.dart'
     show buildSnapshot, desktopWidgetKickProvider;
+import '../../../shared/linkage/widget_bind_mounts.dart'
+    show addHabitWidgetFromSettings;
 
 /// 「桌面与快捷方式」二级页（原型 `p-sub-desktop`，家＝壳 index.html；本屏 Flutter 侧）。
 ///
@@ -23,7 +26,14 @@ import '../../../shared/linkage/desktop_widget_mounts.dart'
 /// **架构红线（R1）**：本页与各业务 feature **互不直连 import**，跳转只用动作表
 /// 里的 path 字符串；本页不引用任何 feature 的业务方法（守 architecture_test）。
 class DesktopSettingsPage extends ConsumerStatefulWidget {
-  const DesktopSettingsPage({super.key});
+  const DesktopSettingsPage({super.key, this.addWidgetFlow});
+
+  /// 测试注入缝：「添加小组件」的先选后落流程（生产不传＝走 `shared/linkage` 真流程）。
+  ///
+  /// 与 `showWidgetTargetPicker(db:)` 同款手法——真流程要读库，而本页测试不该为
+  /// 了按一下按钮去初始化整库；注入一个假流程即可钉住**接线与提示**这一层。
+  final Future<String?> Function(BuildContext context, SharedPreferences prefs)?
+      addWidgetFlow;
 
   @override
   ConsumerState<DesktopSettingsPage> createState() => _DesktopSettingsPageState();
@@ -108,6 +118,22 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
           content: Text(msg), duration: const Duration(milliseconds: 1600)));
+  }
+
+  /// 「添加小组件」＝先选后落（批A · 工单 §2 配置页层 / 原型 `dt-widget` 步①~④）。
+  ///
+  /// ① 开共享五段选择器（打卡段预开）→ ② 选中即落**预选绑定** → ③ 请系统 pin。
+  /// 第④步「配置页读预选绑定无感回写」在原生侧，Dart 不参与；用户在选择器里
+  /// 取消则**什么都不落**（不写预选、不调 pin），与原型步③「取消则不落桌面」同口径。
+  ///
+  /// R1：跨模块能力一律经 `shared/linkage`（本页不 import `features/widget`），
+  /// 这里只拿到所选目标的人话标签，不接触目标模型与绑定键。
+  Future<void> _addHabitWidget() async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final flow = widget.addWidgetFlow ?? addHabitWidgetFromSettings;
+    final label = await flow(context, prefs);
+    if (!mounted || label == null) return;
+    _toast('已选「$label」，请在系统弹窗里确认');
   }
 
   /// 小组件偏好改动 ⇒ 让快照重算重绘（批2 · F2-3/§4.4）。
@@ -600,9 +626,31 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
               // 2026-10-15 产品改口：右上角那个全局「添加到桌面」按钮删了 —— 它要再弹一个
               // App 自己的选择框（原生 AlertDialog，跟卡片体系完全不搭），而「列表勾选」
               // 与「添加」两个语义又挤在一起。现改为**每张卡自带**按钮，点哪枚就是哪枚。
-              const Text('小组件',
-                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800)),
-              Text('桌面常驻读数，点击直达应用内；点卡片右上角「添加到桌面」放一枚到桌面',
+              //
+              // 批A（2026-10-18）：读数四枚仍走「点哪枚加哪枚」；**绑定型**（打卡-单习惯）
+              // 多一步「先选后落」——故这里另给一个入口，点了先开五段选择器。
+              Row(
+                children: [
+                  const Text('小组件',
+                      style:
+                          TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800)),
+                  const Spacer(),
+                  TextButton(
+                    key: const ValueKey<String>('wg-add-widget'),
+                    onPressed: _addHabitWidget,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text('添加小组件',
+                        style: TextStyle(fontSize: 11.5, color: scheme.primary)),
+                  ),
+                ],
+              ),
+              Text(
+                  '桌面常驻读数，点击直达应用内；读数四枚点「添加到桌面」即放一枚，'
+                  '打卡枚先选习惯再落桌面',
                   style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
               const SizedBox(height: 10),
               // 2026-10-15 产品改口：先看**样式预览**再勾选要哪几枚，不必去系统小部件库翻。
@@ -668,10 +716,50 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
                 await _repo.saveDesktopHideAmount(v);
                 _kickWidgetSync();
               }, keyName: 'wg-hide-amount'),
+              // 批A 试点行：绑定型小组件（每枚绑一个习惯·点即打卡）。
+              // 与读数四枚的区别＝**有目标**，故添加前必须先选（先选后落）。
+              Divider(height: 1, color: scheme.outlineVariant),
+              SizedBox(
+                height: 48,
+                child: Row(
+                  children: [
+                    Icon(Icons.task_alt_outlined,
+                        size: 18, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('打卡-单习惯（2×2）',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text('每枚绑一个习惯，点一下就打卡',
+                              style: TextStyle(
+                                  fontSize: 10.5, color: scheme.outline)),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      key: const ValueKey<String>('wg-pin-habit'),
+                      onPressed: _addHabitWidget,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(0, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text('添加',
+                          style:
+                              TextStyle(fontSize: 11.5, color: scheme.primary)),
+                    ),
+                  ],
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 6, bottom: 4),
                 child: Text(
-                  '小组件读数来自最近一次同步快照，可能略有延迟；开启「隐藏金额」时小组件金额位显示为 ••••。',
+                  '小组件读数来自最近一次同步快照，可能略有延迟；开启「隐藏金额」时小组件金额位显示为 ••••。'
+                  '「打卡-单习惯」每枚绑一个习惯：点小组件即打卡，不用打开 App。',
                   style: TextStyle(fontSize: 10.5, height: 1.6, color: scheme.outline),
                 ),
               ),

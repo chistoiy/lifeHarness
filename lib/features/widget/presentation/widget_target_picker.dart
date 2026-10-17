@@ -113,6 +113,34 @@ String widgetCareSubOf(int babyId, String kindId) => '$babyId/$kindId';
   return (t.kind, sel);
 }
 
+/// 目标的人话标签（设置页 toast／绑定回显用）。
+///
+/// 只做「大类 · 具体项」两层，不做二次加工：
+/// - 打卡：`打卡 · 早起`（二级参数本身就是习惯名，直接可读）
+/// - 快捷动作：`快捷动作 · 记一笔`（取动作表标签）
+/// - 呵护宝宝：`呵护宝宝`（二级参数是 `<babyId>/<kindId>`，机器码不上屏）
+/// - 计时分类／阅读书目：只给大类（ref 是分类 id／书 id，上屏得查库）
+String widgetTargetLabel(WidgetTarget t) {
+  final tabKey =
+      (t.ref == kWidgetRefHabit || t.ref == kWidgetRefCare) ? t.ref : t.kind;
+  var zone = '目标';
+  for (final e in kWidgetPickerTabs) {
+    if (e.$1 == tabKey) {
+      zone = e.$2;
+      break;
+    }
+  }
+  final sub = t.sub;
+  if (t.ref == kWidgetRefHabit && sub != null && sub.isNotEmpty) {
+    return '$zone · $sub';
+  }
+  if (t.kind == 'nav' && t.ref != kWidgetRefHabit && t.ref != kWidgetRefCare) {
+    final a = desktopActionById[t.ref];
+    if (a != null) return '$zone · ${a.label}';
+  }
+  return zone;
+}
+
 /// 打开共享五段目标选择器；返回选中的目标三件套（取消/拖下＝null）。
 ///
 /// [initialTab]＝无初始目标时落的 tab（批A 设置页入口传 `'habit'`：
