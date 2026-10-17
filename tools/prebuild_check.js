@@ -54,11 +54,14 @@ try {
 // 3) split-per-abi 偏移闸（2026-10-05 拍板改口径：复测包自换机装包起与机上包统一 arm64 分包）
 //    --split 时 --code 必须＝**装机期望编号**（如 6067），实测偏移 +2000 → 构建 base＝code-2000；
 //    钉版行与 --build-number 都用 base，aapt 复验用 code。形态纪律不变：**与机上包一致**。
-// 复测包编号实测区间 60xx（6045~6099）；分包时若 --code 落在这段之外，多半是把 base 当期望传了。
-const RETEST_MIN = 6000, RETEST_MAX = 6999;
+// 复测包编号实测区间：2026-10 起编号已演进到 **61xx→81xx**（编号＝base，产物 versionCode＝base+2000；
+// 例：编号 6173 → 装机 8173）。旧的 60xx 段保留兼容，新区间按 80xx 认。
+// 分包时若 --code 落在这两段之外，多半是把 base 当期望传了。
+const RETEST_RANGES = [[6000, 6999], [8000, 8999]];
 if (split) {
-  if (!wantCode || wantCode < RETEST_MIN || wantCode > RETEST_MAX)
-    fails.push(`--split 时 --code 必须＝装机期望编号（复测包 60xx；实测 arm64 产物＝base+${ARM64_OFFSET}）；收到 ${wantCode} → 若你想传 base，请改传期望编号 ${wantCode ? wantCode + ARM64_OFFSET : ''}`);
+  const inRange = !!wantCode && RETEST_RANGES.some(([lo, hi]) => wantCode >= lo && wantCode <= hi);
+  if (!inRange)
+    fails.push(`--split 时 --code 必须＝装机期望编号（复测包 60xx／80xx；实测 arm64 产物＝base+${ARM64_OFFSET}）；收到 ${wantCode} → 若你想传 base，请改传期望编号 ${wantCode ? wantCode + ARM64_OFFSET : ''}`);
   else
     oks.push(`分包口径：期望 arm64 versionCode=${wantCode} → 构建 base=${buildBase}（+${ARM64_OFFSET} 偏移）`);
 } else {
