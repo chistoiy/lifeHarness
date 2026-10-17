@@ -15,6 +15,7 @@
   真实像素以原生实现为准；不表达系统壁纸、状态栏运营商与电量等非本模块内容。
   禁 emoji 图标（一律线性 SVG stroke 1.8）；禁硬编码主题色（走 :root 令牌）。
   校验：node tools/dtcheck.js（结构断言）＋ doclint 链（protogate strict / proto_registry / vm_script_check）。
+  深链直达：index-desktop.html#dt-desk｜#dt-menu｜#dt-widget｜#dt-map（启动读 location.hash 落屏，与 time/media/bookshelf 专版同口径）。
 -->
 <html lang="zh-CN" data-theme="minimal">
 <head>
@@ -1054,6 +1055,10 @@ function toast(msg){
 
 /* ---------- 启动 ---------- */
 renderDesk(); renderMenu(); renderTable(); renderLimit();
+/* 深链直达（与 index-time/media/bookshelf 同口径）：URL 带 #dt-widget 等屏 id 时直接落该屏，
+   否则落默认 dt-desk。没有这段，dt-menu/dt-widget/dt-map 三屏只能控制台 navTo 才看得到。 */
+(function(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
+ if(h&&document.getElementById(h))setPage(h);})();
 </script>
 </body>
 </html>
