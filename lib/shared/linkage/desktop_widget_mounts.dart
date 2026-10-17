@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/app_database.dart';
 import '../../core/platform/desktop_widget.dart';
 import '../../core/providers.dart';
-import '../../features/habit/domain/habit_calc.dart' show dayKey;
+import '../../features/habit/domain/habit_calc.dart' show dayKey, habitStreak;
 import '../../features/habit/presentation/habit_providers.dart'
     show habitDataProvider;
 import '../../features/ledger/domain/ledger_calc.dart' show mStat, monthKey;
@@ -114,10 +114,20 @@ DesktopWidgetSnapshot? buildSnapshot(WidgetSnapshotRead read) {
   // 今日习惯：应打卡集合（dueToday）＋其中已完成（okOn）。
   var habitTotal = 0;
   var habitDone = 0;
+  // 打卡-单习惯 2×2 的查表数据：**未归档**全部习惯的今日状态。
+  // 归档/删除的习惯不进表 ⇒ 绑着它的桌面实例查不到行 ⇒ 显示「内容已失效」。
+  final habitItems = <WidgetHabitItem>[];
   if (habit != null) {
     final due = habit.dueToday(now);
     habitTotal = due.length;
     habitDone = due.where((h) => habit.okOn(h, k)).length;
+    for (final h in habit.book) {
+      habitItems.add(WidgetHabitItem(
+        name: h.name,
+        streak: habitStreak(h, habit.of(h.id), now),
+        done: habit.okOn(h, k),
+      ));
+    }
   }
 
   // 今日支出：当前账本、排除「不计入」（nb）；refund 按 mStat 口径冲抵。
@@ -159,6 +169,7 @@ DesktopWidgetSnapshot? buildSnapshot(WidgetSnapshotRead read) {
         WidgetTodoItem(id: t.id ?? 0, done: t.done, title: t.title),
     ],
     todoOverflow: pool.length - rows.length,
+    habitItems: habitItems,
   );
 }
 

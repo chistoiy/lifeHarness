@@ -44,6 +44,32 @@ class WidgetConfigActivity : Activity() {
             finish()
             return
         }
+
+        // ── 批A：绑定型小组件（打卡-单习惯）走**无感回写**，不弹配置 UI ──
+        //
+        // 为什么它要 configure 而四枚读数型不要：新实例的 `appWidgetId` 只有系统知道，
+        // 而 configure 是**唯一**会被系统在「实例刚创建」时调起并带上该 id 的入口——
+        // App 内「先选后落」的预选绑定（`…widget_bind.pending`）正是靠这里认领，
+        // 写成本实例键后立刻收摊，用户看不到配置页、桌面直接出现「打卡-单习惯」。
+        //
+        // 没有预选（用户从桌面小部件库直接拖出）同样立刻收摊：桌面显示
+        // 「未选择内容，点此设置」。绑定只从 App 内「添加小组件」走；本页的选择 UI
+        // 留批C 复判（工单 §3 ③）。
+        //
+        // ⚠ 判定放宽成「类名未知也算绑定型」：配置阶段 `getAppWidgetInfo` 可能还没
+        // 建好记录（系统时序），而当前**只有**打卡枚写了 configure ⇒ 走到本页即
+        // 几乎必然是它。类名明确是别的枚时仍走下面的四开关老路（不误伤）。
+        val pcls = providerClassName()
+        if (pcls == null || pcls == LhWidget.PROVIDER_HABIT) {
+            LhWidget.consumePendingBind(this, widgetId)
+            setResult(
+                RESULT_OK,
+                Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId),
+            )
+            finish()
+            return
+        }
+
         setContentView(R.layout.lh_widget_config)
 
         val prefs = getSharedPreferences(LhWidget.FLUTTER_PREFS, MODE_PRIVATE)
@@ -86,18 +112,22 @@ class WidgetConfigActivity : Activity() {
         }
     }
 
+    /** 本实例的 provider 类名（取不到 ⇒ null·配置阶段系统可能还没建好记录）。 */
+    private fun providerClassName(): String? = try {
+        AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)
+            ?.provider?.className?.substringAfterLast('.')
+    } catch (_: Exception) {
+        null
+    }
+
     /** 本实例的中文名（据 provider 类名判定；取不到按概览处理）。 */
     private fun providerName(): String {
-        val cls = try {
-            AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)
-                ?.provider?.className?.substringAfterLast('.') ?: LhWidget.PROVIDER_OVERVIEW
-        } catch (_: Exception) {
-            LhWidget.PROVIDER_OVERVIEW
-        }
+        val cls = providerClassName() ?: LhWidget.PROVIDER_OVERVIEW
         return when (cls) {
             LhWidget.PROVIDER_TODO_LIST -> getString(R.string.lh_widget_todo_name)
             LhWidget.PROVIDER_LEDGER -> getString(R.string.lh_widget_ledger_name)
             LhWidget.PROVIDER_QUICK -> getString(R.string.lh_widget_quick_name)
+            LhWidget.PROVIDER_HABIT -> getString(R.string.lh_widget_habit_name)
             else -> getString(R.string.lh_widget_overview_name)
         }
     }

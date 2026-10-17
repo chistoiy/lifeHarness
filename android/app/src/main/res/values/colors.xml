@@ -20,6 +20,9 @@
     <color name="lh_wg_stroke">#1A64748B</color>
     <color name="lh_wg_track">#2E64748B</color>
 
+    <!-- 批A · 打卡-单习惯「已打卡」按钮底＝次文本 14% 透明（原型 .wg-btn 收敛态） -->
+    <color name="lh_wg_btn_off">#2464748B</color>
+
     <!-- 批3 · 配置弹窗（弹窗不是 widget，但同一套色档纪律：只跟系统深浅色）
          页面底＝比卡片底更深一档的浅灰，卡片底＝纯白，与 App 内 token.card 的层级一致。 -->
     <color name="lh_cfg_bg">#F1F5F9</color>

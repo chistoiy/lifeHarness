@@ -54,6 +54,16 @@ class LhWidgetKeys {
   /// 会在两口径不一致时显示负数或凭空多出几条（V1.67 那一类「断言反推实现」的坑）。
   static const String todoMore = 'todo_more';
 
+  /// 习惯今日状态表（打卡-单习惯 2×2 · 批A 渲染层）。
+  ///
+  /// 编码与待办行同族：条目间 `\u001e`、字段间 `\u001f`、字段序＝
+  /// `name\u001fstreak\u001fdone`（`done` 用 `1`/`0`）。
+  ///
+  /// **为什么下发全量而不是「本实例那一枚」**：快照是**一份**、实例有多个
+  /// （每枚绑一个习惯），原生侧按自己的绑定去表里查名——下发全量才能让
+  /// 多枚实例各取所需；也让「绑的习惯被删了」这件事可判（查不到＝源失效）。
+  static const String habitItems = 'habit_items';
+
   /// 是否有过快照（B6：从未写过 ⇒ 小组件显示占位而非 0）。
   static const String hasSnapshot = 'has_snapshot';
 
@@ -67,6 +77,7 @@ class LhWidgetKeys {
     balanceCell,
     todoItems,
     todoMore,
+    habitItems,
     hasSnapshot,
   ];
 }
@@ -97,6 +108,14 @@ class LhWidgetNames {
 
   /// 2×2 记账概览（批3·F2-5）：今日支出／本月支出／本月结余三行读数。
   static const String ledgerOverview = 'LedgerOverviewWidget';
+
+  /// 2×2 打卡-单习惯（批A·渲染层）：一枚绑一个习惯，点按钮即打卡。
+  ///
+  /// ⚠ 类名与 Dart `kWidgetKindHabit`（`habit`）是**两件事**：前者是 provider
+  /// 类名（home_widget 按它解析），后者是绑定记录里的「哪一类小组件」
+  /// （`WidgetConfigActivity` 据它认领预选绑定）。两者都由
+  /// `test/desktop_widget_test.dart` 与原生常量交叉核对。
+  static const String habitCheck = 'HabitCheckWidget';
 }
 
 /// 一条待办的行数据（待办 2×2 的最小下发单元）。
@@ -142,6 +161,50 @@ String encodeWidgetTodoItems(List<WidgetTodoItem> items, {int maxRows = 3}) {
   return sb.toString();
 }
 
+/// 一个习惯的今日状态（打卡-单习惯 2×2 的最小下发单元）。
+///
+/// [name] 是**绑定键**（widget 绑定记录里的 `sub` 就是习惯名·与 NFC 目标同口径），
+/// 原生侧按名字查这一行；查不到＝该习惯已被删/改名 ⇒ 桌面显示「内容已失效」。
+class WidgetHabitItem {
+  const WidgetHabitItem({
+    required this.name,
+    required this.streak,
+    required this.done,
+  });
+
+  final String name;
+
+  /// 当前连续天数（`habitStreak` 口径·0＝没有连击，桌面不显示「连击 0 天」）。
+  final int streak;
+
+  /// 今日是否已达成（`habitOkAt` 口径）。
+  final bool done;
+}
+
+/// 把习惯状态表编码成快照串（**唯一编码出口**，原生侧只做 `split`）。
+///
+/// 字段序 `name\u001fstreak\u001fdone`；名字里的控制字符一律剔除（否则破坏分隔符
+/// 结构）。
+///
+/// ⚠ **名字不截断**（与待办标题不同）：这个名字是**绑定键**——实例绑定里存的
+/// `sub` 就是它，原生按 `==` 找行。一旦在这边裁成 24 字，长名习惯就永远匹配不上，
+/// 桌面会一直显示「内容已失效」。显示不下交给布局的 `ellipsize` 兜（不改变值）。
+String encodeWidgetHabitItems(List<WidgetHabitItem> items) {
+  final sb = StringBuffer();
+  for (var i = 0; i < items.length; i++) {
+    final it = items[i];
+    final n = it.name
+        .replaceAll(RegExp('[\u001e\u001f\n\r\t]'), ' ')
+        .trim();
+    if (n.isEmpty) continue; // 无名目标不可绑，下发也无用
+    if (sb.isNotEmpty) sb.write(kTodoItemSep);
+    sb..write(n)..write(kTodoFieldSep)
+      ..write(it.streak)..write(kTodoFieldSep)
+      ..write(it.done ? '1' : '0');
+  }
+  return sb.toString();
+}
+
 /// 快照内容（App 侧算好，原生侧只渲染）。
 class DesktopWidgetSnapshot {
   const DesktopWidgetSnapshot({
@@ -153,6 +216,7 @@ class DesktopWidgetSnapshot {
     this.balanceCell = '',
     this.todoItems = const <WidgetTodoItem>[],
     this.todoOverflow = 0,
+    this.habitItems = const <WidgetHabitItem>[],
     this.hasSnapshot = true,
   });
 
@@ -175,6 +239,9 @@ class DesktopWidgetSnapshot {
   /// 裁剪掉的剩余条数（显示「还有 N 条」；0＝不显示）。
   final int todoOverflow;
 
+  /// 习惯今日状态表（打卡-单习惯 2×2；每枚实例按自己的绑定名查行）。
+  final List<WidgetHabitItem> habitItems;
+
   /// 是否已有快照（false ⇒ 各读数位一律占位）。
   final bool hasSnapshot;
 
@@ -189,6 +256,8 @@ class DesktopWidgetSnapshot {
         LhWidgetKeys.todoItems:
             hasSnapshot ? encodeWidgetTodoItems(todoItems) : '',
         LhWidgetKeys.todoMore: hasSnapshot ? '$todoOverflow' : '',
+        LhWidgetKeys.habitItems:
+            hasSnapshot ? encodeWidgetHabitItems(habitItems) : '',
         LhWidgetKeys.hasSnapshot: '$hasSnapshot',
       };
 }
@@ -236,6 +305,7 @@ Future<void> pushDesktopWidgetSnapshot(DesktopWidgetSnapshot snap) async {
     await HomeWidget.updateWidget(androidName: LhWidgetNames.quickRecord);
     await HomeWidget.updateWidget(androidName: LhWidgetNames.todoList);
     await HomeWidget.updateWidget(androidName: LhWidgetNames.ledgerOverview);
+    await HomeWidget.updateWidget(androidName: LhWidgetNames.habitCheck);
   } catch (_) {
     // catch-ok: 无 home_widget 通道的设备/测试环境（MissingPluginException）
     // 静默降级——小组件保留上次快照，不影响 App 主链路（B13）。

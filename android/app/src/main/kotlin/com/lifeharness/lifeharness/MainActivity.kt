@@ -1134,6 +1134,9 @@ class MainActivity : FlutterActivity() {
             "quick" -> QuickRecordWidget::class.java
             "todo" -> TodoListWidget::class.java
             "ledger" -> LedgerOverviewWidget::class.java
+            // 批A：绑定型小组件（一枚绑一个习惯）。pin 前 Dart 侧已写好预选绑定，
+            // 新实例创建时由 WidgetConfigActivity 认领（无感回写）。
+            "habit" -> HabitCheckWidget::class.java
             else -> null
         } ?: return
         pinWidget(cls)

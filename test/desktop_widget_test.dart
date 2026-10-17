@@ -10,10 +10,12 @@ import 'package:lifeharness/core/platform/desktop_widget.dart';
 /// ① 快照字段白名单（＝批1 钉死的 `todo_count`/`habit_done`/`habit_total`/`amount_cell`
 ///    ＋有无数值标记；批3 加 `todo_items`/`todo_more`/`month_amount_cell`/`balance_cell`；
 ///    **呵护类读数一律不进** · C8）；
-/// ② 桥调用形态（`home_widget` 通道：逐键 `saveWidgetData` ＋四枚 `updateWidget`）；
+/// ② 桥调用形态（`home_widget` 通道：逐键 `saveWidgetData` ＋五枚 `updateWidget`）；
 /// ③ 跨语言口径（原生 Kotlin 必须用同一批键/类名/偏好文件与键前缀·F2-4 禁两套）；
-/// ④ 原生资源在位（四枚 provider 元数据/布局/色档/Manifest 声明）；
-/// ⑤ 批3 增量：待办行编码两侧一致、闭环写入路径的 C5 窄例外边界、配置弹窗卡片化。
+/// ④ 原生资源在位（五枚 provider 元数据/布局/色档/Manifest 声明）；
+/// ⑤ 批3 增量：待办行编码两侧一致、闭环写入路径的 C5 窄例外边界、配置弹窗卡片化；
+/// ⑥ 批A 增量：打卡枚 `habit_items` 键与 `HabitCheckWidget` 类名、
+///    **唯一一枚写 `android:configure`**（无感回写入口，见 `test/widget_render_test.dart`）。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -81,7 +83,7 @@ void main() {
           .setMockMethodCallHandler(const MethodChannel('home_widget'), null);
     });
 
-    test('逐键下发快照 + 触发四枚小组件重绘', () async {
+    test('逐键下发快照 + 触发五枚小组件重绘', () async {
       await pushDesktopWidgetSnapshot(const DesktopWidgetSnapshot(
         todoCount: 3,
         habitDone: 4,
@@ -103,6 +105,7 @@ void main() {
         LhWidgetNames.quickRecord,
         LhWidgetNames.todoList,
         LhWidgetNames.ledgerOverview,
+        LhWidgetNames.habitCheck,
       ]);
     });
 
@@ -220,9 +223,9 @@ void main() {
           reason: '选择框入口应已删除');
       expect(act, isNot(contains('"addWidget"')),
           reason: '旧通道名应已删除');
-      // 原生：按 id 直达 provider（四枚都要有分支）。
+      // 原生：按 id 直达 provider（五枚都要有分支）。
       expect(act, contains('"pinWidget" ->'));
-      for (final id in <String>['overview', 'quick', 'todo', 'ledger']) {
+      for (final id in <String>['overview', 'quick', 'todo', 'ledger', 'habit']) {
         expect(act, contains('"$id" ->'), reason: 'pinWidgetById 缺分支 $id');
       }
 
@@ -245,18 +248,25 @@ void main() {
           reason: '每卡按钮的 key 前缀须与「铺到桌面」的 pin-<id> 区分开（撞键会点错东西）');
     });
 
-    test('四枚元数据：开尺寸调节 + 不写 configure（添加时不许弹配置页）', () {
+    test('五枚元数据：只有打卡枚写 configure（无感回写的唯一入口）', () {
       // 8147 装机反馈：长按菜单缺「尺寸调节」，与用户参照的成熟小组件不一致。
-      // 2026-10-15 产品令：**不写 `android:configure`** —— 它会让「从系统添加小组件」
-      // 先弹一次配置页，多一步打扰；而配置页管的开关（四枚总开关 + 隐藏金额）
+      // 2026-10-15 产品令：**四枚读数型不写 `android:configure`** —— 它会让「从系统
+      // 添加小组件」先弹一次配置页，多一步打扰；而配置页管的开关（四枚总开关 + 隐藏金额）
       // App 设置页里全都有，能力不缺。代价＝长按菜单不再有系统自动生成的「编辑」项
       // （那是 configure 的副产物，和弹窗绑死，只能二选一）。
-      for (final f in <String>[
+      //
+      // ⚠ 2026-10-18 批A **打卡枚是唯一例外**（不是回归）：新实例的 `appWidgetId`
+      //   只有系统知道，而 configure 是**唯一**会被系统在「实例刚创建」时调起并带上
+      //   该 id 的入口——「先选后落」的预选绑定（`…widget_bind.pending`）靠它认领，
+      //   写成本实例键后立刻 `RESULT_OK` 收摊，用户**看不到**配置页。谁要删它，
+      //   先读 `docs/handoff/小组件模块-批A按实例绑定与打卡试点.md` §2 第④步。
+      const reading = <String>[
         'lh_widget_overview_info',
         'lh_widget_quick_info',
         'lh_widget_todo_info',
         'lh_widget_ledger_info',
-      ]) {
+      ];
+      for (final f in reading) {
         final raw = File('android/app/src/main/res/xml/$f.xml').readAsStringSync();
         // ⚠ 先剥 XML 注释再判：注释里写着「不写 android:configure」的来由，
         // 不剥就会自指红（本仓同族坑第 N 次，凡「禁某字符串」的守护都要剥注释）。
@@ -264,6 +274,25 @@ void main() {
         expect(x, isNot(contains('android:configure')),
             reason: '$f 写了 configure 就会在添加时弹配置页（2026-10-15 产品令禁）');
       }
+      // 打卡枚必须写，且必须指向同一个配置 Activity。
+      final habit = File('android/app/src/main/res/xml/lh_widget_habit_info.xml')
+          .readAsStringSync()
+          .replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
+      expect(
+        habit,
+        contains('android:configure="com.lifeharness.lifeharness.WidgetConfigActivity"'),
+        reason: '打卡枚缺 configure ⇒ 拿不到新实例 id ⇒ 预选绑定永远没人认领',
+      );
+      // 反向：**只有它一个**。多一枚写了 configure ＝ 多一处「添加时被打断」。
+      final configured = <String>[];
+      for (final f in <String>[...reading, 'lh_widget_habit_info']) {
+        final x = File('android/app/src/main/res/xml/$f.xml')
+            .readAsStringSync()
+            .replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
+        if (x.contains('android:configure')) configured.add(f);
+      }
+      expect(configured, <String>['lh_widget_habit_info'],
+          reason: '写 configure 的枚只许打卡这一枚（其余添加即落桌面，禁弹窗）');
       for (final f in <String>[
         'lh_widget_overview_info',
         'lh_widget_quick_info',
@@ -303,10 +332,14 @@ void main() {
         LhWidgetNames.quickRecord,
         LhWidgetNames.todoList,
         LhWidgetNames.ledgerOverview,
+        LhWidgetNames.habitCheck,
       ]) {
         expect(support, contains('"$n"'));
         expect(File('$kt/$n.kt').existsSync(), isTrue, reason: '$n 类文件缺失');
       }
+      // ⚠ 类名错一个字母 ⇒ `updateWidget(androidName: …)` 找不到类，静默不重绘
+      // （桌面停在旧读数，最难查的一类）。故逐字再钉一遍打卡枚。
+      expect(LhWidgetNames.habitCheck, 'HabitCheckWidget');
     });
 
     test('快照新增四个键两侧同源（批3 · 待办行与两个记账读数）', () {
@@ -320,6 +353,16 @@ void main() {
         expect(support, contains('"$k"'),
             reason: '原生缺常量（值须与 Dart 同名）：$k');
       }
+    });
+
+    test('打卡状态表键两侧同源（批A · habit_items）', () {
+      expect(LhWidgetKeys.habitItems, 'habit_items');
+      expect(LhWidgetKeys.all, contains(LhWidgetKeys.habitItems),
+          reason: '不在白名单 ⇒ toData 不下发 ⇒ 打卡枚永远「内容已失效」');
+      expect(support, contains('"habit_items"'), reason: '原生缺 KEY_HABIT_ITEMS');
+      // 打卡表复用待办那套分隔符（条目 \\u001e / 字段 \\u001f）——两套分隔符
+      // 各写一遍必漂移，故原生侧也只允许这一对常量。
+      expect(support, contains('fun readHabitRows('), reason: '原生缺解码出口');
     });
 
     test('待办行编码两侧逐字一致（分隔符错一位 ⇒ 桌面标题整列错位）', () {
@@ -556,6 +599,7 @@ void main() {
         'lh_widget_quick.xml',
         'lh_widget_todo.xml',
         'lh_widget_ledger.xml',
+        'lh_widget_habit.xml',
       ]) {
         final raw = File('$nativeRoot/res/layout/$f').readAsStringSync();
         // ⚠ 先剥 XML 注释再扫：本仓习惯在布局注释里写「为什么不能用 <View>」，
@@ -589,6 +633,7 @@ void main() {
         'lh_widget_quick_info.xml': 'quick',
         'lh_widget_todo_info.xml': 'todo',
         'lh_widget_ledger_info.xml': 'ledger',
+        'lh_widget_habit_info.xml': 'habit',
       };
       for (final e in pairs.entries) {
         final raw = File('$nativeRoot/res/xml/${e.key}').readAsStringSync();
@@ -612,10 +657,13 @@ void main() {
       }
     });
 
-    test('Manifest 声明两枚 receiver 与配置 Activity', () {
+    test('Manifest 声明五枚 receiver 与配置 Activity', () {
       final m = File('$nativeRoot/AndroidManifest.xml').readAsStringSync();
       expect(m, contains('.TodayOverviewWidget'));
       expect(m, contains('.QuickRecordWidget'));
+      expect(m, contains('.TodoListWidget'));
+      expect(m, contains('.LedgerOverviewWidget'));
+      expect(m, contains('.HabitCheckWidget'));
       expect(m, contains('android.appwidget.provider'));
       expect(m, contains('.WidgetConfigActivity'));
       expect(m, contains('android.appwidget.action.APPWIDGET_CONFIGURE'));

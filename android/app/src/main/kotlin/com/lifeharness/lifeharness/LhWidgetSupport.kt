@@ -35,6 +35,9 @@ internal object LhWidget {
     /** 待办被裁掉的剩余条数（待办 2×2 显示「还有 N 条」）。 */
     const val KEY_TODO_MORE = "todo_more"
 
+    /** 习惯今日状态表（打卡-单习惯 2×2；编码与待办行同族，字段序 `name/streak/done`）。 */
+    const val KEY_HABIT_ITEMS = "habit_items"
+
     const val KEY_HAS_SNAPSHOT = "has_snapshot"
 
     /** 无快照 / 无数据占位（B6）。 */
@@ -48,6 +51,9 @@ internal object LhWidget {
     const val PROVIDER_QUICK = "QuickRecordWidget"
     const val PROVIDER_TODO_LIST = "TodoListWidget"
     const val PROVIDER_LEDGER = "LedgerOverviewWidget"
+
+    /** 2×2 打卡-单习惯（批A）。与 Dart `LhWidgetNames.habitCheck` 逐字一致。 */
+    const val PROVIDER_HABIT = "HabitCheckWidget"
 
     // ── 待办清单编码（与 Dart `kTodoItemSep` / `kTodoFieldSep` 逐字一致）──
     const val TODO_ITEM_SEP = '\u001e'
@@ -91,6 +97,119 @@ internal object LhWidget {
     fun readTodoMore(p: SharedPreferences): Int =
         readCell(p, KEY_TODO_MORE).toIntOrNull()?.coerceAtLeast(0) ?: 0
 
+    /** 一个习惯的今日状态行（[HabitCheckWidget] 用）。 */
+    data class HabitRow(val name: String, val streak: Int, val done: Boolean)
+
+    /**
+     * 解码 [KEY_HABIT_ITEMS]（打卡-单习惯 2×2）。
+     *
+     * 格式真源＝Dart `encodeWidgetHabitItems`：条目间 `\u001e`、字段间 `\u001f`、
+     * 字段序 `name / streak / done`。字段不足 3 段的行**整行丢弃**（同待办行口径：
+     * 桌面内容错位比少一行刺眼得多）。
+     */
+    fun readHabitRows(p: SharedPreferences): List<HabitRow> {
+        if (!hasSnapshot(p)) return emptyList()
+        val raw = try {
+            p.getString(KEY_HABIT_ITEMS, "") ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+        if (raw.isEmpty()) return emptyList()
+        return raw.split(TODO_ITEM_SEP).mapNotNull { chunk ->
+            val f = chunk.split(TODO_FIELD_SEP)
+            if (f.size < 3) return@mapNotNull null
+            val name = f[0].trim()
+            if (name.isEmpty()) return@mapNotNull null
+            HabitRow(name, f[1].trim().toIntOrNull() ?: 0, f[2].trim() == "1")
+        }
+    }
+
+    /**
+     * 某实例绑定的**习惯名**（实例键优先，回落全局默认·R2；无/脏 ⇒ null）。
+     *
+     * 绑定值＝`kind␟ref␟sub`；打卡目标形态是 `nav␟habit␟<习惯名>`——三段落
+     * 任一不符即按未绑定处理（宁可在桌面写「未选择内容」，也不猜一个习惯出来）。
+     */
+    fun boundHabitName(context: Context, appWidgetId: Int): String? {
+        val p = prefs(context)
+        habitNameOf(readString(p, "$PREF_WIDGET_BIND_PREFIX$appWidgetId"))?.let { return it }
+        return habitNameOf(readString(p, PREF_WIDGET_BIND_DEFAULT))
+    }
+
+    /** 绑定值 → 习惯名（非打卡形态一律 null）。 */
+    private fun habitNameOf(raw: String?): String? {
+        val s = (raw ?: "").trim()
+        if (s.isEmpty()) return null
+        val f = s.split(WIDGET_BIND_FIELD_SEP)
+        if (f.size != 3) return null
+        if (f[0].trim() != WIDGET_TARGET_KIND_NAV) return null
+        if (f[1].trim() != WIDGET_REF_HABIT) return null
+        return f[2].trim().takeIf { it.isNotEmpty() }
+    }
+
+    /** 偏好读串（任何类型异常都不抛——小组件崩＝整个桌面入口废掉）。 */
+    private fun readString(p: SharedPreferences, key: String): String? = try {
+        p.getString(key, null)
+    } catch (_: Exception) {
+        null
+    }
+
+    /**
+     * 认领「先选后落」的预选绑定（批A 第④步 · 配置页无感回写）。
+     *
+     * 流程：App 内选好目标 → 写 `…widget_bind.pending` → 系统 pin → **本 Activity**
+     * 拿到新实例 id → 此处把目标写成本实例键并清掉交接位 → 直接 `RESULT_OK` 收摊
+     * （用户看不到配置页，桌面直接出现「打卡-单习惯」）。
+     *
+     * 三条安全线：
+     * ① **种类不符不动它**（不是给这类小组件的预选，留给真正那枚来认领）；
+     * ② **过期作废**（用户在系统弹窗里取消时没人消费，不设期限就会被下一次
+     *    随手拖出的别的枚误吃——Dart 侧 `kWidgetBindPendingTtlMs` 同值）；
+     * ③ **脏值清掉**（段数不对的残留只会一直挡住后面的正常配置）。
+     *
+     * @return true＝认领成功（本实例已写好绑定）。
+     */
+    fun consumePendingBind(context: Context, appWidgetId: Int): Boolean {
+        val p = prefs(context)
+        val raw = readString(p, PREF_WIDGET_BIND_PENDING) ?: return false
+        val f = raw.split(WIDGET_BIND_FIELD_SEP)
+        if (f.size != 5) {
+            p.edit().remove(PREF_WIDGET_BIND_PENDING).commit()
+            return false
+        }
+        if (f[0].trim() != WIDGET_KIND_HABIT) return false
+        val targetKind = f[1].trim()
+        val ref = f[2].trim()
+        val sub = f[3].trim()
+        val at = f[4].trim().toLongOrNull()
+        val now = System.currentTimeMillis()
+        val fresh = at != null &&
+            now - at <= WIDGET_BIND_PENDING_TTL_MS &&
+            now - at >= -WIDGET_BIND_PENDING_SKEW_MS
+        if (!fresh || targetKind.isEmpty() || ref.isEmpty()) {
+            p.edit().remove(PREF_WIDGET_BIND_PENDING).commit()
+            return false
+        }
+        p.edit()
+            .putString(
+                "$PREF_WIDGET_BIND_PREFIX$appWidgetId",
+                "$targetKind$WIDGET_BIND_FIELD_SEP$ref$WIDGET_BIND_FIELD_SEP$sub",
+            )
+            .remove(PREF_WIDGET_BIND_PENDING)
+            .commit()
+        return true
+    }
+
+    /** 让指定类的实例立刻重绘（[notifyWidgets] 的单类版本）。 */
+    fun notifyWidget(context: Context, cls: Class<*>, ids: IntArray) {
+        if (ids.isEmpty()) return
+        val i = Intent(context, cls).apply {
+            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+        }
+        context.sendBroadcast(i)
+    }
+
     /**
      * 行内勾圈的**闭环动作**意图（待办 2×2）。
      *
@@ -118,6 +237,9 @@ internal object LhWidget {
     const val SEG_TODAY = "today"
     const val SEG_LEDGER_ADD = "ledger/add"
 
+    /** 习惯页（打卡-单习惯 2×2 的点击去向·白名单既有段）。 */
+    const val SEG_HABIT_CHECK = "habit/check"
+
     // ── 设置页 / 配置 Activity 共用的偏好（F2-4「禁两套」）──
     //
     // 文件＝`LegacySharedPreferencesPlugin.SHARED_PREFERENCES_NAME`；键前缀＝Dart
@@ -133,6 +255,33 @@ internal object LhWidget {
 
     /** 待勾圈闭环但**没能当场写库**的 id 队列（逗号分隔；App 下次启动时排空）。 */
     const val PREF_PENDING_TOGGLES = FLUTTER_KEY_PREFIX + "desktop.widget_pending_toggles"
+
+    // ── 按实例绑定（批A · 与 Dart `features/widget/domain/widget_binding.dart` 同口径）──
+    //
+    // ⚠ 本块**必须**排在 `FLUTTER_KEY_PREFIX` 之后：`const val` 的初始化按**声明次序**
+    //   解析，写在前面编译器直接报 `Variable 'FLUTTER_KEY_PREFIX' must be initialized`
+    //   （批A 首编译即踩）。搬动本块时别顺手挪回文件上半部分。
+    // 存储＝`FlutterSharedPreferences` 的 `flutter.desktop.widget_bind.*`：
+    //   一实例一键 `…widget_bind.<appWidgetId>`＝`kind␟ref␟sub`；
+    //   全局默认 `…widget_bind.default`（老实例回落）；
+    //   预选交接位 `…widget_bind.pending`＝`widgetKind␟kind␟ref␟sub␟atMs`（一次性·有期限）。
+    const val PREF_WIDGET_BIND_PREFIX = FLUTTER_KEY_PREFIX + "desktop.widget_bind."
+    const val PREF_WIDGET_BIND_DEFAULT = PREF_WIDGET_BIND_PREFIX + "default"
+    const val PREF_WIDGET_BIND_PENDING = PREF_WIDGET_BIND_PREFIX + "pending"
+
+    /** 绑定值字段分隔符（与 Dart `kWidgetBindFieldSep` 同值）。 */
+    const val WIDGET_BIND_FIELD_SEP = '\u001f'
+
+    /** 绑定目标的 `kind`：打卡走 `nav` 前缀形态（`ref`＝habit，`sub`＝习惯名）。 */
+    const val WIDGET_TARGET_KIND_NAV = "nav"
+    const val WIDGET_REF_HABIT = "habit"
+
+    /** 目标小组件种类（与 Dart `kWidgetKindHabit` 同值·预选认领用）。 */
+    const val WIDGET_KIND_HABIT = "habit"
+
+    /** 预选绑定有效期／回拨容忍（与 Dart `kWidgetBindPendingTtlMs` / `…SkewMs` 同值）。 */
+    const val WIDGET_BIND_PENDING_TTL_MS = 2 * 60 * 1000L
+    const val WIDGET_BIND_PENDING_SKEW_MS = 60 * 1000L
 
     /** 快照（home_widget 自有文件 `HomeWidgetPreferences`）· C5 唯一读数源。 */
     fun snapshot(context: Context): SharedPreferences = HomeWidgetPlugin.getData(context)

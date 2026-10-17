@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""生成四枚小组件的 previewImage（浅/深两档）。
+"""生成五枚小组件的 previewImage（浅/深两档）。
 
 为什么要这个脚本：MIUI 桌面**只认 `previewImage`**，「添加小部件」列表里没有真实
 预览图就回落成应用图标（四枚长得一模一样，用户分不清哪枚是哪枚）。
@@ -151,11 +151,36 @@ def draw_ledger(c):
     return img
 
 
+def draw_habit(c):
+    """打卡-单习惯 2×2 · 四件套（标题／习惯名／状态行／主按钮）。
+
+    坐标按 `lh_widget_habit.xml` 实算：padding 13dp；标题 9sp → 习惯名 16sp bold
+    （marginTop 4）→ 状态行（marginTop 5，状态点 8dp 垂直居中）→ gap 撑开 → 按钮 40dp 贴底。
+    """
+    img = canvas(W22, H22)
+    card(img, c)
+    d = ImageDraw.Draw(img)
+    pad = 13
+    text(d, (pad, pad + 1), 'LifeHarness · 打卡', 9, c['sub'])
+    text(d, (pad, 29), '早起', 16, c['fg'], bold=True)
+    # 状态行：实心状态点（未打卡＝off 档，用 track 色）+ 连击副文案
+    cy = 63.5
+    d.ellipse([dp(pad), dp(cy - 4), dp(pad + 8), dp(cy + 4)], fill=c['track'])
+    text(d, (pad + 14, cy), '连击 12 天 · 今日未打卡', 10, c['sub'], anchor='lm')
+    # 主按钮：强调色实心、圆角 12dp、贴底
+    by, bh = H22 - pad - 40, 40
+    d.rounded_rectangle([dp(pad), dp(by), dp(W22 - pad), dp(by + bh)],
+                        radius=dp(12), fill=c['acc'])
+    text(d, (W22 / 2, by + bh / 2), '打卡', 13, c['btn_fg'], bold=True, anchor='mm')
+    return img
+
+
 CARDS = {
     'overview': draw_overview,
     'quick': draw_quick,
     'todo': draw_todo,
     'ledger': draw_ledger,
+    'habit': draw_habit,
 }
 
 

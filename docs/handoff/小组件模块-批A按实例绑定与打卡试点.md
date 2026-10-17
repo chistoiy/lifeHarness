@@ -27,7 +27,7 @@
   一律 `bash tools/ftest_waves.sh <批次名> <文件…>` **一文件一波**；**本批动 `android/**` ⇒ 收口必跑 `bash tools/kotlin_check.sh`**。
 - **变异刀清单（≤3 刀 · md5 复原）**＝① 绑定层摘「老实例回落全局默认」→ 老实例读空全变占位的用例红；
   ② 交互出口改原生直写（绕 isolate）→ 同源性守护例红；③ 摘本地回显（执行后不写显示态）→ 回显收敛例红。
-- **新增常驻用例**＝四件新文件（例数随落刀进度回填）：**① `test/widget_binding_test.dart` 已落（16 例全绿·2026-10-18）**；**② `test/widget_picker_test.dart` 已落（20 例全绿）**；**③ `test/widget_config_test.dart` 已落（15 例全绿·配置页先选后落）**；④ `test/widget_checkin_echo_test.dart`（待交互闭环）。
+- **新增常驻用例**＝五件新文件（例数随落刀进度回填）：**① `test/widget_binding_test.dart` 已落（16 例全绿·2026-10-18）**；**② `test/widget_picker_test.dart` 已落（20 例全绿）**；**③ `test/widget_config_test.dart` 已落（15 例全绿·配置页先选后落）**；**④ `test/widget_render_test.dart` 已落（22 例全绿·渲染层六组）**；⑤ `test/widget_checkin_echo_test.dart`（待交互闭环）。
 - **回灌成句**＝原型侧新增打卡四格形态＋「先选后落」流程样张（五段目标区沿用 NFC 弹层），过门后回灌 `prototype/index-desktop.html` 与本壳入口/角标；
   同步 `docs/UI组件规范.md` 登记小组件组件段与失效三态口径。
 - **复测包编号**＝**6174 已出·已装机**（2026-10-18·arm64 单 ABI·versionCode 8174·md5 `cffb8d72`·无线装 `192.168.31.173:38151`·`install -r` 保数据·启动无 FATAL）。**下一枚＝攒 6175（未构建）**——实现批动 `android/**`（新 provider＋弹窗 Activity＋配置页改造＋清单），按攒批口径并入下一枚（产品令装机时一次钉版 `0.2.15+<编号+2000>`，形态以机上包为准）。
@@ -88,7 +88,16 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
   - **为什么预选要带「种类」＋期限**：`requestPinAppWidget` 的 appWidgetId 由系统在落桌面那一刻才分配，App 侧拿不到 ⇒「先选」与「后落」之间必须有交接位；而用户在**系统**弹窗里点取消时没人消费它——不设期限、不校验种类，下次随手从部件库拖出的别的枚就会被误绑（「我没选过它，它自己绑上了」）。
   - **第④步（配置页读预选无感回写）未随本刀落**：它要在原生 `WidgetConfigActivity.onCreate` 里按 provider 类名认出「这是哪一枚」，而打卡枚 provider 属渲染层——两处各猜一个类名必漂移，故与 provider **同刀落**（同一次提交里定名，守护测试交叉核对键/格式/TTL）。
   - **测试工装口径（新坑）**：`AppDatabase.instance.open()` 走 sqflite 全局工厂，在 Windows 测试环境会**卡死**（实测 2 分钟超时零输出，`.timeout` 也救不了——ffi no-isolate 下同步阻塞）⇒ 一律用 picker 既有的 `db:` 注入缝，不在测试里初始化整库。
-- **下一步（按 §2 五层）**：渲染层（打卡四格 provider：标题/副文案/主按钮/状态点共享模板＋深浅色＋失效三态布局；**配置页无感回写同刀**）→ 交互闭环（点击→乐观回显→后台 isolate→同源仓库出口；失败入待排空队列·App 启动排空）。
+- **渲染层已落（第四刀·2026-10-18 深夜·动 `android/**`）**：打卡-单习惯 2×2 全链打通（Dart 快照 → 原生 RemoteViews → 配置页认领）。
+  - **Dart 侧**：`LhWidgetKeys.habitItems`（白名单第 10 键）＋`WidgetHabitItem`／`encodeWidgetHabitItems`（唯一编码出口·条目 `\u001e`／字段 `\u001f`／序 name·streak·done）＋`LhWidgetNames.habitCheck`＋`pushDesktopWidgetSnapshot` 第五枚重绘；`buildSnapshot` 用 `habit.book`（＝**未归档**全量）出今日状态表——归档/删除的习惯不进表，绑着它的实例自然查不到行 ⇒ 桌面转「内容已失效」（不需要另设失效标记位）。
+  - **原生侧**：`HabitCheckWidget`（四件套＝标题／习惯名／状态行／主按钮；失效三态**共用** `lh_wg_ph` 占位只换文案）＋`lh_widget_habit.xml`＋`lh_widget_habit_info.xml`（**全仓唯一**写 `android:configure` 的枚）＋drawable 四件（btn／btn_off／dot_on／dot_off）＋两档 `lh_wg_btn_off` 色值＋文案九条＋Manifest receiver＋`pinWidgetById` 的 `habit` 分支；`LhWidgetSupport` 增 `HabitRow`／`readHabitRows`／`boundHabitName`（实例键优先→回落 `…widget_bind.default`）／`consumePendingBind`／`notifyWidget`。
+  - **第④步无感回写（同刀落的理由见上段）**：`WidgetConfigActivity.onCreate` 在 id 校验后按 `providerClassName()` 认领——类名是打卡枚、或取不到（配置阶段系统可能还没建好记录）⇒ `consumePendingBind` → 立刻 `RESULT_OK` 收摊，且**早于 `setContentView`**（晚一步用户会看到配置页闪一下）；其余四枚仍走四开关老路。
+  - **三处坑（都属「看着对、真机错」）**：① `const val PREF_WIDGET_BIND_PREFIX = FLUTTER_KEY_PREFIX + …` 写在 `FLUTTER_KEY_PREFIX` 声明**之前** ⇒ Kotlin 报 `must be initialized`（`const val` 初始化按**声明次序**解析）→ 整块下移到该常量之后，原处留注记防搬回；② 布局里状态点与撑开器原用裸 `<View>` ⇒ 撞 RemoteViews 白名单（与 8150 装机实锤同一类 InflateException）→ 状态点改 `ImageView`、撑开器改空 `LinearLayout`；③ 「已打卡不可点」只换淡底色**不算**不可点——必须 `setOnClickPendingIntent(R.id.lh_wg_btn, null)` 撤掉意图，否则有点按反馈却毫无反应（比灰着更让人困惑）。
+  - **闸**：`test/widget_render_test.dart` 新建 **22 例全绿**（编码四／跨语言同源三／失效三态文案＋判定次序二／渲染语句四／布局三／绑定与预选六）；`test/desktop_widget_test.dart` 同步五枚口径（**30 例全绿**，configure 断言改写为「**仅**打卡枚写」＋反向「只许它一枚」）；六文件六波 ALL-GREEN；`bash tools/kotlin_check.sh` `BUILD SUCCESSFUL`。变异三刀（摘 `habitNameOf` 的 ref 校验／摘 `consumePendingBind` 的种类校验／给编码加 24 字截断）各自对应例红，md5 逐刀复原全等。
+  - **变异刀抓到的假绿**：「名字不截断」的样例原本**正好 24 字**，落在 `length > 24` 边界外 ⇒ 加截断后仍绿。样例加长到 33 字并补「须越过 24 字边界」自断言后该刀才真红——这类「样例没踩到边界」的假绿只有变异能现形。
+  - **预览图**：`tools/gen_widget_previews.py` 增第五枚 `draw_habit`（浅/深两档；MIUI 只认 `previewImage`，缺图会回落应用图标、五枚长得一模一样）。
+  - **本刀刻意未做**：未打卡按钮与占位态仍指 `lh://habit/check`（白名单既有段）——**广播直达**与「点占位去设置页」（需新增 `lh://settings/desktop` 段）留给交互闭环刀，避免跨线改 C19 白名单与路由解析。
+- **下一步**：交互闭环（点击打卡 → 乐观回显 → 后台 isolate → 同源仓库出口；失败入待排空队列·App 启动排空；`test/widget_checkin_echo_test.dart`）→ 之后攒 6175 出包（产品要装机就提前，届时设置页「添加小组件」才真能落桌面）。
 
 ### §7.1 产品追加需求：记一笔「不打开 App 直接弹窗记账」（2026-10-18 拍板走 A 路）
 

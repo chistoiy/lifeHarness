@@ -37,6 +37,22 @@
     <string name="lh_widget_ledger_hint">点一下记一笔</string>
     <string name="lh_widget_a11y_ledger">今日支出 %1$s，本月支出 %2$s，本月结余 %3$s</string>
 
+    <!-- 批A · 2×2 打卡-单习惯（一枚绑一个习惯，点按钮即打卡） -->
+    <string name="lh_widget_habit_name">LifeHarness · 打卡</string>
+    <string name="lh_widget_habit_desc">单习惯打卡，点一下即打卡</string>
+    <string name="lh_widget_habit_btn">打卡</string>
+    <string name="lh_widget_habit_done">已打卡</string>
+    <string name="lh_widget_habit_streak">连击 %1$d 天 · 今日未打卡</string>
+    <string name="lh_widget_habit_streak_done">连击 %1$d 天 · 今日已打卡</string>
+    <string name="lh_widget_habit_streak0">今日未打卡</string>
+    <string name="lh_widget_habit_streak0_done">今日已打卡</string>
+    <string name="lh_widget_a11y_habit">%1$s，连击 %2$d 天，%3$s</string>
+
+    <!-- 批A · 失效三态（产品 2026-10-17 勾定文案；点击起 App 开配置/管理页） -->
+    <string name="lh_widget_wait_data">等待数据</string>
+    <string name="lh_widget_no_binding">未选择内容，点此设置</string>
+    <string name="lh_widget_source_invalid">内容已失效，点此重新选择</string>
+
     <!-- 配置 Activity（F2-4） -->
     <string name="lh_widget_cfg_title">选择显示内容</string>
     <string name="lh_widget_cfg_title_of">配置：%1$s</string>    <string name="lh_widget_cfg_hint">与「设置 › 桌面与快捷方式」共用同一份偏好，改哪边都生效。</string>
