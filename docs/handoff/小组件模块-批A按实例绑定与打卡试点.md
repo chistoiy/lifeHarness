@@ -16,6 +16,7 @@
 | 3 | 绑定存储＝**SharedPreferences 映射**（键带桌面实例 id）；不动 DB schema、不进备份 | 评估件 §2.3 层3；跨设备同步本轮不做 |
 | 4 | 交互闭环＝**后台 isolate 跑 Dart 走仓库出口**（与 App 内同一出口）；本地回显三态＝乐观/收敛/回滚入队 | 评估件 §4.1 实证：打卡非单列写（流水 upsert＋连击重算＋子项），禁原生复刻 |
 | 5 | 失效三态（无快照/无绑定/源失效）＋占位布局；命名改「功能-形态」口径 | 评估件 §5.3-3/4（一叶日记借鉴） |
+| 6 | **「记一笔」弹窗＝版式同源记账页**（四类型 tab＋分类行＋子类 chips＋四则键盘），实现走**对话框 Activity 内嵌 Flutter 渲染同一份表单**（原生复刻降为备选） | 2026-10-18 产品令「复用记账页那种四种类型与子类样式」＋拍板件 §五对照表 |
 
 ## §1 · ⚙ 执行面板（六项）
 
@@ -29,7 +30,7 @@
 - **新增常驻用例**＝三件新文件（例数随落刀进度回填）：**① `test/widget_binding_test.dart` 已落（16 例全绿·2026-10-18）**；② `test/widget_picker_test.dart`（待选择层）；③ `test/widget_checkin_echo_test.dart`（待交互闭环）。
 - **回灌成句**＝原型侧新增打卡四格形态＋「先选后落」流程样张（五段目标区沿用 NFC 弹层），过门后回灌 `prototype/index-desktop.html` 与本壳入口/角标；
   同步 `docs/UI组件规范.md` 登记小组件组件段与失效三态口径。
-- **下一复测包编号**＝**攒 6174（未构建）**——本批动 `android/**`（新 provider＋配置页改造＋清单），按攒批口径并入下一枚（产品令装机时一次钉版 `0.2.15+4174`，形态以机上包为准）。
+- **复测包编号**＝**6174 已出·已装机**（2026-10-18·arm64 单 ABI·versionCode 8174·md5 `cffb8d72`·无线装 `192.168.31.173:38151`·`install -r` 保数据·启动无 FATAL）。**下一枚＝攒 6175（未构建）**——实现批动 `android/**`（新 provider＋弹窗 Activity＋配置页改造＋清单），按攒批口径并入下一枚（产品令装机时一次钉版 `0.2.15+<编号+2000>`，形态以机上包为准）。
 - **互斥面（写区）**＝`lib/core/platform/desktop_widget.dart`·`lib/features/widget/**`（新）·`lib/features/nfc/presentation/nfc_sheets.dart`（仅加参数·不挪既有逻辑）·`lib/shared/linkage/nfc_mounts.dart`（只读数据源）·`android/app/src/main/AndroidManifest.xml`·`android/app/src/main/kotlin/com/lifeharness/lifeharness/MainActivity.kt`·`WidgetConfigActivity.kt`＋新 provider/布局/信息 XML·`test/widget_*`·`prototype/index-desktop.html`·`docs/UI组件规范.md`。
   ⚠ **与在飞 NFC 线共用 `android/**`、清单、主活动、nfc 选择器 ⇒ 串行**：NFC 在飞线收口前，本批 android 刀与 nfc_sheets 参数化两处不动，先落 Dart 侧（绑定层/选择器参数化/回显逻辑）。
 
@@ -56,6 +57,13 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 ## §5 开工检查单（新会话第一件事）
 
 1. 读评估件 §一~§五＋本工单 §1 面板；2. 过 §3 拍板五项（产品勾定后回填面板「批内增量」对应项）；3. 与在飞 NFC 线确认 `android/**` 写面串行（先落 Dart 侧）；4. 原型样张先过门再动实现；5. 按 §2 五层顺序落刀，每刀编译＋测试＋doclint。
+
+**新会话从这里接（2026-10-18 收尾态）**：
+
+- **已交付**：绑定层第一刀（`67f1eda9`·域＋store＋16 例）；原型整改（4×1 三区／待办勾圈／**记一笔弹窗版式同源**·`widget_acheck` 38/38）；复测包 **6174 已出已装机**（8174）。
+- **卡在**：**原型样张待产品过门**（截图＝`tempWork/wa-shots/dt-desk-quickpopup-{open,transfer,debt}.png`＋`dt-widget-quickpopup-card.png`）。过门后第一刀＝**对话框 Activity（内嵌 Flutter 渲染记账页同一份表单）**，见拍板件 §五；不要再按「原生复刻紧凑表单」起手。
+- **写区**：本批 `android/**` 与在飞 NFC 线**串行**（NFC 收口前只落 Dart 侧：选择器参数化／配置页 provider／回显逻辑）。
+- **口径提醒**：`--target-platform android-arm64` **不**自动 +2000（偏移只在 `split-per-abi`）⇒ 装机号靠 `--build-number <编号+2000>`＋`local.properties` 同值钉版。
 
 ## §6 原型样张交付记录（2026-10-17 · **待产品过门**）
 
