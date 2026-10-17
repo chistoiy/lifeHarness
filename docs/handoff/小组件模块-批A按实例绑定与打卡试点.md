@@ -26,7 +26,7 @@
   一律 `bash tools/ftest_waves.sh <批次名> <文件…>` **一文件一波**；**本批动 `android/**` ⇒ 收口必跑 `bash tools/kotlin_check.sh`**。
 - **变异刀清单（≤3 刀 · md5 复原）**＝① 绑定层摘「老实例回落全局默认」→ 老实例读空全变占位的用例红；
   ② 交互出口改原生直写（绕 isolate）→ 同源性守护例红；③ 摘本地回显（执行后不写显示态）→ 回显收敛例红。
-- **新增常驻用例**＝三件新文件（例数随落刀进度回填），攒到下轮发版独占全量归位。
+- **新增常驻用例**＝三件新文件（例数随落刀进度回填）：**① `test/widget_binding_test.dart` 已落（16 例全绿·2026-10-18）**；② `test/widget_picker_test.dart`（待选择层）；③ `test/widget_checkin_echo_test.dart`（待交互闭环）。
 - **回灌成句**＝原型侧新增打卡四格形态＋「先选后落」流程样张（五段目标区沿用 NFC 弹层），过门后回灌 `prototype/index-desktop.html` 与本壳入口/角标；
   同步 `docs/UI组件规范.md` 登记小组件组件段与失效三态口径。
 - **下一复测包编号**＝**攒 6174（未构建）**——本批动 `android/**`（新 provider＋配置页改造＋清单），按攒批口径并入下一枚（产品令装机时一次钉版 `0.2.15+4174`，形态以机上包为准）。
@@ -66,3 +66,12 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 - **闸链全绿**：protogate strict 0 违例（290 屏）·protostructcheck 6/6·REGISTRY CLEAN 294/294·CARDS CLEAN 15/15·doclint PASS。
 - **过门材料**：三张截图（dt-widget 打卡四格／dt-desk 桌面落枚／p-sub-desktop 小部件卡）落仓库外 `tempWork/wa-shots`，随会话消息附上。
 - **过门后**才动实现：Dart 侧先行（绑定层／选择器参数化／回显逻辑）；`android/**` 刀与 `nfc_sheets.dart` 参数化两处待 NFC 在飞线收口再动（§1 互斥面）。
+
+## §7 实施记录（2026-10-18 · 增量推进中）
+
+- **既有 widget 整改（产品反馈·原型侧已交付 `52d79315`）**：① 4×1 快捷记录两区→三区（记一笔｜今日支出｜本月结余·信息密度上调·8 处样张同版）；② 待办勾圈示意层可点（原 6 行只 1 行接 toast、其余死键——真机批3 已通，原型示意层没做全）。闸 `widget_acheck` 25/25（增钉两断言·变异一刀红·md5 复原全等）。
+  ⚠ 4×1 三区的**原生实现**要动 `android/**`（与 NFC 在飞线串行），落排期池待排；真机勾圈无需实现（批3 已过真机门）。
+- **绑定层已落（Dart 侧第一刀·纯函数＋prefs）**：`lib/features/widget/domain/widget_binding.dart`（目标三件套同构 `NfcTargetKind`·控制字符编解码·实例回收·老实例回落·失效三态判据）＋`lib/features/widget/data/widget_binding_store.dart`（一实例一键 `desktop.widget_bind.<id>`＋全局默认键·loadAll/prune/resolve）＋ `test/widget_binding_test.dart` **16 例全绿**·analyze 干净·变异一刀（回落打死）红后 md5 复原全等。
+  - **架构纪律**：provider 未进 `core/providers.dart`（R2：core 禁依赖 features·组合根白名单只有 router）——store 构造注入自足，provider 留配置页那刀随 feature 侧 providers 文件一起加（免死代码）。
+  - **存量红上报（非本批引入）**：`test/desktop_widget_test.dart` 1 例红＝守卫「activity 禁空 taskAffinity」（10-15 桌面批3 立）撞 `NfcRelayActivity` 空 affinity（10-17 NFC 批3c 故意为之·excludeFromRecents＋noHistory 的中转界面）。跨线冲突，按互斥纪律不动 NFC 线 Manifest/守卫，**待 NFC 在飞线收口时裁定**（守卫加白名单条目或收窄扫描面二选一）。
+- **下一步（按 §2 五层）**：选择层（共享五段选择器参数化·新组件不碰 nfc_sheets.dart）→ 配置页 → 渲染层/交互闭环（后两层待 NFC 线收口解封 android/**）。
