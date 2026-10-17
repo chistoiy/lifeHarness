@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/ai/ai_review.dart' show aiRootNavKey;
+import 'core/logging/app_log.dart' show AppLog, LhLogLine;
 import 'core/platform/launch_route.dart'
     show markLaunchRouteReady, takeLaunchRoute;
 import 'core/platform/open_intent.dart'
@@ -107,11 +108,19 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       final route = await takeLaunchRoute();
       if (route == null) return;
       final navCtx = aiRootNavKey.value?.currentState?.context;
-      if (navCtx == null || !navCtx.mounted) return;
+      if (navCtx == null || !navCtx.mounted) {
+        return;
+      }
       if (route.isNfc) {
         // NFC 卡片模块批2：贴卡触发链（冻结档 §4.4）。总闸/去抖/查表/失效/确认/执行
         // 全在 nfc_trigger 内；本处只负责组装 ref/host（C32/B31：自取，不接受外部 context）。
-        await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
+        // 兜底：触发链内部已各自静默，这里的 catch 只防「未预期异常把冷启动消费打断」，
+        // 落 AppLog 供真机排障（不弹层不 toast——贴卡是一次性动作，报错也不该打断用户）。
+        try {
+          await nfcHandleLaunch(route, nfcTriggerDepsOf(ref, navCtx));
+        } catch (e) {
+          AppLog.reportError('NFC 贴卡触发失败：$e', src: LhLogLine.srcSystem);
+        }
         return;
       }
       // 目标路由查不到 → 走 unknownRouteFallback（B4），不抛 GoException。
@@ -125,6 +134,8 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
         // 壳内路由（等价点底栏 tab）：`go` 让栈顶唯一、底栏高亮正确。
         router.go(route.route);
       }
+    } catch (e) {
+      AppLog.reportError('启动路由消费失败：$e', src: LhLogLine.srcSystem);
     } finally {
       _launchConsuming = false;
     }

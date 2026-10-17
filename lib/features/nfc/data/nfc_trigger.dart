@@ -169,7 +169,9 @@ Future<NfcTriggerOutcome> nfcHandleLaunch(
   if (cardId == null) return NfcTriggerOutcome.silent;
 
   // ① 总闸（C42：先于一切；关＝完全静默，不报错不提示不震动不计次）。
-  if (!deps.prefs.loadNfcEnabled()) return NfcTriggerOutcome.silent;
+  if (!deps.prefs.loadNfcEnabled()) {
+    return NfcTriggerOutcome.silent;
+  }
 
   // ③ cardId 格式校验（B35：非法静默丢弃，不回显 id）。
   //    放在去抖之前——非法 id 不占去抖窗口，也不产生任何可见反应。
@@ -249,13 +251,18 @@ Future<NfcTriggerOutcome> _execute(
       // 本批（2b）尚未接入 toggle ⇒ 视为不可用，静默（不误当 nav 直接 go）。
       return NfcTriggerOutcome.silent;
     }
-    final done = await toggle(
-      card.targetKind,
-      card.targetRef,
-      targetName, // 目标名（计时分类名／书名；回执文案用·C22）
-      card.name,
-    );
-    return done ? NfcTriggerOutcome.executed : NfcTriggerOutcome.silent;
+    try {
+      final done = await toggle(
+        card.targetKind,
+        card.targetRef,
+        targetName, // 目标名（计时分类名／书名；回执文案用·C22）
+        card.name,
+      );
+      return done ? NfcTriggerOutcome.executed : NfcTriggerOutcome.silent;
+    } catch (_) {
+      // 有状态卡 toggle 抛异常 ⇒ 静默不打断（C11：NFC 模块内零日志，卡号/指纹敏感）。
+      return NfcTriggerOutcome.silent;
+    }
   }
 
   // `nav.*`（含打卡 / 呵护宝宝两枚具体动作）：解析动作路由并 go/push。

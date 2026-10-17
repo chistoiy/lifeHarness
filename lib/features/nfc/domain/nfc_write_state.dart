@@ -162,9 +162,12 @@ NfcWriteState nfcWriteFailureOf(String? errorCode) => switch (errorCode) {
 
 /// NDEF 记录 → URI 串（读侧用：判断「已有内容」与「本机另一张卡」）。
 ///
-/// 两种合法承载（Android 的 `NdefRecord.toUri()` 同口径）：
-/// · `tnf = 3`（absoluteUri）：payload 直接是 UTF-8 的 URI；
-/// · `tnf = 1`（wellKnown）且 `type = "U"`：payload 首字节是缩写码，余下是 UTF-8 尾部。
+/// 两种合法承载：
+/// · `tnf = 1`（wellKnown）且 `type = "U"`：payload 首字节是缩写码，余下是 UTF-8 尾部
+///   ——**本机写入用这一支**（Android 系统唯一可靠识别的 URI 形式，见
+///   `nfc_tag_io.dart` 的 `nfcUriRecordOf` 段注）；
+/// · `tnf = 3`（absoluteUri）：payload 直接是 UTF-8 的 URI——**兼容别处写过的卡**，
+///   读得进来，但 ⚠ 本机**不再**用此格式写（真机实锤系统解析为空、NDEF 匹配失败）。
 ///
 /// 返回 null ＝ 本条不是 URI 记录（**不猜**：认不出就当没有）。
 String? nfcUriOfNdefRecord({

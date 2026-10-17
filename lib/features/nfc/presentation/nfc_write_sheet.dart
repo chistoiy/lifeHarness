@@ -192,7 +192,9 @@ class _NfcWriteSheetState extends State<_NfcWriteSheet>
     final probe = _probe;
     final uri = nfcTagUriOf(widget.card.id);
     final cap = nfcWriteCapacityPrecheck(
-      messageBytes: nfcTagUriBytes(uri),
+      // 按**整条消息**算（URI 记录 ＋ AAR 记录）——少算 AAR 会让容量吃紧的
+      // 标签「预判过、实写失败」，用户看到的是莫名写失败。
+      messageBytes: nfcMessageBytesOf(uri),
       maxSize: probe?.maxSize ?? 0,
     );
     if (cap != null) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show File;
 
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
@@ -184,11 +185,61 @@ void main() {
     });
 
     test('单条 URI 记录的字节数（写前容量预判用）', () {
-      // 3 字节头 ＋ 'lh://nfc/' 9 ＋ 12 位 id ＝ 24
-      expect(nfcTagUriBytes(nfcTagUriOf('aB3xY9zQ1mN0')), 24);
+      // 3 字节头 ＋ 1 字节缩写码（0x00）＋ 'lh://nfc/' 9 ＋ 12 位 id ＝ 25
+      expect(nfcTagUriBytes(nfcTagUriOf('aB3xY9zQ1mN0')), 25);
     });
 
-    test('读回：TNF absoluteUri（3）直接解 payload', () {
+    test('整条消息字节数＝URI 记录 ＋ AAR 记录（容量预判不能少算 AAR）', () {
+      final uri = nfcTagUriOf('aB3xY9zQ1mN0');
+      // AAR：3 字节头 ＋ 'android.com:pkg' 15 字符 ＋ 'com.lifeharness.lifeharness' 27 字符
+      expect(nfcAarBytes(), 3 + 15 + 27);
+      expect(nfcMessageBytesOf(uri), nfcTagUriBytes(uri) + nfcAarBytes());
+      expect(nfcMessageBytesOf(uri), 25 + 45);
+    });
+
+    test('写侧构 AAR 记录：TNF=4 external ＋ type "android.com:pkg" ＋ payload 包名', () {
+      // 2026-10-17 真机对照实锤：只写 URI 记录时系统打 `other scheme lh` 后
+      // 不启动 Activity、只发「NFC 卡片」通知（＝用户看到的「未处理」）。
+      // 同类 App 的可用标签＝「业务记录 ＋ AAR」两条，AAR 是系统直接拉起的唯一凭据。
+      final aar = nfcAarRecordOf();
+      expect(tnfCodeOf(aar.typeNameFormat), 4);
+      expect(utf8.decode(aar.type), 'android.com:pkg');
+      expect(utf8.decode(aar.payload), kNfcAarPackage);
+      // AAR 不能被读侧误认成 URI 记录（否则「已有内容」判定会乱）。
+      expect(
+        nfcUriOfNdefRecord(
+            tnf: tnfCodeOf(aar.typeNameFormat),
+            type: aar.type,
+            payload: aar.payload),
+        isNull,
+      );
+    });
+
+    test('AAR 包名与 build.gradle.kts 的 applicationId 逐字一致（防漂移）', () {
+      // 不一致 ⇒ AAR 指向不存在的包 ⇒ 系统跳应用商店而不是拉起本 App。
+      final gradle = File('android/app/build.gradle.kts').readAsStringSync();
+      final m = RegExp(r'''applicationId\s*=\s*"([^"]+)"''').firstMatch(gradle);
+      expect(m, isNotNull, reason: 'build.gradle.kts 里找不到 applicationId');
+      expect(m!.group(1), kNfcAarPackage);
+    });
+
+    test('写侧构记录：TNF=1 wellKnown ＋ type "U" ＋ 首字节 0x00（真机实锤口径）', () {
+      // 2026-10-17 真机：TNF=3 会被系统当「首字节=URI 缩写码」解 ⇒ scheme 为 null、
+      // No match NDEF、回落 TECH_DISCOVERED ⇒ 弹「NFC 卡片未处理」。写侧必须走 RTD-URI。
+      final r = nfcUriRecordOf('lh://nfc/aB3xY9zQ1mN0');
+      expect(tnfCodeOf(r.typeNameFormat), 1);
+      expect(r.type, const [0x55]); // 'U'
+      expect(r.payload.first, 0x00); // 无前缀
+      expect(utf8.decode(r.payload.sublist(1)), 'lh://nfc/aB3xY9zQ1mN0');
+      // 与读侧往返自洽：本机写的卡，本机一定读得回。
+      expect(
+        nfcUriOfNdefRecord(
+            tnf: tnfCodeOf(r.typeNameFormat), type: r.type, payload: r.payload),
+        'lh://nfc/aB3xY9zQ1mN0',
+      );
+    });
+
+    test('读回：TNF absoluteUri（3）直接解 payload（兼容别处旧卡·本机不再写此格式）', () {
       final payload = utf8.encode('lh://nfc/aB3xY9zQ1mN0');
       expect(
         nfcUriOfNdefRecord(tnf: 3, type: const [], payload: payload),

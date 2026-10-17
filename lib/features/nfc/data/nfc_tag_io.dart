@@ -43,8 +43,70 @@ class NfcTagProbe {
 }
 
 /// 单条 URI 记录的字节数（写前容量预判用；与 `NdefRecord.byteLength` 同口径：
-/// 头部 3 字节 ＋ payload 长度，无 id、无长记录扩展）。
-int nfcTagUriBytes(String uri) => 3 + utf8.encode(uri).length;
+/// 头部 3 字节 ＋ 1 字节缩写码 ＋ payload 长度，无 id、无长记录扩展）。
+int nfcTagUriBytes(String uri) => 4 + utf8.encode(uri).length;
+
+/// `lh://` 记录的 URI identifier code：`lh` 不在 NDEF RTD-URI 缩写表内 ⇒ 用 `0x00`
+/// （＝「无前缀，后面就是完整 URI」），与 Android `NdefRecord.createUri` 同口径。
+const int kNdefUriCodeNone = 0x00;
+
+/// AAR（Android Application Record）的**类型串**——NDEF 规范固定值，
+/// 与包名无关（payload 才是包名）。
+const String kNfcAarType = 'android.com:pkg';
+
+/// 本 App 的 Android 包名（AAR 记录的 payload）。
+///
+/// ⚠ 必须与 `android/app/build.gradle.kts` 的 `applicationId` 逐字一致——
+/// 不一致则 AAR 指向不存在的包，系统会跳应用商店而不是拉起本 App。
+/// 守护：`nfc_write_state_test` 直接读 `build.gradle.kts` 交叉断言。
+const String kNfcAarPackage = 'com.lifeharness.lifeharness';
+
+/// 一条 AAR 记录的字节数（头部 3 ＋ type 长度 ＋ payload 长度，无 id）。
+int nfcAarBytes([String packageName = kNfcAarPackage]) =>
+    3 + utf8.encode(kNfcAarType).length + utf8.encode(packageName).length;
+
+/// **整条写入消息**的字节数（写前容量预判用）＝URI 记录 ＋ AAR 记录。
+///
+/// ⚠ 必须按整条消息算：只算 URI 记录会少算 AAR 那几十字节，容量吃紧的标签
+/// 会「预判通过、实写失败」（B5 的五档分派里表现为写失败而非容量不足，误导用户）。
+int nfcMessageBytesOf(String uri, [String packageName = kNfcAarPackage]) =>
+    nfcTagUriBytes(uri) + nfcAarBytes(packageName);
+
+/// NDEF **标准 URI 记录**（RTD-URI · TNF=1 `WELL_KNOWN` ＋ type `"U"`）。
+///
+/// ⚠ **不要用 TNF=3（absoluteUri）**（2026-10-17 真机实锤）：Android 的
+/// `NfcDispatcher` 把 TNF=3 的 payload **首字节当 URI identifier code 解析**
+/// （`NotificationDispatcher` 直接打到 `scheme is null`）——`'l'`＝0x6C 不在缩写表
+/// ⇒ 整条 URI 解析为空 ⇒ `No match NDEF` ⇒ 回落 `TECH_DISCOVERED` ⇒ 无 App 声明
+/// ⇒ 系统弹「检测到 NFC 卡片未处理」。RTD-URI 才是系统唯一可靠识别的形式。
+///
+/// 记录形态：`tnf=1` · `type=[0x55 'U']` · `payload=[0x00] + utf8(uri)`。
+/// 读侧 [nfcUriOfNdefRecord] 早已认这一支（tnf=1 ＋ type 'U'），故只改写不改读。
+NdefRecord nfcUriRecordOf(String uri) => NdefRecord(
+      typeNameFormat: TypeNameFormat.wellKnown,
+      type: Uint8List.fromList(const [0x55]), // RTD-URI：'U'
+      identifier: Uint8List(0),
+      payload: Uint8List.fromList([kNdefUriCodeNone, ...utf8.encode(uri)]),
+    );
+
+/// NDEF **AAR 记录**（`tnf=4` EXTERNAL_TYPE ＋ type `android.com:pkg` ＋ payload 包名）。
+///
+/// ⚠ **这条不能省**（2026-10-17 真机对照实锤）：
+/// 只写 URI 记录时，Android `NotificationDispatcher` 对自定义 scheme（`lh://`）
+/// 打 `other scheme lh` 后**不启动任何 Activity，只发一条「NFC 卡片」通知**——
+/// 这就是用户看到的「检测到多次读取 NFC 卡片后均未处理」，贴卡等于没反应。
+/// 补上 AAR 后系统走 `matched AAR to NDEF` → `tryStartActivity` → 直接拉起本 App，
+/// 且 `intent.data` 仍是 URI 记录里的 `lh://nfc/<cardId>`（原生解析零改动）。
+///
+/// 对照证据（同类时间记录 App 的标签实测）：
+/// `[tnf=4 type="<包名>:nfc", tnf=4 type="android.com:pkg" payload="<包名>"]`
+/// —— 人家同样是「业务记录 ＋ AAR」两条。
+NdefRecord nfcAarRecordOf([String packageName = kNfcAarPackage]) => NdefRecord(
+      typeNameFormat: TypeNameFormat.external,
+      type: Uint8List.fromList(utf8.encode(kNfcAarType)),
+      identifier: Uint8List(0),
+      payload: Uint8List.fromList(utf8.encode(packageName)),
+    );
 
 /// 标签 IO 抽象（测试注入缝：widget 用例注入假实现即可全程不碰真硬件）。
 abstract class NfcTagIo {
@@ -153,17 +215,9 @@ class NfcManagerTagIo implements NfcTagIo {
       throw PlatformException(code: 'FormatException', message: '不是 NDEF 标签');
     }
     await ndef.writeNdefMessage(
-      NdefMessage(records: [
-        NdefRecord(
-          // TNF 3＝absoluteUri：type 必须为空，payload 直接是 URI 字节。
-          // （`ndef_record` 没有 `createUri` 工厂，故此处手构——本模块唯一的
-          // 「照 NDEF 规格手写」点，其余地方只消费 URI 串。）
-          typeNameFormat: TypeNameFormat.absoluteUri,
-          type: Uint8List(0),
-          identifier: Uint8List(0),
-          payload: Uint8List.fromList(utf8.encode(uri)),
-        ),
-      ]),
+      // 两条记录：① URI（承载 cardId，原生按它解析）② AAR（让系统直接拉起本 App）。
+      // 顺序不能反：URI 在前才能成为 `intent.data`（AAR 放最后是 NDEF 惯例）。
+      NdefMessage(records: [nfcUriRecordOf(uri), nfcAarRecordOf()]),
     );
   }
 
