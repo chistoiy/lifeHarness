@@ -4317,8 +4317,8 @@
       "status": "exclusive",
       "files": {
         "index-desktop.html": {
-          "size": 6757,
-          "hash": "d31eed3e"
+          "size": 6531,
+          "hash": "83d9ed6e"
         }
       }
     },
@@ -4345,8 +4345,8 @@
       "status": "exclusive",
       "files": {
         "index-desktop.html": {
-          "size": 39374,
-          "hash": "6f648afd"
+          "size": 39003,
+          "hash": "decac86c"
         }
       }
     },

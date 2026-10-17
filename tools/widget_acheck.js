@@ -77,31 +77,70 @@ async function toastText() { return (await ev("var t=document.getElementById('to
     + "return {n:rows.length,done:done,on:on,back:back};");
   (rt && rt.n === 6 && rt.done && rt.on && rt.back) ? ok('待办勾圈可点（切换完成态·可逆·示意层·深浅各三行）') : bad('待办勾圈点击无效', JSON.stringify(rt));
 
-  /* 2026-10-18 拍板·A 路：4×1「记一笔」＝弹窗记账（dt-desk 可点演示＋dt-widget 规格卡） */
+  /* 2026-10-18 拍板·A 路：4×1「记一笔」＝弹窗记账，版式复刻记账页 txAdd
+     （四类型 tab／分类行／子类 chips／四则键盘）——弹窗不另造一套样式 */
   const q0 = await ev("navTo('dt-desk');var d=document.getElementById('qpDlg');"
     + "var btn=Array.prototype.filter.call(document.querySelectorAll('#dt-desk .wg-btn'),function(x){return x.textContent.indexOf('记一笔')>=0})[0];"
-    + "var hid0=d.classList.contains('hidden');btn.click();"
-    + "return {hid0:hid0,open:!d.classList.contains('hidden'),amt:document.querySelectorAll('#qpDlg .qp-amt').length};");
+    + "var hid0=d.classList.contains('hidden');btn.click();var box=d.querySelector('#qpDlgBox');"
+    + "return {hid0:hid0,open:!d.classList.contains('hidden'),"
+    + "tabs:box.querySelectorAll('.qp-seg button').length,"
+    + "tabOn:(box.querySelector('.qp-seg button.on')||{}).textContent,"
+    + "catn:(box.querySelector('.qp-catn')||{}).textContent,"
+    + "ico:box.querySelectorAll('.qp-ico svg').length,"
+    + "chips:box.querySelectorAll('.qp-chip').length,chipOn:box.querySelectorAll('.qp-chip.on').length,"
+    + "keys:box.querySelectorAll('.qp-kp').length,save:box.querySelectorAll('.qp-kp.save').length,"
+    + "note:box.querySelectorAll('.qp-note').length};");
   (q0 && q0.hid0 && q0.open) ? ok('记一笔弹窗默认隐→点击打开（不起 App）') : bad('弹窗打不开', JSON.stringify(q0));
+  (q0 && q0.tabs === 4 && q0.tabOn === '支出') ? ok('弹窗四类型 tab（支出/收入/转账/借贷·默认支出）') : bad('四类型 tab 缺', JSON.stringify(q0));
+  (q0 && q0.ico === 1 && q0.catn && q0.catn.indexOf('·') >= 0) ? ok('分类行＝图标块＋「大类 · 子类」＋金额', q0.catn) : bad('分类行缺', JSON.stringify(q0));
+  (q0 && q0.chips >= 5 && q0.chipOn === 1) ? ok('子类 chips 轨（大类 chip＋子类 chips·单选中）', 'chips=' + q0.chips) : bad('子类 chips 缺', JSON.stringify(q0));
+  (q0 && q0.keys === 15 && q0.save === 1 && q0.note === 1) ? ok('键盘 15 键（保存跨两行）＋备注行', 'keys=' + q0.keys) : bad('键盘缺', JSON.stringify(q0));
+  const qg = await ev("var d=document.getElementById('qpDlg');var m=d.getBoundingClientRect();"
+    + "var g=d.querySelector('.qp-dlg').getBoundingClientRect();"
+    + "return {top:Math.round(g.top-m.top),bottom:Math.round(m.bottom-g.bottom),h:Math.round(g.height),mw:Math.round(m.width)};");
+  (qg && qg.top >= 0 && qg.bottom >= 0) ? ok('弹窗完整落在遮罩内（不溢出屏幕框）', 'h=' + qg.h + ' 上下留白 ' + qg.top + '/' + qg.bottom) : bad('弹窗溢出屏幕框', JSON.stringify(qg));
+  const qw = await ev("var b=document.getElementById('qpDlgBox');"
+    + "return {sw:b.scrollWidth,cw:b.clientWidth,rail:document.querySelectorAll('#qpDlgBox .qp-rail')[0].scrollWidth>document.querySelectorAll('#qpDlgBox .qp-rail')[0].clientWidth};");
+  (qw && qw.sw <= qw.cw + 1) ? ok('弹窗内容无横向溢出（子类轨自身横滚）', 'sw=' + qw.sw + ' cw=' + qw.cw + ' railScroll=' + qw.rail) : bad('弹窗横向溢出', JSON.stringify(qw));
   await wait(220);
   await shot('dt-desk-quickpopup-open');
-  const q1 = await ev("var d=document.getElementById('qpDlg');d.querySelector('.qp-ok').click();"
-    + "return {closed:d.classList.contains('hidden')};");
+  const qkT = await ev("var box=document.getElementById('qpDlgBox');box.querySelectorAll('.qp-seg button')[2].click();"
+    + "return {seg:box.querySelectorAll('.qp-seg button.on')[0].textContent,acct:box.querySelectorAll('.qp-acct').length,"
+    + "rail:box.querySelectorAll('.qp-rail').length};");
+  (qkT && qkT.seg === '转账' && qkT.acct === 2 && qkT.rail === 0) ? ok('切「转账」＝转出/转入两张账户卡（无分类行）', JSON.stringify(qkT)) : bad('转账表单缺', JSON.stringify(qkT));
+  await wait(150);
+  await shot('dt-desk-quickpopup-transfer');
+  const qkD = await ev("var box=document.getElementById('qpDlgBox');box.querySelectorAll('.qp-seg button')[3].click();"
+    + "return {seg:box.querySelectorAll('.qp-seg button.on')[0].textContent,dseg:box.querySelectorAll('.qp-dseg button').length,"
+    + "inp:box.querySelectorAll('.qp-inp').length,acct:box.querySelectorAll('.qp-acct').length};");
+  (qkD && qkD.seg === '借贷' && qkD.dseg === 2 && qkD.inp === 1 && qkD.acct === 0) ? ok('切「借贷」＝借出/借入两段＋对方输入', JSON.stringify(qkD)) : bad('借贷表单缺', JSON.stringify(qkD));
+  await wait(150);
+  await shot('dt-desk-quickpopup-debt');
+  await ev("var box=document.getElementById('qpDlgBox');box.querySelectorAll('.qp-seg button')[0].click();return 1");
+  const q1 = await ev("var box=document.getElementById('qpDlgBox');var k=box.querySelectorAll('.qp-kp');"
+    + "k[0].click();k[0].click();"
+    + "var amt=(box.querySelector('.qp-amt')||{}).textContent;"
+    + "box.querySelector('.qp-kp.save').click();var d=document.getElementById('qpDlg');"
+    + "return {amt:amt,closed:d.classList.contains('hidden')};");
   await wait(180);
   const t0 = await toastText();
-  (q1 && q1.closed && t0.indexOf('已入账') >= 0 && t0.indexOf('Dart 写库') >= 0)
-    ? ok('保存→关框＋已入账（原生只收集·交 Dart 写库）', t0)
+  (q1 && q1.closed && q1.amt === '11' && t0.indexOf('已入账') >= 0 && t0.indexOf('Dart 写库') >= 0)
+    ? ok('键盘录入→保存关框＋已入账（原生只收集·交 Dart 写库）', t0)
     : bad('保存动作缺项', JSON.stringify(q1) + ' / ' + t0);
   await shot('dt-desk-quickpopup-saved');
   const q2 = await ev("var d=document.getElementById('qpDlg');"
     + "var btn=Array.prototype.filter.call(document.querySelectorAll('#dt-desk .wg-btn'),function(x){return x.textContent.indexOf('记一笔')>=0})[0];"
     + "btn.click();var open2=!d.classList.contains('hidden');d.querySelector('.qp-no').click();"
     + "return {open2:open2,closed2:d.classList.contains('hidden')};");
-  (q2 && q2.open2 && q2.closed2) ? ok('取消→关框（不留半条记录）') : bad('取消动作缺项', JSON.stringify(q2));
+  (q2 && q2.open2 && q2.closed2) ? ok('取消（✕）→关框（不留半条记录）') : bad('取消动作缺项', JSON.stringify(q2));
   const rd2 = await ev("navTo('dt-widget');var t=document.getElementById('dt-widget').textContent;"
     + "return {card:t.indexOf('记一笔 · 弹窗记账')>=0,ruling:t.indexOf('2026-10-18 拍板')>=0,"
     + "dlg:document.querySelectorAll('#dt-widget .qp-dlg').length};");
   (rd2 && rd2.card && rd2.ruling && rd2.dlg === 2) ? ok('dt-widget 弹窗规格卡（深浅双档＋拍板口径＋禁做清单改释）') : bad('弹窗规格卡缺项', JSON.stringify(rd2));
+  const rd2b = await ev("var a=document.getElementById('qpPrevL'),b=document.getElementById('qpPrevD');"
+    + "return {aTabs:a?a.querySelectorAll('.qp-seg button').length:0,bTabs:b?b.querySelectorAll('.qp-seg button').length:0,"
+    + "aCat:a&&a.querySelector('.qp-catn')?a.querySelector('.qp-catn').textContent:'',bCat:b&&b.querySelector('.qp-catn')?b.querySelector('.qp-catn').textContent:''};");
+  (rd2b && rd2b.aTabs === 4 && rd2b.bTabs === 4) ? ok('两档预览由同一生成函数出图（各四类型 tab）', rd2b.aCat + ' / ' + rd2b.bCat) : bad('规格卡预览未渲染', JSON.stringify(rd2b));
   await wait(180);
   await shot('dt-widget-quickpopup-card');
   const r1 = await ev("navTo('dt-widget');var s=document.getElementById('dt-widget');return {on:s.classList.contains('active'),"

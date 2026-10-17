@@ -230,21 +230,59 @@ tailwind.config = {
      不进最近任务；色值走 w-* 令牌（跟随系统深浅·不吃 App 四主题·C6 同口径）。 */
   .qp-mask{position:absolute;inset:0;z-index:40;background:rgba(15,23,42,.45);
            display:flex;align-items:center;justify-content:center;padding:24px}
-  .qp-dlg{width:100%;max-width:300px;background:var(--w-bg);border-radius:20px;
-          padding:16px;box-shadow:0 18px 50px rgba(15,23,42,.35);color:var(--w-fg)}
-  .qp-t{font-size:15px;font-weight:800;text-align:center}
-  .qp-amt{display:flex;align-items:baseline;justify-content:center;gap:4px;margin-top:12px}
-  .qp-amt span{font-size:14px;color:var(--w-sub);font-weight:700}
-  .qp-amt b{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
-  .qp-cats{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
-  .qp-cats span{font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;
-                border:1px solid color-mix(in srgb,var(--w-sub) 30%,transparent);color:var(--w-sub)}
-  .qp-cats span.on{border-color:var(--w-acc);color:var(--w-acc);
-                   background:color-mix(in srgb,var(--w-acc) 10%,transparent)}
-  .qp-btns{display:flex;gap:8px;margin-top:14px}
-  .qp-btns button{flex:1;height:38px;border-radius:12px;font-size:13px;font-weight:800}
-  .qp-btns .qp-no{background:color-mix(in srgb,var(--w-sub) 12%,transparent);color:var(--w-sub)}
-  .qp-btns .qp-ok{background:var(--w-acc);color:#fff}
+  .qp-dlg{width:100%;max-width:322px;background:var(--w-bg);border-radius:20px;
+          padding:13px 14px 12px;box-shadow:0 18px 50px rgba(15,23,42,.35);color:var(--w-fg)}
+  .qp-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+  .qp-t{font-size:14px;font-weight:800}
+  .qp-x{width:26px;height:26px;border-radius:999px;font-size:12px;font-weight:800;line-height:1;
+        color:var(--w-sub);background:color-mix(in srgb,var(--w-sub) 12%,transparent)}
+  /* 四类型 tab（支出/收入/转账/借贷）＝记账页 txKindSeg 同版式（选中 3px 下划线＋主题色） */
+  .qp-seg{display:flex;border-bottom:1px solid color-mix(in srgb,var(--w-sub) 22%,transparent)}
+  .qp-seg button{flex:1;padding:8px 0 7px;font-size:12.5px;font-weight:800;color:var(--w-sub);
+                 border-bottom:3px solid transparent;margin-bottom:-1px}
+  .qp-seg button.on{color:var(--w-acc);border-bottom-color:var(--w-acc)}
+  /* 分类行：图标块＋「大类 · 子类」＋›，右侧金额（记账页 txCatWrap 同版式） */
+  .qp-catrow{display:flex;align-items:center;gap:8px;margin-top:11px}
+  .qp-ico{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;
+          justify-content:center;flex:none}
+  .qp-ico svg{width:18px;height:18px}
+  .qp-catn{font-size:14px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qp-arw{font-size:13px;color:color-mix(in srgb,var(--w-sub) 55%,transparent)}
+  .qp-amt{margin-left:auto;font-size:23px;font-weight:800;letter-spacing:-.5px;
+          font-variant-numeric:tabular-nums}
+  /* 子类 chips 轨（横滚·选中态同记账页 tag-chip） */
+  .qp-rail{display:flex;gap:6px;margin-top:9px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .qp-rail::-webkit-scrollbar{display:none}
+  .qp-chip{flex:none;font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px;white-space:nowrap;
+           border:1px solid color-mix(in srgb,var(--w-sub) 28%,transparent);color:var(--w-sub)}
+  .qp-chip.on{border-color:var(--w-acc);color:var(--w-acc);
+              background:color-mix(in srgb,var(--w-acc) 10%,transparent)}
+  .qp-note{width:100%;margin-top:9px;padding:7px 1px;font-size:12px;color:var(--w-fg);background:transparent;
+           border:0;border-bottom:1px solid color-mix(in srgb,var(--w-sub) 22%,transparent);outline:none}
+  .qp-note::placeholder{color:color-mix(in srgb,var(--w-sub) 72%,transparent)}
+  /* 键盘＝记账页 txPad 同栅格（4 列·保存跨两行·再记/算同列） */
+  .qp-pad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px}
+  .qp-kp{height:35px;border-radius:10px;font-size:14px;font-weight:800;
+         background:color-mix(in srgb,var(--w-sub) 10%,transparent);color:var(--w-fg)}
+  .qp-kp.op{font-size:12px;color:var(--w-sub)}
+  .qp-kp.save{grid-row:span 2;height:auto;background:var(--w-acc);color:#fff;font-size:14px}
+  .force-dark .qp-kp.save,html.dark .qp-kp.save{color:#1E293B}
+  /* 转账/借贷形态（弹窗内简版：账户卡／借出借入段） */
+  .qp-acct{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 9px;border-radius:12px;
+           background:color-mix(in srgb,var(--w-sub) 8%,transparent)}
+  .qp-acct b{display:block;font-size:12.5px;font-weight:800}
+  .qp-acct em{display:block;font-size:9.5px;font-style:normal;color:var(--w-sub)}
+  .qp-dseg{display:flex;gap:4px;margin-top:9px;padding:3px;border-radius:12px;
+           background:color-mix(in srgb,var(--w-sub) 12%,transparent)}
+  .qp-dseg button{flex:1;padding:6px 0;border-radius:9px;font-size:11px;font-weight:800;color:var(--w-sub)}
+  .qp-dseg button.on{background:var(--w-bg);color:var(--w-fg)}
+  .qp-inp{width:100%;margin-top:8px;padding:8px 9px;border-radius:10px;font-size:12.5px;border:0;outline:none;
+          background:color-mix(in srgb,var(--w-sub) 8%,transparent);color:var(--w-fg)}
+  .qp-amrow{display:flex;align-items:baseline;justify-content:flex-end;gap:3px;margin-top:10px}
+  .qp-amrow span{font-size:12px;font-weight:700;color:var(--w-sub)}
+  .qp-amrow b{font-size:23px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .qp-hint{font-size:9.5px;color:var(--w-sub);margin-top:7px;line-height:1.5}
+  .qp-prev{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.5);width:322px;max-width:none}
   .force-dark .qp-btns .qp-ok,html.dark .qp-btns .qp-ok{color:#1E293B}
 </style>
 </head>
@@ -353,16 +391,12 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- 记一笔弹窗（2026-10-18 拍板·A 路·示意）：点 4×1「记一笔」浮起，不开 App -->
+    <!-- 记一笔弹窗（2026-10-18 拍板·A 路·示意）：点 4×1「记一笔」浮起，不开 App。
+         版式＝复刻记账页「记一笔」：四类型 tab（支出/收入/转账/借贷）＋分类行＋子类 chips 轨＋四则键盘；
+         弹窗只是把同一套表单塞进对话框窗口，不另造一套样式。 -->
     <div id="qpDlg" class="qp-mask hidden" onclick="if(event.target===this)qpClose()">
-      <div class="qp-dlg">
-        <div class="qp-t">记一笔</div>
-        <div class="qp-amt"><span>¥</span><b>35.50</b></div>
-        <div class="qp-cats"><span class="on">餐饮</span><span>交通</span><span>购物</span><span>日用</span></div>
-        <div class="qp-btns"><button class="qp-no" onclick="qpClose()">取消</button><button class="qp-ok" onclick="qpSave()">保存</button></div>
-      </div>
+      <div class="qp-dlg" id="qpDlgBox"></div>
     </div>
-
     <!-- 打卡-单习惯小组件（批 A · 2×2 按实例绑定试点 · 与 NFC 打卡卡同构） -->
     <div style="margin:0 14px 12px">
       <div class="wg" style="width:178px;height:152px" onclick="toast('2×2 打卡-单习惯 · 点击打卡不起 App：乐观回显 → 后台 isolate → 快照收敛')">
@@ -385,7 +419,7 @@ tailwind.config = {
 
   <div class="px-5 py-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
     <div class="spec"><span class="demo-tag">示意</span> 点 LifeHarness 图标＝长按菜单（系统硬限 4 枚，默认 速记/记待办/记一笔/打卡）。<br>
-      读数型小部件点击均走 §2.0 动作表，四路导航栈一致；4×1 快捷记录＝记一笔｜今日支出｜本月结余三区（2026-10-18 密度上调），「记一笔」点击弹记账对话框（不起 App·可点演示），待办勾圈可点（示意层切换完成态）；<b>批 A 起</b>桌面可出现动作型「打卡-单习惯」2×2——按实例绑定，点击打卡不起 App（本地回显 → 后台 isolate → 快照收敛）。</div>
+      读数型小部件点击均走 §2.0 动作表，四路导航栈一致；4×1 快捷记录＝记一笔｜今日支出｜本月结余三区（2026-10-18 密度上调），「记一笔」点击弹记账对话框（不起 App·版式复刻记账页四类型＋子类 chips·可点演示），待办勾圈可点（示意层切换完成态）；<b>批 A 起</b>桌面可出现动作型「打卡-单习惯」2×2——按实例绑定，点击打卡不起 App（本地回显 → 后台 isolate → 快照收敛）。</div>
   </div>
 </section>
 
@@ -804,33 +838,24 @@ tailwind.config = {
   </div>
 
   <div class="card mt-3">
-    <div class="row-title">记一笔 · 弹窗记账<span class="spec" style="font-weight:400;margin-left:8px">2026-10-18 拍板 · A 路</span></div>
-    <div class="spec mt-1 mb-3">点 4×1「记一笔」＝<b>对话框浮在桌面上</b>（不开全屏 App、不进最近任务）：金额＋常用分类 → 保存 → <b>交 Dart 写库</b>（引擎活着直投／不在入 pending 队列、App 启动排空）→ 快照收敛。取消/遮罩/返回即消；深色跟随系统（不吃 App 四主题）；软键盘不遮挡等四项真机门待验。<br>可点演示：回「桌面全貌」屏点 4×1 的「记一笔」即弹此框。</div>
+    <div class="row-title">记一笔 · 弹窗记账<span class="spec" style="font-weight:400;margin-left:8px">2026-10-18 拍板 · A 路 · 版式同源记账页</span></div>
+    <div class="spec mt-1 mb-3">点 4×1「记一笔」＝<b>对话框浮在桌面上</b>（不开全屏 App、不进最近任务）。<b>版式不另造</b>：直接复用记账页「记一笔」那套——<b>四类型 tab（支出/收入/转账/借贷）</b>＋<b>分类行</b>（图标块·大类·子类）＋<b>子类 chips 轨</b>＋四则键盘（保存跨两行·再记/算同列）；差别只在<b>容器</b>（对话框 vs 整页）与<b>高度</b>（按内容收）。<br>保存 → <b>交 Dart 写库</b>（引擎活着直投／不在入 pending 队列、App 启动排空）→ 快照收敛。✕／遮罩／返回即消；深色跟随系统（不吃 App 四主题）；软键盘不遮挡等四项真机门待验。<br>可点演示：回「桌面全貌」屏点 4×1 的「记一笔」即弹此框——<b>四个 tab 都能点</b>，切到转账/借贷看另一套表单。</div>
     <div class="flex gap-3">
       <div class="flex-1">
-        <div class="force-light" style="position:relative;height:224px;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#dbeafe,#e0e7ff)">
-          <div class="qp-dlg" style="position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);max-width:none;width:auto">
-            <div class="qp-t">记一笔</div>
-            <div class="qp-amt"><span>¥</span><b>35.50</b></div>
-            <div class="qp-cats"><span class="on">餐饮</span><span>交通</span><span>购物</span><span>日用</span></div>
-            <div class="qp-btns"><button class="qp-no">取消</button><button class="qp-ok">保存</button></div>
-          </div>
+        <div class="force-light" style="position:relative;height:238px;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#dbeafe,#e0e7ff)">
+          <div class="qp-dlg qp-prev" id="qpPrevL"></div>
         </div>
-        <div class="cap spec">浅色档</div>
+        <div class="cap spec">浅色档 · 支出形态（预览 ×0.5）</div>
       </div>
       <div class="flex-1">
-        <div class="force-dark" style="position:relative;height:224px;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#1e293b,#312e81)">
-          <div class="qp-dlg" style="position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);max-width:none;width:auto">
-            <div class="qp-t">记一笔</div>
-            <div class="qp-amt"><span>¥</span><b>35.50</b></div>
-            <div class="qp-cats"><span class="on">餐饮</span><span>交通</span><span>购物</span><span>日用</span></div>
-            <div class="qp-btns"><button class="qp-no">取消</button><button class="qp-ok">保存</button></div>
-          </div>
+        <div class="force-dark" style="position:relative;height:238px;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#1e293b,#312e81)">
+          <div class="qp-dlg qp-prev" id="qpPrevD"></div>
         </div>
-        <div class="cap spec">深色档</div>
+        <div class="cap spec">深色档 · 收入形态（预览 ×0.5）</div>
       </div>
     </div>
-    <div class="spec mt-2"><b>口径改判</b>：桌面零输入＝widget 自身（RemoteViews）不放输入控件不变；<b>记账录入允许对话框形态轻量 Activity</b>（覆盖 2026-10-17 评估件 Q3④ 原判·拍板件＝<span style="font-family:ui-monospace,monospace">docs/handoff/拍板记录-20261018-记一笔弹窗记账与零输入口径改判.md</span>）。实现批＝原生对话框只收集、Dart 写库（禁原生复刻记账规则·R1）＋C15 唯一意图出口。</div>
+    <div class="spec mt-2"><b>版式同源</b>：弹窗与记账页共用同一套版式口径（四类型 tab／分类行／子类 chips／键盘栅格），样张由同一个生成函数出图，<b>不另造第二套样式</b>。实现两条路：① 原生按此版式复刻（图标走 Material Icons 字体·分类树由 Dart 下发快照·原生不读 sqlite）；② <b>对话框 Activity 内嵌 Flutter 渲染同一份表单</b>（视觉零差异·推荐）。选型与代价见拍板件 §二。</div>
+        <div class="spec mt-2"><b>口径改判</b>：桌面零输入＝widget 自身（RemoteViews）不放输入控件不变；<b>记账录入允许对话框形态轻量 Activity</b>（覆盖 2026-10-17 评估件 Q3④ 原判·拍板件＝<span style="font-family:ui-monospace,monospace">docs/handoff/拍板记录-20261018-记一笔弹窗记账与零输入口径改判.md</span>）。实现批＝原生对话框只收集、Dart 写库（禁原生复刻记账规则·R1）＋C15 唯一意图出口。</div>
   </div>
 
   <div class="card mt-3">
@@ -1194,9 +1219,97 @@ function scrGo(p){ navTo(p); }
 /* 记一笔弹窗（2026-10-18 拍板·A 路·示意层）：保存＝交 Dart 写库（引擎活着直投／
    不在入 pending 队列 App 启动排空）；取消/遮罩即消；真机另有过最近任务不进、
    返回即消、深色跟随系统、软键盘不遮挡四项门。 */
-function qpOpen(){ var d=document.getElementById('qpDlg'); if(d)d.classList.remove('hidden'); }
-function qpClose(){ var d=document.getElementById('qpDlg'); if(d)d.classList.add('hidden'); }
-function qpSave(){ qpClose(); toast('已入账 · 交 Dart 写库（引擎活着直投／不在入队 App 启动排空）· 快照收敛'); }
+/* ===== 记一笔弹窗（2026-10-18 拍板·A 路）：版式复刻记账页 txAdd =====
+   四类型 tab（支出/收入/转账/借贷）＋分类行（图标块·大类·子类）＋子类 chips 轨＋四则键盘。
+   口径：弹窗只收集，写库交 Dart（C15 唯一意图出口）；分类数据由 Dart 侧下发快照，原生不读 sqlite。 */
+const QP_CATS={
+  expense:[
+    {id:'food',n:'餐饮',i:'food',c:'#f97316',s:['早餐','午餐','晚餐','饮品','外卖']},
+    {id:'trans',n:'交通',i:'car',c:'#0ea5e9',s:['地铁','打车','加油','停车']},
+    {id:'shop',n:'购物',i:'bag',c:'#fb7185',s:['日用','数码','服饰']},
+    {id:'live',n:'居住',i:'home',c:'#6366f1',s:['房租','水电','物业']},
+    {id:'fun',n:'娱乐',i:'film',c:'#a855f7',s:['电影','游戏','聚会']}
+  ],
+  income:[
+    {id:'salary',n:'工资',i:'wallet',c:'#10b981',s:['月薪','补贴']},
+    {id:'bonus',n:'奖金',i:'star',c:'#f59e0b',s:['年终','绩效']},
+    {id:'redp',n:'红包',i:'gift',c:'#ef4444',s:['收红包','礼金']},
+    {id:'invest',n:'理财',i:'chart',c:'#0ea5e9',s:['利息','分红']}
+  ]
+};
+const QP_ICO={
+  food:'<path d="M4 10.5h16c0 4.7-3.6 8.5-8 8.5s-8-3.8-8-8.5z"/><path d="M8.5 7.5c0-1.4 1-1.9 1-3.3M12.5 7.5c0-1.4 1-1.9 1-3.3"/>',
+  car:'<path d="M5.5 12 7 7.5h10L18.5 12"/><rect x="4.5" y="12" width="15" height="5" rx="1.8"/><path d="M7.5 17v2M16.5 17v2"/>',
+  bag:'<path d="M6 8.5h12l1 11.5H5z"/><path d="M9 10.5V6.8a3 3 0 0 1 6 0v3.7"/>',
+  home:'<path d="M4 11 12 4l8 7"/><path d="M6.2 9.3V20h11.6V9.3"/><path d="M10 20v-5.5h4V20"/>',
+  film:'<rect x="4" y="5.5" width="16" height="13" rx="2.5"/><path d="M4 10h16M9.5 5.5v13M14.5 5.5v13"/>',
+  wallet:'<rect x="3.5" y="6" width="17" height="13" rx="2.8"/><path d="M3.5 10.2h17M16 14.6h2.2"/>',
+  star:'<path d="m12 3.6 2.5 5.2 5.7.7-4.2 4 1.1 5.7L12 16.4l-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z"/>',
+  gift:'<rect x="5" y="9" width="14" height="11" rx="1.6"/><path d="M3.8 9h16.4M12 9v11.8"/><path d="M12 9C7.5 9 6.6 4.6 9.2 4.2 11.1 4 12 6.6 12 9zM12 9c4.5 0 5.4-4.4 2.8-4.8C12.9 4 12 6.6 12 9z"/>',
+  chart:'<path d="M5 19.5V10M11 19.5v-13M17 19.5v-7M3.5 19.5h17"/>',
+  card:'<rect x="3" y="5.5" width="18" height="13" rx="2.6"/><path d="M3 10h18"/>'
+};
+function qpIco(k){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(QP_ICO[k]||QP_ICO.card)+'</svg>'}
+let qpS={kind:'expense',cat:'food',sub:'早餐',expr:'35.50',note:'',dbt:'lend'};
+function qpFind(id){var a=QP_CATS.expense.concat(QP_CATS.income);for(var i=0;i<a.length;i++)if(a[i].id===id)return a[i];return null}
+function qpKind(k){qpS.kind=k;qpS.expr='';qpS.sub='';qpS.cat=(k==='income'?'salary':'food');qpRender()}
+function qpPick(cid,sub){qpS.cat=cid;qpS.sub=sub;qpRender()}
+function qpKey(k){var e=qpS.expr;
+  if(k==='calc'){toast('表达式支持 + − × ÷ 连续计算 · 科学计算器（V1.x）');return}
+  if(k==='del'){e=e.slice(0,-1)}
+  else if(k==='.'){if(e.indexOf('.')<0)e=(e||'0')+'.'}
+  else if(/^[0-9]$/.test(k)){if(e.replace('.','').length<9)e=(e==='0'?k:e+k)}
+  qpS.expr=e;qpRender()}
+function qpSave(stay){
+  var v=parseFloat(qpS.expr||'0');if(!v){toast('请输入金额');return}
+  var nm={expense:'支出',income:'收入',transfer:'转账',debt:'借贷'}[qpS.kind];
+  toast(nm+' '+v.toFixed(2)+' 已入账 · 交 Dart 写库（引擎活着直投／不在入队 App 启动排空）· 快照收敛');
+  if(stay){qpS.expr='';qpRender()}else{qpClose()}}
+function qpBody(st){
+  var k=st.kind;
+  var seg='<div class="qp-seg">'+[['expense','支出'],['income','收入'],['transfer','转账'],['debt','借贷']].map(function(x){
+    return '<button class="'+(k===x[0]?'on':'')+'" onclick="qpKind(\''+x[0]+'\')">'+x[1]+'</button>'}).join('')+'</div>';
+  var body='';
+  if(k==='expense'||k==='income'){
+    var pool=QP_CATS[k==='income'?'income':'expense'],c=qpFind(st.cat)||pool[0];
+    var rail='<button class="qp-chip '+(st.sub===''?'on':'')+'" onclick="qpPick(\''+c.id+'\',\'\')">'+c.n+'</button>'
+      +c.s.map(function(s){return '<button class="qp-chip '+(st.sub===s?'on':'')+'" onclick="qpPick(\''+c.id+'\',\''+s+'\')">'+s+'</button>'}).join('');
+    body='<div class="qp-catrow"><span class="qp-ico" style="background:'+c.c+'1f;color:'+c.c+'">'+qpIco(c.i)+'</span>'
+      +'<b class="qp-catn">'+c.n+(st.sub?' · '+st.sub:'')+'</b><span class="qp-arw">›</span>'
+      +'<b class="qp-amt" style="color:'+(k==='income'?'#10b981':'#fb7185')+'">'+(st.expr||'0.00')+'</b></div>'
+      +'<div class="qp-rail">'+rail+'</div>'
+      +'<input class="qp-note" placeholder="备注…" value="'+(st.note||'')+'" oninput="qpS.note=this.value">';
+  }else if(k==='transfer'){
+    body='<div class="qp-acct"><span class="qp-ico" style="background:#6366f11f;color:#6366f1">'+qpIco('card')+'</span><span><b>银行卡 · 招行 3821</b><em>转出账户 · 余额 12,480.00</em></span></div>'
+      +'<div class="qp-acct"><span class="qp-ico" style="background:#0ea5e91f;color:#0ea5e9">'+qpIco('wallet')+'</span><span><b>零钱 · 微信</b><em>转入账户 · 余额 2,160.40</em></span></div>'
+      +'<div class="qp-amrow"><span>¥</span><b>'+(st.expr||'0.00')+'</b></div>';
+  }else{
+    body='<div class="qp-dseg">'+[['lend','借出 · 别人欠我'],['borrow','借入 · 我欠别人']].map(function(x){
+      return '<button class="'+(st.dbt===x[0]?'on':'')+'" onclick="qpS.dbt=\''+x[0]+'\';qpRender()">'+x[1]+'</button>'}).join('')+'</div>'
+      +'<input class="qp-inp" placeholder="对方（如：老王）" oninput="qpS.who=this.value">'
+      +'<div class="qp-amrow"><span>¥</span><b>'+(st.expr||'0.00')+'</b></div>';
+  }
+  var K=[['1'],['2'],['3'],['del','⌫'],['4'],['5'],['6'],['again','再记'],['7'],['8'],['9'],['save','保存'],['calc','算'],['0'],['.','.']];
+  var pad='<div class="qp-pad">'+K.map(function(x){
+    var kk=x[0],lb=x[1]||x[0];
+    if(kk==='save')return '<button class="qp-kp save qp-ok" onclick="qpSave(false)">保存</button>';
+    if(kk==='again')return '<button class="qp-kp op" onclick="qpSave(true)">再记</button>';
+    return '<button class="qp-kp '+(kk==='del'?'op':'')+'" onclick="qpKey(\''+kk+'\')">'+lb+'</button>'}).join('')+'</div>';
+  return seg+body+pad;
+}
+function qpCard(st){
+  return '<div class="qp-hd"><span class="qp-t">记一笔</span><button class="qp-x qp-no" onclick="qpClose()">✕</button></div>'+qpBody(st);
+}
+function qpRender(){var b=document.getElementById('qpDlgBox');if(b)b.innerHTML=qpCard(qpS)}
+function qpOpen(){
+  qpS={kind:'expense',cat:'food',sub:'早餐',expr:'35.50',note:'',dbt:'lend'};qpRender();
+  var d=document.getElementById('qpDlg');if(d)d.classList.remove('hidden')}
+function qpClose(){var d=document.getElementById('qpDlg');if(d)d.classList.add('hidden')}
+/* 规格卡两档预览（静态快照·走同一 qpCard 生成，避免样张与真弹窗两套样式） */
+function qpPrev(){
+  var a=document.getElementById('qpPrevL');if(a)a.innerHTML=qpCard({kind:'expense',cat:'food',sub:'早餐',expr:'35.50'});
+  var b=document.getElementById('qpPrevD');if(b)b.innerHTML=qpCard({kind:'income',cat:'salary',sub:'月薪',expr:'8,600.00'});
+}
 function wgTodoChk(el){
   var row=el.closest?el.closest('.wg-todo'):null; if(!row)return;
   var on=row.classList.toggle('done');
@@ -1212,7 +1325,7 @@ function toast(msg){
 }
 
 /* ---------- 启动 ---------- */
-renderDesk(); renderMenu(); renderTable(); renderLimit();
+renderDesk(); renderMenu(); renderTable(); renderLimit(); qpPrev();
 /* 深链直达（与 index-time/media/bookshelf 同口径）：URL 带 #dt-widget 等屏 id 时直接落该屏，
    否则落默认 dt-desk。没有这段，dt-menu/dt-widget/dt-map 三屏只能控制台 navTo 才看得到。 */
 (function(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
