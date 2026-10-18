@@ -120,6 +120,62 @@ tailwind.config = {
   /* 卡片内 padding 加大（指导件）；圆角沿用令牌（默认 20px，随主题档可覆写） */
   #p-diaryHome .card{padding:16px 18px}
   .row-title{font-size:13px;font-weight:800}
+  /* ===== 回顾／筛选 治理件（2026-10-19）：两弹层统一视觉规范 =====
+     ① 圆角 24px；内边距 左右 20 / 顶 24 / 底 32（底部留手势空间）；② 蒙层降透明度到 .4；
+     ③ 标题 18 Medium（不再是粗黑 15 bold）；次级标题 15 常规；正文小字 13；备注 12 浅灰；
+     ④ 卡片**去边框**，只用「白底 + 极淡阴影」分层；模块间距 16px。 */
+  .dr-scrim{background:rgba(15,23,42,.4)}
+  .dr-panel{border-top-left-radius:24px;border-top-right-radius:24px;padding:24px 20px 32px}
+  /* grabber 必须显式定宽 + box-sizing（`margin:0 auto` 配合父级 padding 会把 40px 压成 36px） */
+  .dr-grab{width:40px!important;min-width:40px;height:4px!important;border-radius:999px;background:#DCDFE6;
+    margin:0 auto 14px;box-sizing:border-box;flex:none}
+  html.dark .dr-grab{background:rgba(255,255,255,.16)}
+  .dr-title{font-size:18px;font-weight:500;color:#1D2129;letter-spacing:-.01em}
+  html.dark .dr-title{color:rgba(255,255,255,.95)}
+  .dr-sub{font-size:15px;font-weight:400;color:#4E5969}
+  html.dark .dr-sub{color:rgba(255,255,255,.72)}
+  .dr-note{font-size:12px;color:rgba(100,116,139,.85)}
+  html.dark .dr-note{color:rgba(255,255,255,.45)}
+  .dr-card{background:var(--card);border-radius:16px;padding:14px;border:none;
+    box-shadow:0 1px 8px rgba(15,23,42,.05)}
+  html.dark .dr-card{box-shadow:0 2px 10px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05)}
+  /* 月份箭头：次级灰、热区加大、点按缩反馈 */
+  .dr-navbtn{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-size:18px;line-height:1;color:rgba(100,116,139,.75);transition:transform .12s,background .15s}
+  .dr-navbtn:active{transform:scale(.9);background:rgba(100,116,139,.10)}
+  html.dark .dr-navbtn{color:rgba(255,255,255,.45)}
+  .dr-month{font-size:13px;font-weight:600;width:72px;text-align:center;color:#4E5969;font-variant-numeric:tabular-nums}
+  html.dark .dr-month{color:rgba(255,255,255,.7)}
+  /* 图例：一行精简（色点+表情），不再每个柱子下方都放 */
+  .dr-legend-i{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:rgba(100,116,139,.8)}
+  .dr-legend-i i{width:6px;height:6px;border-radius:999px;display:inline-block}
+  html.dark .dr-legend-i{color:rgba(255,255,255,.5)}
+  /* 那年今日引用：左引号竖线 + 极淡底，与正文区分 */
+  .dr-quote{position:relative;font-size:13px;line-height:1.65;color:#1D2129;background:rgba(99,102,241,.045);
+    border-left:2px solid rgba(99,102,241,.28);border-radius:0 10px 10px 0;padding:8px 10px 8px 12px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  html.dark .dr-quote{color:rgba(255,255,255,.86);background:rgba(129,140,248,.10);border-left-color:rgba(129,140,248,.4)}
+  /* ---- 筛选弹层（2026-10-19 治理件）--- */
+  .df-group-t{font-size:12px;color:rgba(100,116,139,.85);margin:18px 0 4px}
+  html.dark .df-group-t{color:rgba(255,255,255,.45)}
+  /* 选项行：行高 48px，选中＝文字/图标变主色 + 右侧对勾，**背景保持透明**（原蓝色大块过重） */
+  .df-row{width:100%;height:48px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;
+    color:#4E5969;border-radius:10px;padding:0 10px;transition:background .15s,color .15s}
+  html.dark .df-row{color:rgba(255,255,255,.75)}
+  .df-row:active{background:rgba(100,116,139,.06)}
+  .df-row .df-ico{width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+    color:rgba(100,116,139,.7);flex:none}
+  html.dark .df-row .df-ico{color:rgba(255,255,255,.4)}
+  .df-row .df-tick{margin-left:auto;font-size:12px;color:var(--accent);opacity:0}
+  .df-row.df-on{color:var(--accent);font-weight:600}
+  .df-row.df-on .df-ico{color:var(--accent)}
+  .df-row.df-on .df-tick{opacity:1}
+  /* 时间段胶囊：未选＝浅灰描边灰字；选中＝主色描边 + 主色文字（不填充） */
+  .df-pill{height:34px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;
+    border:1px solid rgba(148,163,184,.45);color:#4E5969;background:transparent;transition:all .15s}
+  html.dark .df-pill{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.7)}
+  .df-pill[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:rgba(99,102,241,.06);font-weight:600}
+  .dark .df-pill[aria-pressed="true"]{background:rgba(129,140,248,.12)}
   button.mood{font-size:22px;opacity:.5;filter:grayscale(.4);transition:.15s}
   /* 日记编辑批2（2026-10-19）：心情单选组——选中态在 JS 里拼（淡底+放大+小叉）；
      未选中给降饱和，选中还原全彩（避免整行花花绿绿抢正文）。 */
@@ -989,17 +1045,28 @@ tailwind.config = {
 
   <!-- ===== 笔记 · 右上角 ⋯ 二级子项（V1.29：字号/纸色/聚焦/文件夹/类型 等收进来·轮9r 置顶移除+导出改分享钮） ===== -->
   
-  <!-- V1.29轮9g：日记筛选底部浮层（顶栏漏斗钮唤起） -->
-  <div id="sheetDiaryFilter" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryFilter')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">筛选</div>
-      <div id="dfList" class="mt-2 space-y-1"></div>
-      <!-- 批1c 修订（2026-10-19 产品令四）：筛选里增加「时间段」，默认全部显示 -->
-      <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-        <div class="text-[11px] font-bold text-slate-400 dark:text-slate-500">时间段</div>
+  <!-- V1.29轮9g：日记筛选底部浮层（顶栏漏斗钮唤起）
+       2026-10-19 筛选治理件：① 分三组（标记／标签／时间段）各带小标题；② 选中态**放弃蓝色大背景块**，
+       改「文字/图标变主题色 + 右侧对勾」；③ 行高 48px 放宽；④ 时间段改描边胶囊；⑤ 底部加实时计数与重置。 -->
+  <div id="sheetDiaryFilter" class="sheet hidden fixed md:absolute inset-0 z-50 dr-scrim items-end" onclick="if(event.target===this)closeSheet('sheetDiaryFilter')">
+    <div class="sheet-panel dr-panel w-full bg-white dark:bg-slate-900 max-h-[86%] overflow-y-auto no-scrollbar">
+      <div class="grabber dr-grab"></div>
+      <div class="flex items-center">
+        <div class="dr-title flex-1">筛选</div>
+        <button class="dr-navbtn" onclick="closeSheet('sheetDiaryFilter')" aria-label="关闭">✕</button>
+      </div>
+      <div id="dfGroups" class="mt-1"></div>
+      <!-- 时间段：描边胶囊（选中＝描边+主色文字，不用深色填充） -->
+      <div class="mt-5">
+        <div class="df-group-t">时间段</div>
         <div id="dfRange" class="mt-2 flex flex-wrap gap-2"></div>
-        <div id="dfRangeNote" class="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-4"></div>
+        <div id="dfRangeNote" class="dr-note mt-2"></div>
+      </div>
+      <!-- 底部：实时计数 + 重置 -->
+      <div class="mt-5 pt-3 flex items-center gap-3 border-t border-slate-100 dark:border-slate-800">
+        <div id="dfCount" class="dr-note flex-1"></div>
+        <button class="h-9 px-4 rounded-full text-[13px] font-semibold border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 active:bg-slate-50 dark:active:bg-slate-800" onclick="diaryFilterReset()">重置</button>
+        <button class="h-9 px-5 rounded-full text-[13px] font-semibold bg-brand-500 text-white active:scale-[.98]" onclick="closeSheet('sheetDiaryFilter')">完成</button>
       </div>
     </div>
   </div>
@@ -1019,28 +1086,35 @@ tailwind.config = {
       </div>
     </div>
   </div>
-  <!-- V1.29批2：回顾底部弹层（心情趋势 + 词云 + 那年今日·与笔记选项同语言） -->
-  <div id="sheetDiaryReview" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryReview')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[82%] overflow-y-auto no-scrollbar">
-      <div class="grabber"></div>
-      <div class="flex items-center"><b class="text-[15px] flex-1">回顾</b>
-        <button class="pw-ic-btn" onclick="drMonth(-1)" aria-label="上一月">‹</button>
-        <span id="drMonthLbl" class="text-xs font-bold w-16 text-center">2026-09</span>
-        <button class="pw-ic-btn" onclick="drMonth(1)" aria-label="下一月">›</button>
+  <!-- V1.29批2：回顾底部弹层（心情趋势 + 词云 + 那年今日·与笔记选项同语言）
+       2026-10-19 回顾/筛选治理件：两弹层统一**24px 圆角 / 左右 20 顶部 24 底部 32 / 标题 18 Medium**，
+       卡片**去边框**改「白底＋极淡阴影」分层，模块间距 16px。 -->
+  <div id="sheetDiaryReview" class="sheet hidden fixed md:absolute inset-0 z-50 dr-scrim items-end" onclick="if(event.target===this)closeSheet('sheetDiaryReview')">
+    <div class="sheet-panel dr-panel w-full bg-white dark:bg-slate-900 max-h-[82%] overflow-y-auto no-scrollbar">
+      <div class="grabber dr-grab"></div>
+      <div class="flex items-center">
+        <b class="dr-title flex-1">回顾</b>
+        <button class="dr-navbtn" onclick="drMonth(-1)" aria-label="上一月">‹</button>
+        <span id="drMonthLbl" class="dr-month">2026-09</span>
+        <button class="dr-navbtn" onclick="drMonth(1)" aria-label="下一月">›</button>
       </div>
-      <div class="mt-3 rounded-2xl border border-slate-100 dark:border-slate-800 p-3">
-        <div class="row-title">心情趋势</div>
+      <!-- 心情趋势：独立卡片（白底＋极淡阴影·无边框） -->
+      <div class="dr-card mt-4">
+        <div class="dr-sub">心情趋势</div>
         <div class="mt-2 flex items-end gap-[3px] h-14" id="drTrend"></div>
-        <div class="mt-1.5 flex items-center gap-1.5" id="drMoodLegend"></div>
-        <div id="drSummary" class="text-[10px] text-slate-400 mt-1"></div>
+        <!-- 指导件：**移除一排连续表情**，改图例放图表右下角一行精简图例 -->
+        <div class="mt-2 flex items-center justify-end" id="drMoodLegend"></div>
+        <div id="drSummary" class="dr-note mt-1.5"></div>
       </div>
-      <div class="mt-3 rounded-2xl border border-slate-100 dark:border-slate-800 p-3">
-        <div class="row-title">词云 · 本月高频</div>
+      <div class="dr-card mt-4">
+        <div class="dr-sub">词云 · 本月高频</div>
         <div id="drCloud" class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 leading-none"></div>
       </div>
-      <div class="mt-3 rounded-2xl bg-brand-50 dark:bg-brand-500/10 p-3 cursor-pointer" onclick="toast('打开 2025-09-19 日记（模拟）')">
-        <div class="text-[10px] text-slate-400">那年今日 · 1 年前 09-19</div>
-        <div class="text-xs font-bold mt-0.5">「今天和室友约了球，输得很惨但笑到肚子疼…」</div>
+      <!-- 那年今日：独立卡片 + 浅灰分割小标题 + 引用样式（左侧引号竖线＋极淡底） -->
+      <div class="dr-card mt-4 cursor-pointer" onclick="toast('打开 2025-09-19 日记（模拟）')">
+        <div class="dr-sub">那年今日</div>
+        <div class="dr-note mt-1">1 年前 · 09-19</div>
+        <div class="dr-quote mt-1.5">今天和室友约了球，输得很惨但笑到肚子疼…</div>
       </div>
     </div>
   </div>
@@ -3740,7 +3814,13 @@ function scrollTopOf(el){
   return y;
 }
 /* ================= 日记 INS 风格 ================= */
-const DI_LIKE=D.diary.map((d,i)=>({like:false,star:false,n:[42,28,17][i%3]||i*7+13}));
+/* 收藏/点亮初值：原型演示要有几条已存在的互动，否则「♥ 收藏」「★ 点亮」两个筛选项恒为 0 篇、
+   看不出筛选是否真的生效（2026-10-19 实测踩到）。按索引给前几条预置。 */
+const DI_LIKE=D.diary.map((d,i)=>({
+  like:[0,2,3].indexOf(i)>=0,
+  star:[1,2].indexOf(i)>=0,
+  n:[42,28,17][i%3]||i*7+13
+}));
 function insCardHtml(i){const d=D.diary[i],lk=DI_LIKE[i];
  return `<div class="ins-card ${dlSelMode&&dlSel.has(i)?'ring-2 ring-brand-500':''}" onclick="dlInsTap(${i})" oncontextmenu="event.preventDefault();dlEnterSel(${i})">
  ${dlSelMode?`<span class="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${dlSel.has(i)?'bg-brand-500 text-white':'border border-slate-300 text-transparent'}">✓</span>`:''}
@@ -3824,10 +3904,17 @@ function diaryRangeSet(k){diaryRange=k;renderDiaryRange();
   renderDiaryList();if(dlLayout==='track'){dwRenderWall&&dwRenderWall()}
   toast(k==='all'?'时间段：全部':('时间段：'+(DIARY_RANGES.find(r=>r.k===k)||{}).n));}
 function renderDiaryRange(){const m=$('#dfRange');if(!m)return;
-  m.innerHTML=DIARY_RANGES.map(r=>`<button data-range="${r.k}" aria-pressed="${r.k===diaryRange}" onclick="diaryRangeSet('${r.k}')"
-    class="px-3 h-8 rounded-full text-[12px] font-bold transition ${r.k===diaryRange?'bg-brand-500 text-white shadow-sm shadow-indigo-500/25':'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}">${r.n}</button>`).join('');
-  const note=$('#dfRangeNote');if(note){const tot=D.diary.length,n=dwShown().length;
-    note.textContent=diaryRange==='all'?'默认显示全部日记':('当前时间段的命中共 '+n+' 篇（全部 '+tot+' 篇）');}}
+  m.innerHTML=DIARY_RANGES.map(r=>`<button class="df-pill" data-range="${r.k}" aria-pressed="${r.k===diaryRange}" onclick="diaryRangeSet('${r.k}')">${r.n}</button>`).join('');
+  const note=$('#dfRangeNote');if(note){
+    note.textContent=diaryRange==='all'?'默认显示全部日记':'该时间段内共 '+dwShown().length+' 篇';}
+  renderDfCount();}
+/* 底部实时计数：「当前筛选：XX，共 X 篇日记」 */
+function renderDfCount(){const el=$('#dfCount');if(!el)return;
+  const n=dwShown().length,rg=DIARY_RANGES.find(r=>r.k===diaryRange);
+  const parts=[];
+  if(diaryFilter&&diaryFilter!=='全部')parts.push(diaryFilter);
+  if(diaryRange!=='all')parts.push(rg?rg.n:'');
+  el.textContent=parts.length?('当前筛选：'+parts.join(' · ')+'，共 '+n+' 篇'):('共 '+n+' 篇日记');}
 /* 某篇是否命中当前筛选（轨道/列表/INS 三档共用同一判据）；批1c 起先过「时间段」再判标签/互动 */
 function dwHit(i){const d=D.diary[i];
   if(!dwInRange(i))return false;
@@ -3838,14 +3925,44 @@ function dwHit(i){const d=D.diary[i];
   return (d.tags||[]).some(t=>('#'+t)===diaryFilter)}
 /* 当前筛选下的条目下标序（保持新→旧原序） */
 function dwShown(){return D.diary.map((_,i)=>i).filter(dwHit)}
-function renderDiaryFilterSheet(){const m=$('#dfList');if(!m)return;
-  m.innerHTML=DIARY_FILTERS.map(f=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${f===diaryFilter?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="diaryFilterSet('${f}')">${f}<span class="text-[11px]">${f===diaryFilter?'✓':''}</span></button>`).join('');
+/* 筛选弹层＝**两段分组**（标记／标签），每段带小标题；选中态＝文字+图标变主色+右侧对勾，背景透明。
+   指导件「标记与标签层级混杂」的解法就是这一层分组：标记解决「看哪一类互动」，标签解决「看了什么主题」。 */
+const DF_GROUPS=[
+  {t:'标记', items:[
+    {k:'全部', ico:'<circle cx="12" cy="12" r="8"/>'},
+    {k:'♥ 收藏', ico:'<path d="M12 20s-7-4.6-7-9.2A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19 10.8C19 15.4 12 20 12 20Z"/>'},
+    {k:'★ 点亮', ico:'<path d="M12 3.5l2.6 5.3 5.9.85-4.3 4.2 1 5.85L12 16.9l-5.2 2.8 1-5.85L3.5 9.65l5.9-.85L12 3.5Z"/>'},
+    {k:'☐ 待办', ico:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.4 2.4 4.6-4.8"/>'}]},
+  {t:'标签', items:[
+    {k:'#加班', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'},
+    {k:'#复盘', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'}]}
+];
+function renderDiaryFilterSheet(){const m=$('#dfGroups');if(!m)return;
+  m.innerHTML=DF_GROUPS.map(g=>
+    `<div class="df-group-t">${g.t}</div>`+
+    g.items.map(it=>{
+      const on=diaryFilter===it.k;
+      return `<button class="df-row ${on?'df-on':''}" data-f="${it.k}" onclick="diaryFilterSet('${it.k}')">
+        <span class="df-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${it.ico}</svg></span>
+        <span>${it.k}</span><span class="df-tick">✓</span></button>`}).join('')).join('');
   renderDiaryRange();syncDiaryFilterBtn();}
-function diaryFilterSet(f){diaryFilter=f;closeSheet('sheetDiaryFilter');renderDiaryFilterSheet();renderDiaryList();toast('已按「'+f+'」筛选');}
-/* ================= V1.29批2 · 回顾弹层（心情趋势+词云+那年今日） ================= */
+/* 选中即生效并回写列表；**不自动关弹层**——指导件要求「实时统计数量 + 可连续调整」，关掉就看不到计数了 */
+function diaryFilterSet(f){diaryFilter=f;renderDiaryFilterSheet();renderDiaryList();
+  if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
+  toast('已按「'+f+'」筛选');}
+/* 重置：标记回全部、时间段回全部 */
+function diaryFilterReset(){diaryFilter='全部';diaryRange='all';renderDiaryFilterSheet();renderDiaryList();
+  if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
+  toast('已重置筛选');}
+/* ================= V1.29批2 · 回顾弹层（心情趋势+词云+那年今日） =================
+ * 2026-10-19 回顾治理件：原 7 档彩虹色（高饱和亮色块）＝「五颜六色」，改为**同色系深浅**表达情绪强度。
+ * 只在靛紫一族内取深浅（低→高情绪 = 浅→深紫），配色数量从 7 色收到 1 系 5 阶。 */
 let drMonthOff=0;
 const DR_MOODS=['😖','😔','😐','😌','🙂','😄',''];
 const DR_COLORS=['#fb7185','#f59e0b','#a3a3a3','#2dd4bf','#0ea5e9','#8b5cf6','#6366f1'];
+/* 回顾图表/词云专用低饱和同系色阶（浅→深） */
+const DR_SCALE=['#e3e5fb','#ced2f8','#b7bcf4','#a0a6ee','#8a90e8'];
+const DR_WORDS=['散步','复盘','电影','朋友','周末','读书','咖啡','运动','睡眠','项目','灵感','做饭','雨','展会'];
 function drMonth(d){drMonthOff+=d;if(drMonthOff>0)drMonthOff=0;if(drMonthOff<-11)drMonthOff=-11;renderDiaryReview();}
 function renderDiaryReview(){const lbl=$('#drMonthLbl');if(!lbl)return;
  const base=8+drMonthOff;const y=base<0?2025:2026,m=((base%12)+12)%12+1;
@@ -3853,14 +3970,22 @@ function renderDiaryReview(){const lbl=$('#drMonthLbl');if(!lbl)return;
  const days=m===2?28:([4,6,9,11].includes(m)?30:31);const seed=m*7;
  let rec=0;const bars=[];
  for(let i=0;i<days;i++){const h=(seed+i*53)%4;const mood=(seed+i*29)%7;const has=h!==3;if(has)rec++;
-  bars.push(has?`<button class="flex-1 rounded-t-sm" style="height:${30+((mood+1)*9)%70}%;background:${DR_COLORS[mood]};opacity:.92" onclick="toast('查看 ${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')} 当天记录（模拟）')"></button>`
-   :`<span class="flex-1 rounded-t-sm" style="height:6%;background:rgba(120,110,90,.15)"></span>`);}
+  /* 柱子改**同系深浅**（mood 越大＝心情越正向＝色阶越深），不再彩虹 */
+  bars.push(has?`<button class="flex-1 rounded-t-[3px]" style="height:${30+((mood+1)*9)%70}%;background:${DR_SCALE[Math.min(4,mood)]}" onclick="toast('查看 ${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')} 当天记录（模拟）')"></button>`
+   :`<span class="flex-1 rounded-t-[3px]" style="height:6%;background:rgba(120,110,90,.12)"></span>`);}
  $('#drTrend').innerHTML=bars.join('');
- $('#drMoodLegend').innerHTML=DR_MOODS.map((e,i)=>`<span class="text-[11px]">${e}</span><span class="w-2 h-2 rounded-full mr-1.5" style="background:${DR_COLORS[i]}"></span>`).join('');
+ /* 图例：一行精简，只列出现过的三档（低/中/高），放图表右下角——替代原来的一整排表情 */
+ $('#drMoodLegend').innerHTML=[[0,'低落'],[2,'一般'],[5,'愉悦']].map(([i,n])=>
+   `<span class="dr-legend-i mr-2"><i style="background:${DR_SCALE[i]}"></i>${n}</span>`).join('');
  $('#drSummary').textContent=`本月记录 ${rec} 篇 · 以 ${DR_MOODS[(seed+3)%7]} 居多 · 连续记录中`;
- const ws=[['散步',3],['复盘',2],['电影',3],['朋友',4],['周末',2],['读书',3],['咖啡',2],['运动',4],['睡眠',1],['项目',2],['灵感',3],['做饭',1],['雨',2],['展会',3]];
- $('#drCloud').innerHTML=ws.map(([w,k])=>{const i=(seed+k*13)%ws.length;const sz=[11,13,16,20,26][ (i+k*7)%5 ];const c=DR_COLORS[(i*5+k)%7];
-  return `<span style="font-size:${sz}px;font-weight:${sz>16?800:600};color:${c};opacity:.9;cursor:pointer" onclick="toast('查看含「${w}」的日记（模拟）')">${w}</span>`;}).join('');}
+ /* 词云：限最小字号（<11px 直接不渲染）、色阶收到同系 3 档、最大字号压到 20px 防失衡 */
+ $('#drCloud').innerHTML=DR_WORDS.map((w,k)=>{
+   const weight=((seed*3+k*13)%7);                      /* 0..6 频次档 */
+   const sz=[0,0,11,13,15,18,20][weight];               /* 0/1 档＝过小，隐藏 */
+   if(!sz)return '';
+   const c=DR_SCALE[Math.min(4,2+Math.floor(weight/3))];
+   return `<span style="font-size:${sz}px;font-weight:${sz>=18?600:500};color:${c};cursor:pointer" onclick="toast('查看含「${w}」的日记（模拟）')">${w}</span>`;
+ }).join('');}
 /* V1.29批2：日记编辑器工具栏兑现（B/≡/☑/❝ 插标记·🖼 走插图链·富文本=所见即所得模拟） */
 let imgTarget='note';
 /* 轮12-9：日记正文=富文本框（所见即所得·按钮直接施加格式，不插 MD 语法） */
