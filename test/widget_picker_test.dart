@@ -325,7 +325,28 @@ void main() {
       await tester.pumpAndSettle();
       expect(_lastResult?.sub, '早起喝水');
     });
+
+  testWidgets('批A 打卡枚：onlyTab=habit ⇒ 只出打卡段、tab 行整条收起（误绑书目根因）',
+      (tester) async {
+    // 2026-10-18 真机实锤：五段全开时用户滑到「阅读书目」点确定 ⇒ 绑定值写成
+    // `read_book␟<书 id>`，打卡枚解不出习惯名 ⇒ 桌面永久「未选择内容」。
+    await _open(tester, db: db, initialTab: 'habit', onlyTab: 'habit');
+    // ① 五段 tab 行不出现（一个分区的 tab 行只会暗示「还能选别的」）。
+    expect(find.byKey(const ValueKey('wg-tab-nav')), findsNothing);
+    expect(find.byKey(const ValueKey('wg-tab-read_book')), findsNothing);
+    expect(find.byKey(const ValueKey('wg-tab-habit')), findsNothing);
+    // ② 打卡段本身在（习惯 chips 可点；tab 行收起后「打卡」二字不再出现在页面上，
+    //    所以认 chip 而不是认分区名）。
+    expect(find.text('早起喝水'), findsOneWidget);
+    // ③ 确认后拿到的目标必须是打卡形态（kind=nav / ref=habit / sub 非空）。
+    final t = await _pickConfirm(tester, 'wg-target-habit-h1');
+    expect(t, isNotNull);
+    expect(t!.kind, 'nav');
+    expect(t.ref, 'habit');
+    expect(t.sub, isNotEmpty);
   });
+  });
+
 }
 
 /// 最近一次选择器的返回结果（harness 回写·断言用）。
@@ -345,6 +366,7 @@ Future<void> _open(
   String initialTab = 'nav',
   WidgetTarget? initial,
   WidgetPickerMode mode = WidgetPickerMode.widget,
+  String? onlyTab,
 }) async {
   _lastResult = null;
   await tester.pumpWidget(MaterialApp(
@@ -354,6 +376,7 @@ Future<void> _open(
       initialTab: initialTab,
       initial: initial,
       mode: mode,
+      onlyTab: onlyTab,
     ),
   ));
   await tester.pumpAndSettle();
@@ -391,12 +414,14 @@ class _PickerHarness extends StatefulWidget {
     required this.initialTab,
     this.initial,
     this.mode = WidgetPickerMode.widget,
+    this.onlyTab,
   });
 
   final Database db;
   final String initialTab;
   final WidgetTarget? initial;
   final WidgetPickerMode mode;
+  final String? onlyTab;
 
   @override
   State<_PickerHarness> createState() => _PickerHarnessState();
@@ -414,6 +439,7 @@ class _PickerHarnessState extends State<_PickerHarness> {
         initial: widget.initial,
         initialTab: widget.initialTab,
         db: widget.db,
+        onlyTab: widget.onlyTab,
       ).then((t) => _lastResult = t);
     });
   }

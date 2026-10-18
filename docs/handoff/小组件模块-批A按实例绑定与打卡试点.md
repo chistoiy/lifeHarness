@@ -251,3 +251,34 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 - **真机复验两条**：① 连加**两枚不同**打卡枚 → 各自显示自己的习惯（不再都变成最后选的那个）；② 绑一个
   **带数值**的习惯（如喝水 8 杯）→ 桌面显示 `3/8 杯` 与 `+2` 按钮，点一下进度前进一格、进 App 核对今日量同步；
   仍不对则抓 `adb logcat -s LhWidget` 看 `→ 正常（… done=…）` 行。
+
+### §7.8 冷启动崩溃（点图标开一半缩回）修复（2026-10-18 · 已落 · 6181 已出）
+
+产品原话：「有新的bug，点击app图标，会打开到一半，然后缩小回去，第二次点击才会打开app」＋补充「关键是小组件导致的，点击记一笔后，会复现」。
+
+- **根因（系统事件缓冲实锤）**：`nfc_manager` 4.1.1 的 `NfcManagerPlugin.onAttachedToActivity` 给
+  `registerReceiver(this, **null**, RECEIVER_NOT_EXPORTED)` 传了 **null IntentFilter**。Android 14+ 的
+  `BroadcastController.registerReceiverWithFeatureTraced` 对 null 取 `actionsIterator()` ⇒ NPE ⇒ 主进程当场崩。
+  logcat 序列：`am_kill … SwipeUpClean` → `FATAL EXCEPTION: main / NullPointerException: …IntentFilter.actionsIterator() on a null object reference`
+  → `wm_finish_activity … force-crash` → `am_proc_died`；栈顶 `B3.B.onAttachedToActivity` 经
+  `build/app/outputs/mapping/release/mapping.txt` 反查＝`dev.flutter.plugins.nfcmanager.NfcManagerPlugin`。
+- **为什么「点记一笔之后必现」**：点小组件＝起独立弹窗引擎（`QuickAddActivity` 不进 `FlutterEngineCache`），
+  主界面被系统回收；再点图标即冷启动，才走到 `onAttachedToActivity`。热启动复用缓存引擎不重走此路 ⇒「第二次正常」。
+- **为什么不直接升 4.2.1**：上游 4.2.1 CHANGELOG 明写「Fixes crash when re-opening the app from background」，
+  同一处改成 `val intentFilter = IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)`；但其
+  `environment.sdk: ^3.11.4`，本机 Dart 3.10.8 装不上（4.1.1 只要求 `^3.9.2`）。
+- **落法**：内置 `third_party/nfc_manager/`（4.1.1 原件，除 `example` 全带），**只改那 2 行**（与 4.2.1 逐字同式，
+  已下载 4.2.1 源码逐行比对），Dart 侧零改动（pigeon 生成物差异 5,000+ 行，不碰）。`pubspec.yaml` 改
+  `nfc_manager` 走 `path: third_party/nfc_manager`；`third_party/nfc_manager/LOCAL_PATCH.md` 记机理＋退场条件
+  （Dart 升 3.11.4+ 后改回 `^4.2.1` 并删目录）。
+- **口径沉淀**：① 上游「偶发崩溃／第二次才开」优先查**插件在 `onAttachedToActivity` 里的注册动作**——冷启动才走，
+  热启动不走，所以表现为「第一次崩、第二次好」；② 版本装不上不等于修不了：**内置原件＋只打上游那一处 diff**
+  比整版升级风险小得多（Dart 生成物不动）；③ 内置件必须自带 `LOCAL_PATCH.md`（来源、唯一改动、机理、退场条件），
+  否则半年后没人知道为什么有一份 vendored 依赖。
+- **验证**：`KT-OK`（2m19s）·`flutter analyze lib` 零 error·`prebuild_check --code 8181` 全 ok；
+  装机后实测两条序列**均不崩**：① `am force-stop` → `am start`（纯冷启）；② `HOME` → `am kill` → `am start`
+  （＝原崩溃序列「划掉后点图标」），`logcat` 无 `FATAL EXCEPTION`／无 `force-crash`／崩溃缓冲空，`topResumedActivity` 为本应用。
+- **6181 已出**：arm64 单 ABI·versionCode 8181（`--build-number 8181`＋`local.properties` 同值钉版）·
+  52,206,833 B·md5 `e159eaeb5c3eafea6da7ff1f9779dd8e`·`install -r` Success·`dumpsys` 确认 8181。
+- **仍待真机复验**（本次只验了冷启两条序列，弹窗链路需手指）：点「记一笔」→ 关闭 → 再点桌面 App 图标，
+  应一次就打开；另复验 §7.7 遗留两条（多枚打卡各自正确／数值型 `3/8 杯`＋`+N`）。

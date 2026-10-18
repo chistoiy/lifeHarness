@@ -86,7 +86,9 @@ class _QuickAddApp extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            // 与原型 `.qp-mask` 的 24 留白同口径：卡片四周留出桌面可见的边，
+            // 用户一眼能看出「这是个浮在桌面上的弹窗」，不是切了个页面。
+            padding: const EdgeInsets.all(24),
             child: LedgerAddPage(
               dialogMode: true,
               onDialogClose: () => SystemNavigator.pop(),

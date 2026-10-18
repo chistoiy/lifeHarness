@@ -95,8 +95,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
   late final FocusNode _personFocus = FocusNode()
     ..addListener(() {
       if (_personFocus.hasFocus || _personErr == null || !mounted) return;
-      setState(
-          () => _personErr = _f.person.trim().isEmpty ? _personErr : null);
+      setState(() => _personErr = _f.person.trim().isEmpty ? _personErr : null);
     });
 
   static const _ops = ['+', '−', '×', '÷'];
@@ -120,7 +119,8 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     ];
     _f.to = other.isEmpty ? _f.acct : other.first.id;
     final now = DateTime.now();
-    _f.time = '${now.hour.toString().padLeft(2, '0')}:'
+    _f.time =
+        '${now.hour.toString().padLeft(2, '0')}:'
         '${now.minute.toString().padLeft(2, '0')}';
     if (widget.kind != null) _applyKind(widget.kind!);
     if (widget.catId != null) _f.cat = widget.catId!;
@@ -134,13 +134,12 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
       final hits = d.txns.where((x) => x.id == srcId).toList();
       if (hits.isNotEmpty) {
         final t = hits.first;
-        _applyKind(
-          t.kind == LedgerTxn.kRefund ? LedgerTxn.kExpense : t.kind,
-        );
+        _applyKind(t.kind == LedgerTxn.kRefund ? LedgerTxn.kExpense : t.kind);
         _f.cat = t.catId ?? _f.cat;
         _f.sub = t.sub;
-        _f.expr =
-            t.amt == t.amt.roundToDouble() ? '${t.amt.toInt()}' : '${t.amt}';
+        _f.expr = t.amt == t.amt.roundToDouble()
+            ? '${t.amt.toInt()}'
+            : '${t.amt}';
         _f.note = t.note;
         _noteCtl.text = t.note;
         _f.tags = [...t.tags];
@@ -180,8 +179,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
           _f.expr = _f.expr.substring(0, _f.expr.length - 1);
         }
       } else if (k == 'op') {
-        final tail =
-            _f.expr.isEmpty ? '' : _f.expr[_f.expr.length - 1];
+        final tail = _f.expr.isEmpty ? '' : _f.expr[_f.expr.length - 1];
         if (_f.expr.isEmpty || _ops.contains(tail)) _f.expr += '0';
         _f.expr += _ops[_opIdx % _ops.length];
         _opIdx++;
@@ -207,8 +205,8 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     _amtErr = amt > 0
         ? null
         : _f.kind == LedgerTxn.kTransfer
-            ? '请输入转账金额'
-            : '请输入金额';
+        ? '请输入转账金额'
+        : '请输入金额';
     _acctErr = _f.kind == LedgerTxn.kTransfer && _f.acct == _f.to
         ? '转出与转入账户不能相同'
         : null;
@@ -252,8 +250,10 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
           note: _f.note.trim().isEmpty ? '记一笔借贷' : _f.note.trim(),
         );
         ledgerTouch(ref);
-        _toast('${_f.debtDir == 'lend' ? '借出' : '借入'} ${money(amt)} 已记入借贷'
-            ' · ${_f.person.trim()}');
+        _toast(
+          '${_f.debtDir == 'lend' ? '借出' : '借入'} ${money(amt)} 已记入借贷'
+          ' · ${_f.person.trim()}',
+        );
         if (mounted) _leave();
         return;
       }
@@ -290,11 +290,12 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
       }
       // V1.57 B 批：本笔落库后检查预算 80%/100% 档（同档期各一次 · 免打扰顺延）。
       try {
-        await checkBudgetAlert(repo,
-            dnd: ref.read(settingsRepositoryProvider).load().notify.dnd);
+        await checkBudgetAlert(
+          repo,
+          dnd: ref.read(settingsRepositoryProvider).load().notify.dnd,
+        );
       } catch (e) {
-        AppLog.add('预算超支提醒检查失败：$e',
-            level: LhLevel.warn, src: '记账');
+        AppLog.add('预算超支提醒检查失败：$e', level: LhLevel.warn, src: '记账');
       }
       ledgerTouch(ref);
       // 再记=必留；保存=按 afterSave 设置（back 回 L1 · stay 清金额留表单）。
@@ -347,67 +348,140 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     );
   }
 
-  /// 弹窗形态外壳（工单 §7.1）：**只换容器与高度**——表单仍是 [_body] 那一棵，
-  /// 四类型 tab／分类行／子类 chips／四则键盘与整页逐字同源（禁另造样式）。
+  /// 弹窗形态外壳（工单 §7.1）：**版式基准＝原型 `#qpDlg` 真弹窗**。
   ///
-  /// 高度按内容收：`shrinkWrap`（见 [_body]）让内容短时窗口短、内容长时到上限
-  /// 再滚动；上限取屏高 88%——再高就顶到状态栏，观感变成「切了个全屏页」。
+  /// 2026-10-18 真机二次报障「记一笔的页面是拉长版的，跟高保真不一样」根因：
+  /// 上一版把**整页**表单塞进 `maxHeight 88%` 的壳里，页面专属的那几段（付款账户、
+  /// 备注＋图片附件、日期/时间/谁/标签/商家/报销/退款/付款/计入预算九枚 meta chips）
+  /// 全在，内容高度直接顶到上限 ⇒ 观感就是「切了个全屏页」。
+  ///
+  /// 现按原型样张收口（样张 38/38 已过门，是验收基准）：
+  ///  · 卡片宽 ≤322dp、圆角 20、内边距 13/14/12，四周留白 24（宿主给）；
+  ///  · 头部「记一笔」14/w800 ＋ 26dp 圆形 ✕；
+  ///  · 四类型 tab → 分类行 → 子类 chips 轨 → 备注 → 15 键键盘（保存跨两行）；
+  ///  · **页面专属 chrome 不进弹窗**（付款账户/日期/时间/谁/标签/商家/报销/退款/
+  ///    付款/计入预算/图片附件）——弹窗是「快速记一笔」，这些回 App 内改；
+  ///  · 高度按内容收（`mainAxisSize.min`），上限 72% 屏高只作安全闸。
   Widget _dialogShell(AsyncValue<LedgerData> async) {
     final scheme = Theme.of(context).colorScheme;
-    final maxH = MediaQuery.sizeOf(context).height * 0.88;
+    final maxH = MediaQuery.sizeOf(context).height * 0.72;
     return Material(
+      key: const ValueKey<String>('ledger-add-card'),
       color: scheme.surface,
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxH),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '记一笔',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 322, maxHeight: maxH),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '记一笔',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: _leave,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: scheme.onSurfaceVariant.withValues(alpha: .12),
+                      ),
+                      child: Text(
+                        '✕',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
-                      IconButton(
-                        tooltip: '关闭',
-                        icon: const Icon(Icons.close, size: 20),
-                        onPressed: _leave,
-                      ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Flexible(
+                child: async.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('加载失败：$e')),
+                  data: (d) {
+                    if (!_inited) _initFrom(d);
+                    return TabularNums(child: _dialogBody(d));
+                  },
                 ),
-                Flexible(
-                  child: async.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text('加载失败：$e')),
-                    data: (d) {
-                      if (!_inited) _initFrom(d);
-                      return TabularNums(child: _body(d));
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  /// 弹窗正文：**可滚的字段区 ＋ 钉底的键盘**。
+  ///
+  /// 键盘不进滚动区：软键盘顶起窗口时（`adjustResize`）宁可上面那段滚，
+  /// 也不能把保存键挤出屏幕（拍板件 §五「小窗/IME」正是这条路要过的关）。
+  Widget _dialogBody(LedgerData d) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: _formSections(d, compact: true),
+            ),
+          ),
+        ),
+        const SizedBox(height: 9),
+        _Keypad(
+          onKey: _key,
+          onAgain: () => _save(stay: true),
+          onSave: () => _save(),
+        ),
+      ],
+    );
+  }
+
+  /// 整页正文（L2）：字段区 ＋ 键盘同处一个 `ListView`（键盘跟着内容滚）。
   Widget _body(LedgerData d) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      children: [
+        ..._formSections(d),
+        const SizedBox(height: 12),
+        _Keypad(
+          onKey: _key,
+          onAgain: () => _save(stay: true),
+          onSave: () => _save(),
+        ),
+      ],
+    );
+  }
+
+  /// 表单各段（整页与弹窗**同一份** widget 树，禁两套样式）。
+  ///
+  /// [compact] 只做两件事：① 尺寸收一档（tab 8/12.5、金额 23、分类名 14…）；
+  /// ② **去掉页面专属 chrome**——付款账户行、图片附件、九枚 meta chips
+  /// （日期/时间/谁/标签/商家/报销/退款/付款/计入预算）。那几段在原型弹窗样张
+  /// `#qpDlg` 里本来就没有，留着必然把卡片撑成整页（真机报障「拉长版」根因）。
+  List<Widget> _formSections(LedgerData d, {bool compact = false}) {
     final scheme = Theme.of(context).colorScheme;
     final tokens = context.tokens;
     final isTr = _f.kind == LedgerTxn.kTransfer;
@@ -418,105 +492,118 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
       _ => const Color(0xFFFB7185),
     };
     final acct = d.acct(_f.acct);
-    return ListView(
-      shrinkWrap: widget.dialogMode,
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-      children: [
-        // 四 tab（支出/收入/转账/借贷）
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-          ),
-          child: Row(
-            children: [
-              for (final (k, n) in const [
-                (LedgerTxn.kExpense, '支出'),
-                (LedgerTxn.kIncome, '收入'),
-                (LedgerTxn.kTransfer, '转账'),
-                (txTabDebt, '借贷'),
-              ])
-                Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _applyKind(k)),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            width: 3,
-                            color: _f.kind == k
-                                ? tokens.accent
-                                : Colors.transparent,
-                          ),
-                        ),
-                      ),
-                      child: Text(
-                        n,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+    return [
+      // 四 tab（支出/收入/转账/借贷）
+      Container(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            for (final (k, n) in const [
+              (LedgerTxn.kExpense, '支出'),
+              (LedgerTxn.kIncome, '收入'),
+              (LedgerTxn.kTransfer, '转账'),
+              (txTabDebt, '借贷'),
+            ])
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _applyKind(k)),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: compact ? 8 : 10),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          width: 3,
                           color: _f.kind == k
                               ? tokens.accent
-                              : scheme.onSurfaceVariant,
+                              : Colors.transparent,
                         ),
+                      ),
+                    ),
+                    child: Text(
+                      n,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: compact ? 12.5 : 13,
+                        fontWeight: FontWeight.w800,
+                        color: _f.kind == k
+                            ? tokens.accent
+                            : scheme.onSurfaceVariant,
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
-        ),
-        if (!isTr && !isDbt) ..._expenseIncomeBody(d, amtColor),
-        if (isDbt) ...debtBody(scheme),
-        if (isTr) ...transferBody(d),
-        if (!isTr && !isDbt)
-          InkWell(
-            onTap: () async {
-              final id = await showLAcctPick(context, title: '选择付款账户');
-              if (id != null) setState(() => _f.acct = id);
-            },
-            child: Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
               ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '付款账户',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+          ],
+        ),
+      ),
+      if (!isTr && !isDbt) ..._expenseIncomeBody(d, amtColor, compact: compact),
+      if (isDbt) ...debtBody(scheme, compact: compact, hide: d.hideAmounts),
+      if (isTr) ...transferBody(d, compact: compact),
+      if (!compact && !isTr && !isDbt)
+        InkWell(
+          onTap: () async {
+            final id = await showLAcctPick(context, title: '选择付款账户');
+            if (id != null) setState(() => _f.acct = id);
+          },
+          child: Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '付款账户',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
                   ),
-                  if (acct != null)
-                    Row(
-                      children: [
-                        Icon(
-                          LIcons.resolve(acct.icon),
-                          size: 16,
+                ),
+                if (acct != null)
+                  Row(
+                    children: [
+                      Icon(
+                        LIcons.resolve(acct.icon),
+                        size: 16,
+                        color: lColor(acct.color),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        acct.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
                           color: lColor(acct.color),
                         ),
-                        const SizedBox(width: 5),
-                        Text(
-                          acct.name,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: lColor(acct.color),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
-        // 备注 + 图片附件占位
+        ),
+      // 备注：整页带图片附件占位；弹窗只留一行输入（原型 `.qp-note` 无附件钮）
+      if (compact)
+        Container(
+          margin: const EdgeInsets.only(top: 9),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: TextField(
+            controller: _noteCtl,
+            onChanged: (v) => _f.note = v,
+            style: const TextStyle(fontSize: 12),
+            decoration: const InputDecoration(
+              hintText: '备注…',
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 7),
+            ),
+          ),
+        )
+      else
         Container(
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
           decoration: BoxDecoration(
@@ -543,93 +630,86 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
             ],
           ),
         ),
-        if (!isDbt) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _metaChip(
-                _f.date == dayKey(DateTime.now())
-                    ? '今天 周${wdOf(_f.date)}'
-                    : _f.date.substring(5),
-                false,
-                () async {
-                  final v = await showLDateSheet(
-                    context,
-                    mode: 'day',
-                    value: _f.date,
-                  );
-                  if (v != null) setState(() => _f.date = v);
-                },
-              ),
-              _metaChip(_f.time, false, () async {
+      if (!compact && !isDbt) ...[
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _metaChip(
+              _f.date == dayKey(DateTime.now())
+                  ? '今天 周${wdOf(_f.date)}'
+                  : _f.date.substring(5),
+              false,
+              () async {
                 final v = await showLDateSheet(
                   context,
-                  mode: 'time',
-                  value: _f.time,
+                  mode: 'day',
+                  value: _f.date,
                 );
-                if (v != null) setState(() => _f.time = v);
-              }),
-              _metaChip(_f.who, false, () async {
-                final v = await showLWhoPick(context, value: _f.who);
-                if (v != null) setState(() => _f.who = v);
-              }),
+                if (v != null) setState(() => _f.date = v);
+              },
+            ),
+            _metaChip(_f.time, false, () async {
+              final v = await showLDateSheet(
+                context,
+                mode: 'time',
+                value: _f.time,
+              );
+              if (v != null) setState(() => _f.time = v);
+            }),
+            _metaChip(_f.who, false, () async {
+              final v = await showLWhoPick(context, value: _f.who);
+              if (v != null) setState(() => _f.who = v);
+            }),
+            _metaChip(
+              _f.tags.isEmpty ? '无标签' : '标签·${_f.tags.length}',
+              _f.tags.isNotEmpty,
+              () async {
+                final v = await showLTagPick(context, selected: _f.tags);
+                if (v != null) setState(() => _f.tags = v);
+              },
+            ),
+            _metaChip(
+              _f.merchant.isEmpty ? '无商家' : '商家·${_f.merchant}',
+              _f.merchant.isNotEmpty,
+              () async {
+                final v = await showLMerchPick(context, value: _f.merchant);
+                if (v != null) setState(() => _f.merchant = v);
+              },
+            ),
+            if (!isTr) ...[
               _metaChip(
-                _f.tags.isEmpty ? '无标签' : '标签·${_f.tags.length}',
-                _f.tags.isNotEmpty,
-                () async {
-                  final v = await showLTagPick(context, selected: _f.tags);
-                  if (v != null) setState(() => _f.tags = v);
-                },
+                _f.reim ? '报销' : '非报销',
+                _f.reim,
+                () => setState(() => _f.reim = !_f.reim),
+              ),
+              _metaChip('无退款', false, () => _toast('退款 · 在流水详情页对原支出操作')),
+              _metaChip(
+                _f.paid ? '已付款' : '未付款',
+                !_f.paid,
+                () => setState(() => _f.paid = !_f.paid),
               ),
               _metaChip(
-                _f.merchant.isEmpty ? '无商家' : '商家·${_f.merchant}',
-                _f.merchant.isNotEmpty,
-                () async {
-                  final v = await showLMerchPick(context, value: _f.merchant);
-                  if (v != null) setState(() => _f.merchant = v);
-                },
+                _f.incB ? '计入收支和预算' : '不计入收支预算',
+                !_f.incB,
+                () => setState(() => _f.incB = !_f.incB),
               ),
-              if (!isTr) ...[
-                _metaChip(
-                  _f.reim ? '报销' : '非报销',
-                  _f.reim,
-                  () => setState(() => _f.reim = !_f.reim),
-                ),
-                _metaChip(
-                  '无退款',
-                  false,
-                  () => _toast('退款 · 在流水详情页对原支出操作'),
-                ),
-                _metaChip(
-                  _f.paid ? '已付款' : '未付款',
-                  !_f.paid,
-                  () => setState(() => _f.paid = !_f.paid),
-                ),
-                _metaChip(
-                  _f.incB ? '计入收支和预算' : '不计入收支预算',
-                  !_f.incB,
-                  () => setState(() => _f.incB = !_f.incB),
-                ),
-              ],
             ],
-          ),
-        ],
-        const SizedBox(height: 12),
-        _Keypad(
-          onKey: _key,
-          onAgain: () => _save(stay: true),
-          onSave: () => _save(),
+          ],
         ),
       ],
-    );
+    ];
   }
 
-  /// 支出/收入形态：分类入口行 + chips 轨。
-  List<Widget> _expenseIncomeBody(LedgerData d, Color amtColor) {
+  /// 支出/收入形态：分类入口行 + chips 轨（原型 `.qp-catrow` / `.qp-rail`）。
+  List<Widget> _expenseIncomeBody(
+    LedgerData d,
+    Color amtColor, {
+    bool compact = false,
+  }) {
     return [
-      const SizedBox(height: 12),
+      SizedBox(height: compact ? 11 : 12),
       Row(
         children: [
           Expanded(
@@ -658,8 +738,8 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
                     LTile(
                       iconKey: d.catOf(_f.cat).icon,
                       color: d.catOf(_f.cat).color,
-                      size: 36,
-                      radius: 12,
+                      size: compact ? 34 : 36,
+                      radius: compact ? 11 : 12,
                     ),
                     const SizedBox(width: 10),
                     Flexible(
@@ -668,8 +748,8 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
                             (_f.sub.isNotEmpty ? ' · ${_f.sub}' : ''),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
+                        style: TextStyle(
+                          fontSize: compact ? 14 : 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -686,7 +766,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
               Text(
                 d.hideAmounts ? '••••' : _amt.toStringAsFixed(2),
                 style: TextStyle(
-                  fontSize: 26,
+                  fontSize: compact ? 23 : 26,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -.5,
                   color: amtColor,
@@ -717,6 +797,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
                 child: LChip(
                   label: label,
                   on: cid == _f.cat && sn == _f.sub,
+                  small: compact,
                   onTap: () => setState(() {
                     _f.cat = cid;
                     _f.sub = sn;
@@ -729,14 +810,19 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     ];
   }
 
-  List<Widget> debtBody(ColorScheme scheme) {
+  /// 借贷形态（原型 `.qp-dseg` ＋ 对方输入 ＋ `.qp-amrow` 右对齐金额）。
+  List<Widget> debtBody(
+    ColorScheme scheme, {
+    bool compact = false,
+    bool hide = false,
+  }) {
     return [
-      const SizedBox(height: 12),
+      SizedBox(height: compact ? 9 : 12),
       Container(
-        padding: const EdgeInsets.all(4),
+        padding: EdgeInsets.all(compact ? 3 : 4),
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(compact ? 12 : 18),
         ),
         child: Row(
           children: [
@@ -749,11 +835,11 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
                   onTap: () => setState(() => _f.debtDir = k),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 140),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: EdgeInsets.symmetric(vertical: compact ? 6 : 8),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: _f.debtDir == k ? scheme.surface : null,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(compact ? 9 : 14),
                       boxShadow: _f.debtDir == k
                           ? [
                               BoxShadow(
@@ -765,8 +851,8 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
                     ),
                     child: Text(
                       n,
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: TextStyle(
+                        fontSize: compact ? 11 : 12,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -776,7 +862,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
           ],
         ),
       ),
-      const SizedBox(height: 10),
+      SizedBox(height: compact ? 8 : 10),
       TextField(
         controller: _personCtl,
         focusNode: _personFocus,
@@ -786,36 +872,89 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
             setState(() => _personErr = null);
           }
         },
-        style: const TextStyle(fontSize: 13),
-        decoration:
-            InputDecoration(hintText: '对方（如：老王）', errorText: _personErr),
+        style: TextStyle(fontSize: compact ? 12.5 : 13),
+        decoration: InputDecoration(
+          hintText: '对方（如：老王）',
+          errorText: _personErr,
+          isDense: compact,
+          filled: compact,
+          fillColor: compact
+              ? scheme.onSurfaceVariant.withValues(alpha: .08)
+              : null,
+          contentPadding: compact
+              ? const EdgeInsets.symmetric(horizontal: 9, vertical: 8)
+              : null,
+          border: compact
+              ? OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                )
+              : null,
+        ),
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: compact ? 10 : 12),
       Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          const Text('金额 ', style: TextStyle(fontSize: 13)),
-          Text(
-            money(_amt),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-          ),
+          if (!compact) const Text('金额 ', style: TextStyle(fontSize: 13)),
+          if (!compact)
+            Text(
+              money(_amt),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
           // T9：金额校验落金额旁。
-          FieldError(_amtErr),
+          if (compact)
+            Expanded(child: _amountRow(compact: true, hide: hide))
+          else
+            FieldError(_amtErr),
         ],
       ),
     ];
   }
 
-  List<Widget> transferBody(LedgerData d) {
+  /// 金额行（原型 `.qp-amrow`）：右对齐「¥ ＋ 23dp 金额」，校验文案挂其后。
+  Widget _amountRow({bool compact = false, bool hide = false}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          '¥',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          hide ? '••••' : _amt.toStringAsFixed(2),
+          style: TextStyle(
+            fontSize: compact ? 23 : 26,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -.5,
+          ),
+        ),
+        FieldError(_amtErr),
+      ],
+    );
+  }
+
+  /// 转账形态（原型：转出/转入两张账户卡 ＋ 金额行）。
+  List<Widget> transferBody(LedgerData d, {bool compact = false}) {
     return [
-      const SizedBox(height: 12),
+      SizedBox(height: compact ? 9 : 12),
       for (final (idx, label) in [(0, '选出'), (1, '转入')])
         Padding(
-          padding: EdgeInsets.only(bottom: idx == 0 ? 8 : 0),
+          padding: EdgeInsets.only(bottom: idx == 0 ? (compact ? 6 : 8) : 0),
           child: _AcctCard(
             d: d,
             account: idx == 0 ? d.acct(_f.acct) : d.acct(_f.to),
             label: label,
-            amount: _amt,
+            amount: compact ? null : _amt,
+            compact: compact,
             onTap: () async {
               final id = await showLAcctPick(
                 context,
@@ -834,8 +973,9 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
             },
           ),
         ),
+      if (compact) _amountRow(compact: true, hide: d.hideAmounts),
       // T9：金额与「同账户互斥」都落在卡片下方，不再只弹提示条。
-      FieldError(_amtErr),
+      if (!compact) FieldError(_amtErr),
       FieldError(_acctErr),
     ];
   }
@@ -864,8 +1004,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
       favs: d.favs,
       treeCatIds: treeIds,
     )) {
-      final label =
-          sn.isEmpty ? d.catOf(cid).name : '${d.catOf(cid).name}·$sn';
+      final label = sn.isEmpty ? d.catOf(cid).name : '${d.catOf(cid).name}·$sn';
       out.add((label, cid, sn));
       if (out.length >= 13) break;
     }
@@ -897,32 +1036,31 @@ class _Keypad extends StatelessWidget {
       required VoidCallback onTap,
       bool op = false,
       bool big = false,
-    }) =>
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: InkWell(
+    }) => Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: op ? scheme.surfaceContainerHighest : scheme.surface,
               borderRadius: BorderRadius.circular(14),
-              onTap: onTap,
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: op ? scheme.surfaceContainerHighest : scheme.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: scheme.outlineVariant),
-                ),
-                child: Text(
-                  content,
-                  style: TextStyle(
-                    fontSize: big ? 15 : 17,
-                    fontWeight: FontWeight.w800,
-                    color: op ? scheme.onSurfaceVariant : scheme.onSurface,
-                  ),
-                ),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Text(
+              content,
+              style: TextStyle(
+                fontSize: big ? 15 : 17,
+                fontWeight: FontWeight.w800,
+                color: op ? scheme.onSurfaceVariant : scheme.onSurface,
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
     final rows = const [
       ['1', '2', '3'],
       ['4', '5', '6'],
@@ -1054,7 +1192,7 @@ class _Keypad extends StatelessWidget {
   }
 }
 
-/// 转账账户卡。
+/// 转账账户卡（整页带右侧金额；弹窗紧凑态只留「图标＋名称＋标签·余额」）。
 class _AcctCard extends StatelessWidget {
   const _AcctCard({
     required this.d,
@@ -1062,58 +1200,74 @@ class _AcctCard extends StatelessWidget {
     required this.label,
     required this.amount,
     required this.onTap,
+    this.compact = false,
   });
 
   final LedgerData d;
   final LedgerAccount? account;
   final String label;
-  final double amount;
+
+  /// 右侧金额（弹窗紧凑态传 null ⇒ 不显示，金额统一走下方 `.qp-amrow`）。
+  final double? amount;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final a = account;
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(compact ? 12 : 16),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: context.cardDecoration,
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 9 : 14,
+          vertical: compact ? 8 : 12,
+        ),
+        decoration: compact
+            ? BoxDecoration(
+                color: scheme.onSurfaceVariant.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(12),
+              )
+            : context.cardDecoration,
         child: Row(
           children: [
             LTile(
               iconKey: a?.icon ?? 'dots',
               color: a?.color ?? '#94a3b8',
-              size: 34,
-              radius: 12,
+              size: compact ? 30 : 34,
+              radius: compact ? 10 : 12,
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: compact ? 8 : 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     a?.name ?? '选择账户',
-                    style: const TextStyle(
-                      fontSize: 13,
+                    style: TextStyle(
+                      fontSize: compact ? 12.5 : 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   Text(
                     '$label · 余额 ${amtText(a?.balanceCache ?? 0, hide: d.hideAmounts)}',
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: compact ? 9.5 : 9,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            Text(
-              amtText(amount, hide: d.hideAmounts),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-            ),
+            if (amount != null)
+              Text(
+                amtText(amount!, hide: d.hideAmounts),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
           ],
         ),
       ),

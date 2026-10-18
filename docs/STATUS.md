@@ -3,8 +3,8 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 立·2026-10-14 并入体量治理·2026-10-17 棘轮下调至 9.7KiB）：硬闸＝doclint 守护七调 `python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤9,950 字节·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符）；**黄线＝上限 90%（8,955 字节），到线即当轮瘦身；上限随瘦身棘轮只降不升**（口径＝`AGENTS.md`「文档体量治理」·doclint 守护二十一＝单行 ≤700 字符）。溢出细节留 `docs/handoff/` 工单、历史整段沉 `docs/archive/`；收尾改本文件一律走 `tools/status_set.py`（`--rotate`→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`；治理口径＝`docs/archive/治理方案-20261013-规则与上下文与记忆治理.md`。
 
-- **本批＝** **小组件批A 真机五报修复（6180 已出）**：① 多枚打卡枚全变同一个＝绑定解析顺序病灶（实例键→默认键→认领 ⇒ 默认键有值则交接位永不认领），改「实例键→认领→默认键」；② 数值型习惯补记量能力＝快照 3 段扩 7 段（value/goal/unit/step），桌面状态行 `3/8 杯`、按钮 `+N` 且**恒可点**，写库走新核心 `habitIncrementWrite`（步进与记量弹层同源 `habitStepOf`，已迁 domain）。闸：render 26→33／echo 14 例重判／binding 16·picker 21·quick_add 24·config 16·habit 四件全绿·analyze 零 error·KT-OK。**下一步＝装机 8180 复验两条（多枚各自正确／数值型进度与 +N）。**
-- **上一批＝** **小组件批A 真机三缺陷修复（6176 已出）**：① 弹窗引擎补 `ensureInitialized`（点「记一笔」无反应根因＝自定义入口点没人建 binding，prefs 首句即抛）；② 打卡枚**实例自认领**预选绑定＋Dart 侧补默认绑定回落与当场重绘（MIUI 不跑配置页 ⇒ 选了不生效、桌面「没有打卡内容」）；③ 新增**系统寻址段** `lh://settings/desktop`，失效三态点击改去设置页。闸 4 例新增·回归 138 全绿·kotlin 过·变异三刀红其位。**下一步＝真机复验三缺陷（装机 8176）。**
+- **本批＝** **小组件批A 冷启崩溃修复（6181 已出）**：点图标「开一半缩回、第二次才开」＝`nfc_manager` 4.1.1 给 `registerReceiver` 传 **null IntentFilter**，Android 14+ 冷启抛 NPE（栈顶 `NfcManagerPlugin.onAttachedToActivity`·`mapping.txt` 反查实锤）；上游 4.2.1 同处已修但要 Dart 3.11.4（本机 3.10.8 装不上）⇒ 内置 4.1.1 到 `third_party/` 只打那一处（Dart 侧零改）。冷启／划掉后点图标两序列实测不崩。闸：KT-OK·analyze 零 error·8181。详见工单 §7.8。
+- **上一批＝** **小组件批A 真机五报修复（6180 已出）**：① 多枚打卡枚全变同一个＝绑定解析顺序病灶（实例键→默认键→认领 ⇒ 默认键有值则交接位永不认领），改「实例键→认领→默认键」；② 数值型习惯补记量能力＝快照 3 段扩 7 段（value/goal/unit/step），桌面状态行 `3/8 杯`、按钮 `+N` 且**恒可点**，写库走新核心 `habitIncrementWrite`（步进与记量弹层同源 `habitStepOf`，已迁 domain）。闸：render 26→33／echo 14 例重判／binding 16·picker 21·quick_add 24·config 16·habit 四件全绿·analyze 零 error·KT-OK。**下一步＝装机 8180 复验两条（多枚各自正确／数值型进度与 +N）。**
 
 ## 基线（八项，其余不写）
 

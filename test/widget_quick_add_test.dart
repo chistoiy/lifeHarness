@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/theme/app_theme.dart';
 import 'package:lifeharness/core/theme/theme_tokens.dart';
+import 'package:lifeharness/features/ledger/domain/ledger_models.dart';
 import 'package:lifeharness/features/ledger/presentation/ledger_add_page.dart';
+import 'package:lifeharness/features/ledger/presentation/ledger_providers.dart'
+    show LedgerData, ledgerDataProvider;
 import 'package:lifeharness/shared/linkage/desktop_widget_mounts.dart'
     show ledgerWidgetCells;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,14 +50,14 @@ void main() {
   }
 
   group('① 表单同源（弹窗不另造一套）', () {
-    test('弹窗分支只是换外壳，表单仍走 _body', () {
+    test('弹窗分支只是换外壳，字段段仍走 _formSections', () {
       expect(
         addPage.contains('if (widget.dialogMode) return _dialogShell(async);'),
         isTrue,
       );
       final shell = bodyOf(addPage, 'Widget _dialogShell(');
-      expect(shell.contains('_body(d)'), isTrue,
-          reason: '弹窗必须复用整页那棵表单树');
+      expect(shell.contains('_dialogBody(d)'), isTrue,
+          reason: '弹窗必须复用整页那棵表单树（只是密度与 chrome 不同）');
       // 弹窗外壳里不许出现分类/键盘的自建实现（出现即意味着复制了一份）。
       for (final banned in [
         '        _Keypad(',
@@ -68,9 +71,20 @@ void main() {
       }
     });
 
+    test('弹窗正文＝可滚字段区＋钉底键盘，字段段与整页同一个函数', () {
+      final body = bodyOf(addPage, 'Widget _dialogBody(');
+      expect(body.contains('_formSections(d, compact: true)'), isTrue);
+      expect(body.contains('_Keypad('), isTrue, reason: '键盘钉底不进滚动区');
+      expect(body.contains('SingleChildScrollView('), isTrue);
+      // 整页与弹窗都从同一个 `_formSections` 出字段（禁第二套）。
+      final page = bodyOf(addPage, 'Widget _body(');
+      expect(page.contains('..._formSections(d),'), isTrue);
+    });
+
     test('四 tab／键盘／分类行全仓各只有一处（同源即唯一）', () {
-      // `        _Keypad(`＝_body 里那一处调用（类声明与构造器不带头缩进）。
-      expect(RegExp(r'\n        _Keypad\(').allMatches(addPage).length, 1);
+      // `_Keypad(` 两处调用＝整页与弹窗各一次（实现只有 `class _Keypad` 一处）。
+      expect(RegExp(r'\n        _Keypad\(').allMatches(addPage).length, 2);
+      expect(RegExp(r'class _Keypad extends StatelessWidget').allMatches(addPage).length, 1);
       expect(
         RegExp(RegExp.escape("(LedgerTxn.kExpense, '支出')"))
             .allMatches(addPage)
@@ -89,15 +103,28 @@ void main() {
       final shell = bodyOf(addPage, 'Widget _dialogShell(');
       expect(shell.contains('AppBar('), isFalse);
       expect(shell.contains("'记一笔'"), isTrue);
-      expect(shell.contains('IconButton('), isTrue); // ✕ 关闭
+      expect(shell.contains("'✕'"), isTrue); // ✕ 关闭（原型 26dp 圆形）
       // 整页形态仍带 AppBar（回归：别为了弹窗把整页外壳也改了）。
       expect(addPage.contains('appBar: AppBar('), isTrue);
     });
 
-    test('高度按内容收（shrinkWrap 只在弹窗形态开）', () {
-      expect(addPage.contains('shrinkWrap: widget.dialogMode,'), isTrue);
-      expect(addPage.contains('MediaQuery.sizeOf(context).height * 0.88'),
-          isTrue);
+    test('高度按内容收（卡片上限 322×72% 屏高，禁撑成全屏页）', () {
+      // 2026-10-18 真机二次报障「记一笔是拉长版的」：上一版上限 88% 屏高＋整页
+      // 九枚 meta chips／付款账户／图片附件全在 ⇒ 视觉等同全屏页。
+      final shell = bodyOf(addPage, 'Widget _dialogShell(');
+      expect(shell.contains('maxWidth: 322'), isTrue, reason: '原型卡片宽 ≤322');
+      expect(shell.contains('* 0.72'), isTrue, reason: '安全闸 72% 屏高');
+      expect(shell.contains('* 0.88'), isFalse, reason: '88% 会顶到状态栏');
+      expect(shell.contains('mainAxisSize: MainAxisSize.min'), isTrue,
+          reason: '按内容收高');
+    });
+
+    test('页面专属 chrome 不进弹窗（否则必然撑回整页）', () {
+      final sections = bodyOf(addPage, 'List<Widget> _formSections(');
+      // 三处都挂 compact 闸：付款账户行、meta chips 区、图片附件（备注分支）。
+      expect(sections.contains('if (!compact && !isTr && !isDbt)'), isTrue);
+      expect(sections.contains('if (!compact && !isDbt) ...['), isTrue);
+      expect(sections.contains('if (compact)'), isTrue, reason: '备注两形态');
     });
   });
 
@@ -231,7 +258,105 @@ void main() {
       await tester.pump();
       expect(find.byType(AppBar), findsNothing);
       expect(find.text('记一笔'), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
+      // 关闭键＝原型 26dp 圆形 ✕（不是 Material 的 close 图标）。
+      expect(find.text('✕'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
+
+    testWidgets('弹窗＝紧凑卡片：四 tab／分类行／键盘在，页面 chrome 全不在', (tester) async {
+      // 2026-10-18 真机二次报障「记一笔是拉长版的页面，跟高保真不一样」：
+      // 上一版把整页表单塞进 88% 屏高的壳，付款账户/九枚 meta chips/图片附件全在，
+      // 高度顶满 ⇒ 观感就是全屏页。这条用例钉住「弹窗该长什么样」。
+      tester.view.physicalSize = const Size(1200, 2670); // 400×890dp @3x
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            ledgerDataProvider.overrideWith((ref) async => _fakeLedger()),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.build(ThemeTokens.defaults, isDark: false),
+            home: const Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: LedgerAddPage(dialogMode: true),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // ① 四类型 tab ＋ 键盘（保存跨两行）都在。
+      for (final t in ['支出', '收入', '转账', '借贷', '保存', '再记', '备注…']) {
+        expect(find.text(t), findsWidgets, reason: '弹窗缺「$t」');
+      }
+      // ② 分类行（大类名）＋ 子类 chips 轨在。
+      expect(find.text('餐饮'), findsWidgets); // 分类行 ＋ chips 首枚
+      expect(find.text('早餐'), findsWidgets);
+      // ③ 页面专属 chrome 一枚都不许出现（出现即撑回整页）。
+      for (final gone in ['付款账户', '无退款', '非报销', '计入收支和预算', '无标签', '无商家']) {
+        expect(find.text(gone), findsNothing, reason: '弹窗里不该有「$gone」');
+      }
+      expect(find.byIcon(Icons.image_outlined), findsNothing);
+
+      // ④ 尺寸：卡片 ≤322 宽、高度按内容收（远低于 72% 安全闸）。
+      final card = tester.getSize(find.byKey(const ValueKey('ledger-add-card')));
+      expect(card.width, lessThanOrEqualTo(322.0));
+      expect(card.height, lessThan(890 * 0.72),
+          reason: '撑到上限就是全屏页观感（本次报障）');
+      // 内容量决定高度：支出形态约 380–460dp，给一档宽区间防漂。
+      expect(card.height, lessThan(560.0));
+    });
+
+    testWidgets('弹窗按内容收高：换到借贷形态高度不同（不是固定整页）',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 2670);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            ledgerDataProvider.overrideWith((ref) async => _fakeLedger()),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.build(ThemeTokens.defaults, isDark: false),
+            home: const Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: LedgerAddPage(dialogMode: true),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final h0 = tester
+          .getSize(find.byKey(const ValueKey('ledger-add-card')))
+          .height;
+      await tester.tap(find.text('借贷'));
+      await tester.pumpAndSettle();
+      // 借贷形态有 dseg＋对方输入＋金额行（比支出形态少 chips 轨）⇒ 高度应变化，
+      // 但仍在安全闸内；关键断言是「不是固定撑满」。
+      final h1 = tester
+          .getSize(find.byKey(const ValueKey('ledger-add-card')))
+          .height;
+      expect(h1, lessThan(890 * 0.72));
+      expect(find.text('借出 · 别人欠我'), findsOneWidget);
+      expect(find.text('对方（如：老王）'), findsOneWidget);
+      expect((h1 - h0).abs(), greaterThan(0.0),
+          reason: '两种形态同高 ⇒ 说明高度是写死的整页，不是按内容收');
     });
   });
 
@@ -319,3 +444,40 @@ void main() {
     });
   });
 }
+
+/// 弹窗渲染用例的最小账本夹具（只喂渲染要读的字段：分类树/账户/偏好开关）。
+///
+/// 为什么不连真库：`LedgerData` 走 sqflite，在 Windows 测试环境会卡住（本仓
+/// 既有约定：一律用注入缝）；这里只要「分类行＋chips 轨＋账户」能画出来。
+LedgerData _fakeLedger() => LedgerData(
+      books: const [LedgerBook(id: 1, name: '日常')],
+      curBook: const LedgerBook(id: 1, name: '日常'),
+      accounts: const [
+        LedgerAccount(id: 1, type: 'cash', name: '现金'),
+        LedgerAccount(id: 2, type: 'debit', name: '储蓄卡'),
+      ],
+      cats: const [
+        LedgerCat(id: 101, kind: 'expense', name: '餐饮', icon: 'food', color: '#fb7185'),
+        LedgerCat(id: 102, kind: 'expense', parentId: 101, name: '早餐'),
+        LedgerCat(id: 103, kind: 'expense', parentId: 101, name: '午餐'),
+        LedgerCat(id: 201, kind: 'income', name: '工资', icon: 'salary', color: '#10b981'),
+      ],
+      favs: const [],
+      txns: const [],
+      budget: LedgerBudget(),
+      month: '2026-10',
+      hideAmounts: false,
+      defAcctId: 1,
+      afterSave: 'stay',
+      confirmDel: false,
+      monthStart: 1,
+      whoDef: '自己',
+      quickCats: const [],
+      heroBig: '',
+      heroSlots: const [],
+      whos: const [],
+      tagGroups: const [],
+      merchants: const [],
+      txnCounts: const {},
+      dueRecurN: 0,
+    );

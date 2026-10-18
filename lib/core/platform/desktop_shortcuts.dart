@@ -68,16 +68,24 @@ Future<bool> requestPinShortcut(String actionId) async {
 /// 任何 App 放小组件都必须过这一步，没有 API 能换皮（不是我们的弹窗）。
 ///
 /// 无桥环境（测试/异常设备）静默降级——桌面侧本就是系统 UI。
-Future<void> pinDesktopWidget(String widgetId) async {
+///
+/// @return true＝系统**接受了这次 pin 请求**（确认框应由桌面弹出）；false＝这台
+///         桌面不支持／请求被拒。**调用方必须据此改口**：false 时再说「请在系统
+///         弹窗里确认」就是骗人（2026-10-18 真机报障原话「说在系统选项里设，实际
+///         没有系统选择」）。
+Future<bool> pinDesktopWidget(String widgetId) async {
   try {
-    await _desktopChannel.invokeMethod<bool>(
+    final ok = await _desktopChannel.invokeMethod<bool>(
       'pinWidget',
       <String, dynamic>{'widget': widgetId},
     );
+    return ok ?? false;
   } catch (_) {
     // catch-ok: 无原生桥时静默降级，不打断设置页。
+    return false;
   }
 }
+
 /// 把「是否添加这枚」的总开关同步给原生（2026-10-15 8148 装机实锤修「死开关」）。
 ///
 /// 前两个开关（2×2 概览 / 4×1 快捷记录）的语义是**是否添加这枚**（产品定案），

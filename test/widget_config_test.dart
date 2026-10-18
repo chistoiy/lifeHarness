@@ -284,17 +284,18 @@ void main() {
       //     并当场推一把重绘（已在桌面的未绑定枚不会自己醒）。
       expect(WidgetBindingStore(prefs).globalDefault?.sub, '夜读半小时');
       expect(redrawCalls, <String>[LhWidgetNames.habitCheck]);
-      // 流程回的是人话标签（设置页直接拿去提示）。
+      // 流程回的是人话标签（设置页直接拿去提示），并带回「系统是否接受了 pin」。
       expect(find.text('打卡 · 夜读半小时'), findsOneWidget);
+      expect(find.text('pinned=true'), findsOneWidget);
     });
   });
 
   group('设置页接线（假流程注入·不读库）', () {
-    late List<String?> flowResults;
+    late List<WidgetAddOutcome?> flowResults;
     late int calls;
 
     setUp(() {
-      flowResults = <String?>[];
+      flowResults = <WidgetAddOutcome?>[];
       calls = 0;
     });
 
@@ -326,23 +327,47 @@ void main() {
       expect(find.byKey(const ValueKey('wg-pin-habit')), findsOneWidget);
     });
 
-    testWidgets('两个入口都通到同一流程；选中给提示、取消不提示', (tester) async {
+    testWidgets('两个入口都通到同一流程；选中给引导、取消不提示', (tester) async {
       await pumpPage(tester);
-      // ① 头部入口：流程返回标签 ⇒ 提示带标签。
-      flowResults = <String?>['打卡 · 早起喝水'];
+      // ① 头部入口：流程返回标签 ⇒ 弹引导层（带标签）。
+      // ⚠ 2026-10-18 二次报障改口：`pinned=true` **也**弹同一份引导——MIUI 的
+      // `requestPinAppWidget` 返回 true 却不弹任何确认框，所以不能再拿它当
+      // 「系统会弹窗」的证据，一律给「怎么手动拖出来」的三步。
+      flowResults = <WidgetAddOutcome?>[
+        const WidgetAddOutcome(label: '打卡 · 早起喝水', pinned: true),
+      ];
       await tester.tap(find.byKey(const ValueKey('wg-add-widget')));
       await tester.pumpAndSettle();
       expect(calls, 1);
-      expect(find.textContaining('已选「打卡 · 早起喝水」'), findsOneWidget);
-      // ② 行内「添加」：流程返回 null（取消）⇒ 不再提示。
-      // 先把上一条提示等过去（SnackBar 1.6s 自消，不等会误判成「又弹了一条」）。
-      await tester.pump(const Duration(seconds: 2));
+      expect(find.textContaining('已选好「打卡 · 早起喝水」'), findsOneWidget);
+      expect(find.textContaining('请在系统弹窗里确认'), findsNothing);
+      await tester.tap(find.text('知道了'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('已选「'), findsNothing);
+      expect(find.textContaining('已选好「'), findsNothing);
+      // ② 行内「添加」：流程返回 null（取消）⇒ 不再提示。
       await tester.tap(find.byKey(const ValueKey('wg-pin-habit')));
       await tester.pumpAndSettle();
       expect(calls, 2);
-      expect(find.textContaining('已选「'), findsNothing);
+      expect(find.textContaining('已选好「'), findsNothing);
+    });
+
+    testWidgets('系统没接受 pin ⇒ 同样给手动拖出引导，全程不提「系统弹窗」',
+        (tester) async {
+      await pumpPage(tester);
+      flowResults = <WidgetAddOutcome?>[
+        const WidgetAddOutcome(label: '打卡 · 早起喝水', pinned: false),
+      ];
+      await tester.tap(find.byKey(const ValueKey('wg-add-widget')));
+      await tester.pumpAndSettle();
+      // 真机报障「说在系统选项里设，实际没有系统选择」：这句不能出现。
+      expect(find.textContaining('请在系统弹窗里确认'), findsNothing);
+      // 三步引导在位，且明确「拖出来的就是它、不用再选一次」。
+      expect(find.textContaining('已选好「打卡 · 早起喝水」'), findsOneWidget);
+      expect(find.textContaining('不用再选一次'), findsOneWidget);
+      expect(find.textContaining('长按桌面空白处'), findsWidgets);
+      await tester.tap(find.text('知道了'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('已选好「'), findsNothing);
     });
   });
 }
@@ -363,6 +388,7 @@ class _FlowHarness extends StatefulWidget {
 
 class _FlowHarnessState extends State<_FlowHarness> {
   String? _label;
+  bool? _pinned;
 
   @override
   Widget build(BuildContext context) {
@@ -374,13 +400,20 @@ class _FlowHarnessState extends State<_FlowHarness> {
             TextButton(
               key: const ValueKey('flow'),
               onPressed: () async {
-                final l = await addHabitWidgetFromSettings(context, widget.prefs,
+                final out = await addHabitWidgetFromSettings(
+                    context, widget.prefs,
                     db: widget.db);
-                if (mounted) setState(() => _label = l);
+                if (mounted) {
+                  setState(() {
+                    _label = out?.label;
+                    _pinned = out?.pinned;
+                  });
+                }
               },
               child: const Text('添加小组件'),
             ),
             if (_label != null) Text(_label!),
+            if (_pinned != null) Text('pinned=$_pinned'),
           ],
         ),
       ),

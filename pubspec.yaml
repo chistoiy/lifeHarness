@@ -70,9 +70,12 @@ dependencies:
   home_widget: ^0.10.0
 
   # NFC 卡片模块批2（冻结档 §6.2）：前台 NDEF 读/写。**只此一套**，禁引第二个 NFC 插件。
-  # ⚠ 钉 ^4.1.1 而非 latest（4.2.x 要 Dart ^3.11.4，本机 Dart 3.10.8 装不上）。
+  # ⚠ 4.2.x 要 Dart ^3.11.4（本机 3.10.8 装不上）⇒ 内置 4.1.1 到 third_party 并打上游 4.2.1 同款修复：
+  #   4.1.1 的 onAttachedToActivity 给 registerReceiver 传 null IntentFilter，Android 14+ 冷启动
+  #   必崩（system_server NPE on IntentFilter.actionsIterator）——见 third_party/nfc_manager/LOCAL_PATCH.md。
   # 零网络、零前台服务（§6.3 功耗：读取只在写卡层打开期间，离开即停）。
-  nfc_manager: ^4.1.1
+  nfc_manager:
+    path: third_party/nfc_manager
 
 dev_dependencies:
   flutter_test:
