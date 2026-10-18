@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.util.Log
 import es.antonborri.home_widget.HomeWidgetPlugin
 
 /**
@@ -98,14 +99,33 @@ internal object LhWidget {
         readCell(p, KEY_TODO_MORE).toIntOrNull()?.coerceAtLeast(0) ?: 0
 
     /** 一个习惯的今日状态行（[HabitCheckWidget] 用）。 */
-    data class HabitRow(val name: String, val streak: Int, val done: Boolean)
+    data class HabitRow(
+        val name: String,
+        val streak: Int,
+        val done: Boolean,
+        /** 今日累计量（数值型才有意义）。 */
+        val value: Double = 0.0,
+        /** 目标量（> 0 ⇒ 数值型；0 ⇒ 布尔型）。 */
+        val goal: Double = 0.0,
+        /** 记录量单位（布尔型为空串）。 */
+        val unit: String = "",
+        /** 桌面点一下加多少（Dart `habitStepOf` 算好下发·禁在原生重算）。 */
+        val step: Double = 0.0,
+    ) {
+        /** 数值型＝有目标（与 Dart `WidgetHabitItem.isNumeric` 同一判据）。 */
+        val isNumeric: Boolean get() = goal > 0
+    }
 
     /**
      * 解码 [KEY_HABIT_ITEMS]（打卡-单习惯 2×2）。
      *
      * 格式真源＝Dart `encodeWidgetHabitItems`：条目间 `\u001e`、字段间 `\u001f`、
-     * 字段序 `name / streak / done`。字段不足 3 段的行**整行丢弃**（同待办行口径：
-     * 桌面内容错位比少一行刺眼得多）。
+     * 字段序 `name / streak / done / value / goal / unit / step`。字段不足 3 段的行
+     * **整行丢弃**（同待办行口径：桌面内容错位比少一行刺眼得多）。
+     *
+     * ⚠ **只判前 3 段是硬兼容，不判 7 段**：老快照（批A 首版只有三段）在
+     * `shared_preferences` 里还躺着，升级后第一次开机、快照还没重推的那几秒
+     * 桌面必须照常显示名字与打卡态——缺的数值段一律按 0 兜（⇒ 走布尔分支）。
      */
     fun readHabitRows(p: SharedPreferences): List<HabitRow> {
         if (!hasSnapshot(p)) return emptyList()
@@ -120,7 +140,31 @@ internal object LhWidget {
             if (f.size < 3) return@mapNotNull null
             val name = f[0].trim()
             if (name.isEmpty()) return@mapNotNull null
-            HabitRow(name, f[1].trim().toIntOrNull() ?: 0, f[2].trim() == "1")
+            HabitRow(
+                name = name,
+                streak = f[1].trim().toIntOrNull() ?: 0,
+                done = f[2].trim() == "1",
+                value = f.getOrNull(3)?.trim()?.toDoubleOrNull() ?: 0.0,
+                goal = f.getOrNull(4)?.trim()?.toDoubleOrNull() ?: 0.0,
+                unit = f.getOrNull(5)?.trim() ?: "",
+                step = f.getOrNull(6)?.trim()?.toDoubleOrNull() ?: 0.0,
+            )
+        }
+    }
+
+    /**
+     * 量值显示文本（`3` / `0.5` / `2.25`）。
+     *
+     * 用 `Math.round(v*100)/100` 再判整，而不是直接 `toString()`：Dart 侧下发
+     * 已剥掉尾零，但 `"8"` 经 `toDouble()` 回读成 `8.0`，直接拼进文案会显示
+     * 「8.0/8 杯」。步进档位全是整数或两位小数以内，两位足够。
+     */
+    fun numText(v: Double): String {
+        val r = Math.round(v * 100.0) / 100.0
+        return if (r == Math.floor(r) && !r.isInfinite()) {
+            r.toLong().toString()
+        } else {
+            r.toString()
         }
     }
 
@@ -136,16 +180,118 @@ internal object LhWidget {
         return habitNameOf(readString(p, PREF_WIDGET_BIND_DEFAULT))
     }
 
+    /**
+     * **只读本实例**的绑定（不含默认回落）。
+     *
+     * 与 [boundHabitName] 分开的理由（2026-10-18 二次实锤）：解析顺序必须是
+     * 「实例键 → 认领交接位 → 默认键」，而 [boundHabitName] 把默认键混在里面，
+     * 导致默认键有值时交接位永远轮不到认领 ⇒ 新加的实例直接吃旧默认。
+     */
+    fun instanceHabitName(context: Context, appWidgetId: Int): String? =
+        habitNameOf(readString(prefs(context), "$PREF_WIDGET_BIND_PREFIX$appWidgetId"))
+
+    /** **只读全局默认**（老实例回落用）。 */
+    fun defaultHabitName(context: Context): String? =
+        habitNameOf(readString(prefs(context), PREF_WIDGET_BIND_DEFAULT))
+
     /** 绑定值 → 习惯名（非打卡形态一律 null）。 */
     private fun habitNameOf(raw: String?): String? {
-        val s = (raw ?: "").trim()
+        val s = clean(raw ?: "")
         if (s.isEmpty()) return null
         val f = s.split(WIDGET_BIND_FIELD_SEP)
         if (f.size != 3) return null
-        if (f[0].trim() != WIDGET_TARGET_KIND_NAV) return null
-        if (f[1].trim() != WIDGET_REF_HABIT) return null
-        return f[2].trim().takeIf { it.isNotEmpty() }
+        if (clean(f[0]) != WIDGET_TARGET_KIND_NAV) return null
+        if (clean(f[1]) != WIDGET_REF_HABIT) return null
+        return clean(f[2]).takeIf { it.isNotEmpty() }
     }
+
+    /**
+     * 只剥 **ASCII 空白**（空格／制表／换行／回车）。
+     *
+     * ⚠ **禁用 Kotlin/Java 的 `trim()`**（2026-10-18 真机实锤）：`Character.isWhitespace`
+     * 把 ISO 控制字符 `0x1C`~`0x1F` 也算空白，而 `0x1F` 正是本模块的**字段分隔符**——
+     * 绑定值 `nav␟habit␟`（sub 为空）整串 `trim()` 后尾巴那枚分隔符被吃掉，`split`
+     * 只剩 2 段 ⇒ 判「不是打卡形态」⇒ 桌面写「未选择内容」，而键明明在。
+     */
+    private fun clean(s: String): String =
+        s.trim { it == ' ' || it == '\t' || it == '\n' || it == '\r' }
+
+    /** 本实例有没有自己的绑定键（**排障用**·只看在不在，不读内容）。 */
+    fun hasInstanceBind(context: Context, appWidgetId: Int): Boolean =
+        readString(prefs(context), "$PREF_WIDGET_BIND_PREFIX$appWidgetId") != null
+
+    /** 全局默认绑定键在不在（**排障用**）。 */
+    fun hasDefaultBind(context: Context): Boolean =
+        readString(prefs(context), PREF_WIDGET_BIND_DEFAULT) != null
+
+    /**
+     * 绑定键落盘体检（**排障用**·只在解析不到绑定时打一行）。
+     *
+     * 输出三件事：`FlutterSharedPreferences` 里的键总数（0 ⇒ 读的不是同一份文件）、
+     * 带 `widget_bind` 的键名、以及每条值的段数（段数≠3 ⇒ 编码形状不对）。
+     * **不打印习惯名**——值只报段数。
+     */
+    fun traceBindPrefs(context: Context) {
+        try {
+            val p = prefs(context)
+            val all = p.all
+            val binds = all.keys.filter { it.contains("widget_bind") }.sorted()
+            val shape = binds.joinToString { k ->
+                val raw = all[k] as? String
+                val segs = raw?.split(WIDGET_BIND_FIELD_SEP)?.size ?: -1
+                "${k.substringAfterLast("widget_bind.")}=${segs}段"
+            }
+            trace("bind 体检：prefs键数=${all.size} 绑定键=[$shape]")
+        } catch (_: Exception) {
+            trace("bind 体检：读偏好异常")
+        }
+    }
+
+    /**
+     * 绑定值**形状**取证（排障用·只在解析不到绑定时打）。
+     *
+     * 与 [traceBindPrefs] 的分工：那个看「键在不在、整串几段」，这个把实例键与默认键
+     * **各自**拆开报 `段数 / f0 / f1 / sub 长度 / 总长`——足够判定是「键没写进来」
+     * （无键）、「写了但不是打卡形态」（f0/f1 不对）、还是「选了打卡但没选到习惯」
+     * （段数 3 而 sub 长度 0）。**不打印习惯名本身**。
+     */
+    fun traceBindShape(context: Context, appWidgetId: Int) {
+        try {
+            val p = prefs(context)
+            for ((label, key) in listOf(
+                "实例" to "$PREF_WIDGET_BIND_PREFIX$appWidgetId",
+                "默认" to PREF_WIDGET_BIND_DEFAULT,
+            )) {
+                val raw = readString(p, key)
+                if (raw == null) {
+                    trace("bind 形状：$label 无键")
+                    continue
+                }
+                val f = raw.split(WIDGET_BIND_FIELD_SEP)
+                trace(
+                    "bind 形状：$label 段数=${f.size} f0=${f.getOrNull(0)}" +
+                        " f1=${f.getOrNull(1)} sub长=${f.getOrNull(2)?.length ?: -1}" +
+                        " 总长=${raw.length}",
+                )
+            }
+        } catch (_: Exception) {
+            trace("bind 形状：读偏好异常")
+        }
+    }
+
+    /**
+     * 小组件渲染轨迹（`Log.i`·tag [TAG_TRACE]）。
+     *
+     * 为什么留在正式包里：桌面小组件的渲染发生在**我们的进程**里，而 launcher
+     * 只会显示最终 RemoteViews——出问题（占位态/内容对不上）时，除了一行 log
+     * 没有任何可观察面（真机 2026-10-18 排「打卡不显示内容」即靠它定位到
+     * 「快照有、绑定没有」）。一行只在 onUpdate 时打，量极小。
+     */
+    fun trace(msg: String) {
+        Log.i(TAG_TRACE, msg)
+    }
+
+    const val TAG_TRACE = "LhWidget"
 
     /** 偏好读串（任何类型异常都不抛——小组件崩＝整个桌面入口废掉）。 */
     private fun readString(p: SharedPreferences, key: String): String? = try {
@@ -177,11 +323,11 @@ internal object LhWidget {
             p.edit().remove(PREF_WIDGET_BIND_PENDING).commit()
             return false
         }
-        if (f[0].trim() != WIDGET_KIND_HABIT) return false
-        val targetKind = f[1].trim()
-        val ref = f[2].trim()
-        val sub = f[3].trim()
-        val at = f[4].trim().toLongOrNull()
+        if (clean(f[0]) != WIDGET_KIND_HABIT) return false
+        val targetKind = clean(f[1])
+        val ref = clean(f[2])
+        val sub = clean(f[3])
+        val at = clean(f[4]).toLongOrNull()
         val now = System.currentTimeMillis()
         val fresh = at != null &&
             now - at <= WIDGET_BIND_PENDING_TTL_MS &&

@@ -3,6 +3,7 @@ package com.lifeharness.lifeharness
 import android.os.Bundle
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.TransparencyMode
 
 /**
  * 4×1「记一笔」弹窗（工单 §7.1 · 2026-10-18 产品拍板 A 路 · 拍板件 §五 首选路②）。
@@ -36,6 +37,20 @@ import io.flutter.embedding.android.FlutterActivity
 class QuickAddActivity : FlutterActivity() {
 
     override fun getDartEntrypointFunctionName(): String = ENTRYPOINT
+
+    /**
+     * **必须透明**（2026-10-18 真机报障「背景全黑、不是桌面」根因）。
+     *
+     * `FlutterActivity` 默认 `TransparencyMode.opaque`：引擎的渲染面**不透明**，
+     * Flutter 侧哪怕把 `Scaffold` 刷成 `Colors.transparent` 也没用——那只是「不画」，
+     * 露出来的是不透明渲染面的底色（黑）。主题里的 `windowBackground=transparent`
+     * ＋`windowIsTranslucent` 只解决**窗口**层，管不到**渲染面**这一层。
+     *
+     * 改成 `transparent` 后，窗口与渲染面都让位，背后就是桌面本身；压暗由主题的
+     * `backgroundDimAmount=0.45` 负责——观感与原型 `.qp-mask` 一致：桌面透出来、
+     * 卡片浮在上面。
+     */
+    override fun getTransparencyMode(): TransparencyMode = TransparencyMode.transparent
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

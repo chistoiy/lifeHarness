@@ -200,3 +200,47 @@ Future<HabitCheckOutcome> habitCheckinWrite(
   return HabitCheckOutcome(
       checked: true, already: false, name: h.name, streak: after?.streak ?? 0);
 }
+
+/// 数值型习惯「加一档」写库核心（桌面 `+N` 按钮 · 2026-10-18 真机报障补）。
+///
+/// ## 为什么不能复用 [habitCheckinWrite]
+///
+/// 那个函数是**布尔**口径：`checked:true` 且**不带 value**，且「已打卡就返回
+/// already」——对数值型习惯（喝水 8 杯／阅读 30 分钟）意味着桌面点一下就
+/// 「今天完成了」，量还是空的。用户原话：「带数值的打卡也只显示一个打卡，
+/// 不显示数值修改能力」。
+///
+/// 本函数口径＝App 内记量弹层 `_save()` 的**增量版**：
+///  · 读今日已有流水 → 当前值（无记录＝0）；
+///  · `+ habitStepOf(goal)`（与弹层加减按钮同一个 domain 阶梯，禁各算一套）；
+///  · `upsertEntry(checked:true, value:新值)` —— **已达标也照样加**
+///    （喝了第 9 杯就是 9 杯，卡在目标上等于把真数据抹掉）；
+///  · `checkAt` 保留首次打卡时刻（同弹层 `e?.checkAt ?? now`）。
+///
+/// 不加「只允许加不许减」之外的守卫：负数目标/0 目标不走本函数（调用方按
+/// `goal > 0` 分流，见 `widgetCheckinByName`）。
+Future<HabitCheckOutcome> habitIncrementWrite(
+  HabitRepository repo,
+  Habit h, {
+  DateTime? now,
+}) async {
+  final t = now ?? DateTime.now();
+  final k = dayKey(t);
+  final entries = await repo.entriesOf(h.id);
+  final cur = entries[k];
+  final step = habitStepOf(h.goal ?? 0);
+  final next = (cur?.value ?? 0) + step;
+  await repo.upsertEntry(
+    h.id,
+    day: k,
+    checked: true,
+    value: next,
+    origin: HabitEntry.oManual,
+    checkAt: cur?.checkAt ??
+        '${t.hour.toString().padLeft(2, '0')}:'
+            '${t.minute.toString().padLeft(2, '0')}',
+  );
+  final after = await repo.habitById(h.id);
+  return HabitCheckOutcome(
+      checked: true, already: false, name: h.name, streak: after?.streak ?? 0);
+}

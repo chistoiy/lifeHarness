@@ -60,20 +60,34 @@ class HabitCheckWidget : HomeWidgetProvider() {
         // ① 无快照压过无绑定（B6 既有口径：首装/清数据后先显示「等待数据」，
         //    等快照到了才暴露绑定态——否则用户会以为「是我没选」）。
         if (!LhWidget.hasSnapshot(data)) {
+            LhWidget.trace("habit#$appWidgetId → 等待数据（无快照）")
             renderPlaceholder(context, views, R.string.lh_widget_wait_data)
             return
         }
         val name = resolveBinding(context, appWidgetId)
         if (name == null) {
+            LhWidget.trace(
+                "habit#$appWidgetId → 未选择（实例键=${LhWidget.hasInstanceBind(context, appWidgetId)}" +
+                    " 默认键=${LhWidget.hasDefaultBind(context)}）",
+            )
+            // 键在却解不出名字 ⇒ 打印两份绑定值的**形状**（段数/f0/f1/sub 长度）。
+            // 这是 2026-10-18 真机「打卡不显示内容」唯一能读到的取证面：release 包
+            // `run-as` 不可用、无 `su`，prefs 文件读不到。
+            LhWidget.traceBindShape(context, appWidgetId)
             renderPlaceholder(context, views, R.string.lh_widget_no_binding)
             return
         }
         // ② 绑定着但快照表里查不到这个名字 ⇒ 习惯被删/改名/归档。
-        val row = LhWidget.readHabitRows(data).firstOrNull { it.name == name }
+        val rows = LhWidget.readHabitRows(data)
+        val row = rows.firstOrNull { it.name == name }
         if (row == null) {
+            LhWidget.trace(
+                "habit#$appWidgetId → 源失效（绑定名与快照表不匹配·表内 ${rows.size} 条）",
+            )
             renderPlaceholder(context, views, R.string.lh_widget_source_invalid)
             return
         }
+        LhWidget.trace("habit#$appWidgetId → 正常（${row.name}·done=${row.done}）")
         renderHabit(context, views, row, appWidgetId)
     }
 
@@ -98,9 +112,19 @@ class HabitCheckWidget : HomeWidgetProvider() {
      * 故接受——比「选了永远不生效」好。
      */
     private fun resolveBinding(context: Context, appWidgetId: Int): String? {
-        LhWidget.boundHabitName(context, appWidgetId)?.let { return it }
-        if (!LhWidget.consumePendingBind(context, appWidgetId)) return null
-        return LhWidget.boundHabitName(context, appWidgetId)
+        // ① 本实例自己的键（配置页回写过，或上一次 onUpdate 已认领）。
+        LhWidget.instanceHabitName(context, appWidgetId)?.let { return it }
+        // ② 认领交接位（**必须排在默认键之前**，2026-10-18 真机二次实锤）：
+        //    原来顺序是「实例键 → 默认键 → 认领」，于是只要默认键有值，新实例就
+        //    直接吃默认、交接位永远没人认领 ⇒ 加第二枚打卡枚时，两枚都显示
+        //    **最后选的那个习惯**（用户原话「添加多个不同打卡后，会全部变成最后
+        //    添加的打卡内容」）。现在新实例先把自己的选择认领成本实例键，默认键
+        //    只留给「从桌面小部件库直接拖出来、没有交接位」的老路。
+        if (LhWidget.consumePendingBind(context, appWidgetId)) {
+            LhWidget.instanceHabitName(context, appWidgetId)?.let { return it }
+        }
+        // ③ 全局默认（R2 老实例回落 / 手动拖出且无交接位时的兜底）。
+        return LhWidget.defaultHabitName(context)
     }
 
     /** 失效三态：只留标题＋居中占位文案，整卡可点（去设置页重选·不再去习惯页）。 */
@@ -109,6 +133,8 @@ class HabitCheckWidget : HomeWidgetProvider() {
         views.setViewVisibility(R.id.lh_wg_habit, View.GONE)
         views.setViewVisibility(R.id.lh_wg_status_row, View.GONE)
         views.setViewVisibility(R.id.lh_wg_gap, View.GONE)
+        // 占位态两枚撑开器都收掉，否则占位文本被顶到半空（正常态才需要它们居中）。
+        views.setViewVisibility(R.id.lh_wg_gap_top, View.GONE)
         views.setViewVisibility(R.id.lh_wg_btn, View.GONE)
         views.setViewVisibility(R.id.lh_wg_ph, View.VISIBLE)
         views.setTextViewText(R.id.lh_wg_ph, text)
@@ -132,6 +158,7 @@ class HabitCheckWidget : HomeWidgetProvider() {
         views.setViewVisibility(R.id.lh_wg_habit, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_status_row, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_gap, View.VISIBLE)
+        views.setViewVisibility(R.id.lh_wg_gap_top, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_btn, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_ph, View.GONE)
 
@@ -141,6 +168,11 @@ class HabitCheckWidget : HomeWidgetProvider() {
             "setBackgroundResource",
             if (row.done) R.drawable.lh_wg_dot_on else R.drawable.lh_wg_dot_off,
         )
+
+        if (row.isNumeric) {
+            renderNumeric(context, views, row, appWidgetId)
+            return
+        }
 
         // 连击为 0 时不显示「连击 0 天」（0 天不是成绩，是噪音）。
         val status = when {
@@ -197,12 +229,75 @@ class HabitCheckWidget : HomeWidgetProvider() {
     }
 
     /**
-     * 乐观回显：把该实例**当场画成**「已打卡」（批A 交互闭环层·评估件 §4.2）。
+     * 数值型（记量）习惯的正常态：状态行显示进度 `3/8 杯`，主按钮显示 `+2`。
+     *
+     * 2026-10-18 真机报障原话：「带数值的打卡也只显示一个打卡，不显示数值修改
+     * 能力」——数值型习惯原来与布尔型走同一条渲染，桌面上只有一枚「打卡」，
+     * 用户看不到今天记了多少、也不知道点下去是加量还是完成。
+     *
+     * 三条与布尔型**故意不同**的口径：
+     *  · **按钮恒可点**（不因达标撤意图）：达标只是「今天够了」，第 9 杯水、
+     *    第 31 分钟阅读照样要记上——卡在目标上等于把真数据抹掉；
+     *  · 按钮文案是 `+N` 而不是「打卡」：让「点下去会加多少」在按之前就可见，
+     *    否则用户点三下才发现一下加 10；
+     *  · 状态行让位给进度，连击只在 `streak > 0` 时追加（2×2 一行放不下两句）。
+     */
+    private fun renderNumeric(
+        context: Context,
+        views: RemoteViews,
+        row: LhWidget.HabitRow,
+        appWidgetId: Int,
+    ) {
+        val v = LhWidget.numText(row.value)
+        val g = LhWidget.numText(row.goal)
+        val status = if (row.streak > 0) {
+            context.getString(R.string.lh_widget_habit_val_streak, v, g, row.unit, row.streak)
+        } else {
+            context.getString(R.string.lh_widget_habit_val, v, g, row.unit)
+        }
+        views.setTextViewText(R.id.lh_wg_status, status)
+
+        views.setTextViewText(
+            R.id.lh_wg_btn,
+            context.getString(
+                R.string.lh_widget_habit_add,
+                LhWidget.numText(if (row.step > 0) row.step else 1.0),
+            ),
+        )
+        views.setInt(R.id.lh_wg_btn, "setBackgroundResource", R.drawable.lh_wg_habit_btn)
+        views.setTextColor(
+            R.id.lh_wg_btn,
+            ContextCompat.getColor(context, R.color.lh_wg_btn_fg),
+        )
+        // 广播直达（与布尔型同一个入口）：Dart 侧按「goal > 0」分流成加量写，
+        // 原生不判类型、不传量——写库口径只许有一处（C5）。
+        views.setOnClickPendingIntent(
+            R.id.lh_wg_btn,
+            LhWidget.habitCheckIntent(context, appWidgetId, row.name),
+        )
+        views.setOnClickPendingIntent(
+            R.id.lh_wg_root,
+            LhWidget.clickIntent(context, LhWidget.SEG_HABIT_CHECK, REQ_ROOT),
+        )
+        views.setContentDescription(
+            R.id.lh_wg_root,
+            context.getString(R.string.lh_widget_a11y_habit, row.name, row.streak, status),
+        )
+    }
+
+    /**
+     * 乐观回显：把该实例**当场画成**点完之后的样子（批A 交互闭环层·评估件 §4.2）。
      *
      * 为什么需要：后台 isolate 冷启动要几百 ms~1s+，这段时间用户看到的还是
      * 旧态——「点了没反应」是桌面交互最劣的反馈。回显借用 [renderHabit] 的
-     * 已打卡分支（淡底＋「已打卡」文案＋**按钮意图撤掉**防连点），与真打卡后
-     * 的观感逐像素一致；连击数暂用旧值，等 Dart 推回真快照时自然收敛。
+     * 两条分支，与真写库后的观感逐像素一致；数值与连击暂用「推算值」，等 Dart
+     * 推回真快照时自然收敛。
+     *
+     * **两种形态各回显什么**（2026-10-18 报障补数值型）：
+     *  · 布尔型 ⇒ `done=true`（淡底＋「已打卡」＋**按钮意图撤掉**防连点）；
+     *  · 数值型 ⇒ `value + step`（进度条当场往前走一格），跨过目标才同时点亮
+     *    状态点；按钮**保持可点**（与 [renderNumeric] 口径一致——连点加量是
+     *    正常操作，不是误触）。
      *
      * 三条纪律：
      *  · **只画自己这一枚**（appWidgetId 直改，不走广播重绘——回显要的是即时）；
@@ -214,8 +309,14 @@ class HabitCheckWidget : HomeWidgetProvider() {
         val row = LhWidget.readHabitRows(LhWidget.snapshot(context))
             .firstOrNull { it.name == habitName } ?: return
         val views = RemoteViews(context.packageName, R.layout.lh_widget_habit)
-        // 借实例方法即可（provider 无状态，渲染不吃字段）；done=true 走已打卡分支。
-        HabitCheckWidget().renderHabit(context, views, row.copy(done = true), appWidgetId)
+        // 借实例方法即可（provider 无状态，渲染不吃字段）。
+        val echo = if (row.isNumeric) {
+            val next = row.value + (if (row.step > 0) row.step else 1.0)
+            row.copy(value = next, done = row.done || next >= row.goal)
+        } else {
+            row.copy(done = true)
+        }
+        HabitCheckWidget().renderHabit(context, views, echo, appWidgetId)
         mgr.updateAppWidget(appWidgetId, views)
     }
 

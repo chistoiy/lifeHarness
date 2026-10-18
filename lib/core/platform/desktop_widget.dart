@@ -165,11 +165,20 @@ String encodeWidgetTodoItems(List<WidgetTodoItem> items, {int maxRows = 3}) {
 ///
 /// [name] 是**绑定键**（widget 绑定记录里的 `sub` 就是习惯名·与 NFC 目标同口径），
 /// 原生侧按名字查这一行；查不到＝该习惯已被删/改名 ⇒ 桌面显示「内容已失效」。
+///
+/// **数值型**（2026-10-18 真机报障「带数值的打卡也只显示一个打卡，不显示数值
+/// 修改能力」）：`goal > 0` 的习惯要显示 `3/8 杯` 并给 `+N` 增量按钮，故多下发
+/// [value]（今日累计）/ [goal] / [unit] / [step] 四段。布尔型这四段留空，原生
+/// 侧按「无 goal」走原分支——**老快照（3 段）仍然能解**，原生按段数兜底。
 class WidgetHabitItem {
   const WidgetHabitItem({
     required this.name,
     required this.streak,
     required this.done,
+    this.value,
+    this.goal,
+    this.unit,
+    this.step,
   });
 
   final String name;
@@ -179,30 +188,67 @@ class WidgetHabitItem {
 
   /// 今日是否已达成（`habitOkAt` 口径）。
   final bool done;
+
+  /// 今日累计量（非组习惯的 `habit_entries.value`；无记录＝0）。
+  final double? value;
+
+  /// 目标量（`habits.goal`；null/0 ⇒ 布尔型）。
+  final double? goal;
+
+  /// 记录量单位（`habits.unit`；布尔型为空）。
+  final String? unit;
+
+  /// 桌面点一下加多少（`habitStepOf(goal)`·与记量弹层加减档同源）。
+  final double? step;
+
+  /// 是否按数值型渲染（有目标才谈「记量」；组习惯走布尔口径）。
+  bool get isNumeric => (goal ?? 0) > 0;
 }
 
 /// 把习惯状态表编码成快照串（**唯一编码出口**，原生侧只做 `split`）。
 ///
-/// 字段序 `name\u001fstreak\u001fdone`；名字里的控制字符一律剔除（否则破坏分隔符
-/// 结构）。
+/// 字段序 `name␟streak␟done␟value␟goal␟unit␟step`；名字与单位里的控制字符
+/// 一律剔除（否则破坏分隔符结构）。
 ///
 /// ⚠ **名字不截断**（与待办标题不同）：这个名字是**绑定键**——实例绑定里存的
 /// `sub` 就是它，原生按 `==` 找行。一旦在这边裁成 24 字，长名习惯就永远匹配不上，
 /// 桌面会一直显示「内容已失效」。显示不下交给布局的 `ellipsize` 兜（不改变值）。
+///
+/// ⚠ **数值段一律给字面量**（布尔型写 `0`/`0`/空/`0`，不省略成空串）：原生侧
+/// 按「段数 >= 3」兼容老快照，省段会让同一份解码代码要判三种长度；统一七段后
+/// 只需判「goal > 0」。
 String encodeWidgetHabitItems(List<WidgetHabitItem> items) {
   final sb = StringBuffer();
   for (var i = 0; i < items.length; i++) {
     final it = items[i];
-    final n = it.name
-        .replaceAll(RegExp('[\u001e\u001f\n\r\t]'), ' ')
-        .trim();
+    final n = _widgetClean(it.name);
     if (n.isEmpty) continue; // 无名目标不可绑，下发也无用
     if (sb.isNotEmpty) sb.write(kTodoItemSep);
     sb..write(n)..write(kTodoFieldSep)
       ..write(it.streak)..write(kTodoFieldSep)
-      ..write(it.done ? '1' : '0');
+      ..write(it.done ? '1' : '0')..write(kTodoFieldSep)
+      ..write(_widgetNum(it.value ?? 0))..write(kTodoFieldSep)
+      ..write(_widgetNum(it.goal ?? 0))..write(kTodoFieldSep)
+      ..write(_widgetClean(it.unit ?? ''))..write(kTodoFieldSep)
+      ..write(_widgetNum(it.step ?? 0));
   }
   return sb.toString();
+}
+
+/// 快照字段清洗（分隔符与换行一律换空格，两端只剥 ASCII 空白）。
+String _widgetClean(String s) =>
+    s.replaceAll(RegExp('[\u001e\u001f\n\r\t]'), ' ').trim();
+
+/// 数值字面量（整数值不带 `.0`·原生侧 `toDouble()` 直解）。
+///
+/// 用 `toStringAsFixed(2)` 再剥尾零而不是 `toString()`：后者对
+/// `1e-7`/`1e21` 会吐科学计数法，原生 `toDouble()` 虽认，但字符串里多出
+/// `E`/`e` 容易被后续清洗链误伤，也白白拉长快照。
+String _widgetNum(double v) {
+  if (v == 0) return '0';
+  final s = v.toStringAsFixed(2);
+  return s
+      .replaceFirst(RegExp(r'\.?0+$'), '');
 }
 
 /// 快照内容（App 侧算好，原生侧只渲染）。

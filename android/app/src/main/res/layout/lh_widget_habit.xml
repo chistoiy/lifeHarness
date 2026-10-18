@@ -41,7 +41,7 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:textColor="@color/lh_wg_fg"
-        android:textSize="16sp"
+        android:textSize="18sp"
         android:textStyle="bold" />
 
     <LinearLayout
@@ -68,7 +68,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/lh_wg_sub"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 
     <!--
@@ -78,6 +78,17 @@
       ⇒ 整枚显示「载入窗口小部件时出现问题」（2026-10-15 8150 装机实锤）。
       同理上面那个状态点用 ImageView（白名单内），不用裸 View。
     -->
+    <!--
+      撑开器（上）＋撑开器（下）＝**把「习惯名＋状态」顶到垂直中段**。
+      2026-10-18 真机反馈「2×2 看起来很空」：原来只有下面一枚 weight=1，名字贴顶、
+      按钮钉底，中间空出一大块。改成一上一下各半 ⇒ 名字落中段，视觉上填满。
+    -->
+    <LinearLayout
+        android:id="@+id/lh_wg_gap_top"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
     <LinearLayout
         android:id="@+id/lh_wg_gap"
         android:layout_width="match_parent"

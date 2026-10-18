@@ -26,15 +26,40 @@ void main() {
   final strings = File('$res/values/strings.xml').readAsStringSync();
 
   group('① 编码（Dart 唯一出口）', () {
-    test('字段序 name/streak/done，done 位 1|0', () {
+    test('字段序 name/streak/done/value/goal/unit/step，done 位 1|0', () {
       final out = encodeWidgetHabitItems(const <WidgetHabitItem>[
         WidgetHabitItem(name: '早起', streak: 12, done: false),
         WidgetHabitItem(name: '喝水', streak: 0, done: true),
       ]);
       final rows = out.split(kTodoItemSep);
       expect(rows.length, 2);
-      expect(rows[0].split(kTodoFieldSep), <String>['早起', '12', '0']);
-      expect(rows[1].split(kTodoFieldSep), <String>['喝水', '0', '1']);
+      // 布尔型：数值四段给字面量 0/0/空/0（**不省段**——原生只判 goal > 0，
+      // 省段会让解码器要兼容三种长度）。
+      expect(rows[0].split(kTodoFieldSep), <String>['早起', '12', '0', '0', '0', '', '0']);
+      expect(rows[1].split(kTodoFieldSep), <String>['喝水', '0', '1', '0', '0', '', '0']);
+    });
+
+    test('数值型：value/goal/unit/step 四段带真值（整数值不带 .0）', () {
+      // 2026-10-18 真机报障：「带数值的打卡也只显示一个打卡，不显示数值修改能力」。
+      final out = encodeWidgetHabitItems(const <WidgetHabitItem>[
+        WidgetHabitItem(
+          name: '喝水',
+          streak: 3,
+          done: false,
+          value: 3,
+          goal: 8,
+          unit: '杯',
+          step: 2,
+        ),
+      ]);
+      expect(out.split(kTodoFieldSep), <String>['喝水', '3', '0', '3', '8', '杯', '2']);
+      // 小数量不能被格式化成 0（0.5 杯是最常见的一档）。
+      expect(
+        encodeWidgetHabitItems(const <WidgetHabitItem>[
+          WidgetHabitItem(name: 'x', streak: 0, done: false, value: 0.5, goal: 1),
+        ]).split(kTodoFieldSep)[3],
+        '0.5',
+      );
     });
 
     test('控制字符被剔除、两端空白被 trim、空名整行丢弃', () {
@@ -114,7 +139,10 @@ void main() {
       // 2026-10-18：绑定解析收进 resolveBinding（内含「实例键 → 交接位自认领 →
       // 全局默认」三级兜底），故这里认**调用点**，不再认单个 boundHabitName。
       final iBind = habit.indexOf('resolveBinding(context, appWidgetId)');
-      final iRow = habit.indexOf('readHabitRows(data).firstOrNull');
+      // 2026-10-18 二次报障轮：源失效那行要报「表内 N 条」给排障轨迹用，
+      // 故拆成 `val rows = readHabitRows(data)` ＋ `rows.firstOrNull` 两句，
+      // 这里认**取行那一步**（`rows.firstOrNull { it.name == name }`）。
+      final iRow = habit.indexOf('rows.firstOrNull { it.name == name }');
       expect(iSnap, greaterThan(0), reason: '缺无快照判定');
       expect(iBind, greaterThan(iSnap), reason: '无绑定判定必须排在无快照之后');
       expect(iRow, greaterThan(iBind), reason: '源失效判定必须排在无绑定之后');
@@ -233,8 +261,15 @@ void main() {
       expect(support, contains('fun boundHabitName('));
       expect(support, contains('fun habitNameOf('));
       expect(support, contains('if (f.size != 3) return null'));
-      expect(support, contains('if (f[0].trim() != WIDGET_TARGET_KIND_NAV) return null'));
-      expect(support, contains('if (f[1].trim() != WIDGET_REF_HABIT) return null'));
+      // 2026-10-18 真机实锤改口：**禁**用 Kotlin/Java 的 `trim()` 洗绑定段——
+      // `Character.isWhitespace` 把 0x1C~0x1F 也算空白，而 0x1F 正是字段分隔符，
+      // 整串 trim 会把「sub 为空」那条值的尾分隔符吃掉（3 段变 2 段 ⇒ 判非打卡形态）。
+      // 故洗段一律走 `clean()`（只剥 ASCII 空格/制表/换行/回车）。
+      expect(support, contains('if (clean(f[0]) != WIDGET_TARGET_KIND_NAV) return null'));
+      expect(support, contains('if (clean(f[1]) != WIDGET_REF_HABIT) return null'));
+      expect(support, contains('private fun clean(s: String): String ='));
+      expect(support.contains('(raw ?: "").trim()'), isFalse,
+          reason: '绑定值禁整串 trim()（会吃掉尾部分隔符）');
     });
 
     test('实例键优先、回落全局默认（R2 老实例兜底）', () {
@@ -255,7 +290,7 @@ void main() {
           '';
       expect(body, isNotEmpty, reason: '缺 consumePendingBind');
       // ① 种类不符 ⇒ **不动**它（不是给这类的预选，留给真正那枚认领）。
-      expect(body, contains('if (f[0].trim() != WIDGET_KIND_HABIT) return false'));
+      expect(body, contains('if (clean(f[0]) != WIDGET_KIND_HABIT) return false'));
       // ② 过期/回拨超容忍 ⇒ 清掉（否则取消后的下一次会被误吃）。
       expect(body, contains('now - at <= WIDGET_BIND_PENDING_TTL_MS'));
       expect(body, contains('now - at >= -WIDGET_BIND_PENDING_SKEW_MS'));
@@ -335,14 +370,20 @@ void main() {
       // 真机原话：「app内添加点击习惯打卡没有让先选习惯，到桌面后打卡里面没有打卡内容」。
       // 根因：先选后落第④步靠系统拉起 android:configure，MIUI 桌面实测不拉。
       final rb = bodyOf(habit, 'private fun resolveBinding(', 'private fun renderPlaceholder(');
-      expect(rb, contains('LhWidget.boundHabitName(context, appWidgetId)'),
-          reason: '实例键/全局默认仍要最先读');
       expect(rb, contains('LhWidget.consumePendingBind(context, appWidgetId)'),
           reason: '实例必须自己认领交接位——不能只指望配置页');
-      // 认领后要重新读一次（认领写的是本实例键），否则拿到的还是 null。
-      expect(RegExp(r'boundHabitName\(context, appWidgetId\)').allMatches(rb).length,
+      // 认领后要重新读一次本实例键（认领写的就是它），否则拿到的还是 null。
+      expect(RegExp(r'instanceHabitName\(context, appWidgetId\)').allMatches(rb).length,
           greaterThanOrEqualTo(2),
           reason: '认领后必须重读绑定，否则白认领');
+      // 2026-10-18 真机二次实锤：认领必须排在**默认键之前**——
+      // 原顺序「实例键 → 默认键 → 认领」使默认键一旦有值，交接位就永远没人认领，
+      // 加第二枚打卡枚时两枚都显示最后选的那个习惯（用户原话「添加多个不同打卡
+      // 后，会全部变成最后添加的打卡内容」）。
+      expect(
+          rb.indexOf('LhWidget.consumePendingBind(context, appWidgetId)'),
+          lessThan(rb.indexOf('LhWidget.defaultHabitName(context)')),
+          reason: '认领必须先于默认键回落，否则新实例全吃同一个默认');
     });
 
     test('Dart 侧落点补默认绑定回落 + 当场重绘（选了立刻看得见）', () {
@@ -357,6 +398,78 @@ void main() {
       expect(iPin, greaterThan(iDefault), reason: '默认绑定必须在 pin 之前写好');
       expect(mounts, contains('HomeWidget.updateWidget(androidName: LhWidgetNames.habitCheck)'),
           reason: '选完必须推一把重绘——已在桌面的未绑定枚不会自己醒');
+    });
+  });
+
+  group('⑧ 数值型（记量）习惯（2026-10-18 真机报障补）', () {
+    /// 抽一段函数体（`from` 起点 → `to` 起点前一位）；找不到就红。
+    String bodyOf(String src, String from, String to) {
+      final i = src.indexOf(from);
+      final j = src.indexOf(to, i);
+      expect(i, greaterThanOrEqualTo(0), reason: '源码里找不到「$from」——函数被改名/删了？');
+      expect(j, greaterThan(i), reason: '源码里找不到「$to」——抽取区间不成立');
+      return src.substring(i, j);
+    }
+
+    test('原生按 goal > 0 分流到数值分支（与 Dart isNumeric 同一判据）', () {
+      // 报障原话：「带数值的打卡也只显示一个打卡，不显示数值修改能力」。
+      final rh = bodyOf(habit, 'private fun renderHabit(', 'private fun renderNumeric(');
+      expect(rh, contains('if (row.isNumeric)'), reason: '正常态必须分流，否则数值型只画一枚「打卡」');
+      expect(rh, contains('renderNumeric(context, views, row, appWidgetId)'));
+      expect(support, contains('val isNumeric: Boolean get() = goal > 0'),
+          reason: '判据只能是 goal > 0（Dart 侧 isNumeric 同式，两处一分叉就「写着 +2 却是布尔打卡」）');
+    });
+
+    test('状态行给进度、按钮给 +N（不显示「打卡」二字）', () {
+      final rn = bodyOf(habit, 'private fun renderNumeric(', 'fun echoChecked(');
+      expect(rn, contains('R.string.lh_widget_habit_val'), reason: '缺进度文案 ⇒ 看不到今天记了多少');
+      expect(rn, contains('R.string.lh_widget_habit_add'), reason: '缺 +N 文案 ⇒ 按之前不知道会加多少');
+      expect(rn, contains('LhWidget.numText(row.value)'));
+      expect(rn, contains('LhWidget.numText(row.goal)'));
+      expect(strings, contains(r'name="lh_widget_habit_val">%1$s/%2$s %3$s<'));
+      expect(strings, contains(r'name="lh_widget_habit_add">+%1$s<'));
+    });
+
+    test('数值型按钮**恒可点**（达标也要能继续记量）', () {
+      final rn = bodyOf(habit, 'private fun renderNumeric(', 'fun echoChecked(');
+      // 布尔型的「已打卡撤意图」不许漏进数值分支：第 9 杯水照样要记上。
+      expect(rn, isNot(contains('setOnClickPendingIntent(R.id.lh_wg_btn, null)')),
+          reason: '达标即撤意图 ⇒ 超出目标的量记不进去，等于抹数据');
+      expect(rn, contains('LhWidget.habitCheckIntent(context, appWidgetId, row.name)'),
+          reason: '数值型也走同一个广播入口（写库口径只许有一处）');
+    });
+
+    test('回显：数值型加一格、布尔型置已打卡', () {
+      final ec = bodyOf(habit, 'fun echoChecked(', 'private companion object');
+      expect(ec, contains('if (row.isNumeric)'), reason: '两种形态回显内容不同');
+      expect(ec, contains('row.value + '), reason: '数值型要当场把进度往前推一格');
+      expect(ec, contains('row.copy(done = true)'), reason: '布尔型回显已打卡');
+    });
+
+    test('Dart 写库按 goal > 0 分流到加量（禁一律布尔打卡）', () {
+      final cm =
+          File('lib/shared/linkage/widget_checkin_mounts.dart').readAsStringSync();
+      expect(cm, contains('habitIncrementWrite(repo, h, now: now)'));
+      expect(cm, contains('if (!h.isGroup && (h.goal ?? 0) > 0)'),
+          reason: '分流判据必须与快照 isNumeric 逐字同式');
+      final hm = File('lib/shared/linkage/habit_mounts.dart').readAsStringSync();
+      expect(hm, contains('Future<HabitCheckOutcome> habitIncrementWrite('));
+      expect(hm, contains('habitStepOf(h.goal ?? 0)'),
+          reason: '步进必须走 domain 那一处阶梯（与记量弹层同源）');
+      // 步进阶梯只许有一份实现：弹层里的 hStepOf 只能是转发。
+      final hs =
+          File('lib/features/habit/presentation/habit_sheets.dart').readAsStringSync();
+      expect(hs, contains('double hStepOf(double goal) => habitStepOf(goal);'));
+      expect(RegExp(r'\b1000\.0,?\s*$', multiLine: true).allMatches(hs), isEmpty,
+          reason: '弹层里不许再留一份阶梯字面量（两套步进必然漂移）');
+    });
+
+    test('解码兼容老快照：只判前 3 段，缺段按 0 兜', () {
+      final rd = bodyOf(support, 'fun readHabitRows(', 'fun numText(');
+      expect(rd, contains('if (f.size < 3) return@mapNotNull null'),
+          reason: '老快照三段仍要能显示名字与打卡态');
+      expect(rd, contains('f.getOrNull(4)?.trim()?.toDoubleOrNull() ?: 0.0'),
+          reason: '缺 goal ⇒ 走布尔分支（不猜一个目标出来）');
     });
   });
 }

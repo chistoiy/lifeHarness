@@ -222,6 +222,41 @@ Map<int, double> habitSubTotals(
 // ---- 提醒门控（批5 · 计划 §6/§7：remindAll × dnd 双重门控）----
 
 /// 晚间提醒时间档（habit.nightAt 下标 → HH:mm）。
+/// 记量步进档位（原型 `hbStepOf`）。
+///
+/// 取「目标 ÷ 4 向上取整」在档位阶梯里的**第一档**：目标 8 杯 ⇒ 步进 2，
+/// 目标 30 分钟 ⇒ 步进 10，目标 5000 步 ⇒ 步进 1000。四次左右按到目标。
+///
+/// ⚠ **2026-10-18 从 `habit_sheets.dart` 迁来 domain**：桌面「打卡-单习惯」
+/// 小组件的 `+N` 增量与记量弹层的加减档**必须同一个数**（两处各算一套 =
+/// 桌面上点两下到目标、App 里点三下，用户立刻发现口径不一致）。放 domain
+/// 后 `shared/linkage` 不必为了一个纯函数 import 整个 presentation 文件。
+double habitStepOf(double goal) {
+  const ladder = [
+    1.0,
+    2.0,
+    5.0,
+    10.0,
+    15.0,
+    20.0,
+    25.0,
+    30.0,
+    50.0,
+    60.0,
+    100.0,
+    150.0,
+    200.0,
+    300.0,
+    500.0,
+    1000.0,
+  ];
+  final want = (goal / 4).ceil().clamp(1, 1000).toDouble();
+  for (final v in ladder) {
+    if (v >= want) return v;
+  }
+  return 1000;
+}
+
 const kHabitNightAts = ['18:00', '20:00', '21:30', '22:30'];
 
 /// 免打扰时段档（habit.dnd 下标 → (起,止)，null=关闭）。

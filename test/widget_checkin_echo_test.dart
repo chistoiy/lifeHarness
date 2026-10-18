@@ -86,16 +86,34 @@ void main() {
       final habitMounts = File(habitMountsSrc).readAsStringSync();
       // 新出口必须复用抽出的写库核心，而不是另抄一份 upsert。
       expect(mounts, contains('habitCheckinWrite('));
+      // 数值型走加量核心（2026-10-18 报障补）；两条核心都定义在 habit_mounts。
+      expect(mounts, contains('habitIncrementWrite('));
       // 核心定义在 habit_mounts，且 NFC 出口（habitCheckInById）也走它——
       // 三处入口（App 内/NFC 贴卡/小组件后台）只有一个写实现。
       expect(habitMounts, contains('Future<HabitCheckOutcome> habitCheckinWrite('));
       expect(habitMounts, contains('await habitCheckinWrite(repo, h, now: now)'));
-      // 剥注释后：全文件只此一处 upsertEntry（注释里的口径说明不算实现）。
+      // 后台出口自己**一处 upsert 都不许有**（它只调核心，不写库）。
+      expect(RegExp(r'upsertEntry\(').allMatches(stripComments(mounts)), isEmpty,
+          reason: '后台 isolate 出口出现 upsertEntry ⇒ 又在复刻写库（禁两套）');
+      // 剥注释后：habit_mounts 只有**两条**核心各自的 upsertEntry——布尔打卡一条、
+      // 数值加量一条。第三条就是有人又抄了一份写实现。
       final code = stripComments(habitMounts);
       final upserts = RegExp(r'upsertEntry\(').allMatches(code).length;
-      expect(upserts, 1, reason: 'upsertEntry 出现 $upserts 处 ⇒ 有第二份写实现');
+      expect(upserts, 2, reason: 'upsertEntry 出现 $upserts 处 ⇒ 有第三份写实现');
       expect(code, contains('checked: true'));
       expect(code, contains('origin: HabitEntry.oManual'));
+      // 两条核心必须各司其职：加量核心带 `value: next`，布尔核心的 upsert 调用
+      // 不许带 value（一旦带上就变成「半套记量」，与加量核心分叉）。
+      final iInc = habitMounts.indexOf('Future<HabitCheckOutcome> habitIncrementWrite(');
+      expect(iInc, greaterThan(0), reason: '缺数值加量核心');
+      expect(RegExp(r'value:\s*next').allMatches(code).length, 1,
+          reason: '「写 value」只许出现在加量核心里一处');
+      final iBool = habitMounts.indexOf('Future<HabitCheckOutcome> habitCheckinWrite(');
+      final iCall = habitMounts.indexOf('await repo.upsertEntry(', iBool);
+      final boolCall =
+          habitMounts.substring(iCall, habitMounts.indexOf('\n  );', iCall));
+      expect(boolCall, isNot(contains('value:')),
+          reason: '布尔打卡的 upsert 不许带 value —— 那是数值型的活');
     });
 
     test('后台入口不初始化 UI 依赖（B8）', () {

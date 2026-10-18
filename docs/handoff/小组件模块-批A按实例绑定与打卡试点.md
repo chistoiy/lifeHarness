@@ -166,3 +166,88 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 - **真机复验三条**：① 桌面点 4×1「记一笔」→ 弹窗起、表单可见、保存后 4×1 读数变；② 设置页「添加小组件」→
   选择器（打卡段预开）→ 选习惯 → 桌面那枚**直接显示该习惯**（无需重选）；③ 未绑定/失效那枚写着「点此设置」
   → 点开落在**设置 › 桌面与快捷方式**（不是习惯页）。
+
+### §7.6 6176 真机二次报障三修（2026-10-18 · 已落 · 6177 已出）
+
+产品报障原文：①「记一笔的页面是拉长版的页面？跟高保真不一样」②「打卡也是异常的，不显示内容」
+③「app 内添加时说在系统选项中设，实际没有系统选择」。三条＝**三处各自独立**，逐条处置如下。
+
+- **①「拉长版」＝上一版把整页表单塞进弹窗壳**。根因：`_dialogShell` 的壳只是「换了个容器」，
+  里面仍是**整页** `_body` 的字段——付款账户行、备注＋图片附件、日期/时间/谁/标签/商家/报销/退款/
+  付款方式/计入预算九枚 meta chips 全在 ⇒ 内容高度直接顶到 `maxHeight 88%` ⇒ 观感就是全屏页。
+  - 修法（版式基准＝原型 `#qpDlg`·样张 `widget_acheck` 38/38 已过门）：卡片 `maxWidth 322` ＋
+    `maxHeight 72%`、圆角 20、内边距 13/14/12、头部「记一笔」14/w800 ＋ 26dp 圆形 ✕；
+    字段区**可滚**＋15 键键盘**钉底**（软键盘顶起时滚上面、不挤掉保存键）；宿主四周留白 24
+    （与原型 `.qp-mask` 同口径，用户一眼看出是浮窗）。
+  - 关键结构改动：四段表单抽成 `_formSections(d, {compact})` —— **整页与弹窗同一份 widget 树**，
+    禁第二套 UI；弹窗侧三处 compact 闸把页面专属 chrome 挡在外面（付款账户行／备注图片附件／
+    九枚 meta chips），尺寸整体收一档（tab 竖距 8、字号 12.5、分类图标 34、金额 23、账户卡 30/12.5）。
+- **②「打卡不显示内容」定位到「绑定没解析出来」而不是「快照没有」**。真机证据：桌面 UI 树里两枚
+  打卡实例写的是「未选择内容，点此设置」（＝无绑定态），不是「等待数据」（＝无快照态）；同屏记账
+  概览三行读数正常 ⇒ 快照链路是通的。本轮先补**可观察面**再定论（release 包 `run-as` 不可用、
+  无 `su`，读不到 prefs 文件）：
+  - 原生 `LhWidget.trace()`（tag `LhWidget`）：三态各打一行（`→ 等待数据（无快照）`／
+    `→ 未选择（实例键=… 默认键=…）`／`→ 源失效（绑定名与快照表不匹配·表内 N 条）`／`→ 正常（名字·done=…）`）；
+  - `LhWidget.traceBindPrefs()`：读不到绑定时打「prefs 键数＋带 `widget_bind` 的键名与**段数**」
+    （0 键 ⇒ 原生读的不是 Dart 写的那份文件；段数≠3 ⇒ 编码形状不对）。**不打印习惯名**。
+  - Dart 侧 `addHabitWidgetFromSettings` 两行轨迹：`bind 落盘 默认键=… 预选键=…` / `pin 请求被接受=…`。
+  - 键口径已交叉核对：Dart 写 `desktop.widget_bind.*`（插件自动加 `flutter.` 前缀）落
+    `FlutterSharedPreferences`（`SharedPreferences.getInstance()` ＝ legacy 链）；原生读同名文件的
+    `flutter.desktop.widget_bind.*` —— 两边一致，故本轮不改存储形态，等 logcat 读数定论。
+- **③「没有系统选择」＝`isRequestPinAppWidgetSupported` 在 MIUI 上骗人**。旧逻辑只看这个标志
+  （MIUI 报 true），请求被吞掉而 Dart 侧恒回「请在系统弹窗里确认」——用户等一个永不出现的弹窗。
+  - 修法：`MainActivity.pinWidget` 改以 `requestPinAppWidget` 的**返回值**为准并回传 Dart
+    （`pinDesktopWidget` 由 void 改 `Future<bool>`；SDK<26 直接 false；`requested==false` 才提示
+    `lh_widget_add_unsupported`）；设置页按 `WidgetAddOutcome.pinned` 分流：true＝「请在系统弹窗里确认」，
+    false＝弹**手动拖出三步引导**（长按桌面空白处 → 在列表里找到 LifeHarness → 把「打卡-单习惯（2×2）」
+    拖到桌面），并明确「已经记住你选的 X」——手动拖出的新实例照样走默认绑定回落。
+- **闸**：`widget_quick_add_test` 24 例（新增弹窗两条真渲染用例：400×890dp @3x 下断言宽度 ≤322、
+  高度 < 72% 屏高且 <560、页面 chrome 十项全不在、切借贷后高度变化）；`widget_config_test` 16 例
+  （新增「系统没接受 pin ⇒ 改走手动引导、不再说请在系统弹窗里确认」）；`widget_render_test` 26 例
+  （判定顺序改认 `rows.firstOrNull { it.name == name }`——源失效那行要报「表内 N 条」，故拆成两句）。
+- **回归**：本批相关 23 文件逐波全绿（`tmp/gate_6177d`）＋三件修正复跑全绿（`6177e`）；KT-OK（3m26s）。
+- **变异三刀**（红其位·md5 复原全等）：① `height * 0.72`→`0.88` ⇒「高度按内容收（322×72% 屏高）」红；
+  ② `compact: true`→`false` ⇒「弹窗＝紧凑卡片…页面 chrome 全不在」红；③ `if (out.pinned)`→`if (true)`
+  ⇒「系统没接受 pin ⇒ 改走手动拖出引导」红。
+- **体量闸同步**（按实测登·非豁免）：`ledger` 18132→18286、`settings` 12648→12742；
+  `ledger_add_page.dart` 1122→1276 首破 1200 线，登记进 `size_budget_test`（真还债＝弹窗壳与紧凑段
+  拆同库 part·另批做，勿与本次版式修混刀）。
+- **6177 已出**：arm64 单 ABI·versionCode 8177（`--build-number`＋`local.properties` 同值钉版）。
+- **真机复验三条**：① 桌面点 4×1「记一笔」→ 弹窗是**小卡片浮在桌面**（宽约屏宽 8 成、高不过 7 成），
+  有「记一笔」标题与 ✕，**看不到**付款账户/备注图片/九枚 chips；点 ✕ 即关；② 设置页「添加小组件」
+  → 选习惯 → 若系统弹窗没出现，应看到**手动拖出三步引导**（而不是「请在系统弹窗里确认」）；③ 拖/落一枚
+  新打卡枚，应直接显示所选习惯（不是「未选择内容」）；仍不显示则抓 `adb logcat -s LhWidget`，
+  看 `→ 未选择（实例键=… 默认键=…）` 与 `bind 体检：prefs键数=…` 两行定位是哪一侧没通。
+
+### §7.7 6179 真机三报后续两条修复（2026-10-18 · 已落 · 6180 已出）
+
+产品原话：「还有，习惯打卡，添加多个不同打卡后，会全部变成最后添加的打卡内容，以及带数值的打卡也只显示一个打卡，不显示数值修改能力」。
+
+- **⑤ 多枚打卡枚全变同一个** —— 根因＝绑定解析顺序。原「实例键 → **默认键** → 认领交接位」：默认键一旦有值，
+  交接位永远轮不到认领 ⇒ 后加的实例全吃同一个默认。改为「实例键 → 认领 → 默认键」（`resolveBinding`），
+  且不再调用把默认键混在一起的 `boundHabitName`（病灶就在那）。
+  守护＝`widget_render_test`「实例自认领预选绑定」新增断言：`consumePendingBind` 的下标必须 **小于**
+  `defaultHabitName` 的下标。
+- **⑥ 数值型打卡无记量能力** —— 快照 3 段扩 **7 段** `name␟streak␟done␟value␟goal␟unit␟step`：
+  · Dart：`WidgetHabitItem` 加 `value/goal/unit/step`＋`isNumeric`；`_widgetNum` 走 `toStringAsFixed(2)` 剥尾零
+  （`toString()` 会吐科学计数法）；`widgetHabitItems` 只给 `goal>0 && !isGroup` 填这四段（组习惯仍按布尔）。
+  · 写库：新核心 `habitIncrementWrite`（`habit_mounts`）＝读今日 `value` → `+habitStepOf(goal)` →
+  `upsertEntry(value: next)`，**达标也照样加**（第 9 杯水要记上，卡在目标等于抹数据）；
+  `widgetCheckinByName` 按 `!h.isGroup && (h.goal ?? 0) > 0` 分流——与快照 `isNumeric` **逐字同式**。
+  · 原生：`HabitRow` 加四字段＋`isNumeric`；`readHabitRows` 只判 `size < 3`（老快照兼容，缺段按 0 兜 ⇒ 走布尔分支）；
+  `renderNumeric` 状态行 `3/8 杯`、按钮 `+N`、**恒可点**（数值型不撤点击意图）；`echoChecked` 数值型回显 `value+step`。
+  · 步进阶梯从 `habit_sheets`（presentation）迁 `domain/habit_calc.dart` 的 `habitStepOf`，弹层留 6 行转发
+  ——桌面与记量弹层必须同一档位（两套必然漂移，用户一眼看出「桌面点两下到目标、App 里点三下」）。
+- **闸**：`widget_render_test` 26→33 例（新增 ⑧ 组 6 例：原生按 goal 分流／进度与 +N 文案／数值型恒可点／
+  回显两形态／Dart 按 goal 分流＋步进单源／解码兼容老快照；编码两条改判 7 段并新增「小数量不被格式化成 0」）；
+  `widget_checkin_echo_test` 14 例（upsert 计数 1→2 并改判「后台出口零 upsert＋加量核心带 `value: next`＋
+  布尔核心不许带 value」）；`widget_binding_test` 16／`widget_picker_test` 21／`widget_quick_add_test` 24／
+  `widget_config_test` 16／`habits_page_test` 11／`habit_detail_page_test` 3／`habit_data_test` 21 全绿；
+  `desktop_widget_test` 30／`desktop_widget_snapshot_exec_test` 6 全绿；`flutter analyze lib` 零 error；KT-OK（5m37s）。
+- **体量闸同步**：`habit` 12150→12165（步进阶梯迁 domain 净 +15＝注释与转发开销，无第二份实现）。
+- **本批精简流程**（产品令「精简流程，速度太慢了」）：跳过变异刀自证与 23 文件逐波全量回归，只跑改动直系
+  测试＋analyze＋kotlin_check 即出包；变异刀欠账记在此，下次全量回归批补跑。
+- **6180 已出**：arm64 单 ABI·versionCode 8180（`--build-number`＋`local.properties` 同值钉版）。
+- **真机复验两条**：① 连加**两枚不同**打卡枚 → 各自显示自己的习惯（不再都变成最后选的那个）；② 绑一个
+  **带数值**的习惯（如喝水 8 杯）→ 桌面显示 `3/8 杯` 与 `+2` 按钮，点一下进度前进一格、进 App 核对今日量同步；
+  仍不对则抓 `adb logcat -s LhWidget` 看 `→ 正常（… done=…）` 行。

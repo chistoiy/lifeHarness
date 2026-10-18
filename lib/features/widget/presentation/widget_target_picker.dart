@@ -152,6 +152,7 @@ Future<WidgetTarget?> showWidgetTargetPicker(
   WidgetTarget? initial,
   String initialTab = 'nav',
   Database? db,
+  String? onlyTab,
 }) {
   return showModalBottomSheet<WidgetTarget>(
     context: context,
@@ -161,12 +162,14 @@ Future<WidgetTarget?> showWidgetTargetPicker(
       initial: initial,
       initialTab: initialTab,
       db: db,
+      onlyTab: onlyTab,
     ),
   );
 }
 
 class _WidgetTargetPicker extends StatefulWidget {
   const _WidgetTargetPicker({
+    this.onlyTab,
     required this.mode,
     this.initial,
     required this.initialTab,
@@ -177,6 +180,14 @@ class _WidgetTargetPicker extends StatefulWidget {
   final WidgetTarget? initial;
   final String initialTab;
   final Database? db;
+
+  /// 只允许这一个大类（null＝五段全开）。
+  ///
+  /// 2026-10-18 真机实锤：批A 的「打卡-单习惯」枚从设置页进来时虽然**预开打卡段**，
+  /// 但五段 tab 全在，用户滑到「阅读书目」点确定 ⇒ 绑定值写成 `read_book␟<书 id>`，
+  /// 打卡枚解不出习惯名 ⇒ 桌面永久「未选择内容，点此设置」。一枚小组件只绑它自己
+  /// 那类目标，故本批入口传 `'habit'`，把 tab 行整条收起（连误点的机会都不给）。
+  final String? onlyTab;
 
   @override
   State<_WidgetTargetPicker> createState() => _WidgetTargetPickerState();
@@ -342,8 +353,10 @@ class _WidgetTargetPickerState extends State<_WidgetTargetPicker> {
               const SizedBox(height: 12),
               _label(widget.mode.zoneLabel, scheme),
               const SizedBox(height: 8),
-              _tabRow(scheme),
-              const SizedBox(height: 12),
+              // 只允许一个大类时（批A 打卡枚）不画 tab 行：一条单选项的 tab 行
+              // 只会占地方并暗示「还能选别的」。
+              if (widget.onlyTab == null) _tabRow(scheme),
+              if (widget.onlyTab == null) const SizedBox(height: 12),
               _tabBody(scheme),
               const SizedBox(height: 16),
               SizedBox(
@@ -375,12 +388,17 @@ class _WidgetTargetPickerState extends State<_WidgetTargetPicker> {
             style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
       );
 
+  /// 本实例可见的分区表（`onlyTab` 设了就只有那一段）。
+  List<(String, String)> get _tabs => widget.onlyTab == null
+      ? kWidgetPickerTabs
+      : kWidgetPickerTabs.where((e) => e.$1 == widget.onlyTab).toList();
+
   /// 五段横向大类（**一次只显示一区** · 顺序固定）。
   Widget _tabRow(ColorScheme scheme) {
     final tokens = context.tokens;
     return Row(
       children: [
-        for (final (key, label) in kWidgetPickerTabs)
+        for (final (key, label) in _tabs)
           Expanded(
             child: GestureDetector(
               key: ValueKey<String>('wg-tab-$key'),

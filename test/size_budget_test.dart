@@ -35,6 +35,13 @@ void main() {
     // 备份余量批3（6939f3ec·V1.67 按范围自由导出时间维度），该批未带 size 闸，
     // 批 6a 一行未动该文件。按现状登记，之后只许减。
     'features/ledger/data/ledger_repository.dart': 1364,
+    // ledger_add_page 1122→1276 越线（小组件批A·真机二次报障三修·2026-10-18）：
+    // 「记一笔弹窗是拉长版、跟高保真不一样」⇒ 弹窗版式按原型 `#qpDlg` 收口——
+    // 新增 `_dialogShell`/`_dialogBody`/`_amountRow`，并把四段表单抽成
+    // `_formSections(compact:)` 一套两用（页面专属 chrome 三处 compact 闸＋尺寸收一档）。
+    // 属产品拍板需求增长（同一份表单换容器，**无第二套 UI**），按实测登，此后只许减；
+    // 真还债＝弹窗壳与紧凑段拆同库 part（G7c 族·另批做，勿与本次版式修混刀）。
+    'features/ledger/presentation/ledger_add_page.dart': 1276,
     // diary_edit_page：1370→1262 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）——
     // 净减 108 行发生在时间模块 B10（5700dff9，2026-10-13，旧 events 表退役四件删除后
     // diary 摘要切块单源），非本批改动。原 1370 越线系思维导图批1（2026-10-12）跑出，

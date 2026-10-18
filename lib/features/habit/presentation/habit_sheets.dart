@@ -64,32 +64,12 @@ Future<T?> _hSheet<T>(BuildContext context, Widget Function(BuildContext) build)
 // 记量弹层（sheetHabitLog · LH-S16）
 // =====================================================================
 
-/// 记量步进档位（原型 hbStepOf）。
-double hStepOf(double goal) {
-  const ladder = [
-    1.0,
-    2.0,
-    5.0,
-    10.0,
-    15.0,
-    20.0,
-    25.0,
-    30.0,
-    50.0,
-    60.0,
-    100.0,
-    150.0,
-    200.0,
-    300.0,
-    500.0,
-    1000.0,
-  ];
-  final want = (goal / 4).ceil().clamp(1, 1000).toDouble();
-  for (final v in ladder) {
-    if (v >= want) return v;
-  }
-  return 1000;
-}
+/// 记量步进档位 —— **实现已迁 domain**（[habitStepOf]）。
+///
+/// 留这个名字是因为本文件里两处加减按钮都按 `hStepOf(goal)` 读，语义上就是
+/// 「本弹层的步进」；**禁在本文件另写一套阶梯**（桌面小组件的 `+N` 用的是
+/// 同一个 domain 函数）。
+double hStepOf(double goal) => habitStepOf(goal);
 
 /// 快捷量 chips（原型 hbQuick：半目标/1.5x/目标/2x/3x 去重升序取 6）。
 List<double> hQuick(double goal) {

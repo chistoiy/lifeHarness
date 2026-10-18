@@ -391,8 +391,7 @@ class MainActivity : FlutterActivity() {
                 // 现改为：设置页每张卡自带「添加到桌面」按钮，直接把 provider 传进来，
                 // **App 侧不再有中间选择框**，用户点哪枚就是哪枚。
                 "pinWidget" -> {
-                    pinWidgetById(call.argument<String>("widget"))
-                    result.success(true)
+                    result.success(pinWidgetById(call.argument<String>("widget")))
                 }
                 // 2026-10-15 8148 装机实锤：设置页的「今日概览（2×2）」「快捷记录（4×1）」
                 // 原本是**死开关**（只有配置页读写、两枚 Provider 一次没读）。现钉死为
@@ -1133,30 +1132,50 @@ class MainActivity : FlutterActivity() {
      * id 与 Dart 侧 `pinDesktopWidget` 的入参逐字一致（守护测试交叉核对）；
      * 取不到就静默返回——不猜、不弹兜底框。
      */
-    private fun pinWidgetById(id: String?) {
-        val cls = when (id) {
-            "overview" -> TodayOverviewWidget::class.java
-            "quick" -> QuickRecordWidget::class.java
-            "todo" -> TodoListWidget::class.java
-            "ledger" -> LedgerOverviewWidget::class.java
-            // 批A：绑定型小组件（一枚绑一个习惯）。pin 前 Dart 侧已写好预选绑定，
-            // 新实例创建时由 WidgetConfigActivity 认领（无感回写）。
-            "habit" -> HabitCheckWidget::class.java
-            else -> null
-        } ?: return
-        pinWidget(cls)
+    private fun pinWidgetById(id: String?): Boolean {
+        val cls = widgetClassById(id) ?: return false
+        return pinWidget(cls)
     }
 
-    /** 调起系统「固定到桌面」弹窗；系统不支持时提示手动拖出（B2）。 */
-    private fun pinWidget(cls: Class<*>) {
-        val supported = Build.VERSION.SDK_INT >= 26 &&
-            AppWidgetManager.getInstance(this).isRequestPinAppWidgetSupported
-        if (supported) {
-            AppWidgetManager.getInstance(this)
-                .requestPinAppWidget(ComponentName(this, cls), null, null)
-        } else {
+    /** id → provider 类（`pinWidgetById` 唯一表；与 Dart `pinDesktopWidget` 入参逐字一致）。 */
+    private fun widgetClassById(id: String?): Class<*>? = when (id) {
+        "overview" -> TodayOverviewWidget::class.java
+        "quick" -> QuickRecordWidget::class.java
+        "todo" -> TodoListWidget::class.java
+        "ledger" -> LedgerOverviewWidget::class.java
+        // 批A：绑定型小组件（一枚绑一个习惯）。pin 前 Dart 侧已写好预选绑定，
+        // 新实例创建时由 WidgetConfigActivity 认领（无感回写）。
+        "habit" -> HabitCheckWidget::class.java
+        else -> null
+    }
+
+    /**
+     * 调起系统「固定到桌面」弹窗。
+     *
+     * @return true＝系统**接受了这次请求**（确认框应由桌面弹出）；false＝这台桌面
+     *         不支持／调用被拒，调用方必须改走「手动拖出」引导，**不能**再说
+     *         「请在系统弹窗里确认」（2026-10-18 真机报障的原话就是「说在系统选项
+     *         里设，实际没有系统选择」）。
+     *
+     * ⚠ 即使 `isRequestPinAppWidgetSupported` 报 false 也**先试一次**：部分 ROM
+     * 该标志位不可靠（MIUI 两个方向都见过），真正的事实以 `requestPinAppWidget`
+     * 的返回值为准。
+     */
+    private fun pinWidget(cls: Class<*>): Boolean {
+        if (Build.VERSION.SDK_INT < 26) {
+            Toast.makeText(this, R.string.lh_widget_add_unsupported, Toast.LENGTH_LONG).show()
+            return false
+        }
+        val mgr = AppWidgetManager.getInstance(this)
+        val requested = try {
+            mgr.requestPinAppWidget(ComponentName(this, cls), null, null)
+        } catch (_: Exception) {
+            false
+        }
+        if (!requested) {
             Toast.makeText(this, R.string.lh_widget_add_unsupported, Toast.LENGTH_LONG).show()
         }
+        return requested
     }
 
     /** 长按菜单短标签（≤6 字，与 Dart 侧 shortLabel 同源）。 */

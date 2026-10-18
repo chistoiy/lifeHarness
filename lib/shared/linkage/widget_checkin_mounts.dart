@@ -25,7 +25,8 @@ import '../../core/platform/desktop_widget.dart';
 import '../../core/providers.dart';
 import '../../features/habit/data/habit_repository.dart';
 import '../../features/habit/presentation/habit_providers.dart' show HabitData;
-import 'habit_mounts.dart' show HabitCheckOutcome, habitCheckinWrite;
+import 'habit_mounts.dart'
+    show HabitCheckOutcome, habitCheckinWrite, habitIncrementWrite;
 import 'desktop_widget_mounts.dart'
     show desktopWidgetKickProvider, habitDueCounts, widgetHabitItems;
 
@@ -47,6 +48,12 @@ const String kWidgetCheckSep = '\u001e';
 /// 禁直读 sqlite，id 在库里）。写库口径与 NFC 贴卡/App 内手动打卡**同一实现**
 /// （[habitCheckinWrite]）——禁在原生或此处复刻一份 upsert（行为分叉）。
 ///
+/// **数值型分流**（2026-10-18 真机报障补）：`goal > 0` 的非组习惯走
+/// [habitIncrementWrite]（加一档量），其余走布尔口径 [habitCheckinWrite]。
+/// 分流判据必须与快照下发的 `isNumeric` **完全一致**（`goal > 0 && !isGroup`）：
+/// 桌面显示 `+N` 就说明它是数值型，原生点下去必须真是加量——两处判据一旦
+/// 分叉，就会出现「按钮写着 +2，点了却是布尔打卡」。
+///
 /// 返回 null ＝ 未归档习惯里查不到这个名字（被删/改名/归档）⇒ 调用方按失败
 /// 处理（原生回滚并入队，排空时再判一次仍是 null 就清掉死条目）。
 Future<HabitCheckOutcome?> widgetCheckinByName(
@@ -62,7 +69,12 @@ Future<HabitCheckOutcome?> widgetCheckinByName(
   // 绑着归档习惯的实例在桌面上显示「内容已失效」，按钮根本不渲染 ⇒ 这里也不该写。
   final hit = habits.where((h) => !h.isArchived && h.name == n).toList();
   if (hit.isEmpty) return null;
-  return habitCheckinWrite(repo, hit.first, now: now);
+  final h = hit.first;
+  // 与 `WidgetHabitItem.isNumeric` 同一判据（组习惯即使带 unit 也走布尔）。
+  if (!h.isGroup && (h.goal ?? 0) > 0) {
+    return habitIncrementWrite(repo, h, now: now);
+  }
+  return habitCheckinWrite(repo, h, now: now);
 }
 
 /// 后台 isolate 的一条龙：写库 → 推习惯三键 → 收敛重绘。

@@ -14,7 +14,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/desktop_widget_mounts.dart'
     show buildSnapshot, desktopWidgetKickProvider;
 import '../../../shared/linkage/widget_bind_mounts.dart'
-    show addHabitWidgetFromSettings;
+    show addHabitWidgetFromSettings, WidgetAddOutcome;
 
 /// 「桌面与快捷方式」二级页（原型 `p-sub-desktop`，家＝壳 index.html；本屏 Flutter 侧）。
 ///
@@ -32,8 +32,8 @@ class DesktopSettingsPage extends ConsumerStatefulWidget {
   ///
   /// 与 `showWidgetTargetPicker(db:)` 同款手法——真流程要读库，而本页测试不该为
   /// 了按一下按钮去初始化整库；注入一个假流程即可钉住**接线与提示**这一层。
-  final Future<String?> Function(BuildContext context, SharedPreferences prefs)?
-      addWidgetFlow;
+  final Future<WidgetAddOutcome?> Function(
+      BuildContext context, SharedPreferences prefs)? addWidgetFlow;
 
   @override
   ConsumerState<DesktopSettingsPage> createState() => _DesktopSettingsPageState();
@@ -126,14 +126,108 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
   /// 第④步「配置页读预选绑定无感回写」在原生侧，Dart 不参与；用户在选择器里
   /// 取消则**什么都不落**（不写预选、不调 pin），与原型步③「取消则不落桌面」同口径。
   ///
+  /// ⚠ 2026-10-18 真机**二次**报障「点击打卡依旧显示在系统弹窗里确认，但依旧没有系统弹窗」：
+  /// 上一版按 `requestPinAppWidget` 的返回值分流，可 **MIUI 返回 true 却什么都不弹**
+  /// （系统把请求吞了）⇒ 「true 就说等确认」这条路在真机上依然是谎话。
+  ///
+  /// 现改为**一律给同一份引导**，措辞不再承诺任何弹窗：标题「已选好 X」，正文先说
+  /// 「如果系统没弹确认框（部分桌面会静默忽略）」，再给三步手动添加，并明确
+  /// 「拖出来的就是它，不用再选一次」。两种桌面都成立，且不会让用户干等。
+  ///
   /// R1：跨模块能力一律经 `shared/linkage`（本页不 import `features/widget`），
   /// 这里只拿到所选目标的人话标签，不接触目标模型与绑定键。
   Future<void> _addHabitWidget() async {
     final prefs = ref.read(sharedPreferencesProvider);
     final flow = widget.addWidgetFlow ?? addHabitWidgetFromSettings;
-    final label = await flow(context, prefs);
-    if (!mounted || label == null) return;
-    _toast('已选「$label」，请在系统弹窗里确认');
+    final out = await flow(context, prefs);
+    if (!mounted || out == null) return;
+    await _showAddGuide(out.label);
+  }
+
+  /// 「已选好 X，怎么把它放到桌面」的引导（底部弹层·三步）。
+  ///
+  /// 为什么必须给：`requestPinAppWidget` 是系统能力，桌面可以拒、也可以**静默吞掉**
+  /// （MIUI 实测返回 true 但不出弹窗），而 App 没有任何 API 能把实例直接塞到桌面
+  /// （`bindAppWidgetId` 要系统权限）。但**手动拖出来照样能用**——选好的目标已经落成
+  /// 默认绑定，拖出的新实例直接显示它。所以这里只讲清「去哪儿拖」＋「已经记住了」。
+  Future<void> _showAddGuide(String label) async {
+    final scheme = Theme.of(context).colorScheme;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '已选好「$label」',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '如果系统没有弹出「添加到主屏幕」的确认框（部分桌面会静默忽略），'
+                '按下面三步手动添加——拖出来的就是「$label」，不用再选一次。',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.6,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              for (final (i, step) in const [
+                (1, '长按桌面空白处，点「添加小工具」'),
+                (2, '在列表里找到「LifeHarness」'),
+                (3, '把「打卡-单习惯」拖到桌面'),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: scheme.primary.withValues(alpha: .14),
+                        ),
+                        child: Text(
+                          '$i',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: scheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          step,
+                          style: const TextStyle(fontSize: 13, height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('知道了'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// 小组件偏好改动 ⇒ 让快照重算重绘（批2 · F2-3/§4.4）。

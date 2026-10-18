@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/app_database.dart';
 import '../../core/platform/desktop_widget.dart';
 import '../../core/providers.dart';
-import '../../features/habit/domain/habit_calc.dart' show dayKey, habitStreak;
+import '../../features/habit/domain/habit_calc.dart'
+    show dayKey, habitStepOf, habitStreak;
 import '../../features/habit/presentation/habit_providers.dart'
     show HabitData, habitDataProvider;
 import '../../features/ledger/domain/ledger_calc.dart' show mStat, monthKey;
@@ -180,16 +181,30 @@ bool _isOnToday(DateTime? dueAt, DateTime now) =>
 /// **为什么抽成共享函数**：App 内快照下发（[buildSnapshot]）、后台 isolate
 /// 打卡收敛推送、设置页预览卡三处消费同一份表——各算一套必然漂移（批A
 /// 交互闭环层口径）。[now] 可注入（测试/调用点统一传同一个时刻）。
+///
+/// **数值型口径**（2026-10-18 真机报障补）：`goal > 0` 的非组习惯带上
+/// `value/goal/unit/step`——桌面显示 `3/8 杯` 并给 `+N` 增量按钮。
+/// · `value` 取今日流水的 `value`（无记录＝0），**不是** `subValues` 之和；
+/// · `step` 走 `habitStepOf(goal)`，与记量弹层的加减档同源；
+/// · 组习惯（`isGroup`）即使带 unit 也按布尔型下发：组是「多子项各记各的」，
+///   桌面 2×2 放不下一排子项，给个总数反而错。
 List<WidgetHabitItem> widgetHabitItems(HabitData? habit, DateTime now) {
   if (habit == null) return const <WidgetHabitItem>[];
   final k = dayKey(now);
   return <WidgetHabitItem>[
     for (final h in habit.book)
-      WidgetHabitItem(
-        name: h.name,
-        streak: habitStreak(h, habit.of(h.id), now),
-        done: habit.okOn(h, k),
-      ),
+      () {
+        final goal = h.isGroup ? 0.0 : (h.goal ?? 0);
+        return WidgetHabitItem(
+          name: h.name,
+          streak: habitStreak(h, habit.of(h.id), now),
+          done: habit.okOn(h, k),
+          value: goal > 0 ? (habit.of(h.id)[k]?.value ?? 0) : null,
+          goal: goal > 0 ? goal : null,
+          unit: goal > 0 ? (h.unit ?? '') : null,
+          step: goal > 0 ? habitStepOf(goal) : null,
+        );
+      }(),
   ];
 }
 
