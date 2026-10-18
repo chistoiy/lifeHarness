@@ -1,6 +1,6 @@
 {
  "file": "index-journal.html",
- "total": 327211,
+ "total": 330016,
  "cut": 0,
  "screens": [
   {
@@ -8,8 +8,8 @@
    "kind": "screen",
    "title": "日记",
    "role": "home",
-   "size": 3689,
-   "hash": "0ea48012"
+   "size": 2767,
+   "hash": "417ad29b"
   },
   {
    "id": "p-diaryEdit",
@@ -66,6 +66,14 @@
    "role": "home",
    "size": 408,
    "hash": "70e247d1"
+  },
+  {
+   "id": "sheetDiarySet",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 949,
+   "hash": "d6459efb"
   },
   {
    "id": "sheetDiaryReview",

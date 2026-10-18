@@ -368,6 +368,13 @@ tailwind.config = {
   @keyframes wReveal{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
   .wreveal{animation:wReveal .26s ease}
   /* ---- INS 风格卡片流 & 习惯 & 主题市场 ---- */
+  /* 日记改版批1b：开关控件（纯 CSS，随主题令牌走） */
+  .ds-switch{width:44px;height:26px;border-radius:999px;background:#cbd5e1;position:relative;transition:background .18s}
+  .ds-switch span{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.25);transition:transform .18s}
+  .ds-switch[aria-checked="true"]{background:var(--accent)}
+  .ds-switch[aria-checked="true"] span{transform:translateX(18px)}
+  .dark .ds-switch{background:#475569}
+  .dark .ds-switch[aria-checked="true"]{background:var(--accent)}
   /* 日记改版批1（2026-10-19）· 日期轨道：左栏日期块吸顶（实现侧＝SliverPersistentHeader pinned），
      右栏条目靠左侧细竖线保持同日连续感；吸顶块底垫页面色，压住下方滚动内容不叠字 */
   .dw-date{background:var(--page);border-radius:0 0 6px 0}
@@ -483,28 +490,18 @@ tailwind.config = {
     <!-- 日记专版主屏（2026-10-12 日记抽离批：自书架 p-records 迁入 · 屏单一归属 journal） -->
     <section id="p-diaryHome" class="page px-5 safe-pb no-scrollbar">
       <div id="recDiary" class="mt-4">
-        <div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20">
+        <!-- 日记改版批1b（2026-10-19 产品调整）：彩色柱状条**仅列表视图显示**（轨道/INS 档整卡收起） -->
+        <div id="diaryMoodCard" class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20">
           <div class="flex items-center justify-between"><b class="text-sm">九月 · 已记录 18 篇</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1 inline-flex items-center gap-1" onclick="openSheet('sheetDiaryReview')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10m5.5 10V4M15 20v-7m5.5 7V8"/></svg>回顾</button></div>
           <div class="mt-2.5 flex items-end gap-[3px] h-9" id="moodMini"></div>
           <div class="text-[10px] opacity-75 mt-1.5">连续记录 55 天 · 本月心情以 😌 平静居多 · 点色条看当天</div>
         </div>
-        <button onclick="navTo('p-diaryEdit')" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-          <span class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-brand-500/15 flex items-center justify-center text-lg">✍️</span>
-          <div class="flex-1"><div class="text-sm font-bold">写今天的日记</div><div class="text-[11px] text-slate-400">已生成今日概览草稿 · 昨晚 46 字未发送草稿可续写（联动 L2）</div></div>
-          <span class="text-slate-300">›</span>
-        </button>
-        <!-- V1.29轮9g修正：本行=视图三档 + 筛选钮（右）·筛选点击弹底部浮层 全部/收藏/点亮/☐待办/标签 -->
-        <!-- 日记改版批1（2026-10-19）：原「列表⇄INS 单钮切换」→ 三档分段控件（轨道/列表/INS） -->
+        <!-- 日记改版批1b：「写今天的日记」整行已移除（右下角 FAB 已覆盖同一入口，双入口属冗余） -->
+        <!-- 日记改版批1b：本行＝视图档位**设置钮** + 筛选钮（右）。产品令：三档收进设置，页面默认列表 -->
         <div class="mt-2 flex items-center gap-2 relative">
-          <div id="diaryViewSeg" class="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5" role="tablist" aria-label="日记视图">
-            <button data-layout="track" onclick="diaryLayout('track')" class="diary-view-tab px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1" title="日期轨道（时间流）">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h3M4 12h3M4 19h3"/><path d="M11 5h9M11 12h9M11 19h6"/></svg>轨道</button>
-            <button data-layout="list" onclick="diaryLayout('list')" class="diary-view-tab px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1" title="列表">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9"/></svg>列表</button>
-            <button data-layout="ins" onclick="diaryLayout('ins')" class="diary-view-tab px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1" title="INS 卡片流">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>INS</button>
-          </div>
+          <span id="diaryViewLabel" class="text-[11px] font-bold text-slate-400 dark:text-slate-500">列表</span>
           <button id="diaryFilterBtn" onclick="openSheet('sheetDiaryFilter')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 ml-auto" title="筛选"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.4v5.1l-3.6 1.9V12.4L4 5Z"/></svg></button>
+          <button id="diarySetBtn" onclick="openSheet('sheetDiarySet')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="日记设置"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button>
         </div>
         <!-- 日记改版批1：月历图墙（视图=轨道时用它做月份导航；视图=列表/INS 时收起为零高） -->
         <div id="diaryWall" class="mt-3 hidden" aria-label="月历图墙"></div>
@@ -895,6 +892,21 @@ tailwind.config = {
       <div id="dfList" class="mt-2 space-y-1"></div>
     </div>
   </div>
+  <!-- 日记改版批1b（2026-10-19 产品令）：日记设置底部浮层——三档视图收进这里（页面默认列表）＋右下角添加日记钮开关 -->
+  <div id="sheetDiarySet" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiarySet')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">日记设置</div>
+      <div class="row-title mt-3">展示方式</div>
+      <div id="dsLayoutList" class="mt-2 space-y-1"></div>
+      <div class="row-title mt-4">添加按钮</div>
+      <div class="mt-2 flex items-center justify-between rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60">
+        <div class="min-w-0"><div class="text-[13px] font-bold">显示右下角添加日记按钮</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">关闭后改用本页右上角设置里进入</div></div>
+        <button id="dsFabSwitch" role="switch" aria-checked="true" onclick="diaryToggleFab()" class="ds-switch shrink-0 ml-3"><span></span></button>
+      </div>
+    </div>
+  </div>
   <!-- V1.29批2：回顾底部弹层（心情趋势 + 词云 + 那年今日·与笔记选项同语言） -->
   <div id="sheetDiaryReview" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryReview')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[82%] overflow-y-auto no-scrollbar">
@@ -1223,6 +1235,8 @@ function goBack(){
 }
 function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; $('#fabMenu').classList.add('hidden'); hideTodoFabMenu(); hideNoteFabMenu(); }
 function renderFab(){const f=$('#fab'),c=FAB_CFG[curPage];
+ /* 批1b：日记页右下角添加钮受设置开关控制（默认开）；关掉即整钮收起 */
+ if(curPage==='p-diaryHome'&&!dsShowFab()){f.classList.add('hidden');f.classList.remove('flex');$('#fabMenu').classList.add('hidden');return}
  if(curPage!=='p-todo')hideTodoFabMenu();
  if(!c){f.classList.add('hidden');f.classList.remove('flex');$('#fabMenu').classList.add('hidden');return}
  f.classList.remove('hidden');f.classList.add('flex');$('#fabIco').textContent=c.ico;$('#fab').classList.toggle('glow-btn',curTheme==='cyber');}
@@ -1248,7 +1262,7 @@ function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); if(id==='sheetTrashKeep')renderTrashKeep(); if(id==='sheetSyncDiff')sdRender(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiarySet')renderDiarySetSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); if(id==='sheetTrashKeep')renderTrashKeep(); if(id==='sheetSyncDiff')sdRender(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -3186,7 +3200,8 @@ const FAB_CFG={
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
  'p-todo':{ico:'＋',act:()=>{$('#fabMenu').classList.add('hidden');const m=$('#todoFabMenu');if(m.classList.contains('hidden')){showTodoFabMenu()}else{hideTodoFabMenu()}}},
  'p-calendar':{ico:'＋',act:()=>openTimePick(calDay)},
- 'p-diaryHome':{ico:'✎',act:()=>navTo('p-diaryEdit')},
+ /* 改版批1b：与首页「＋」同款（添加语义）· 目标仍是写日记 */
+ 'p-diaryHome':{ico:'＋',act:()=>navTo('p-diaryEdit')},
  'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note'){const m=$('#noteFabMenu');if(m.classList.contains('hidden')){showNoteFabMenu()}else{hideNoteFabMenu()}}else if(recTab==='media')openSheet('sheetAddMedia');else openSheet('sheetAddExcerpt')}},
  'p-finance':{ico:'💰',act:()=>{$$('.fin-add')[0].scrollIntoView({behavior:'smooth',block:'center'});toast('点上方分类快速记一笔（演示）')}},
  'p-items':{ico:'📦',act:()=>openSheet('sheetAddItem')},
@@ -3653,13 +3668,35 @@ function diaryLayout(k){dlLayout=k;
     t.classList.toggle('shadow-sm',on);
     t.classList.toggle('text-slate-500',!on);t.classList.toggle('dark:text-slate-400',!on);
     t.setAttribute('aria-selected',on?'true':'false');});
+  /* 批1b：档位名回显到设置行（原分段控件已收进弹层） */
+  const lbl=$('#diaryViewLabel');if(lbl)lbl.textContent=DIARY_LAYOUT_LBL[k]||'列表';
+  /* 批1b：彩色心情柱状条**仅列表档显示** */
+  const mc=$('#diaryMoodCard');if(mc)mc.classList.toggle('hidden',k!=='list');
   renderDiaryList();dwRenderWall();
   toast(k==='ins'?'INS 卡片流预览':(k==='track'?'日期轨道（时间流）':'列表视图'));}
+/* ===== 批1b（2026-10-19 产品令）· 日记设置弹层 =====
+ * ① 三档展示方式从页面顶行收进「设置」弹层；**默认列表**；
+ * ② 右下角添加日记钮可关（默认开）；关掉后 `renderFab` 对日记页返回 null，底部只留主题/返回等原样。
+ * ③ 两键都存 localStorage（原型演示持久化；实现侧走 SettingsRepository 与 journalIns 同族）。 */
+const DIARY_LAYOUT_LBL={track:'日期轨道',list:'列表',ins:'INS 卡片流'};
+const DS_KEY_FAB='lh.diary.showFab';
+/* 开关读取：缺省 true（默认打开） */
+function dsShowFab(){try{const v=localStorage.getItem(DS_KEY_FAB);return v===null?true:v==='1'}catch(e){return true}}
+function dsSetShowFab(on){try{localStorage.setItem(DS_KEY_FAB,on?'1':'0')}catch(e){}
+  const sw=$('#dsFabSwitch');if(sw)sw.setAttribute('aria-checked',on?'true':'false');
+  syncDiaryFab();toast(on?'已显示右下角添加日记按钮':'已隐藏右下角添加日记按钮');}
+function diaryToggleFab(){dsSetShowFab(!dsShowFab())}
+/* 日记页 FAB 开关生效：renderFab 里对 p-diaryHome 特判（见 FAB_CFG 段 syncDiaryFab 调用） */
+function syncDiaryFab(){if(curPage==='p-diaryHome')renderFab()}
+function renderDiarySetSheet(){const m=$('#dsLayoutList');if(!m)return;
+  m.innerHTML=Object.keys(DIARY_LAYOUT_LBL).map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===dlLayout?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="diarySetLayout('${k}')">${DIARY_LAYOUT_LBL[k]}<span class="text-[11px]">${k===dlLayout?'✓':''}</span></button>`).join('');
+  const sw=$('#dsFabSwitch');if(sw)sw.setAttribute('aria-checked',dsShowFab()?'true':'false');}
+function diarySetLayout(k){diaryLayout(k);renderDiarySetSheet();}
 /* 日记改版批1：轨道档滚动时同步日期块吸顶（列表/INS 档不动） */
 (function(){const sc=()=>$('#p-diaryHome');let t=0;
   document.addEventListener('scroll',e=>{if(e.target!==sc())return;
     if(t)return;t=setTimeout(()=>{t=0;try{dwStickySync()}catch(err){}},16)},true);})();
-window.addEventListener('load',function(){try{renderDiaryList();renderMoodMini();initPW();initPW2();}catch(e){console.warn('[journal-init]',e);}});
+window.addEventListener('load',function(){try{/* 批1b：默认列表档（心情柱状条仅列表显示·FAB 开关初始态） */diaryLayout('list');renderMoodMini();initPW();initPW2();}catch(e){console.warn('[journal-init]',e);}});
 </script>
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
