@@ -368,6 +368,27 @@ tailwind.config = {
   @keyframes wReveal{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
   .wreveal{animation:wReveal .26s ease}
   /* ---- INS 风格卡片流 & 习惯 & 主题市场 ---- */
+  /* 批1c：FAB 呼吸光圈——只缩放置信半径与透明度，不位移本体；4s 一个来回，低对比不刺眼。
+     prefers-reduced-motion 下停动画（系统减弱动态的用户不该被持续呼吸晃到）。 */
+  @keyframes fabHalo{0%,100%{transform:scale(1);opacity:.42}50%{transform:scale(1.28);opacity:.18}}
+  #fabHalo{position:absolute;inset:-8px;border-radius:999px;border:2px solid var(--accent);
+    opacity:.4;pointer-events:none;animation:fabHalo 4s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){#fabHalo{animation:none;opacity:.3}
+    #fabFan [data-fan]{animation:none!important}}
+  /* 批1c：扇形展开（长摁）——五枚圆钮沿 240°→300° 弧线弹出，逐枚 30ms 延迟 */
+  #fabFan{position:absolute;right:0;bottom:0;width:0;height:0}
+  #fabFan [data-fan]{position:absolute;right:0;bottom:0;width:44px;height:44px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;background:var(--card);color:var(--ink);
+    border:1px solid var(--card-bd);box-shadow:0 6px 18px rgba(15,23,42,.16);
+    transform:translate(0,0) scale(.6);opacity:0;transition:transform .22s cubic-bezier(.2,.8,.2,1),opacity .18s;
+    pointer-events:none}
+  #fabFan.fan-open [data-fan]{opacity:1;pointer-events:auto;transform:translate(var(--fx),var(--fy)) scale(1)}
+  #fabFan [data-fan] .fan-lb{position:absolute;right:50px;left:auto;white-space:nowrap;background:var(--card);
+    border:1px solid var(--card-bd);border-radius:999px;padding:3px 9px;font-size:10px;font-weight:800;
+    box-shadow:0 2px 8px rgba(15,23,42,.12);opacity:0;transition:opacity .16s;pointer-events:none}
+  #fabFan.fan-open [data-fan] .fan-lb{opacity:1;transition-delay:.06s}
+  .ds-lay-on{background:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.28)}
+  .dark .ds-lay-on{background:var(--accent)}
   /* 日记改版批1b：开关控件（纯 CSS，随主题令牌走） */
   .ds-switch{width:44px;height:26px;border-radius:999px;background:#cbd5e1;position:relative;transition:background .18s}
   .ds-switch span{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.25);transition:transform .18s}
@@ -682,7 +703,13 @@ tailwind.config = {
   </main>
 
   <!-- ===== 悬浮球（快速记录） ===== -->
-  <button id="fab" onclick="fabTap()" class="hidden absolute right-5 bottom-[86px] z-40 w-14 h-14 rounded-full grad text-white text-2xl shadow-xl shadow-indigo-500/40 items-center justify-center transition-transform"><span id="fabIco">＋</span></button>
+  <!-- 批1c（2026-10-19 产品令）：FAB＝Material3 扩展式——单击新建日记·长摁扇形展开五个快捷动作；
+       外层淡紫圆环缓慢呼吸缩放（暗示「可交互·还有更多能力」），内圈按钮本体不缩放（文字不抖）。 -->
+  <div id="fabWrap" class="hidden absolute right-5 bottom-[86px] z-40 w-14 h-14 items-center justify-center">
+    <span id="fabHalo" aria-hidden="true"></span>
+    <button id="fab" onclick="fabTap()" class="relative w-14 h-14 rounded-full grad text-white text-2xl shadow-xl shadow-indigo-500/40 flex items-center justify-center transition-transform select-none"><span id="fabIco">＋</span></button>
+    <div id="fabFan" class="hidden" role="menu" aria-label="快捷记录"></div>
+  </div>
   <div id="fabMenu" class="hidden absolute right-6 bottom-[140px] z-40 w-44 space-y-2 text-xs font-bold">
     <button class="fab-act" onclick="fabGo('p-inbox','已聚焦收集箱输入框（模拟）')">⚡ 记一条想法</button>
     <button class="fab-act" onclick="fabGo('p-todo','选择要添加的待办类型');setTimeout(()=>showTodoFabMenu(),300)">✅ 记待办</button>
@@ -898,7 +925,8 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="font-extrabold">日记设置</div>
       <div class="row-title mt-3">展示方式</div>
-      <div id="dsLayoutList" class="mt-2 space-y-1"></div>
+      <!-- 批1c（2026-10-19 产品令）：三档改**横向排列**（三宫格等分·选中描边＋淡底） -->
+      <div id="dsLayoutList" class="mt-2 grid grid-cols-3 gap-2"></div>
       <div class="row-title mt-4">添加按钮</div>
       <div class="mt-2 flex items-center justify-between rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60">
         <div class="min-w-0"><div class="text-[13px] font-bold">显示右下角添加日记按钮</div>
@@ -1233,17 +1261,79 @@ function goBack(){
   if(now-(window._lastBackTs||0)<2000){ window._lastBackTs=0; toast('再按一次已确认 · 退出应用（演示）'); }
   else{ window._lastBackTs=now; toast('再按一次返回键退出 LifeHarness'); }
 }
-function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; $('#fabMenu').classList.add('hidden'); hideTodoFabMenu(); hideNoteFabMenu(); }
-function renderFab(){const f=$('#fab'),c=FAB_CFG[curPage];
- /* 批1b：日记页右下角添加钮受设置开关控制（默认开）；关掉即整钮收起 */
- if(curPage==='p-diaryHome'&&!dsShowFab()){f.classList.add('hidden');f.classList.remove('flex');$('#fabMenu').classList.add('hidden');return}
+function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; fabFanClose(); $('#fabMenu').classList.add('hidden'); hideTodoFabMenu(); hideNoteFabMenu(); }
+function renderFab(){const w=$('#fabWrap'),f=$('#fab'),c=FAB_CFG[curPage];
+ /* 批1b：日记页右下角添加钮受设置开关控制（默认开）；关掉即整钮（含呼吸环）收起 */
+ if(curPage==='p-diaryHome'&&!dsShowFab()){w.classList.add('hidden');w.classList.remove('flex');fabFanClose();return}
  if(curPage!=='p-todo')hideTodoFabMenu();
- if(!c){f.classList.add('hidden');f.classList.remove('flex');$('#fabMenu').classList.add('hidden');return}
- f.classList.remove('hidden');f.classList.add('flex');$('#fabIco').textContent=c.ico;$('#fab').classList.toggle('glow-btn',curTheme==='cyber');}
+ if(!c){w.classList.add('hidden');w.classList.remove('flex');fabFanClose();return}
+ /* 日记页：单击=新建日记（批1c）；其余页沿用 FAB_CFG 的 ico/行为 */
+ const ico=curPage==='p-diaryHome'?'＋':c.ico;
+ w.classList.remove('hidden');w.classList.add('flex');$('#fabIco').textContent=ico;
+ if(!$('#fabFan').innerHTML)fabFanRender();
+ f.classList.toggle('glow-btn',curTheme==='cyber');}
+/* ===== 批1c（2026-10-19 产品令）· FAB＝Material3 扩展式 =====
+ * ① 单击＝直接新建（日记页＝新建日记；其他页沿用原 fabTap 行为）；
+ * ② **长摁 380ms** ＝扇形展开五枚快捷动作（240°→300° 弧·半径 88px·逐枚 30ms 延迟）；
+ * ③ 长摁触发后**抑制随后的 click**（否则松手会同时新建一条，是这套交互最大的坑）；
+ * ④ 单击环外任意处 / 再点 ＋ / 返回键 ＝ 收起扇形。 */
+/* 批1c 修订（2026-10-19 产品令）：扇形**只放筛选与设置两枚**，不塞别的功能；
+   弧线也收窄——从正上偏右到正右偏上（-78°..-12°·半径 74px），末枚不再顶到屏幕右缘。 */
+const FAN_ACTS=[
+  {ico:'<path d="M4 5h16l-6.2 7.4v5.1l-3.6 1.9V12.4L4 5Z"/>',lb:'筛选',go:"openSheet('sheetDiaryFilter')"},
+  {ico:'<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',lb:'设置',go:"openSheet('sheetDiarySet')"}
+];
+function fabFanRender(){
+  const f=$('#fabFan');if(!f)return;
+  /* 弧线：两枚落在 -78°（正上偏右）与 -12°（正右偏上），半径 74px。
+     边界口径（2026-10-19 产品令）——扇形向右上展开，**不得越出屏幕右缘**：
+     FAB 本体右距 16px、直径 44px ⇒ 圆钮右沿余量只有 16px，故圆心右移量 x 必须 ≤ 16；
+     取 -12° 时 x≈72px 会顶穿右缘 ⇒ 扣掉圆钮半径 22px 后 x 上限 16px，
+     故角度收在 -78°..-38°（x 最大约 58px）并给整组加 `right:0` 锚定＋`overflow:visible`。
+     ⚠ 若后续加第三枚，先复核这条 x ≤ 16 + 22 的余量，别凭感觉调角度。 */
+  const R=74, A0=-78, A1=-38;
+  f.innerHTML=FAN_ACTS.map((a,i)=>{
+    const ang=(A0+(A1-A0)*(i/Math.max(1,FAN_ACTS.length-1)))*Math.PI/180;
+    const x=Math.round(Math.cos(ang)*R), y=Math.round(Math.sin(ang)*R);
+    return `<button data-fan="${i}" role="menuitem" title="${a.lb}" style="--fx:${x}px;--fy:${y}px" onpointerdown="event.stopPropagation()" onclick="${a.go}">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${a.ico}</svg>
+      <span class="fan-lb">${a.lb}</span></button>`}).join('');
+}
+/* 批1c：长摁/单击 判定（pointer 事件统一处理，避免 300ms click 双重触发）
+   长摁 380ms 展开扇形 → 置 _fabLong 抑制位，随后的 click 只吞掉不执行；
+   短按松手 → 走 fabTap（日记页即新建日记）。 */
+let _fabTimer=0,_fabLong=false;
+(function(){const b=document.getElementById('fab');if(!b)return;
+  const start=function(e){_fabLong=false;clearTimeout(_fabTimer);
+    _fabTimer=setTimeout(function(){_fabLong=true;try{navigator.vibrate&&navigator.vibrate(8)}catch(err){}fabFanOpen()},380)};
+  const end=function(){clearTimeout(_fabTimer)};
+  b.addEventListener('pointerdown',start);b.addEventListener('pointerup',end);
+  b.addEventListener('pointercancel',end);b.addEventListener('pointerleave',end);
+  b.addEventListener('click',function(e){if(_fabLong){_fabLong=false;e.stopPropagation();e.preventDefault();return}},true);
+  /* 环外点一下收扇形（捕获阶段，先于各页自己的点击处理） */
+  document.addEventListener('pointerdown',function(e){const f=document.getElementById('fabFan');
+    if(!f||!f.classList.contains('fan-open'))return;
+    if(e.target.closest('#fabWrap'))return;fabFanClose()},true);
+})();
+function fabFanOpen(){const f=$('#fabFan'),ic=$('#fabIco');if(!f||f.classList.contains('fan-open'))return;
+  f.classList.remove('hidden');
+  /* 同步打类＝状态可判定（rAF 里打类会让「展开中」有一帧不可见态，也不便断言）；
+     入场动画靠 transition 从 translate(0,0) scale(.6) 起跳，先显示再变形即可。 */
+  void f.offsetWidth;f.classList.add('fan-open');
+  if(ic)ic.textContent='×';const b=$('#fab');if(b)b.style.transform='rotate(45deg)';}
+function fabFanClose(){const f=$('#fabFan'),ic=$('#fabIco');if(!f||!f.classList.contains('fan-open'))return;
+  f.classList.remove('fan-open');
+  /* 只回日记页那枚 ＋；其他页图标由 renderFab 决定，这里不抢写 */
+  if(ic&&ic.textContent==='×')ic.textContent='＋';
+  const b=$('#fab');if(b)b.style.transform='';
+  setTimeout(()=>{if(f&&!f.classList.contains('fan-open'))f.classList.add('hidden')},220);}
+function fabFanToggle(){const f=$('#fabFan');f&&f.classList.contains('fan-open')?fabFanClose():fabFanOpen()}
+/* 单击（批1c）：日记页＝直接新建日记；其他页沿用原菜单/动作分派。
+   长摁已展开扇形时，单击只做收起——由 handler 里的 _fabLong 抑制位判。 */
 function fabTap(){const c=FAB_CFG[curPage];if(!c)return;
  if(c.menu){$('#fab').style.transform=$('#fabMenu').classList.contains('hidden')?'rotate(45deg)':'';$('#fabMenu').classList.toggle('hidden');return}
  $('#fabMenu').classList.add('hidden');$('#fab').style.transform='';c.act&&c.act();}
-function fabGo(p,msg){ $('#fabMenu').classList.add('hidden'); $('#fab').style.transform=''; stack.length=0; setPage(p); toast(msg); }
+function fabGo(p,msg){ $('#fabMenu').classList.add('hidden'); $('#fab').style.transform=''; if(typeof fabFanClose==='function')fabFanClose(); stack.length=0; setPage(p); toast(msg); }
 /* V1.27：待办 FAB 类型二选一 = 首页快捷记录菜单同款行卡（页面风格统一） */
 function showTodoFabMenu(){$('#fabMenu').classList.add('hidden');$('#fab').style.transform='rotate(45deg)';$('#todoFabMenu').classList.remove('hidden')}
 function hideTodoFabMenu(){const m=$('#todoFabMenu');if(m)m.classList.add('hidden');const f=$('#fab');if(f&&$('#fabMenu').classList.contains('hidden'))f.style.transform=''}
@@ -3688,8 +3778,17 @@ function dsSetShowFab(on){try{localStorage.setItem(DS_KEY_FAB,on?'1':'0')}catch(
 function diaryToggleFab(){dsSetShowFab(!dsShowFab())}
 /* 日记页 FAB 开关生效：renderFab 里对 p-diaryHome 特判（见 FAB_CFG 段 syncDiaryFab 调用） */
 function syncDiaryFab(){if(curPage==='p-diaryHome')renderFab()}
+/* 批1c：三档横向排列＝三宫格（图标在上·名称在下·选中＝accent 描边＋淡底＋右上 ✓） */
+const DIARY_LAYOUT_ICO={
+  track:'<path d="M4 5h3M4 12h3M4 19h3"/><path d="M11 5h9M11 12h9M11 19h6"/>',
+  list:'<path d="M5 7h14M5 12h14M5 17h9"/>',
+  ins:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'};
 function renderDiarySetSheet(){const m=$('#dsLayoutList');if(!m)return;
-  m.innerHTML=Object.keys(DIARY_LAYOUT_LBL).map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===dlLayout?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="diarySetLayout('${k}')">${DIARY_LAYOUT_LBL[k]}<span class="text-[11px]">${k===dlLayout?'✓':''}</span></button>`).join('');
+  m.innerHTML=Object.keys(DIARY_LAYOUT_LBL).map(k=>{const on=k===dlLayout;
+    return `<button data-layout-opt="${k}" aria-selected="${on?'true':'false'}" onclick="diarySetLayout('${k}')"
+      class="relative flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[11px] font-bold transition ${on?'ds-lay-on':'bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'}">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${DIARY_LAYOUT_ICO[k]}</svg>${DIARY_LAYOUT_LBL[k]}
+      ${on?`<span class="absolute top-1 right-1.5 text-[10px]">✓</span>`:''}</button>`}).join('');
   const sw=$('#dsFabSwitch');if(sw)sw.setAttribute('aria-checked',dsShowFab()?'true':'false');}
 function diarySetLayout(k){diaryLayout(k);renderDiarySetSheet();}
 /* 日记改版批1：轨道档滚动时同步日期块吸顶（列表/INS 档不动） */
