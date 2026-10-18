@@ -243,6 +243,31 @@ tailwind.config = {
   .df-custom-on .df-custom-in{border-style:solid;border-color:var(--accent);color:var(--accent);background:var(--accent-06)}
   html.dark .df-custom-on .df-custom-in{background:var(--accent-12)}
   .df-custom-dash{flex:none;font-size:12px;color:rgba(148,163,184,.9)}
+  /* ---- 批2b 日记标签（2026-10-19）----
+     两处用：① 编辑页标题下的标签行 ② 标签弹层里的胶囊。统一 `.dtag` 一套：
+     高 28px（编辑页要跟心情行同高，比筛选胶囊矮一档）、文字 12px（全仓下限 11px 之上）。
+     颜色**只走 `--dt`**（由 `dtagTone()` 映射到主题语义色），淡底一律 `--accent-06/12` 淡化档，
+     禁写死靛紫——4 主题 × 明暗共 8 组合自适应；深档的选中态并写 `html.dark` 前缀防权重压过。 */
+  .dtag{height:28px;padding:0 9px;border-radius:14px;display:inline-flex;align-items:center;gap:5px;
+    font-size:12px;font-weight:500;white-space:nowrap;flex:none;
+    border:1px solid var(--accent-18);background:var(--accent-06);color:#4E5969;transition:all .15s}
+  html.dark .dtag{border-color:var(--accent-22);background:var(--accent-12);color:rgba(255,255,255,.78)}
+  .dtag>svg:first-child{color:var(--dt,var(--accent));opacity:.9;flex:none}
+  .dtag:active{transform:scale(.96)}
+  .dtag .dtag-x{opacity:.45;flex:none}
+  html.dark .dtag .dtag-x{opacity:.55}
+  .dtag-add{border-style:dashed;border-color:rgba(148,163,184,.55);background:transparent;color:#64748B}
+  html.dark .dtag-add{border-color:rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6)}
+  /* 弹层里的计数角标（几篇用了这个标签） */
+  .dtag-n{font-style:normal;font-size:11px;opacity:.55;margin-left:1px;font-variant-numeric:tabular-nums}
+  /* 管理弹层：色点 + 三个文字钮（改名/合并/删除），不做图标——文字在这层比图标好认 */
+  .dtag-dot{width:8px;height:8px;border-radius:999px;flex:none;background:var(--dt,var(--accent))}
+  .dgm-btn{height:28px;padding:0 10px;border-radius:9px;font-size:12px;font-weight:600;flex:none;
+    border:1px solid rgba(148,163,184,.4);color:#4E5969;background:transparent;transition:all .15s}
+  html.dark .dgm-btn{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.7)}
+  .dgm-btn:active{transform:scale(.95);background:var(--accent-06)}
+  .dgm-btn.dgm-del{color:#E11D48;border-color:rgba(225,29,72,.35)}
+  html.dark .dgm-btn.dgm-del{color:#FB7185;border-color:rgba(251,113,133,.4)}
   .df-custom-go{flex:none;height:34px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:600;
     background:var(--accent);color:#fff;opacity:.45;transition:opacity .15s;pointer-events:none}
   .df-custom-go.df-go-on{opacity:1;pointer-events:auto}
@@ -734,6 +759,9 @@ tailwind.config = {
         <button id="moodMoreBtn" onclick="moodMoreToggle()" class="shrink-0 text-[10px] font-bold text-brand-500 px-1.5 py-1 rounded-lg active:bg-brand-50 dark:active:bg-brand-500/10" title="更多心情">更多</button>
       </div>
       <div id="moodMoreRow" class="hidden mt-1 flex gap-1.5 overflow-x-auto no-scrollbar py-0.5"></div>
+      <!-- 批2b 标签行（2026-10-19）：原编辑页**没有任何打标签入口**，标签只存在于样例数据与筛选里。
+           放在心情行之下、正文之上＝「这篇日记属于什么」的元信息区，与心情行同为一行高，不额外吃屏。 -->
+      <div id="diaryTagRow" class="mt-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5" aria-label="标签"></div>
       <div id="diaryBody"></div>
       <!-- 日记编辑批2：「今日概览草稿 · AI 自动生成」——文案去 L2；整块弱底与手写区隔离；展开后给两枚复用按钮 -->
       <div id="dwSumCard" class="mt-3 rounded-2xl border border-brand-100 dark:border-brand-500/25 bg-brand-50/60 dark:bg-brand-500/[0.07] px-3 py-2.5">
@@ -1161,6 +1189,36 @@ tailwind.config = {
       </div>
     </div>
   </div>
+  <!-- ===== 批2b 标签弹层（2026-10-19）· 选择/新建/管理三合一 =====
+       复用筛选弹层那套视觉（`.dr-*` + `.df-chip`）：24px 圆角、同一胶囊口径，
+       选中态同样并写 `html.dark .x.on` 防深档权重压过（见 `.df-chip` 注释里的实锤）。 -->
+  <div id="sheetDiaryTag" class="sheet hidden fixed md:absolute inset-0 z-50 dr-scrim items-end" onclick="if(event.target===this)closeSheet('sheetDiaryTag')">
+    <div class="sheet-panel dr-panel w-full bg-white dark:bg-slate-900 max-h-[80%] overflow-y-auto no-scrollbar">
+      <div class="grabber dr-grab"></div>
+      <div class="flex items-center">
+        <div class="dr-title flex-1" id="dtagTitle">选择标签</div>
+        <button class="dr-navbtn" onclick="closeSheet('sheetDiaryTag')" aria-label="关闭">✕</button>
+      </div>
+      <!-- 2026-10-19 产品口径（批2b-2）：「标签池全局唯一，所有标签统一在【标签管理页】维护」——
+           本弹层**只做选择**，新建入口撤掉，改为一行指到标签管理页（一处维护，避免两处各造一份池）。
+           口径 3：这里只列「适用模块含日记」的标签（`diagPool()` 已按 scopes 过滤）。 -->
+      <div class="mt-3 flex items-center gap-2 rounded-xl px-3 py-2.5" style="background:var(--accent-06)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M4 11.2V5.5A1.5 1.5 0 0 1 5.5 4h5.7c.4 0 .8.2 1.1.4l7.3 7.3a1.5 1.5 0 0 1 0 2.1l-5.7 5.7a1.5 1.5 0 0 1-2.1 0L4.4 12.3a1.5 1.5 0 0 1-.4-1.1Z"/><circle cx="8.3" cy="8.3" r="1.2"/></svg>
+        <span class="text-[11px] text-slate-500 dark:text-slate-400 flex-1">标签统一在「标签管理」维护</span>
+        <button class="text-[12px] font-bold" style="color:var(--accent)" onclick="toTagMgr()">去管理 ›</button>
+      </div>
+      <div class="df-group-t mt-3" id="dtagGroupT">全部标签</div>
+      <div id="dtagList" class="flex flex-wrap gap-2 mt-1"></div>
+      <div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div class="dr-note flex-1" id="dtagCount"></div>
+        <button class="h-9 px-4 rounded-full text-[13px] font-semibold border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 active:bg-slate-50 dark:active:bg-slate-800" onclick="toTagMgr()">标签管理</button>
+        <button class="h-9 px-5 rounded-full text-[13px] font-semibold bg-brand-500 text-white active:scale-[.98]" onclick="closeSheet('sheetDiaryTag')">完成</button>
+      </div>
+    </div>
+  </div>
+  <!-- ===== 批2b 标签管理弹层（改名 / 删除 / 合并）=====
+       只对「池」动刀，不动已写进日记的串——改名/合并时**同步改写所有日记的 tags**，
+       这就是「标签是全局对象、不是每篇各写一份」的口径；删除只摘引用，不删日记。 -->
   <!-- V1.29批2：回顾底部弹层（心情趋势 + 词云 + 那年今日·与笔记选项同语言）
        2026-10-19 回顾/筛选治理件：两弹层统一**24px 圆角 / 左右 20 顶部 24 底部 32 / 标题 18 Medium**，
        卡片**去边框**改「白底＋极淡阴影」分层，模块间距 16px。 -->
@@ -1434,6 +1492,9 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
   const [t,s]=TITLES[p]||['LifeHarness','']; $('#pageTitle').textContent=t; $('#pageSub').textContent=s;
   if(p==='p-records')$('#pageTitle').textContent='记录 · '+REC_TABS[recTab];
   if(p==='p-diaryHome')$('#pageTitle').textContent='日记'; /* V1.29轮5 */
+  /* 批2b：进编辑页时把标签行重新描一遍（`diaryEditTags` 是「当前这篇」的状态，
+     由调用方在打开前设好；原型不区分新建/编辑——新建即空数组，编辑从样例带入）。 */
+  if(p==='p-diaryEdit'){try{renderDiaryTags()}catch(e){}}
   $('#btnBack').classList.toggle('hidden', stack.length===0); $('#btnBack').classList.toggle('flex', stack.length!==0);
   const _th=$('#topHead'),_pc=$('#p-calendar'),_tn=$('#tabNav');
   const _imm=p==='p-noteEdit'||p==='p-diaryEdit'; /* V1.29：笔记编辑页全屏沉浸·隐藏全局头部与底栏；轮12-3：写日记页同款全屏（自带返回头，不露底栏/搜索） */
@@ -1592,7 +1653,7 @@ function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiarySet')renderDiarySetSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); if(id==='sheetTrashKeep')renderTrashKeep(); if(id==='sheetSyncDiff')sdRender(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiarySet')renderDiarySetSheet(); if(id==='sheetDiaryTag')renderDiaryTagSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); if(id==='sheetTrashKeep')renderTrashKeep(); if(id==='sheetSyncDiff')sdRender(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -2728,7 +2789,11 @@ function saveDiary(){
   if(b)b.classList.add('opacity-45');
   setTimeout(function(){
     diaryDirty=false;syncSaveState();
-    toast('手记已保存');
+    /* 批2b：标签在保存时才真落库（编辑过程中只动 `diaryEditTags`）——原型按「最近一条」模拟写入，
+       实现批对应 `journal_entry_tags` 的整组替换（删后插），不做逐条 diff。 */
+    if(D.diary[0]){D.diary[0].tags=diaryEditTags.slice();
+      diaryEditTags.forEach(dtagEnsure);}
+    toast('手记已保存'+(diaryEditTags.length?(' · '+diaryEditTags.length+' 个标签'):''));
   },260);
 }
 /* ---- V1.28 日记模板：真结构分节 · 编辑页弹层管理（一天多篇·每篇各带心情） ---- */
@@ -3951,6 +4016,130 @@ function openInsFull(i){$('#insFullBody').innerHTML=insCardHtml(i);$('#insFull')
 let diaryFilter='全部';
 /* 日记改版批1（2026-10-19）：切档「收藏／点亮」两个出口——原落库字段无消费口（评估件 §一「死胡同」） */
 const DIARY_FILTERS=['全部','♥ 收藏','★ 点亮','☐ 待办','#加班','#复盘'];
+/* ===== 批2b 日记标签体系（2026-10-19 · 产品令「日记那边应该没有落标签相关的操作，一起改掉」）=====
+ * 产品原话要解决的是「日记写了标签却没法加、没法管」：原原型只在**样例数据**里硬写了
+ * `tags:['生活','复盘'…]`，筛选层按 `#标签` 串比对 ⇒ 编辑页里没有任何打标签入口，
+ * 新写的日记永远是空标签，筛选第二段实际只有两条样例能命中。
+ *
+ * 本段补三件事（与笔记侧标签同构，降低两模块的认知差与实现重复）：
+ *  ① 数据层 `DI_TAGS`＝全局标签池（含计数），标签本体**不带 `#`**，`#` 只在渲染时加；
+ *  ② 编辑页标题下「标签行」＝已选胶囊（可删）＋「＋ 标签」入口，开标签选择弹层；
+ *  ③ 标签选择弹层＝池内胶囊多选 ＋ 顶行新建/搜索 ＋ 底行「管理 ›」进标签管理（改名/删/合并）。
+ * 口径（与筛选层一致，不改既有行为）：`dwHit` 标签段＝**池内多选 AND**（选中多个须同时命中）；
+ * `DIARY_FILTERS` 仍留 `#加班`/`#复盘` 只为兼容旧断言与旧深链参数，实际渲染以池为准。 */
+const DI_TAG_COLORS=['indigo','emerald','amber','rose','sky','violet'];
+/* 2026-10-19 产品四条口径（批2b-2）：**标签池全局唯一**，统一在「我的 · 标签管理」维护
+   （家＝`index-time.html` 的 `p-sub-tags`）。本页不再自带一份池，改为读全局池的日记口径子集：
+   `TG_POOL`（标签管理页定义）里 `scopes` 含 `'diary'` 的全部标签。
+   读不到（例如极早期脚本顺序/别的专版打开本页）时回落到下面这份**只读演示副本**，
+   保证日记页单独打开也能跑——但**写入一律走全局池**，不在本页另存一份（否则就回到「两池打架」）。 */
+let DI_TAGS=[
+  {n:'生活',c:'emerald'},{n:'工作',c:'indigo'},{n:'复盘',c:'amber'},{n:'运动',c:'sky'},
+  {n:'加班',c:'rose'},{n:'电影',c:'violet'},{n:'晨间页',c:'indigo'},{n:'方法论',c:'amber'}
+];
+/* 日记可用标签＝全局池按 `scopes` 过滤（口径 3：各页面只展示当前模块启用的标签）。
+   原型是多 HTML 专版，`TG_POOL` 只活在 index-time.html 的脚本作用域里，本页读不到，
+   所以真源走 `localStorage['lh.tagPool']`（标签管理页增删改即时写镜像）。
+   优先级：① 同页全局池（若将来把标签管理并进本页）→ ② 镜像 → ③ 下面的只读演示副本。 */
+const DI_POOL_LS='lh.tagPool';
+function diagPool(){
+  /* 统一对外形状 `{n,c}`：`n`＝名字（不带 `#`），`c`＝语义色名（`dtagTone()` 消费）。
+     全局池/镜像里没有色字段（口径上「颜色」不是产品属性，纯演示观感），
+     故按池内次序轮转 `DI_TAG_COLORS`——同一标签在筛选段与编辑页拿到同一个色。 */
+  const shape=(names)=>names.map((n,i)=>({n,c:DI_TAG_COLORS[i%DI_TAG_COLORS.length]}));
+  try{
+    if(typeof TG_POOL!=='undefined'&&TG_POOL&&TG_POOL.length)
+      return shape(TG_POOL.filter(t=>t.scopes.indexOf('diary')>=0).map(t=>t.name));
+  }catch(e){}
+  try{
+    const raw=localStorage.getItem(DI_POOL_LS);
+    if(raw){
+      const arr=JSON.parse(raw);
+      if(Array.isArray(arr)&&arr.length){
+        const names=arr.filter(t=>Array.isArray(t.scopes)&&t.scopes.indexOf('diary')>=0).map(t=>t.name);
+        if(names.length)return shape(names);
+      }
+    }
+  }catch(e){}
+  return DI_TAGS;
+}
+/* 全局池写操作：改名 / 新建都回写全局池（口径 1：池全局唯一）。
+   本页没有池的所有权，写操作一律改 `localStorage['lh.tagPool']` 镜像（字段同 TG_POOL），
+   下次进标签管理页时 `tgRestore()` 读到的就是改后的池。
+   返回 true 表示已由全局池处理（本页不要再自己 push）。 */
+function diagPoolReadMirror(){
+  try{
+    const raw=localStorage.getItem(DI_POOL_LS);
+    if(!raw)return null;
+    const arr=JSON.parse(raw);
+    return Array.isArray(arr)?arr:null;
+  }catch(e){return null}
+}
+function diagPoolWriteMirror(arr){
+  try{localStorage.setItem(DI_POOL_LS,JSON.stringify(arr));return true}catch(e){return false}
+}
+/* 池为空/没写过镜像时，先把演示副本铺进镜像再写，避免「第一次新建把池写没了」 */
+function diagPoolSeed(){
+  const m=diagPoolReadMirror();
+  if(m&&m.length)return m;
+  const seed=DI_TAGS.map((t,i)=>({id:i+1,name:t.n,scopes:['diary'],use:{diary:0,note:0,time:0},builtin:false}));
+  diagPoolWriteMirror(seed);return seed;
+}
+function diagPoolCreate(n){
+  try{
+    const name=String(n||'').trim().replace(/^#+/,'');
+    if(!name)return false;
+    const arr=diagPoolSeed();
+    if(arr.some(t=>String(t.name).toLowerCase()===name.toLowerCase()))return false;
+    let mx=0;arr.forEach(t=>{if(+t.id>mx)mx=+t.id});
+    arr.push({id:mx+1,name,scopes:['diary'],use:{diary:0,note:0,time:0},builtin:false});
+    return diagPoolWriteMirror(arr);
+  }catch(e){return false}
+}
+function diagPoolRename(old,n){
+  try{
+    const name=String(n||'').trim().replace(/^#+/,'');
+    if(!name||!old)return false;
+    /* 镜像不存在时先铺演示副本（与 create 同口径），否则第一次改名会静默失败 */
+    const arr=diagPoolSeed();if(!arr)return false;
+    const t=arr.find(x=>x.name===old);if(!t)return false;
+    if(arr.some(x=>x!==t&&String(x.name).toLowerCase()===name.toLowerCase()))return false;
+    t.name=name;
+    if(!diagPoolWriteMirror(arr))return false;
+    /* 口径④「改名＝所有模块里的这个名字一起改」：本页的日记标签串与筛选态一并跟改 */
+    try{
+      D.diary.forEach(d=>{if(!Array.isArray(d.tags))return;
+        const i=d.tags.indexOf(old);if(i>=0)d.tags[i]=name;});
+      const j=diaryTags.indexOf(old);if(j>=0)diaryTags[j]=name;
+      const k=diaryEditTags.indexOf(old);if(k>=0)diaryEditTags[k]=name;
+      if(typeof renderDiaryList==='function')renderDiaryList();
+      if(typeof renderDiaryTags==='function')renderDiaryTags();
+    }catch(e){}
+    return true;
+  }catch(e){return false}
+}
+/* 删除（口径④）：从池里摘掉，并把**本页**日记里绑它的引用全部解绑；内容本身不删。
+   别的模块（笔记/时间）的引用由它们各自读镜像时自然消失，实现批等价于
+   `DELETE FROM tag_links WHERE tag_id=?`（一次删干净，不分模块）。 */
+function diagPoolDelete(n){
+  try{
+    const arr=diagPoolReadMirror();if(!arr)return false;
+    const left=arr.filter(x=>x.name!==n);
+    if(left.length===arr.length)return false;
+    if(!diagPoolWriteMirror(left))return false;
+    try{
+      D.diary.forEach(d=>{if(!Array.isArray(d.tags))return;
+        const i=d.tags.indexOf(n);if(i>=0)d.tags.splice(i,1);});
+      const j=diaryTags.indexOf(n);if(j>=0)diaryTags.splice(j,1);
+      const k=diaryEditTags.indexOf(n);if(k>=0)diaryEditTags.splice(k,1);
+      if(typeof renderDiaryList==='function')renderDiaryList();
+      if(typeof renderDiaryTags==='function')renderDiaryTags();
+    }catch(e){}
+    return true;
+  }catch(e){return false}
+}
+/* 当前编辑中这篇日记的标签（数组，元素不带 `#`）；打开编辑页时从样例数据带入 */
+let diaryEditTags=[];
 /* 批1c 修订（2026-10-19 产品令四）：筛选增加「时间段」，**默认全部显示**。
    2026-10-19 二次扩展（产品令「时间段选择不止近两年是否也支持选择切换」）：档位从 4 档扩到 **8 档**，
    覆盖「近 7 天 → 近两年 → 全部」的完整跨度。判据分三类：
@@ -4068,16 +4257,24 @@ function renderDfCount(){const el=$('#dfCount');if(!el)return;
   const n=dwShown().length;
   const parts=[];
   if(diaryFilter&&diaryFilter!=='全部')parts.push(dfLabel(diaryFilter));
+  if(diaryTags.length)parts.push(diaryTags.map(t=>'#'+t).join(' '));
   if(diaryRange!=='all')parts.push(dfRangeName());
   el.textContent=parts.length?('当前筛选：'+parts.join(' · ')+'，共 '+n+' 篇'):('共 '+n+' 篇日记');}
 /* 某篇是否命中当前筛选（轨道/列表/INS 三档共用同一判据）；批1c 起先过「时间段」再判标签/互动 */
 function dwHit(i){const d=D.diary[i];
   if(!dwInRange(i))return false;
+  /* 批2b-2（2026-10-19 产品四条口径）：标签与标记**正交**——标签多选是叠加条件，不是标记的替代。
+     原实现先 `if(diaryFilter==='全部')return true` 把标签短路掉了（选标签后仍显示全部，实测 K7 挂）；
+     现在改成：标签先判（AND），标记再判，两条都过才命中。
+     隐藏缺陷一并修：`#复盘`/`#加班` 这两个**历史单值取值**在 dfLabel 里已查不到，
+     落到最后一行会变成「名字精确等于 '#复盘'」的标签匹配 ⇒ 恒 0 篇。改为按去掉 `#` 的名字比对。 */
+  if(diaryTags.length && !diaryTags.every(t=>(d.tags||[]).indexOf(t)>=0))return false;
   if(diaryFilter==='全部')return true;
   if(diaryFilter==='♥ 收藏')return !!(DI_LIKE[i]&&DI_LIKE[i].like);
   if(diaryFilter==='★ 点亮')return !!(DI_LIKE[i]&&DI_LIKE[i].star);
   if(diaryFilter==='☐ 待办')return /☐/.test(d.txt||'');
-  return (d.tags||[]).some(t=>('#'+t)===diaryFilter)}
+  const legacy=diaryFilter.replace(/^#/,'');
+  return (d.tags||[]).indexOf(legacy)>=0}
 /* 当前筛选下的条目下标序（保持新→旧原序） */
 function dwShown(){return D.diary.map((_,i)=>i).filter(dwHit)}
 /* 筛选弹层＝**两段分组**（标记／标签），每段带小标题；选中态＝文字+图标变主色+右侧对勾，背景透明。
@@ -4090,11 +4287,12 @@ const DF_GROUPS=[
     {k:'全部',  label:'全部', ico:'<circle cx="12" cy="12" r="8"/>'},
     {k:'♥ 收藏', label:'收藏', ico:'<path d="M12 20s-7-4.6-7-9.2A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19 10.8C19 15.4 12 20 12 20Z"/>'},
     {k:'★ 点亮', label:'点亮', ico:'<path d="M12 3.5l2.6 5.3 5.9.85-4.3 4.2 1 5.85L12 16.9l-5.2 2.8 1-5.85L3.5 9.65l5.9-.85L12 3.5Z"/>'},
-    {k:'☐ 待办', label:'待办', ico:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.4 2.4 4.6-4.8"/>'}]},
-  {t:'标签', items:[
-    {k:'#加班', label:'加班', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'},
-    {k:'#复盘', label:'复盘', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'}]}
+    {k:'☐ 待办', label:'待办', ico:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.4 2.4 4.6-4.8"/>'}]}
+  /* 批2b（2026-10-19）：第二段由**写死的两条标签**改成**池内全量横排多选**（渲染见 renderDfTags）。
+     原写死 `#加班`/`#复盘` 与编辑页没有打标签入口是一对：能筛的永远只有样例里那两个。 */
 ];
+/* 标签筛选＝多选（池内标签名，不带 `#`）；选中多个＝AND 命中 */
+let diaryTags=[];
 /* 给用户看的筛选名（去掉数据层的符号前缀）：底部计数与 toast 都走这里，别直接吐 `♥ 收藏` */
 function dfLabel(k){
   const all=[];DF_GROUPS.forEach(g=>g.items.forEach(it=>all.push(it)));
@@ -4117,16 +4315,85 @@ function renderDiaryFilterSheet(){const m=$('#dfGroups');if(!m)return;
       const on=diaryFilter===it.k;
       return `<button class="df-chip ${on?'df-on':''}" data-f="${it.k}" aria-pressed="${on}" onclick="diaryFilterSet('${it.k}')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${it.ico}</svg>
-        <span>${it.label}</span></button>`}).join('')+`</div>`).join('');
+        <span>${it.label}</span></button>`}).join('')+`</div>`).join('')
+    +renderDfTags();
   renderDiaryRange();syncDiaryFilterBtn();}
+/* 批2b：筛选第二段＝标签池横排多选（AND）。池为空时给一行提示，不渲染空段。 */
+function renderDfTags(){
+  const pool=diagPool();
+  if(!pool.length)return `<div class="df-group-t">标签</div><div class="dr-note">还没有标签 · 在「我的 · 标签管理」或日记编辑页的「＋ 标签」新建</div>`;
+  const poolNames=pool.map(t=>t.n);
+  const TAG_ICO='<path d="M4 11.2V5.5A1.5 1.5 0 0 1 5.5 4h5.7c.4 0 .8.2 1.1.4l7.3 7.3a1.5 1.5 0 0 1 0 2.1l-5.7 5.7a1.5 1.5 0 0 1-2.1 0L4.4 12.3a1.5 1.5 0 0 1-.4-1.1Z"/><circle cx="8.3" cy="8.3" r="1.2"/>';
+  return '<div class="df-group-t">标签</div>'+
+    `<div class="flex flex-wrap gap-2 mb-1">`+
+    pool.map(t=>{
+      const on=diaryTags.indexOf(t.n)>=0;
+      return `<button class="df-chip ${on?'df-on':''}" data-tag="${t.n}" aria-pressed="${on}" onclick="diaryTagToggle('${t.n}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${TAG_ICO}</svg>
+        <span>${t.n}</span></button>`}).join('')+`</div>`;
+}
+/* 口径 1「所有标签统一在【标签管理页】维护」：本页两处弹层只做**选择**，维护（新建/改名/合并/删除）
+   一律指到标签管理页。日记专版是本专版的独立文档，故走真实跳转（同 `navTo('p-noteEdit')` 的既有先例）。 */
+function toTagMgr(){location.href='index-time.html#p-sub-tags';}
+function diaryTagToggle(n){const i=diaryTags.indexOf(n);i>=0?diaryTags.splice(i,1):diaryTags.push(n);
+  renderDiaryFilterSheet();renderDiaryList();
+  if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
+  toast(diaryTags.length?('标签：'+diaryTags.map(t=>'#'+t).join(' ')):'标签：不限');}
 /* 选中即生效并回写列表；**不自动关弹层**——指导件要求「实时统计数量 + 可连续调整」，关掉就看不到计数了 */
 function diaryFilterSet(f){diaryFilter=f;renderDiaryFilterSheet();renderDiaryList();
   if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
   toast('已按「'+dfLabel(f)+'」筛选');}
-/* 重置：标记回全部、时间段回全部、自定义起止一并清空 */
-function diaryFilterReset(){diaryFilter='全部';diaryRange='all';dfFrom='';dfTo='';renderDiaryFilterSheet();renderDiaryList();
+/* 重置：标记回全部、标签清空、时间段回全部、自定义起止一并清空 */
+function diaryFilterReset(){diaryFilter='全部';diaryTags=[];diaryRange='all';dfFrom='';dfTo='';renderDiaryFilterSheet();renderDiaryList();
   if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
   toast('已重置筛选');}
+
+/* ================= 批2b · 日记标签（编辑页打标签 + 池管理）=================
+ * 为什么标签要单独一套：日记的 `tags` 是**写进每篇日记的字符串数组**，而「标签池」是跨篇的
+ * 全局对象（改名/合并要回写所有篇）。原型用两个数据结构把两者分开——池 `DI_TAGS`（名字+色）、
+ * 篇内 `D.diary[i].tags`（只有名字）。实现批对应两张表：`journal_tags` + `journal_entry_tags`。
+ * 颜色：只用**语义名**（indigo/emerald/…），不写死色值——渲染时映射到主题令牌，
+ * 4 主题 × 明暗自动跟随（与 claude 那条「涉及颜色要考虑主题切换」的口径一致）。 */
+const DTAG_TONE={indigo:'--accent',emerald:'--ok',amber:'--warn',rose:'--danger',sky:'--info',violet:'--accent-l'};
+function dtagTone(c){return 'var('+(DTAG_TONE[c]||'--accent')+')'}
+/* 池内计数：某标签被几篇日记引用（含今年与往年，不受当前筛选影响） */
+function dtagCount(n){return D.diary.filter(d=>(d.tags||[]).indexOf(n)>=0).length}
+function dtagEnsure(n){if(!n)return;const pool=diagPool();if(!pool.some(t=>t.n===n))pool.push({n,c:DI_TAG_COLORS[pool.length%DI_TAG_COLORS.length]})}
+/* —— 编辑页标签行 —— */
+function renderDiaryTags(){
+  const el=$('#diaryTagRow');if(!el)return;
+  const T='<path d="M4 11.2V5.5A1.5 1.5 0 0 1 5.5 4h5.7c.4 0 .8.2 1.1.4l7.3 7.3a1.5 1.5 0 0 1 0 2.1l-5.7 5.7a1.5 1.5 0 0 1-2.1 0L4.4 12.3a1.5 1.5 0 0 1-.4-1.1Z"/><circle cx="8.3" cy="8.3" r="1.2"/>';
+  el.innerHTML=diaryEditTags.map(n=>{
+    const t=diagPool().find(x=>x.n===n)||{c:'indigo'};
+    /* 胶囊：左侧色点走该标签的语义色，右侧 ✕ 就地移除（不进弹层才删得了） */
+    return `<button class="dtag" title="移除标签 ${n}" onclick="diaryTagRemove('${n}')" style="--dt:${dtagTone(t.c)}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${T}</svg>
+      <span>${n}</span>
+      <svg class="dtag-x" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}).join('')
+    +`<button class="dtag dtag-add" onclick="openSheet('sheetDiaryTag')">＋ 标签</button>`;
+}
+function diaryTagRemove(n){const i=diaryEditTags.indexOf(n);if(i>=0)diaryEditTags.splice(i,1);
+  renderDiaryTags();markDiaryDirty();toast('已移除标签 #'+n);}
+function diaryTagPick(n){const i=diaryEditTags.indexOf(n);if(i>=0)diaryEditTags.splice(i,1);else diaryEditTags.push(n);
+  renderDiaryTags();if($('#dtagList'))renderDiaryTagSheet();markDiaryDirty();
+  toast(i>=0?('已移除标签 #'+n):('已添加标签 #'+n));}
+/* —— 标签选择弹层 —— */
+function renderDiaryTagSheet(){
+  const box=$('#dtagList');if(!box)return;
+  const T='<path d="M4 11.2V5.5A1.5 1.5 0 0 1 5.5 4h5.7c.4 0 .8.2 1.1.4l7.3 7.3a1.5 1.5 0 0 1 0 2.1l-5.7 5.7a1.5 1.5 0 0 1-2.1 0L4.4 12.3a1.5 1.5 0 0 1-.4-1.1Z"/><circle cx="8.3" cy="8.3" r="1.2"/>';
+  /* 批2b：编辑页标签池横排多选。与筛选弹层共用 `diaryTags`/`diaryEditTags` 两个状态时要注意：
+     这里动的是**这篇日记的** `diaryEditTags`，筛选弹层动的是 `diaryTags`——两处互不污染。 */
+  const pool=diagPool();
+  box.innerHTML=pool.map(t=>{
+    const on=diaryEditTags.indexOf(t.n)>=0;
+    return `<button class="df-chip ${on?'df-on':''}" data-tag="${t.n}" aria-pressed="${on}" onclick="diaryTagPick('${t.n}')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${T}</svg>
+      <span>${t.n}</span><i class="dtag-n">${dtagCount(t.n)}</i></button>`}).join('');
+  const c=$('#dtagCount');if(c)c.textContent='已选 '+diaryEditTags.length+' 个 · 可选 '+diagPool().length+' 个';
+}
+/* 2026-10-19 产品口径（批2b-2）：**新建不再在日记页做**——池全局唯一，统一在标签管理页维护。
+   本函数保留为空操作兼容位（历史调用点不清理，避免漏改一处就整页脚本抛错）。 */
+function diaryTagCreate(){toast('标签统一在「标签管理」新建');toTagMgr();}
 /* ================= V1.29批2 · 回顾弹层（心情趋势+词云+那年今日） =================
  * 2026-10-19 回顾治理件：原 7 档彩虹色（高饱和亮色块）＝「五颜六色」，改为**同色系深浅**表达情绪强度。
  * 只在靛紫一族内取深浅（低→高情绪 = 浅→深紫），配色数量从 7 色收到 1 系 5 阶。 */

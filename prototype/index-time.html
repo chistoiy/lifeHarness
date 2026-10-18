@@ -43,6 +43,21 @@ tailwind.config = {
   html[data-theme="neumorph"] .card{border-width:0}
   html[data-theme="neumorph"] .grad{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),6px 6px 14px rgba(91,124,250,.35)}
   html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342}
+  /* ---- 主色淡化档（2026-10-19 标签管理批补）----
+     本专版原先没有这组派生令牌，新屏 `.tg-pill/.tg-badge` 需要「主色 6%/10%/12%/18%」的淡底。
+     **必须放在四套主题变量之后**（放 `:root` 首块会被折叠成基础靛紫）；
+     每条属性先写 rgba fallback 再写 `color-mix`（Chromium<111 不认 color-mix，无 fallback 是整条失效）；
+     深档换 `--accent-l` 并整体加厚一档（6% 提到 12%）。口径同日记批1c `--accent-06…55`。 */
+  :root{--accent-06:rgba(99,102,241,.06);--accent-06:color-mix(in srgb,var(--accent) 6%,transparent);
+    --accent-08:rgba(99,102,241,.08);--accent-08:color-mix(in srgb,var(--accent) 8%,transparent);
+    --accent-10:rgba(99,102,241,.10);--accent-10:color-mix(in srgb,var(--accent) 10%,transparent);
+    --accent-12:rgba(99,102,241,.12);--accent-12:color-mix(in srgb,var(--accent) 12%,transparent);
+    --accent-18:rgba(99,102,241,.18);--accent-18:color-mix(in srgb,var(--accent) 18%,transparent)}
+  html.dark{--accent-06:rgba(129,140,248,.12);--accent-06:color-mix(in srgb,var(--accent-l) 12%,transparent);
+    --accent-08:rgba(129,140,248,.16);--accent-08:color-mix(in srgb,var(--accent-l) 16%,transparent);
+    --accent-10:rgba(129,140,248,.18);--accent-10:color-mix(in srgb,var(--accent-l) 18%,transparent);
+    --accent-12:rgba(129,140,248,.22);--accent-12:color-mix(in srgb,var(--accent-l) 22%,transparent);
+    --accent-18:rgba(129,140,248,.30);--accent-18:color-mix(in srgb,var(--accent-l) 30%,transparent)}
   #phone{background-color:var(--page)!important;background-image:var(--page-img,none)!important;font-family:var(--app-font,inherit)}
   nav{background:var(--nav-bg)!important;border-color:var(--nav-bd)!important;font-family:var(--f-ui)}
   .no-scrollbar::-webkit-scrollbar{display:none}
@@ -389,6 +404,29 @@ tailwind.config = {
   .brand-tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .brand-cap{font-size:9px;line-height:1.4;color:#64748b;text-align:center}
   .glow-btn{box-shadow:0 0 14px color-mix(in srgb,var(--accent) 45%,transparent)}
+  /* ---- 标签管理（2026-10-19）：与分类管理同级的新屏 · 场景分区 ----
+     分区胶囊 `.tg-pill` 走主色淡化档（4 主题 × 明暗自适应），选中＝主色描边+主色字+6%/12% 淡底；
+     深档选中态并写 `html.dark` 前缀防权重压过（history：日记筛选 `.df-chip` 踩过同一坑）。
+     行 `.tg-row` 高 44px，字号 13px（元信息 10–11px，全仓下限 11px 上只放次要读数）。 */
+  .tg-pill{height:30px;padding:0 12px;border-radius:15px;display:inline-flex;align-items:center;gap:6px;flex:none;
+    font-size:12px;font-weight:600;white-space:nowrap;border:1px solid rgba(148,163,184,.45);color:#4E5969;background:transparent;transition:all .15s}
+  html.dark .tg-pill{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.7)}
+  .tg-pill i{font-style:normal;font-size:11px;opacity:.55;font-variant-numeric:tabular-nums}
+  .tg-pill:active{transform:scale(.96)}
+  .tg-pill.tg-on,html.dark .tg-pill.tg-on{border-color:var(--accent);color:var(--accent);background:var(--accent-06)}
+  html.dark .tg-pill.tg-on{background:var(--accent-12)}
+  .tg-row{display:flex;align-items:center;gap:9px;padding:11px 14px;border-top:1px solid rgba(148,163,184,.16)}
+  html.dark .tg-row{border-top-color:rgba(255,255,255,.07)}
+  .tg-row:active{background:var(--accent-06)}
+  .tg-dot{width:7px;height:7px;border-radius:999px;flex:none}
+  /* 字号 11px＝全仓下限（原 9px 是排版偷懒，改动值后与 `.tg-pill i` 齐平） */
+  .tg-badge{font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;flex:none;
+    color:var(--accent);background:var(--accent-10)}
+  html.dark .tg-badge{background:var(--accent-18)}
+  .tg-sc-ic{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex:none;background:var(--accent-08)}
+  html.dark .tg-sc-ic{background:var(--accent-12)}
+  .tg-turn{transition:transform .18s}
+  .tg-turn.on{transform:rotate(-180deg)}
 </style>
 </head>
 <!--
@@ -549,6 +587,56 @@ tailwind.config = {
       </div>
       <div class="mt-2 text-[10px] text-slate-400 text-center">保存后即时生效：分类速记列 / 标记面板 / 添加事件弹层 / 时间账本统计同源引用</div>
     </section>
+<section id="p-sub-tags" class="page px-5 safe-pb no-scrollbar">
+      <!-- 标签管理（2026-10-19 产品四条口径）· 与「分类管理」同级，从我的页「记录」组进入。
+           ① 标签池全局唯一，只有这一页能维护（日记 / 笔记页只做选择，不各存一份）；
+           ② 每个标签带「适用模块」多选：日记 / 笔记 / 时间记录，新建默认全选，可手动取消；
+           ③ 各功能页选标签时只列「本模块已启用」的标签；
+           ④ 支持跨模块搜索（搜标签 -> 忽略作用域列出三模块带该标签的内容）＋改名 / 合并 / 删除
+              （删除＝所有模块解除绑定，内容本身不删）。
+           分区是视图不是数据：同一标签既属日记又属笔记时，两个分区都看得到它（口径②是多选属性，
+           不是「一个标签只能归一边」）。分区顺序固定 日记->笔记->时间->公共，三模块全占的叫「公共」。 -->
+      <div class="flex gap-2 text-sm font-bold mt-1">
+        <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" onclick="tgFoldToggle()" id="tgFoldBtn">全部折叠</button>
+        <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" onclick="toast('排序：按引用数 / 名称 / 最近使用（模拟）')">排序</button>
+        <button class="flex-1 py-2 rounded-xl grad text-white" onclick="openTagAdd()" id="tgAddBtn">＋ 添加标签</button>
+      </div>
+      <!-- 跨模块搜索（口径④）：输入即搜标签名，并列出三模块里带该标签的条目 -->
+      <div class="mt-3 flex items-center gap-2 h-10 rounded-xl px-3" style="background:var(--accent-06)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--accent)"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <input id="tgSearch" oninput="tgSearchSet(this.value)" class="flex-1 min-w-0 bg-transparent outline-none text-[13px] placeholder:text-slate-400" placeholder="跨模块搜标签或内容" autocomplete="off">
+        <button id="tgSearchClear" class="hidden text-slate-400 text-[12px] px-1" onclick="tgSearchSet('')">清空</button>
+      </div>
+      <div id="tgSearchOut" class="hidden mt-2"></div>
+      <div id="tgSceneRail" class="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+      <div id="tgTree" class="mt-1"></div>
+      <div class="mt-2 text-[11px] text-slate-400 text-center leading-5">计数 = 引用条数（三模块合计）· 同一标签可同时适用多个模块 · 删除只解绑不删内容</div>
+    </section>
+
+<section id="p-sub-tagAdd" class="page px-5 safe-pb no-scrollbar">
+      <div class="card mt-1 !p-0 overflow-hidden text-sm">
+        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <span class="font-bold shrink-0">标签名称</span>
+          <input id="taName" maxlength="12" oninput="taRender()" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="如：复盘">
+        </div>
+        <!-- 口径②：适用模块多选，默认全勾（产品原话「新建标签默认全部勾选，用户可手动取消」） -->
+        <div class="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center justify-between"><span class="font-bold">适用模块</span>
+            <span class="text-[11px] text-slate-400" id="taScopeHint">默认全部勾选，可手动取消</span></div>
+          <div id="taScopes" class="mt-2.5 flex gap-2 flex-wrap"></div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div class="min-w-0"><span class="font-bold">放进「公共」</span>
+            <div class="text-[11px] text-slate-400 mt-0.5">勾上＝三个模块全选（同一件事的快捷表达）</div></div>
+          <button id="taPublicSw" role="switch" aria-checked="false" onclick="tgTogglePublic()" class="toggle shrink-0"></button>
+        </div>
+      </div>
+      <div class="card mt-3 p-4">
+        <div class="row-title">预览</div>
+        <div id="taPreview" class="mt-2 flex items-center gap-2 flex-wrap"></div>
+      </div>
+      <button class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold" onclick="tgSaveAdd()" id="taSave">添加标签</button>
+    </section>
   </main>
 
 <div id="sheetTimePick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTimePick')">
@@ -580,13 +668,51 @@ tailwind.config = {
     </div>
   </div>
 
+
+
+<div id="sheetTagEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTagEdit')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="flex items-center"><div class="font-extrabold text-sm flex-1">编辑标签</div>
+        <button class="text-slate-400 text-sm px-2" onclick="closeSheet('sheetTagEdit')" aria-label="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <div class="mt-3 card !p-0 overflow-hidden text-sm">
+        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <span class="font-bold shrink-0">名称</span>
+          <input id="teName" maxlength="12" class="flex-1 text-right outline-none bg-transparent"></div>
+        <!-- 口径②「适用模块」是可改属性；取消某模块＝该模块的选择列表里不再出现它（已绑定的内容保留） -->
+        <div class="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center justify-between"><span class="font-bold">适用模块</span>
+            <span class="text-[11px] text-slate-400" id="teUseHint"></span></div>
+          <div id="teScopes" class="mt-2.5 flex gap-2 flex-wrap"></div>
+        </div>
+        <button class="w-full flex items-center justify-between px-4 py-3.5" onclick="tgMergeAsk()">
+          <div class="text-left"><span class="font-bold">合并到其他标签</span>
+            <div class="text-[11px] text-slate-400 mt-0.5">把这个标签的引用全部并入目标，源标签删除</div></div>
+          <span class="text-slate-300">›</span></button>
+      </div>
+      <div class="text-[11px] text-slate-400 mt-2 leading-5">改名 = 所有模块里的这个名字一起改；删除 = 三个模块一律解除绑定，内容本身不删。</div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-xl border border-rose-300 dark:border-rose-500/40 text-rose-500 text-sm font-bold" onclick="tgDelete()">删除</button>
+        <button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="tgSaveEdit()">保存</button></div>
+    </div>
+  </div>
+
+<div id="sheetTagMerge" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTagMerge')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[70vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm">合并到…</div>
+      <div class="text-[11px] text-slate-400 mt-1" id="tmHint"></div>
+      <div id="tmList" class="mt-3"></div>
+    </div>
+  </div>
+
 <div id="sheetTsCat" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTsCat')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto no-scrollbar">
       <div class="grabber"></div>
       <div class="flex items-center gap-2">
         <span id="tscDot" class="w-3 h-3 rounded-full shrink-0"></span>
         <div class="font-extrabold text-sm flex-1" id="tscTitle">分类</div>
-        <span class="text-[10px] text-slate-400" id="tscPeriod"></span></div>
+        <span class="text-[11px] text-slate-400" id="tscPeriod"></span></div>
       <div class="mt-3 grid grid-cols-3 gap-2 text-center" id="tscStat"></div>
       <div class="mt-3 text-xs" id="tscList"></div>
       <div class="mt-4 flex gap-2">
@@ -599,7 +725,7 @@ tailwind.config = {
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
       <div class="font-extrabold">选择上级分类</div>
-      <div class="text-[10px] text-slate-400 mt-0.5">次级分类将挂在所选一级分组下</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">次级分类将挂在所选一级分组下</div>
       <div id="catParentList" class="mt-3 space-y-1 max-h-[300px] overflow-y-auto"></div>
       <button onclick="closeSheet('sheetCatParent')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
     </div>
@@ -611,9 +737,9 @@ tailwind.config = {
       <div class="text-center font-extrabold">选择日期</div>
       <div class="mt-1 text-center text-xs text-slate-400" id="dpHint"></div>
       <div class="mt-3 grid grid-cols-3 text-center">
-        <div><div id="dpY"></div><span class="text-[9px] text-slate-400">年</span></div>
-        <div><div id="dpM"></div><span class="text-[9px] text-slate-400">月</span></div>
-        <div><div id="dpD"></div><span class="text-[9px] text-slate-400">日</span></div>
+        <div><div id="dpY"></div><span class="text-[11px] text-slate-400">年</span></div>
+        <div><div id="dpM"></div><span class="text-[11px] text-slate-400">月</span></div>
+        <div><div id="dpD"></div><span class="text-[11px] text-slate-400">日</span></div>
       </div>
       <div class="mt-4 flex gap-3">
         <button onclick="closeSheet('sheetDatePick')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
@@ -633,7 +759,8 @@ tailwind.config = {
 const $=s=>(document).querySelector(s), $$=s=>Array.from((document).querySelectorAll(s));
 let curPage='p-calendar'; const stack=[]; let toastTimer;
 const TITLES={'p-calendar':['时间',''],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],
-  'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签']};
+  'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],
+  'p-sub-tags':['标签管理','日记 / 笔记 / 时间 / 公共 · 按场景分区'],'p-sub-tagAdd':['添加标签','归属场景 · 可放进公共']};
 function setPage(p){
   const el=document.getElementById(p); if(!el){toast('屏 '+p+' 未在本专版内');return;}
   $$('.page').forEach(s=>s.classList.remove('active'));
@@ -643,6 +770,9 @@ function setPage(p){
   curPage=p;
   if(p==='p-timeStats')renderTimeStats();
   if(p==='p-sub-cats')renderCatTree();
+  /* 每次进标签管理页都先回读镜像：日记页可能刚在镜像里加过标签（口径① 池全局唯一） */
+  if(p==='p-sub-tags'){tgRestore();renderTagPage();}
+  if(p==='p-sub-tagAdd')taRender();
 }
 function navTo(p){ if(p===curPage)return; if(!document.getElementById(p)){toast('屏 '+p+' 未在本专版内');return;} stack.push(curPage); setPage(p); }
 function navTab(p){ stack.length=0; setPage(p); }
@@ -695,9 +825,9 @@ function setDay(d,dir){calDay=d;renderCal();
  if(dir){const w=$('#weekStrip');w.classList.remove('strip-l','strip-r');void w.offsetWidth;w.classList.add(dir>0?'strip-l':'strip-r');
   ['#calDayView','#calBlockView','#calDayHourView','#calWeekGrid'].forEach(s=>{const t=$(s);if(t){t.classList.remove('strip-l','strip-r');void t.offsetWidth;t.classList.add(dir>0?'strip-l':'strip-r')}})}}
 function renderHeadDate(){const y=$('#hdY');if(!y)return;
-  y.innerHTML='2026<span class="text-[10px] font-bold text-slate-400">年</span>';
-  $('#hdM').innerHTML='09<span class="text-[10px] font-bold text-slate-400">月</span>';
-  $('#hdD').innerHTML=calDay+'<span class="text-[10px] font-bold text-slate-400">日</span>';
+  y.innerHTML='2026<span class="text-[11px] font-bold text-slate-400">年</span>';
+  $('#hdM').innerHTML='09<span class="text-[11px] font-bold text-slate-400">月</span>';
+  $('#hdD').innerHTML=calDay+'<span class="text-[11px] font-bold text-slate-400">日</span>';
   $('#hdD').className=calDay===19?'':'text-brand-500';
   $('#btnToday').classList.toggle('hidden',calDay===19)}
 function goToday(){if(calDay!==19){setDay(19,1);toast('已回到今天 9月19日')}}
@@ -764,19 +894,19 @@ function renderTimeline(){const el=$('#timeAxis');if(!el)return;
  h+=list.map(b=>{const id=blocks.indexOf(srcOf(b));let gap='';
   if(b.s-prevEnd>=15)gap=gapHtml(prevEnd,b.s);
   prevEnd=Math.max(prevEnd,bend(b));
-  if(b.tm){prevEnd=Math.max(prevEnd,bend(b));return `<div class="relative mb-4"><span class="absolute -left-14 top-0 w-12 text-right text-[10px] font-mono text-rose-500 font-bold">${fmt(b.s)}</span><span class="absolute -left-[9px] top-1 w-2.5 h-2.5 rounded-full bg-rose-400 animate-pulse"></span>
-  <div class="card !py-2.5 !px-3 live-card flex items-center gap-2 cursor-pointer" onclick="openBlockEdit(blocks[${id}])"><div class="flex-1 min-w-0"><div class="text-sm font-bold truncate">${b.note||b.cat}</div><div class="text-[10px] text-rose-400 mt-0.5">● 计时中 · ${fmt(b.s)} 开始 · 已 <b class="tmDur" data-s="${b.s}">${Math.max(0,nowMin()-b.s)}</b> 分钟 · 点卡片可结束/修改</div></div><button class="px-3 py-2 rounded-xl bg-rose-500 text-white text-[11px] font-extrabold shrink-0" onclick="event.stopPropagation();tpEdit=blocks[${id}];tpTiming=true;tpEnd()">■ 结束计时</button></div></div>`}
+  if(b.tm){prevEnd=Math.max(prevEnd,bend(b));return `<div class="relative mb-4"><span class="absolute -left-14 top-0 w-12 text-right text-[11px] font-mono text-rose-500 font-bold">${fmt(b.s)}</span><span class="absolute -left-[9px] top-1 w-2.5 h-2.5 rounded-full bg-rose-400 animate-pulse"></span>
+  <div class="card !py-2.5 !px-3 live-card flex items-center gap-2 cursor-pointer" onclick="openBlockEdit(blocks[${id}])"><div class="flex-1 min-w-0"><div class="text-sm font-bold truncate">${b.note||b.cat}</div><div class="text-[11px] text-rose-400 mt-0.5">● 计时中 · ${fmt(b.s)} 开始 · 已 <b class="tmDur" data-s="${b.s}">${Math.max(0,nowMin()-b.s)}</b> 分钟 · 点卡片可结束/修改</div></div><button class="px-3 py-2 rounded-xl bg-rose-500 text-white text-[11px] font-extrabold shrink-0" onclick="event.stopPropagation();tpEdit=blocks[${id}];tpTiming=true;tpEnd()">■ 结束计时</button></div></div>`}
   const sub=b.dn?` 已完成 · ${b.cat} · 实际 ${bend(b)-b.s} 分钟 · 已回填 L1 · 入时间账本 L4 · 点卡片仍可修改/删除`:`${b.cat} · ${bend(b)-b.s} 分钟 · 点卡片修改起止/类型`;
   return gap+`<div class="relative mb-4">
-    <span class="absolute -left-14 top-0 w-12 text-right text-[10px] font-mono text-slate-400">${fmt(b.s)}</span>
+    <span class="absolute -left-14 top-0 w-12 text-right text-[11px] font-mono text-slate-400">${fmt(b.s)}</span>
     <span class="absolute -left-[9px] top-1 w-2 h-2 rounded-full ${blkColor(b)}"></span>
     <div class="card !py-2.5 !px-3 ${b.dn?'border-l-4 border-emerald-400 opacity-75':''} cursor-pointer" onclick="openBlockEdit(blocks[${id}])">
-      <div class="text-sm font-bold ${b.dn?'line-through decoration-slate-300':''}">${b.tailOf?'（续昨日）':''}${b.note||b.cat}</div><div class="text-[10px] ${b.dn?'text-emerald-500':'text-slate-400'} mt-0.5">${sub}</div></div></div>`}).join('');
+      <div class="text-sm font-bold ${b.dn?'line-through decoration-slate-300':''}">${b.tailOf?'（续昨日）':''}${b.note||b.cat}</div><div class="text-[11px] ${b.dn?'text-emerald-500':'text-slate-400'} mt-0.5">${sub}</div></div></div>`}).join('');
  if(!list.length)h+=`<div class="card !py-6 text-center text-xs text-slate-400">当天暂无安排 · 点空隙或右下角 ＋ ${calDay===TODAY?'开始计时':'补录'}</div>`;
  if(calDay===TODAY){h+=D.todos.map((t,i)=>({t,i})).filter(x=>x.t.timeMode&&x.t.timeMode!=='all').map(x=>{const t=x.t,i=x.i;
       const run=pomoRun&&pomoRun.i===i;
-      return `<div class="relative mb-4"><span class="absolute -left-14 top-0 w-12 text-right text-[10px] font-mono text-violet-400">${t.timeMode==='point'?t.tm:t.tm+'-'+t.te}</span><span class="absolute -left-[9px] top-1 w-2 h-2 rounded-full bg-violet-400"></span>
-      <div class="card !py-2.5 !px-3 border-l-4 border-violet-400 flex items-center gap-2"><div class="flex-1 min-w-0"><div class="text-sm font-bold ${t.done?'line-through text-slate-400':''} truncate"> ${t.t}${t.pomo?' ':''}</div><div class="text-[10px] text-slate-400 mt-0.5">定时待办 · ${D.quads[t.q].name}${t.pomo?' · 番茄'+(t.pomo.mode==='down'?t.pomo.min+'分倒计时':'正计时'):''}</div></div>
+      return `<div class="relative mb-4"><span class="absolute -left-14 top-0 w-12 text-right text-[11px] font-mono text-violet-400">${t.timeMode==='point'?t.tm:t.tm+'-'+t.te}</span><span class="absolute -left-[9px] top-1 w-2 h-2 rounded-full bg-violet-400"></span>
+      <div class="card !py-2.5 !px-3 border-l-4 border-violet-400 flex items-center gap-2"><div class="flex-1 min-w-0"><div class="text-sm font-bold ${t.done?'line-through text-slate-400':''} truncate"> ${t.t}${t.pomo?' ':''}</div><div class="text-[11px] text-slate-400 mt-0.5">定时待办 · ${D.quads[t.q].name}${t.pomo?' · 番茄'+(t.pomo.mode==='down'?t.pomo.min+'分倒计时':'正计时'):''}</div></div>
       ${t.pomo?(run?`<button class="px-3 py-2 rounded-xl bg-rose-500 text-white text-[11px] font-extrabold shrink-0" onclick="pomoFinish()">■ 结束</button>`:`<button class="px-3 py-2 rounded-xl bg-rose-500/90 text-white text-[11px] font-extrabold shrink-0" onclick="pomoStart(${i})">▶ 番茄</button>`)
         :`<button onclick="tglTodo('${t.t}')" class="chk ${t.done?'chk-on':''} shrink-0">${t.done?'':''}</button>`}</div></div>`}).join('');
  h+=gapHtml(prevEnd,1439)}
@@ -824,7 +954,7 @@ function closeTimingAt(t){const b=timingBlk();if(!b)return null;b.tm=0;b.e=Math.
 function blockAt(m){return dayBlocks(calDay).find(b=>m>=b.s&&m<bend(b))}
 function blkColor(b){return b.c||(CATS[b.cat]||'bg-slate-400')}
 function gapHtml(a,b){const e=Math.min(1439,b);if(e-a<15)return '';
- return `<div class="relative cursor-pointer mb-3" onclick="openTimePick(calDay,${Math.floor(a/60)},${a%60})"><span class="absolute -left-14 w-12 text-right text-[10px] font-mono text-slate-300">${fmt(a)}</span><div class="text-[11px] text-slate-300 dark:text-slate-600 py-3 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">空闲 ${fmt(a)} – ${fmt(e)} · 点此补录</div></div>`}
+ return `<div class="relative cursor-pointer mb-3" onclick="openTimePick(calDay,${Math.floor(a/60)},${a%60})"><span class="absolute -left-14 w-12 text-right text-[11px] font-mono text-slate-300">${fmt(a)}</span><div class="text-[11px] text-slate-300 dark:text-slate-600 py-3 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">空闲 ${fmt(a)} – ${fmt(e)} · 点此补录</div></div>`}
 function migrateEv152(){if(window._mig152)return;window._mig152=1;D.events.forEach(e=>blocks.push({day:TODAY,s:hm2min(e.tm),e:hm2min(e.e),cat:'工作',note:e.t,c:e.c}));
  endedEvs.forEach(e=>blocks.push({day:TODAY,s:hm2min(e.tm),e:hm2min(e.e),cat:'工作',note:e.t,dn:1}));
  blocks.push({day:28,s:570,e:585,cat:'娱乐',note:'娱乐'});D.events=[];endedEvs=[]}
@@ -936,22 +1066,22 @@ function quickMark(cat){if(calDay!==TODAY){toast('仅今天可速记开始计时
 function dayClockStr(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
 function renderDayHours(){const el=$('#calDayHourView');if(!el)return;
   const isToday=calDay===TODAY,now=nowMin(),ch=Math.floor(now/60);
-  let h=`<div class="flex items-center gap-2 mb-1"><span class="text-[10px] text-slate-400">9月${calDay}日${isToday?' · 今天':''} · 点空白小时${isToday?'按当前时间开始计时':'补录'} · 点事件卡修改起止/类型</span>`
-   +(isToday?`<span class="ml-auto shrink-0 flex items-center gap-1 text-[10px] font-mono font-extrabold text-rose-500"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span><b class="tmClock">${dayClockStr()}</b></span>`:'')
+  let h=`<div class="flex items-center gap-2 mb-1"><span class="text-[11px] text-slate-400">9月${calDay}日${isToday?' · 今天':''} · 点空白小时${isToday?'按当前时间开始计时':'补录'} · 点事件卡修改起止/类型</span>`
+   +(isToday?`<span class="ml-auto shrink-0 flex items-center gap-1 text-[11px] font-mono font-extrabold text-rose-500"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span><b class="tmClock">${dayClockStr()}</b></span>`:'')
    +`</div>`;
   for(let hr=0;hr<24;hr++){
    const isNow=isToday&&hr===ch;
    let chips='';
    /* 定时待办紫行（L1 联动 · 仅今天 · 落位口径同轴视图：非 all 的定时待办按其起始小时入行） */
    if(isToday)chips+=D.todos.map((t,i)=>({t,i})).filter(x=>x.t.timeMode&&x.t.timeMode!=='all'&&Math.floor(hm2min(x.t.tm)/60)===hr).map(x=>{const t=x.t;
-    return `<div onclick="event.stopPropagation();tglTodo()" class="mb-1 rounded-lg bg-violet-500/90 border-l-4 border-violet-300 text-white text-[10px] font-bold px-2 py-1.5 cursor-pointer flex items-center gap-2"><span class="flex-1 min-w-0 truncate">${t.tm}${t.timeMode==='span'?'-'+t.te:''} 定时待办 · ${t.t}</span><span class="shrink-0 opacity-85">${D.quads[t.q].act}</span></div>`}).join('');
+    return `<div onclick="event.stopPropagation();tglTodo()" class="mb-1 rounded-lg bg-violet-500/90 border-l-4 border-violet-300 text-white text-[11px] font-bold px-2 py-1.5 cursor-pointer flex items-center gap-2"><span class="flex-1 min-w-0 truncate">${t.tm}${t.timeMode==='span'?'-'+t.te:''} 定时待办 · ${t.t}</span><span class="shrink-0 opacity-85">${D.quads[t.q].act}</span></div>`}).join('');
    chips+=dayBlocks(calDay).filter(b=>Math.floor(b.s/60)===hr).map(b=>{const id=blocks.indexOf(srcOf(b));
     const lbl=b.tm?'●':(b.dn?'':'');
-    return `<div onclick="event.stopPropagation();openBlockEdit(blocks[${id}])" class="mb-1 rounded-lg ${b.tm?'bg-rose-500 animate-pulse':(b.dn?'bg-emerald-400/90':blkColor(b))} text-white text-[10px] font-bold px-2 py-1.5 cursor-pointer flex items-center gap-2"><span class="flex-1 min-w-0 truncate">${fmt(b.s)} ${b.tailOf?'（续昨日）':''}${b.note||b.cat} ${lbl}</span><span class="shrink-0 opacity-80">${bend(b)-b.s}分</span></div>`}).join('');
+    return `<div onclick="event.stopPropagation();openBlockEdit(blocks[${id}])" class="mb-1 rounded-lg ${b.tm?'bg-rose-500 animate-pulse':(b.dn?'bg-emerald-400/90':blkColor(b))} text-white text-[11px] font-bold px-2 py-1.5 cursor-pointer flex items-center gap-2"><span class="flex-1 min-w-0 truncate">${fmt(b.s)} ${b.tailOf?'（续昨日）':''}${b.note||b.cat} ${lbl}</span><span class="shrink-0 opacity-80">${bend(b)-b.s}分</span></div>`}).join('');
    h+=`<div class="flex gap-2 min-h-[38px] cursor-pointer border-b border-slate-100 dark:border-slate-800 ${isNow?'border-t-2 border-t-rose-500 bg-rose-50 dark:bg-rose-500/10':''}" onclick="openTimePick(calDay,${hr},0)">`
-    +`<span class="w-9 shrink-0 text-[10px] font-mono pt-1.5 ${isNow?'text-rose-500 font-extrabold':'text-slate-400'}">${String(hr).padStart(2,'0')}:00</span>`
+    +`<span class="w-9 shrink-0 text-[11px] font-mono pt-1.5 ${isNow?'text-rose-500 font-extrabold':'text-slate-400'}">${String(hr).padStart(2,'0')}:00</span>`
     +`<div class="flex-1 py-1 pr-1">${chips}</div>`
-    +`<span class="w-11 shrink-0 pt-1.5 text-right text-[9px] font-mono ${isNow?'text-rose-500 font-extrabold':'text-transparent'}">${isNow?'现在':''}</span>`
+    +`<span class="w-11 shrink-0 pt-1.5 text-right text-[11px] font-mono ${isNow?'text-rose-500 font-extrabold':'text-transparent'}">${isNow?'现在':''}</span>`
     +`</div>`}
   el.innerHTML=h;}
 /* 秒级时钟与「计时中」时长刷新（V1.52 秒级口径 · 对齐实现 P1-10） */
@@ -964,10 +1094,10 @@ function weekCellSegments(bs){if(bs.length<=3)return bs.map(b=>({b,n:1}));
 function renderWeekGrid(){const el=$('#calWeekGrid');if(!el)return;
   const wkStart=calDay-((calDay+1)%7),days=[];for(let k=0;k<7;k++)days.push(wkStart+k);
   const inR=days.filter(d=>d>=1&&d<=30);
-  let h='<div class="text-[10px] text-slate-400 mb-1"> 9/'+inR[0]+' - 9/'+inR[inR.length-1]+' · 空格子  添加时间段 · 已添加  点进去修改/拆分/合并</div>';
+  let h='<div class="text-[11px] text-slate-400 mb-1"> 9/'+inR[0]+' - 9/'+inR[inR.length-1]+' · 空格子  添加时间段 · 已添加  点进去修改/拆分/合并</div>';
   h+='<div class="grid" style="grid-template-columns:26px repeat(7,1fr);gap:2px">';
   h+='<span></span>'+days.map(d=>{const inM=d>=1&&d<=30,lb=inM?(d===TODAY?'今':WDS[(d+1)%7]):(d<1?'8/'+(31+d):'10/'+(d-30));
-   return `<span class="text-center text-[9px] ${d===TODAY?'text-brand-500 font-extrabold':(inM?'text-slate-400':'text-slate-300 dark:text-slate-700')}">${lb}</span>`}).join('');
+   return `<span class="text-center text-[11px] ${d===TODAY?'text-brand-500 font-extrabold':(inM?'text-slate-400':'text-slate-300 dark:text-slate-700')}">${lb}</span>`}).join('');
   for(let hr=0;hr<24;hr++){h+=`<span class="text-slate-400 text-right text-[8px] font-mono pr-0.5 pt-0.5">${hr}</span>`;
    for(const d of days){const m=hr*60;const inM=d>=1&&d<=30;const bs=inM?blocksHour(d,m,m+60):[];
     if(!inM){h+='<div class="wk-cell bg-slate-50 dark:bg-slate-900/40"></div>';continue}
@@ -1012,7 +1142,7 @@ function tpDur(min){const s=tpMin('tpSh')*60+tpMin('tpSm');const e=s+min;
 /* V1.52：旧 tpAdd 已删除（与统一计时版重名冲突·见块视图数据段） */
 function tpCats(){$('#tpCats').innerHTML=Object.entries(CATS).map(([k,c])=>`<button data-c="${k}" class="tag-chip justify-center ${tpSel.cat===k?'on':''}" onclick="tpCat('${k}')"><i style="width:9px;height:9px;border-radius:3px" class="${c}"></i>${k}</button>`).join('')}
 function tpSubsRender(){const subs=Object.entries(SUBS[tpSel.cat]||{});
-  $('#tpSubs').innerHTML=subs.length?subs.map(([sn,t])=>`<button class="tag-chip justify-center ${tpSel.sub===sn?'on':''}" onclick="tpSub('${sn}')"><i style="width:9px;height:9px;border-radius:3px" class="${CATS[tpSel.cat]} opacity-60"></i>${sn}${t?' · '+t:''}</button>`).join(''):'<span class="text-[10px] text-slate-400 self-center">该分类无次级 · 可直接添加</span>'}
+  $('#tpSubs').innerHTML=subs.length?subs.map(([sn,t])=>`<button class="tag-chip justify-center ${tpSel.sub===sn?'on':''}" onclick="tpSub('${sn}')"><i style="width:9px;height:9px;border-radius:3px" class="${CATS[tpSel.cat]} opacity-60"></i>${sn}${t?' · '+t:''}</button>`).join(''):'<span class="text-[11px] text-slate-400 self-center">该分类无次级 · 可直接添加</span>'}
 function tpCat(k){tpSel.cat=k;tpSel.sub=null;tpCats();tpSubsRender()}
 function tpSub(sn){tpSel.sub=tpSel.sub===sn?null:sn;tpSubsRender()}
 /* ================= 时间账本 L4（blocks 实算 · 日/周/月/年 · 卡片可折叠） ================= */
@@ -1043,7 +1173,7 @@ function sector(cx,cy,r0,r1,a0,a1){const lg=(a1-a0)>180?1:0;const[x0,y0]=pol(cx,
  return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r1} ${r1} 0 ${lg} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}A${r0} ${r0} 0 ${lg} 0 ${x3.toFixed(1)} ${y3.toFixed(1)}Z`}
 function tsCard(k,title,inner,right){const f=tsFold[k];
  return `<div class="card mt-3"><div class="flex items-center" onclick="tsTog('${k}')"><div class="row-title flex-1">${title}</div>
-  ${right?`<span onclick="event.stopPropagation()" class="mr-1">${right}</span>`:''}<span class="text-[10px] text-slate-400">${f?'∨':'∧'}</span></div>
+  ${right?`<span onclick="event.stopPropagation()" class="mr-1">${right}</span>`:''}<span class="text-[11px] text-slate-400">${f?'∨':'∧'}</span></div>
   <div class="${f?'hidden':''}">${inner}</div></div>`}
 function tsClock(from,to){const bs=dayBlocks(from).filter(b=>b.s<1440);
  const R=88,r0=34;let ticks='';
@@ -1056,7 +1186,7 @@ function tsClock(from,to){const bs=dayBlocks(from).filter(b=>b.s<1440);
  return `<svg viewBox="0 0 ${2*R+12} ${2*R+12}" class="w-full max-w-[260px] mx-auto block">${ticks}${nums}
   <circle cx="${R+6}" cy="${R+6}" r="${r0-6}" fill="#e2e8f0" class="dark:opacity-20"/>${segs}${hand}
   <circle cx="${R+6}" cy="${R+6}" r="5" fill="#334155"/></svg>
-  <div class="text-center text-[10px] text-slate-400 mt-1">24 小时盘面 · 扇区=事件段 · 红线=当前时刻${live?' · 正在计时「'+live.cat+'」':''}</div>`}
+  <div class="text-center text-[11px] text-slate-400 mt-1">24 小时盘面 · 扇区=事件段 · 红线=当前时刻${live?' · 正在计时「'+live.cat+'」':''}</div>`}
 function tsArea(vals,labels,unit){const W=300,H=96,n=vals.length,mx=Math.max(1,...vals);
  const pts=vals.map((v,i)=>[i/(n-1||1)*W,H-v/mx*(H-8)]);
  return `<svg viewBox="0 0 ${W} ${H+14}" class="w-full block" preserveAspectRatio="none">
@@ -1064,7 +1194,7 @@ function tsArea(vals,labels,unit){const W=300,H=96,n=vals.length,mx=Math.max(1,.
   <path d="M0 ${H} ${pts.map(p=>'L'+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')} L${W} ${H}Z" fill="#6366f1" opacity=".16"/>
   <polyline points="${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="none" stroke="#6366f1" stroke-width="1.6"/></svg>
   <div class="flex justify-between text-[8px] text-slate-400 mt-0.5"><span>${labels[0]}</span><span>${labels[Math.floor(labels.length/2)]}</span><span>${labels[labels.length-1]}</span></div>
-  <div class="text-[9px] text-slate-400">峰值 ${unit==='月'?tsHM(mx):Math.round(mx)+' 分'}</div>`}
+  <div class="text-[11px] text-slate-400">峰值 ${unit==='月'?tsHM(mx):Math.round(mx)+' 分'}</div>`}
 function tsDayParts(d){return dayBlocks(d).reduce((m,b)=>{const mins=Math.max(0,Math.min(1439,bend(b))-b.s);if(mins)m[b.cat]=(m[b.cat]||0)+mins;return m},{})}
 function tsBuckets(mode,from,to){
  if(mode!=='y'){const a=[];for(let d=from;d<=to;d++)a.push({label:d===TODAY?'今':(d%5===0||to-from<10?String(d):''),tip:'9月'+d+'日',parts:tsDayParts(d)});return a}
@@ -1098,7 +1228,7 @@ function renderTimeStats(){const body=$('#tsBody');if(!body)return;
  let h=`<div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20 mt-2">
   <div class="flex items-end justify-between"><div><div class="text-[11px] opacity-80">${{d:'当日',w:'本周',m:'本月',y:'全年'}[tsSpan]}已记录</div><div class="text-2xl font-extrabold leading-tight">${tsHM(total)}</div></div>
    <div class="text-right text-[11px] opacity-90">日均 ${tsHM(Math.round(total/span))}<br>覆盖 ${Math.round(total/cap*100)}% · ${blocks.filter(b=>(b.day||TODAY)>=from&&(b.day||TODAY)<=to).length} 段</div></div>
-  <div class="mt-2 flex items-center gap-2 text-[10px] flex-wrap">${tm?`<span class="bg-white/20 rounded-full px-2 py-1">● 计时中 · ${tm.cat} ${tsHM(Math.max(0,nowMin()-tm.s))}</span>`:'<span class="bg-white/15 rounded-full px-2 py-1">无计时中事件</span>'}${tsSpan==='y'?'<span class="bg-white/15 rounded-full px-2 py-1">原型演示数据仅覆盖 9 月</span>':''}
+  <div class="mt-2 flex items-center gap-2 text-[11px] flex-wrap">${tm?`<span class="bg-white/20 rounded-full px-2 py-1">● 计时中 · ${tm.cat} ${tsHM(Math.max(0,nowMin()-tm.s))}</span>`:'<span class="bg-white/15 rounded-full px-2 py-1">无计时中事件</span>'}${tsSpan==='y'?'<span class="bg-white/15 rounded-full px-2 py-1">原型演示数据仅覆盖 9 月</span>':''}
    <span class="bg-white/15 rounded-full px-2 py-1">未记录 ${tsHM(un)}</span></div></div>`;
  if(tsSpan==='d')h+=tsCard('clock','时钟图',tsClock(from,to));
  if(tsSpan!=='d'){const days=[];for(let d=from;d<=to;d++)days.push(d);
@@ -1112,10 +1242,10 @@ function renderTimeStats(){const body=$('#tsBody');if(!body)return;
  h+=tsCard('rank','分类时长汇总',entries.length?entries.map(([c,m])=>{const pm=PA.byCat[c]||0;const delta=pm?((m-pm)/pm*100):null;
   return `<div class="flex items-center gap-2.5 py-2 border-b border-slate-100 dark:border-slate-800 last:border-0" onclick="tsOpenCat('${c}')">
    <span class="w-7 h-7 rounded-full text-white text-[11px] font-extrabold flex items-center justify-center shrink-0" style="background:${tsColor(c)}">${c.slice(0,1)}</span>
-   <div class="flex-1 min-w-0"><div class="flex items-center gap-1.5"><b class="text-[12px]">${c}</b><span class="text-[9px] text-slate-400">(${A.cnt[c]||0} 次) ${Math.round(m/total*100)}%</span></div>
+   <div class="flex-1 min-w-0"><div class="flex items-center gap-1.5"><b class="text-[12px]">${c}</b><span class="text-[11px] text-slate-400">(${A.cnt[c]||0} 次) ${Math.round(m/total*100)}%</span></div>
     <div class="h-1 rounded-full bg-slate-100 dark:bg-slate-800 mt-1 overflow-hidden"><div class="h-full rounded-full" style="width:${(m/entries[0][1]*100).toFixed(1)}%;background:${tsColor(c)}"></div></div></div>
    <div class="text-right shrink-0"><div class="text-[11px] font-bold">${tsHM(m)}</div>
-    ${delta===null?'':`<div class="text-[9px] ${delta>=0?'text-rose-500':'text-emerald-500'}">${delta>=0?'+':''}${Math.round(delta)}% · 上期 ${tsHM(pm)}</div>`}</div>
+    ${delta===null?'':`<div class="text-[11px] ${delta>=0?'text-rose-500':'text-emerald-500'}">${delta>=0?'+':''}${Math.round(delta)}% · 上期 ${tsHM(pm)}</div>`}</div>
    <span class="text-slate-300">›</span></div>`}).join(''):'<div class="text-xs text-slate-400 py-2">该时段还没有时间块 · 去时间页记几段吧</div>');
  body.innerHTML=h;}
 
@@ -1136,11 +1266,11 @@ function tsCatRender(){const segs=tsCatSegs(),P=tsPeriod(tsSpan,tsAnchor),span=P
   document.getElementById('tscTitle').textContent=tsCat;
   document.getElementById('tscPeriod').textContent={d:'当日',w:'本周',m:'本月',y:'全年'}[tsSpan]+' · '+P.label;
   document.getElementById('tscStat').innerHTML=[[segs.length,'段数'],[tsHM(sum),'合计'],[tsHM(Math.round(sum/span)),'日均']]
-    .map(x=>`<div class="rounded-2xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block">${x[0]}</b><span class="text-[9px] text-slate-400">${x[1]}</span></div>`).join('');
+    .map(x=>`<div class="rounded-2xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block">${x[0]}</b><span class="text-[11px] text-slate-400">${x[1]}</span></div>`).join('');
   document.getElementById('tscList').innerHTML=segs.length?segs.map(x=>`<div class="flex items-center gap-3 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
     <span class="w-9 shrink-0 text-[11px] font-extrabold" style="color:${tsColor(tsCat)}">${x.d}日</span>
     <div class="flex-1 min-w-0"><div class="text-[12px] font-semibold truncate">${x.note||tsCat}</div>
-      <div class="text-[10px] text-slate-400">${tsHHMM(x.s)}–${tsHHMM(x.e)}${x.cross?' · 跨零点':''}</div>
+      <div class="text-[11px] text-slate-400">${tsHHMM(x.s)}–${tsHHMM(x.e)}${x.cross?' · 跨零点':''}</div>
       <div class="h-1 rounded-full bg-slate-100 dark:bg-slate-800 mt-1 overflow-hidden"><div class="h-full rounded-full" style="width:${Math.round(x.mins/mx*100)}%;background:${tsColor(tsCat)}"></div></div></div>
     <b class="text-[12px] shrink-0">${tsHM(x.mins)}</b></div>`).join('')
     :'<div class="text-xs text-slate-400 py-6 text-center">该时段没有此分类的时间块</div>'}
@@ -1151,11 +1281,342 @@ function renderDashDist(){const el=$('#dashTimeDist');if(!el)return;
  const {from,to}=tsPeriod('w',TODAY);const A=tsAgg(from,to);
  const entries=Object.entries(A.byCat).sort((x,y)=>y[1]-x[1]);const total=entries.reduce((t,e)=>t+e[1],0);
  const cap=(to-from+1)*1440,un=Math.max(0,cap-total),dn=un>0?entries.concat([['未记录',un]]):entries;
- el.innerHTML=total?`<div class="flex items-center gap-4 mt-3">`+tsDonutSvg(dn,cap,96)+`<div class="text-xs space-y-1.5 flex-1">`+entries.slice(0,4).map(([c,m])=>`<div class="flex justify-between"><span><i class="dot" style="background:${tsColor(c)}"></i>${c}</span><b>${Math.round(m/cap*100)}%</b></div>`).join('')+`</div></div><div class="mt-2 text-[10px] text-slate-400">本周合计 ${tsHM(total)} · 覆盖 ${Math.round(total/cap*100)}% · 点卡片看时间账本</div>`
+ el.innerHTML=total?`<div class="flex items-center gap-4 mt-3">`+tsDonutSvg(dn,cap,96)+`<div class="text-xs space-y-1.5 flex-1">`+entries.slice(0,4).map(([c,m])=>`<div class="flex justify-between"><span><i class="dot" style="background:${tsColor(c)}"></i>${c}</span><b>${Math.round(m/cap*100)}%</b></div>`).join('')+`</div></div><div class="mt-2 text-[11px] text-slate-400">本周合计 ${tsHM(total)} · 覆盖 ${Math.round(total/cap*100)}% · 点卡片看时间账本</div>`
    :'<div class="mt-2 text-xs text-slate-400">本周还没有记录 · 点卡片看时间账本</div>'}
 
-/* —— 分类管理（V1.19 · 两级树 · 长按拖拽换父组/排序 · 添加分类页） —— */
-function renderCatTree(){const el=$('#catTree');if(!el)return;
+/* ================= 标签管理（2026-10-19 产品令 · 与分类管理同级） =================
+ * 为什么放时间专版：分类管理（`p-sub-cats`）的家在本专版，产品要求标签管理与它同级，
+ * 故新屏 `p-sub-tags` / `p-sub-tagAdd` 与弹层 `sheetTagEdit` 一并定稿在 `index-time.html`；
+ * 我的页入口在壳 `index.html`（与分类管理相邻），日记 / 笔记编辑页的「＋ 标签」从各自专版跳来本屏。
+ *
+ * 数据模型（实现批对应两张表，不把标签塞进各模块表）：
+ *   `tags(id, name, tone, scopes, builtin, sort)` —— scopes 是多值集合，取值 `diary|note|time`，
+ *     **`public` 不是一个 scope，而是「scopes 含全部三场景」的派生标签**（渲染时算，不落库）。
+ *   这样「公共」永远是三场景的并集视图、不会出现「公共里有但日记里选不到」的裂缝。
+ * 计数：日记取 demo 日记的 tags、笔记与时间取演示桩（实现批按 `*_tags` 关联表 group by）。 */
+/* ================= 标签管理（2026-10-19 · 产品四条口径） =================
+ * 家在这里（与分类管理同级的「我的 › 标签管理」），日记 / 笔记页只做选择不各存一份。
+ *   ① 标签池全局唯一：`TG_POOL` 是唯一真源，日记页 `diagPool()` 直接读它；
+ *   ② 每个标签带「适用模块」多值属性 scopes∈{diary,note,time}，新建默认全勾、可手动取消；
+ *   ③ 各功能页选标签只列「本模块 scopes 命中」的那些（日记侧 `TG_POOL.filter(t=>t.scopes.includes('diary'))`）；
+ *   ④ 跨模块搜索（搜标签 -> 忽略作用域列出三模块带该标签的内容）＋ 改名 / 合并 / 删除
+ *      （删除＝三模块一律解绑，内容本身不删；改名＝同名引用一起变）。
+ * 刻意不做的事：`public` 不落库、不是第 4 个 scope —— 它就是「scopes 含全部三模块」的派生视图，
+ * 这样「公共里有的标签日记里选不到」这种裂缝不可能出现。
+ * 实现批对应两张表：`tags(id,name,tone,scopes,sort,builtin)` + `tag_links(tag_id,module,item_id)`；
+ * 合并＝`UPDATE tag_links SET tag_id=<to> WHERE tag_id=<from>` 再删源行；删除＝`DELETE tag_links WHERE tag_id=?`。
+ * 计数来源：日记读 demo `D.diary[*].tags`，笔记 / 时间用演示桩（实现批 group by tag_links）。 */
+const TG_SCENES=[
+  {k:'diary', n:'日记', ico:'<path d="M5 4.5h11.5a2.5 2.5 0 0 1 2.5 2.5v12.5H7.5A2.5 2.5 0 0 0 5 22z"/><path d="M9 9h6M9 12.5h4"/>'},
+  {k:'note',  n:'笔记', ico:'<rect x="4.5" y="3.5" width="15" height="17" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/>'},
+  {k:'time',  n:'时间', ico:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>'},
+  {k:'public',n:'公共', ico:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.3 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.3-3.6-8.5S9.6 5.9 12 3.5Z"/>'}
+];
+const TG_SCOPE_KS=['diary','note','time'];
+const TG_PUBLIC='public';
+/* 演示池：故意铺满四种形态 —— 单模块 / 双模块 / 三模块（公共），以及有/无引用（0 条也要能显示）。 */
+let TG_POOL=[
+  {id:1, name:'生活',    scopes:['diary','time'],          use:{diary:2,note:0,time:3}, builtin:false},
+  {id:2, name:'工作',    scopes:['time'],                  use:{diary:0,note:0,time:5}, builtin:false},
+  {id:3, name:'复盘',    scopes:['diary','note'],          use:{diary:3,note:1,time:0}, builtin:false},
+  {id:4, name:'运动',    scopes:['diary'],                 use:{diary:2,note:0,time:0}, builtin:false},
+  {id:5, name:'晨间页',  scopes:['diary'],                 use:{diary:1,note:0,time:0}, builtin:false},
+  {id:6, name:'加班',    scopes:['diary','time'],          use:{diary:1,note:0,time:1}, builtin:false},
+  {id:7, name:'方法论',  scopes:['diary','note'],          use:{diary:1,note:2,time:0}, builtin:false},
+  {id:8, name:'电影',    scopes:['diary'],                 use:{diary:1,note:0,time:0}, builtin:false},
+  {id:9, name:'读书笔记',scopes:['note'],                  use:{diary:0,note:4,time:0}, builtin:false},
+  {id:10,name:'灵感',    scopes:['note'],                  use:{diary:0,note:3,time:0}, builtin:false},
+  {id:11,name:'会议',    scopes:['time'],                  use:{diary:0,note:0,time:4}, builtin:false},
+  {id:12,name:'通勤',    scopes:['time'],                  use:{diary:0,note:0,time:6}, builtin:false},
+  {id:13,name:'重要',    scopes:['diary','note','time'],   use:{diary:2,note:2,time:2}, builtin:false},
+  {id:14,name:'素材',    scopes:['diary','note','time'],   use:{diary:1,note:3,time:1}, builtin:false},
+  {id:15,name:'待办',    scopes:['diary','note','time'],   use:{diary:1,note:1,time:3}, builtin:false},
+  {id:16,name:'AI 提效', scopes:['diary','note','time'],   use:{diary:1,note:2,time:1}, builtin:false}
+];
+/* —— 口径① 的跨专版落地 ——
+   原型是多 HTML 专版，`let TG_POOL` 只活在本文件的脚本作用域里，日记 / 笔记专版读不到。
+   故把池镜像到 `localStorage['lh.tagPool']`：标签管理页每次增删改都写一次，日记页 `diagPool()`
+   先读镜像、读不到才用下面的演示种子。实现批由 Room 的 `tags` 表当唯一真源，这一层镜像随之作废
+   （原型只为「在标签管理里改、切到日记页能看见」这条链路能验）。 */
+const TG_LS_KEY='lh.tagPool';
+function tgPersist(){try{localStorage.setItem(TG_LS_KEY,JSON.stringify(TG_POOL))}catch(e){}}
+function tgRestore(){
+  try{
+    const raw=localStorage.getItem(TG_LS_KEY);if(!raw)return false;
+    const arr=JSON.parse(raw);
+    if(!Array.isArray(arr)||!arr.length)return false;
+    TG_POOL=arr.map(t=>({id:t.id,name:t.name,scopes:Array.isArray(t.scopes)?t.scopes.slice():TG_SCOPE_KS.slice(),
+      use:{diary:(t.use&&t.use.diary)||0,note:(t.use&&t.use.note)||0,time:(t.use&&t.use.time)||0},builtin:!!t.builtin}));
+    return true;
+  }catch(e){return false}
+}
+tgRestore();
+let tgSeq=100;
+let tgScene='all';            /* 分区导轨当前档：all|diary|note|time|public */
+let tgFold=false;             /* 全局折叠 */
+const tgFoldS={};             /* 单段折叠 */
+let tgQ='';                   /* 口径④ 跨模块搜词 */
+/* 添加页状态：口径② 新建默认三模块全勾 */
+let taScopes=['diary','note','time'];
+/* 编辑弹层状态 */
+let teId=0, teScopes=[];
+/* —— 基础判定 —— */
+const tgIsPublic=t=>TG_SCOPE_KS.every(k=>t.scopes.indexOf(k)>=0);
+function tgUse(t){return (t.use.diary||0)+(t.use.note||0)+(t.use.time||0)}
+function tgByScene(k){return k===TG_PUBLIC?TG_POOL.filter(tgIsPublic):TG_POOL.filter(t=>t.scopes.indexOf(k)>=0)}
+function tgSceneName(k){return (TG_SCENES.find(x=>x.k===k)||{}).n||k}
+function tgTone(){return 'var(--accent)'}      /* 全部走主题令牌，禁写死靛紫 */
+/* —— 口径① 全局池 API（日记 / 笔记侧都调这三个）—— */
+function tgFindByName(n){const q=String(n||'').trim().toLowerCase();return TG_POOL.find(t=>t.name.toLowerCase()===q)}
+function tgAddTag(name,scopes){
+  const n=String(name||'').trim().replace(/^#+/,'');
+  if(!n)return {ok:false,msg:'请填写标签名称'};
+  if(n.length>12)return {ok:false,msg:'名称最多 12 个字'};
+  if(tgFindByName(n))return {ok:false,msg:'标签「'+n+'」已存在'};
+  const sc=(scopes&&scopes.length?scopes:TG_SCOPE_KS.slice()).filter(k=>TG_SCOPE_KS.indexOf(k)>=0);
+  const t={id:++tgSeq,name:n,scopes:sc,use:{diary:0,note:0,time:0},builtin:false};
+  TG_POOL.push(t);tgPersist();return {ok:true,tag:t};
+}
+function tgRenameTag(oldName,newName){
+  const t=tgFindByName(oldName);if(!t)return {ok:false,msg:'找不到标签'};
+  const n=String(newName||'').trim().replace(/^#+/,'');
+  if(!n)return {ok:false,msg:'名称不能为空'};
+  const dup=tgFindByName(n);
+  if(dup&&dup.id!==t.id)return {ok:false,msg:'已有同名标签'};
+  t.name=n;tgPersist();return {ok:true,tag:t};
+}
+function tgDeleteTag(name){
+  const t=tgFindByName(name);if(!t)return {ok:false,msg:'找不到标签'};
+  TG_POOL=TG_POOL.filter(x=>x.id!==t.id);tgPersist();return {ok:true};
+}
+/* 合并：引用并入目标、源标签消失（口径④）。目标必须存在且不是自己。 */
+function tgMergeTag(fromName,toName){
+  const a=tgFindByName(fromName),b=tgFindByName(toName);
+  if(!a||!b||a.id===b.id)return {ok:false,msg:'合并目标无效'};
+  ['diary','note','time'].forEach(k=>{b.use[k]=(b.use[k]||0)+(a.use[k]||0)});
+  /* 模块归属取并集，避免「合并后日记里选不到」 */
+  TG_SCOPE_KS.forEach(k=>{if(a.scopes.indexOf(k)>=0&&b.scopes.indexOf(k)<0)b.scopes.push(k)});
+  TG_POOL=TG_POOL.filter(x=>x.id!==a.id);tgPersist();
+  return {ok:true,tag:b};
+}
+/* —— 口径④ 跨模块搜索：忽略作用域，标签名 + 三模块内容一起搜 —— */
+const TG_TIMELINE=[   /* 时间维度演示桩（实现批按 time_entries 检索） */
+  {t:'09:10', d:'晨会 · 需求对齐', tag:'会议'},
+  {t:'13:30', d:'读《深度工作》第三章', tag:'读书笔记'},
+  {t:'16:00', d:'重构日记轨道组件', tag:'工作'},
+  {t:'20:15', d:'夜跑 5 公里', tag:'运动'},
+  {t:'22:40', d:'整理今天的灵感碎片', tag:'灵感'}
+];
+function tgSearchSet(q){
+  tgQ=String(q||'').trim();
+  const clr=$('#tgSearchClear');if(clr)clr.classList.toggle('hidden',!tgQ);
+  renderTgSearchOut();
+}
+function renderTgSearchOut(){
+  const box=$('#tgSearchOut');if(!box)return;
+  if(!tgQ){box.classList.add('hidden');box.innerHTML='';return}
+  box.classList.remove('hidden');
+  const q=tgQ.toLowerCase();
+  /* (a) 命中标签：名字匹配即列出，并显示它适用哪些模块 */
+  const hitTags=TG_POOL.filter(t=>t.name.toLowerCase().indexOf(q)>=0);
+  /* (b) 跨模块内容：三模块里「标题 / 正文 含关键词」或「挂着命中标签」的条目 */
+  const hitNames=hitTags.map(t=>t.name);
+  const rows=[];
+  try{
+    if(typeof D!=='undefined'&&D.diary){
+      D.diary.forEach((d,i)=>{
+        const txt=String(d.txt||''), tg=(d.tags||[]);
+        if(txt.toLowerCase().indexOf(q)>=0||tg.some(x=>hitNames.indexOf(x)>=0))
+          rows.push({k:'diary',t:(d.t||('日记 '+(i+1))),s:txt.slice(0,42),tg:tg.join(' · ')});
+      });
+    }
+  }catch(e){}
+  try{
+    if(typeof NOTES!=='undefined'&&NOTES){
+      NOTES.forEach(n=>{const txt=String(n.txt||n.body||n.title||'');
+        const tg=(n.tags||[]);
+        if(String(n.title||'').toLowerCase().indexOf(q)>=0||txt.toLowerCase().indexOf(q)>=0||tg.some(x=>hitNames.indexOf(x)>=0))
+          rows.push({k:'note',t:n.title||'未命名笔记',s:txt.slice(0,42),tg:tg.join(' · ')})});
+    }
+  }catch(e){}
+  TG_TIMELINE.forEach(n=>{
+    if(n.d.toLowerCase().indexOf(q)>=0||(hitNames.length&&hitNames.indexOf(n.tag)>=0))
+      rows.push({k:'time',t:n.d,s:n.t,tg:n.tag});
+  });
+  const ico=k=>TG_SCENES.find(s=>s.k===k).ico;
+  const nm=k=>tgSceneName(k);
+  box.innerHTML=`
+    <div class="card !p-0 overflow-hidden">
+      <div class="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+        <b class="text-[13px]">已忽略作用域</b>
+        <span class="text-[11px] text-slate-400">命中 ${hitTags.length} 个标签 · ${rows.length} 条内容</span>
+      </div>
+      ${hitTags.length?`<div class="px-3.5 py-2.5 flex gap-1.5 flex-wrap border-b border-slate-100 dark:border-slate-800">
+        ${hitTags.map(t=>`<button class="tg-pill tg-on" onclick="tgSetScene('all');tgOpenEdit(${t.id})">#${t.name}<i>${t.scopes.map(nm).join('·')}</i></button>`).join('')}
+      </div>`:''}
+      ${rows.length?rows.slice(0,12).map(r=>`<div class="tg-row" style="cursor:default">
+        <span class="tg-sc-ic" style="color:${tgTone(r.k)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ico(r.k)}</svg></span>
+        <div class="min-w-0 flex-1"><div class="text-[13px] font-semibold truncate">${r.t}</div>
+          <div class="text-[11px] text-slate-400 truncate">${r.s||''}${r.tg?' · '+r.tg:''}</div></div>
+        <span class="text-[11px] text-slate-400 shrink-0">${nm(r.k)}</span></div>`).join('')
+      :'<div class="px-3.5 py-5 text-[11px] text-slate-400 text-center">三个模块里都没有含「'+tgQ+'」的内容</div>'}
+    </div>`;
+}
+/* —— 分区导轨 —— */
+function renderTgRail(){
+  const el=$('#tgSceneRail');if(!el)return;
+  const tabs=[{k:'all',n:'全部',c:TG_POOL.length}].concat(TG_SCENES.map(s=>({k:s.k,n:s.n,c:tgByScene(s.k).length})));
+  el.innerHTML=tabs.map(t=>`<button class="tg-pill ${tgScene===t.k?'tg-on':''}" data-scene="${t.k}" aria-pressed="${tgScene===t.k}" onclick="tgSetScene('${t.k}')">
+    <span>${t.n}</span><i>${t.c}</i></button>`).join('');
+}
+/* —— 树：按分区分组。口径② 是多值属性，故同一标签可能出现在多段（公共段只放三模块全占的） —— */
+function renderTagTree(){
+  const el=$('#tgTree');if(!el)return;
+  const segs=TG_SCENES.filter(s=>tgScene==='all'||tgScene===s.k);
+  el.innerHTML=segs.map(s=>{
+    const list=tgByScene(s.k).filter(t=>s.k!==TG_PUBLIC||tgIsPublic(t));
+    const folded=tgFold||tgFoldS[s.k]===true;
+    return `<div class="card !p-0 overflow-hidden mt-2" data-seg="${s.k}">
+      <div class="flex items-center gap-2.5 px-3.5 py-3 cursor-pointer" onclick="tgSegFold('${s.k}')">
+        <span class="tg-sc-ic" style="color:${tgTone(s.k)}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${s.ico}</svg></span>
+        <b class="text-sm flex-1">${s.n}</b>
+        <span class="text-[11px] text-slate-400">${list.length} 个</span>
+        <span class="text-slate-400 tg-turn ${folded?'on':''}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5 12 15l6-5.5"/></svg></span>
+      </div>
+      ${folded?'':(list.length?list.map(t=>`<div class="tg-row" data-tag="${t.name}" onclick="tgOpenEdit(${t.id})">
+          <span class="tg-dot" style="background:${tgTone()}"></span>
+          <span class="text-[13px] font-semibold flex-1 min-w-0 truncate">${t.name}</span>
+          ${tgIsPublic(t)?'<span class="tg-badge">三处通用</span>':`<span class="text-[11px] text-slate-400">${t.scopes.map(tgSceneName).join('·')}</span>`}
+          <span class="text-[11px] text-slate-400 tabular-nums">${tgUse(t)} 条</span>
+          <span class="text-slate-300">›</span></div>`).join(''):'<div class="px-3.5 pb-3 text-[11px] text-slate-400">这一段还没有标签</div>')}
+    </div>`}).join('');
+}
+function tgSegFold(k){tgFoldS[k]=!(tgFoldS[k]===true);renderTagTree()}
+function tgFoldToggle(){tgFold=!tgFold;Object.keys(tgFoldS).forEach(k=>tgFoldS[k]=false);renderTagTree();
+  const b=$('#tgFoldBtn');if(b)b.textContent=tgFold?'全部展开':'全部折叠';}
+function renderTagPage(){renderTgRail();renderTagTree();renderTgSearchOut();}
+function tgSetScene(k){tgScene=k;renderTagPage()}
+/* —— 添加页：口径② 默认三模块全勾，可手动取消；「放进公共」= 一键全选 —— */
+function openTagAdd(){
+  tgFold=false;navTo('p-sub-tagAdd');
+  taScopes=TG_SCOPE_KS.slice();       /* 默认全部勾选 */
+  const inp=$('#taName');if(inp)inp.value='';
+  taRender();
+}
+function taRender(){
+  const box=$('#taScopes');
+  if(box)box.innerHTML=TG_SCENE_OF_SCOPE().map(s=>{
+    const on=taScopes.indexOf(s.k)>=0;
+    return `<button class="tg-pill ${on?'tg-on':''}" data-ta="${s.k}" aria-pressed="${on}" onclick="taToggleScope('${s.k}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px">${s.ico}</svg><span>${s.n}</span>
+      <svg class="tg-ck" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5 10 18 19.5 7"/></svg></button>`}).join('');
+  const sw=$('#taPublicSw');
+  if(sw){const all=TG_SCOPE_KS.every(k=>taScopes.indexOf(k)>=0);
+    sw.classList.toggle('on',all);sw.setAttribute('aria-checked',all?'true':'false')}
+  const hint=$('#taScopeHint');
+  if(hint)hint.textContent=taScopes.length?('已选 '+taScopes.length+' 个模块'):'至少选一个模块';
+  const pv=$('#taPreview');
+  if(pv){const nm=((document.getElementById('taName')||{}).value||'').trim();
+    const title=nm||'标签名';
+    const dup=nm&&tgFindByName(nm);
+    pv.innerHTML=`<span class="tg-dot" style="background:${tgTone()}"></span>
+      <span class="text-[13px] font-bold">#${title}</span>
+      ${dup?'<span class="text-[11px] text-rose-500">已存在同名</span>':''}
+      <span class="ml-auto text-[11px] text-slate-400">${taScopes.length?taScopes.map(tgSceneName).join(' / '):'未选模块'}</span>`}
+  const btn=$('#taSave');
+  if(btn){btn.classList.toggle('opacity-50',!taScopes.length);}
+}
+function TG_SCENE_OF_SCOPE(){return TG_SCENES.filter(s=>s.k!==TG_PUBLIC)}
+function taToggleScope(k){
+  const i=taScopes.indexOf(k);if(i>=0)taScopes.splice(i,1);else taScopes.push(k);
+  taRender();
+}
+function tgTogglePublic(){
+  if(TG_SCOPE_KS.every(k=>taScopes.indexOf(k)>=0))taScopes=[];
+  else taScopes=TG_SCOPE_KS.slice();
+  taRender();
+}
+function tgSaveAdd(){
+  const n=((document.getElementById('taName')||{}).value||'').trim();
+  if(!n){toast('请填写标签名称');return}
+  if(!taScopes.length){toast('至少勾选一个适用模块');return}
+  const r=tgAddTag(n,taScopes);
+  if(!r.ok){toast(r.msg);return}
+  const sc=taScopes.slice();
+  toast('已添加「'+n+'」· '+sc.map(tgSceneName).join(' / '));
+  tgScene=tgIsPublic(r.tag)?TG_PUBLIC:sc[0];
+  document.getElementById('taName').value='';
+  navTo('p-sub-tags');renderTagPage();
+}
+/* —— 编辑弹层：改名 / 改适用模块 / 合并 / 删除 —— */
+function teRenderScopes(){
+  const box=$('#teScopes');if(!box)return;
+  box.innerHTML=TG_SCENE_OF_SCOPE().map(s=>{
+    const on=teScopes.indexOf(s.k)>=0;
+    return `<button class="tg-pill ${on?'tg-on':''}" data-te="${s.k}" aria-pressed="${on}" onclick="tgTogScope('${s.k}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px">${s.ico}</svg><span>${s.n}</span><svg class="tg-ck" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5 10 18 19.5 7"/></svg></button>`}).join('');
+  const h=$('#teUseHint');
+  if(h)h.textContent=teScopes.length?('取消某模块＝该模块选标签时不再出现它'):'至少保留一个';
+}
+function tgOpenEdit(id){
+  const t=TG_POOL.find(x=>x.id===id);if(!t)return;
+  teId=id;teScopes=t.scopes.slice();
+  const inp=$('#teName');if(inp)inp.value=t.name;
+  const uh=$('#teUseHint');if(uh)uh.textContent='';
+  teRenderScopes();openSheet('sheetTagEdit');
+}
+function tgTogScope(k){
+  const i=teScopes.indexOf(k);
+  if(i>=0){if(teScopes.length===1){toast('至少保留一个适用模块');return}teScopes.splice(i,1)}
+  else teScopes.push(k);
+  teRenderScopes();
+}
+function tgSaveEdit(){
+  const t=TG_POOL.find(x=>x.id===teId);if(!t){closeSheet('sheetTagEdit');return}
+  const old=t.name;
+  const n=((document.getElementById('teName')||{}).value||'').trim().replace(/^#+/,'');
+  if(!n){toast('名称不能为空');return}
+  if(!teScopes.length){toast('至少保留一个适用模块');return}
+  const r=tgRenameTag(old,n);
+  if(!r.ok){toast(r.msg);return}
+  r.tag.scopes=teScopes.slice();tgPersist();
+  closeSheet('sheetTagEdit');renderTagPage();
+  toast((old!==n?('已改名「'+old+'」为「'+n+'」'):'已保存')+' · '+r.tag.scopes.map(tgSceneName).join(' / '));
+}
+/* 删除：口径④「所有模块解除关联，内容本身不删」——原型只从池里摘，日记侧 `diagPool()` 下次读就没了 */
+function tgDelete(){
+  const t=TG_POOL.find(x=>x.id===teId);if(!t)return;
+  if(!window.confirm('删除标签「'+t.name+'」？三个模块里所有引用都会解除，内容本身不删。'))return;
+  const n=t.name;
+  tgDeleteTag(n);
+  closeSheet('sheetTagEdit');renderTagPage();
+  toast('已删除「'+n+'」· 三模块引用已解除');
+}
+/* —— 合并（口径④）—— */
+function tgMergeAsk(){
+  const t=TG_POOL.find(x=>x.id===teId);if(!t)return;
+  const box=$('#tmList'),h=$('#tmHint');
+  if(h)h.textContent='「'+t.name+'」的引用会全部并入所选标签，然后源标签消失';
+  const cand=TG_POOL.filter(x=>x.id!==teId);
+  if(box)box.innerHTML=cand.length?cand.map(x=>`<div class="tg-row" data-merge="${x.name}" onclick="tgMergeDo('${x.name}')">
+      <span class="tg-dot" style="background:${tgTone()}"></span>
+      <span class="text-[13px] font-semibold flex-1 min-w-0 truncate">${x.name}</span>
+      <span class="text-[11px] text-slate-400">${x.scopes.map(tgSceneName).join('·')}</span>
+      <span class="text-[11px] text-slate-400 tabular-nums">${tgUse(x)} 条</span>
+    </div>`).join(''):'<div class="text-[11px] text-slate-400 text-center py-6">池里没有别的标签可合并</div>';
+  openSheet('sheetTagMerge');
+}
+function tgMergeDo(toName){
+  const t=TG_POOL.find(x=>x.id===teId);if(!t)return;
+  const r=tgMergeTag(t.name,toName);
+  if(!r.ok){toast(r.msg);return}
+  closeSheet('sheetTagMerge');closeSheet('sheetTagEdit');renderTagPage();
+  toast('「'+t.name+'」已并入「'+toName+'」');
+}
+/* 给其他专版用的只读查询（日记侧 diagPool() 走这里） */
+function tgTagsOf(scope){return TG_POOL.filter(t=>t.scopes.indexOf(scope)>=0)}
+
+/* —— 分类管理（V1.19 · 两级树 · 长按拖拽换父组/排序 · 添加分类页） —— */function renderCatTree(){const el=$('#catTree');if(!el)return;
   el.innerHTML=Object.entries(CATS).map(([k,c])=>{
     const subs=Object.entries(SUBS[k]||{});const col=catsCollapsed[k];
     let h=`<div class="card !py-2.5 !px-3 flex items-center gap-3 cursor-grab" draggable="true" ondragstart="catDrag(event,'${k}')" ondragover="event.preventDefault()" ondrop="catDrop(event,'${k}')">
