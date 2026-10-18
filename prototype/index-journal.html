@@ -46,6 +46,35 @@ tailwind.config = {
   html[data-theme="neumorph"] .card{border-width:0}
   html[data-theme="neumorph"] .grad{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),6px 6px 14px rgba(91,124,250,.35)}
   html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342}
+  /* ===== 主色淡化档（2026-10-19 主题兼容整改）=====
+     问题：选中态的淡底/描边原来一律写死靛紫 `rgba(99,102,241,.06)`，而本原型 4 套主题
+     （minimal 靛紫／fresh 翠绿 #10b981／retro 琥珀 #b45309／neumorph 蓝 #5b7cfa）× 明暗两档共 8 种组合，
+     `--accent` 每套都不同 ⇒ fresh 下会出现「绿字绿描边 + 紫淡底」的撞色。
+     解法：一律由 `--accent` 现算，8 种组合自动跟随，**新增主题也不用再改一遍**。
+     ① `color-mix` 在 8 种组合下通吃，但 Chromium<111 不认 ⇒ 每条前面留一条靛紫 fallback 声明
+        （同属性写两遍，支持则后者覆盖前者，不支持则停在 fallback，退化成今天的样子而不是失效）；
+     ② 深浅两档透明度分开：深色底上 6% 太弱近乎不可见，深档统一加厚到 12%/22%。 */
+  :root{
+    --accent-06:rgba(99,102,241,.06);--accent-06:color-mix(in srgb,var(--accent) 6%,transparent);
+    --accent-08:rgba(99,102,241,.08);--accent-08:color-mix(in srgb,var(--accent) 8%,transparent);
+    --accent-10:rgba(99,102,241,.10);--accent-10:color-mix(in srgb,var(--accent) 10%,transparent);
+    --accent-12:rgba(99,102,241,.12);--accent-12:color-mix(in srgb,var(--accent) 12%,transparent);
+    --accent-18:rgba(99,102,241,.18);--accent-18:color-mix(in srgb,var(--accent) 18%,transparent);
+    --accent-22:rgba(99,102,241,.22);--accent-22:color-mix(in srgb,var(--accent) 22%,transparent);
+    --accent-28:rgba(99,102,241,.28);--accent-28:color-mix(in srgb,var(--accent) 28%,transparent);
+    --accent-42:rgba(99,102,241,.42);--accent-42:color-mix(in srgb,var(--accent) 42%,transparent);
+    --accent-55:rgba(99,102,241,.55);--accent-55:color-mix(in srgb,var(--accent) 55%,transparent)}
+  /* 深档整体加厚：同一语义档位在深色底上要更实才看得见（不是换色，只换不透明度） */
+  html.dark{
+    --accent-06:rgba(129,140,248,.12);--accent-06:color-mix(in srgb,var(--accent-l) 12%,transparent);
+    --accent-08:rgba(129,140,248,.16);--accent-08:color-mix(in srgb,var(--accent-l) 16%,transparent);
+    --accent-10:rgba(129,140,248,.18);--accent-10:color-mix(in srgb,var(--accent-l) 18%,transparent);
+    --accent-12:rgba(129,140,248,.22);--accent-12:color-mix(in srgb,var(--accent-l) 22%,transparent);
+    --accent-18:rgba(129,140,248,.30);--accent-18:color-mix(in srgb,var(--accent-l) 30%,transparent);
+    --accent-22:rgba(129,140,248,.36);--accent-22:color-mix(in srgb,var(--accent-l) 36%,transparent);
+    --accent-28:rgba(129,140,248,.42);--accent-28:color-mix(in srgb,var(--accent-l) 42%,transparent);
+    --accent-42:rgba(129,140,248,.55);--accent-42:color-mix(in srgb,var(--accent-l) 55%,transparent);
+    --accent-55:rgba(129,140,248,.68);--accent-55:color-mix(in srgb,var(--accent-l) 68%,transparent)}
   #phone{background-color:var(--page)!important;background-image:var(--page-img,none)!important;font-family:var(--app-font,inherit)}
   nav{background:var(--nav-bg)!important;border-color:var(--nav-bd)!important;font-family:var(--f-ui)}
   .no-scrollbar::-webkit-scrollbar{display:none}
@@ -151,12 +180,18 @@ tailwind.config = {
   .dr-legend-i i{width:6px;height:6px;border-radius:999px;display:inline-block}
   html.dark .dr-legend-i{color:rgba(255,255,255,.5)}
   /* 那年今日引用：左引号竖线 + 极淡底，与正文区分 */
-  .dr-quote{position:relative;font-size:13px;line-height:1.65;color:#1D2129;background:rgba(99,102,241,.045);
-    border-left:2px solid rgba(99,102,241,.28);border-radius:0 10px 10px 0;padding:8px 10px 8px 12px;
+  /* 那年今日引文块：底色/左边线同样走主色淡化档（4 主题 × 明暗自动跟随），不再写死靛紫 */
+  .dr-quote{position:relative;font-size:13px;line-height:1.65;color:#1D2129;background:var(--accent-06);
+    border-left:2px solid var(--accent-28);border-radius:0 10px 10px 0;padding:8px 10px 8px 12px;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  html.dark .dr-quote{color:rgba(255,255,255,.86);background:rgba(129,140,248,.10);border-left-color:rgba(129,140,248,.4)}
+  html.dark .dr-quote{color:rgba(255,255,255,.86);background:var(--accent-10);border-left-color:var(--accent-42)}
   /* ---- 筛选弹层（2026-10-19 治理件）--- */
-  .df-group-t{font-size:12px;color:rgba(100,116,139,.85);margin:18px 0 4px}
+  /* 分组小标题：首组贴上沿（`first-child` 去外边距），组间只留 8px——
+     原来每组 18+18+4 = 40px 纯空白，两组共 88px，比胶囊本身（2×32）还高出一圈。
+     横排之后组间有胶囊描边做视觉分隔，不需要那么大的呼吸量；
+     `line-height:1` 把 18px 的行盒压到 12px（字号不变，只去行高冗余）。 */
+  .df-group-t{font-size:12px;line-height:1;color:rgba(100,116,139,.85);margin:8px 0 6px}
+  .df-group-t:first-child{margin-top:0}
   html.dark .df-group-t{color:rgba(255,255,255,.45)}
   /* 选项行：行高 48px，选中＝文字/图标变主色 + 右侧对勾，**背景保持透明**（原蓝色大块过重） */
   .df-row{width:100%;height:48px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;
@@ -174,13 +209,43 @@ tailwind.config = {
   .df-pill{height:34px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;
     border:1px solid rgba(148,163,184,.45);color:#4E5969;background:transparent;transition:all .15s}
   html.dark .df-pill{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.7)}
-  .df-pill[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:rgba(99,102,241,.06);font-weight:600}
-  .dark .df-pill[aria-pressed="true"]{background:rgba(129,140,248,.12)}
+  .df-pill[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-06);font-weight:600}
+  .dark .df-pill[aria-pressed="true"]{background:var(--accent-12)}
   /* 时间段两组之间的竖分隔 + 第二组行首小标签 */
   .df-range-sep{width:1px;height:20px;background:rgba(148,163,184,.35);align-self:center}
   html.dark .df-range-sep{background:rgba(255,255,255,.14)}
   .df-range-t{font-size:12px;color:rgba(100,116,139,.8);margin-right:2px}
   html.dark .df-range-t{color:rgba(255,255,255,.42)}
+  /* 标记/标签横排胶囊（产品令「都横排选择，减少屏幕占用高度」）：
+     原 `.df-row` 每项 48px 独占一行，标记 4 项 + 标签 2 项 ≈ 290px；改横排后两组各占一行。
+     与 `.df-pill` 同一胶囊口径（未选＝浅灰描边、选中＝主色描边 + 6% 淡底），
+     区别只有一:带图标（14px 线性图标 + 文字），故 padding 收到 12px 免得一排太松散。
+     ⚠ 选中态必须用 `html.dark .df-chip.df-on`（而非 `.df-chip.df-on`）——`html.dark .df-chip`
+     有 0,2,1 的权重，单类 `.df-chip.df-on`（0,2,0）**压不过它**，深档下描边会停在被覆盖的浅灰
+     （本批 J3 断言实测踩到：深档四主题描边全是 rgba(255,255,255,.16)，选中态消失）。 */
+  .df-chip{height:32px;padding:0 12px;border-radius:16px;display:inline-flex;align-items:center;gap:6px;
+    font-size:13px;font-weight:500;border:1px solid rgba(148,163,184,.45);color:#4E5969;background:transparent;
+    transition:all .15s;white-space:nowrap}
+  html.dark .df-chip{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.7)}
+  .df-chip:active{transform:scale(.96)}
+  .df-chip svg{flex:none;opacity:.7}
+  .df-chip.df-on,html.dark .df-chip.df-on{border-color:var(--accent);color:var(--accent);background:var(--accent-06);font-weight:600}
+  html.dark .df-chip.df-on{background:var(--accent-12)}
+  .df-chip.df-on svg{opacity:1}
+  /* 自定义起止时间段：「三四年以前」这类任意跨度，8 档预设覆盖不到 ⇒ 补一对起止选择器。
+     形态＝两枚日期框 + 短横 + 「应用」，整行等宽（flex:1），日期框用原生 date input 的只留文字的窄样式。 */
+  .df-custom{display:flex;align-items:center;gap:8px}
+  .df-custom-in{flex:1;min-width:0;height:34px;padding:0 10px;border-radius:10px;font-size:13px;
+    border:1px dashed rgba(148,163,184,.55);color:#4E5969;background:transparent;
+    font-family:inherit;transition:all .15s}
+  html.dark .df-custom-in{border-color:rgba(255,255,255,.18);color:rgba(255,255,255,.72);color-scheme:dark}
+  .df-custom-in:focus{outline:none;border-style:solid;border-color:var(--accent)}
+  .df-custom-on .df-custom-in{border-style:solid;border-color:var(--accent);color:var(--accent);background:var(--accent-06)}
+  html.dark .df-custom-on .df-custom-in{background:var(--accent-12)}
+  .df-custom-dash{flex:none;font-size:12px;color:rgba(148,163,184,.9)}
+  .df-custom-go{flex:none;height:34px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:600;
+    background:var(--accent);color:#fff;opacity:.45;transition:opacity .15s;pointer-events:none}
+  .df-custom-go.df-go-on{opacity:1;pointer-events:auto}
   button.mood{font-size:22px;opacity:.5;filter:grayscale(.4);transition:.15s}
   /* 日记编辑批2（2026-10-19）：心情单选组——选中态在 JS 里拼（淡底+放大+小叉）；
      未选中给降饱和，选中还原全彩（避免整行花花绿绿抢正文）。 */
@@ -501,8 +566,8 @@ tailwind.config = {
   .dw-wall-cell{transition:transform .12s ease}
   .dw-wall-cell:active{transform:scale(.94)}
   /* 深色整改：选中日期＝**外环柔和主色光晕**（不是实心填色），与指导件一致 */
-  .dw-wall-cell.dw-wall-on{box-shadow:0 0 0 2px rgba(99,102,241,.42),0 0 10px rgba(99,102,241,.28)}
-  html.dark .dw-wall-cell.dw-wall-on{box-shadow:0 0 0 2px rgba(129,140,248,.55),0 0 12px rgba(129,140,248,.35)}
+  .dw-wall-cell.dw-wall-on{box-shadow:0 0 0 2px var(--accent-42),0 0 10px var(--accent-28)}
+  html.dark .dw-wall-cell.dw-wall-on{box-shadow:0 0 0 2px var(--accent-55),0 0 12px var(--accent-42)}
   .ins-card{position:relative;background:var(--card);border-radius:20px;overflow:hidden;margin-bottom:18px;color:var(--ink);box-shadow:0 4px 24px rgba(15,23,42,.12)}
   /* 深色主题整改（2026-10-19 指导件 · 全局规范）：深色档 INS 卡片**取消硬边**，改半透底＋内高光＋柔和外阴影。 */
   html.dark[data-theme="minimal"] .ins-card,html.dark:not([data-theme]) .ins-card{background:rgba(255,255,255,.06);box-shadow:0 6px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07)}
@@ -1051,8 +1116,11 @@ tailwind.config = {
   <!-- ===== 笔记 · 右上角 ⋯ 二级子项（V1.29：字号/纸色/聚焦/文件夹/类型 等收进来·轮9r 置顶移除+导出改分享钮） ===== -->
   
   <!-- V1.29轮9g：日记筛选底部浮层（顶栏漏斗钮唤起）
-       2026-10-19 筛选治理件：① 分三组（标记／标签／时间段）各带小标题；② 选中态**放弃蓝色大背景块**，
-       改「文字/图标变主题色 + 右侧对勾」；③ 行高 48px 放宽；④ 时间段改描边胶囊；⑤ 底部加实时计数与重置。 -->
+       2026-10-19 筛选治理件：① 分三组（标记／标签／时间段）；② 选中态**放弃蓝色大背景块**，
+       改「文字/图标变主题色 + 右侧对勾」；③ 时间段改描边胶囊；④ 底部加实时计数与重置。
+       2026-10-19 二次修订（产品令「标记、标签都横排选择，减少屏幕占用高度」＋「三四年以前的怎么办」）：
+       ① 标记/标签**改横排胶囊**（原来每项占 48px 一行，6 项就吃掉 288px 高度，几乎顶满一屏）；
+       ② 时间段改为紧凑单行＋自定义起止日期（解决三四年以前无法筛选的问题）。 -->
   <div id="sheetDiaryFilter" class="sheet hidden fixed md:absolute inset-0 z-50 dr-scrim items-end" onclick="if(event.target===this)closeSheet('sheetDiaryFilter')">
     <div class="sheet-panel dr-panel w-full bg-white dark:bg-slate-900 max-h-[86%] overflow-y-auto no-scrollbar">
       <div class="grabber dr-grab"></div>
@@ -1060,15 +1128,17 @@ tailwind.config = {
         <div class="dr-title flex-1">筛选</div>
         <button class="dr-navbtn" onclick="closeSheet('sheetDiaryFilter')" aria-label="关闭">✕</button>
       </div>
-      <div id="dfGroups" class="mt-1"></div>
-      <!-- 时间段：描边胶囊（选中＝描边+主色文字，不用深色填充） -->
-      <div class="mt-5">
+      <div id="dfGroups"></div>
+      <!-- 时间段：单段紧凑横排胶囊 + 自定义起止 -->
+      <div>
         <div class="df-group-t">时间段</div>
-        <div id="dfRange" class="mt-2 flex flex-wrap gap-2"></div>
-        <div id="dfRangeNote" class="dr-note mt-2"></div>
+        <div id="dfRange" class="flex flex-wrap gap-2"></div>
+        <!-- 自定义起止：解决「三四年以前」这类任意跨度（预设胶囊覆盖不到） -->
+        <div id="dfCustom" class="df-custom mt-2.5"></div>
+        <div id="dfRangeNote" class="dr-note mt-1.5"></div>
       </div>
       <!-- 底部：实时计数 + 重置 -->
-      <div class="mt-5 pt-3 flex items-center gap-3 border-t border-slate-100 dark:border-slate-800">
+      <div class="mt-4 pt-3 flex items-center gap-3 border-t border-slate-100 dark:border-slate-800">
         <div id="dfCount" class="dr-note flex-1"></div>
         <button class="h-9 px-4 rounded-full text-[13px] font-semibold border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 active:bg-slate-50 dark:active:bg-slate-800" onclick="diaryFilterReset()">重置</button>
         <button class="h-9 px-5 rounded-full text-[13px] font-semibold bg-brand-500 text-white active:scale-[.98]" onclick="closeSheet('sheetDiaryFilter')">完成</button>
@@ -3922,30 +3992,83 @@ function dwInRange(i){
     const py=now.getMonth()===0?y-1:y;
     return yy===py&&mo===pm;
   }
+  /* 自定义起止：两端都是 `YYYY-MM-DD` 串，直接按「日期对象」比较（免手算天数差）；
+     一端留空即开区间。样例里没有 `d.y` 的条目按当年解释（与预设档同一口径）。 */
+  if(diaryRange==='custom'){
+    const iso=yy+'-'+m[1]+'-'+m[2];
+    if(dfFrom&&iso<dfFrom)return false;
+    if(dfTo&&iso>dfTo)return false;
+    return true;
+  }
   return true;
 }
 function diaryRangeSet(k){diaryRange=k;renderDiaryRange();
   renderDiaryList();if(dlLayout==='track'){dwRenderWall&&dwRenderWall()}
-  const r=DIARY_RANGES.find(x=>x.k===k)||{n:'全部'};
-  toast('时间段：'+r.n);}
+  toast('时间段：'+dfRangeName());}
 function renderDiaryRange(){const m=$('#dfRange');if(!m)return;
-  /* 8 档一行放不下 ⇒ 按跨度分两组：「近期」＝相对天数窗（7/30/90 天 + 近一年/近两年）；
-     「按日历」＝上月/今年。两组各一行，胶囊自动换行。 */
-  const RECENT=DIARY_RANGES.filter(r=>r.g===1), CAL=DIARY_RANGES.filter(r=>r.g===2);
+  /* 单段横排（产品令「标记、标签都横排选择，减少屏幕占用高度」同一口径）：
+     原来按「近期／按日历」两组各占一行 + 竖分隔 + 行首小标签 ≈ 2×34 + 8 + 24 = 100px；
+     现在 9 枚胶囊一次 flex-wrap 铺开（本机 375dp 宽实测两行），高度 ~76px。
+     `all` 排最前（恢复默认最常用），其余保持跨度递增次序，避免视觉上跳来跳去。 */
   const pill=r=>`<button class="df-pill" data-range="${r.k}" aria-pressed="${r.k===diaryRange}" onclick="diaryRangeSet('${r.k}')">${r.n}</button>`;
   const all=DIARY_RANGES.filter(r=>r.k==='all')[0];
-  m.innerHTML=`
-    <div class="w-full flex flex-wrap gap-2">${pill(all)}<span class="df-range-sep"></span>${RECENT.map(pill).join('')}</div>
-    <div class="w-full flex flex-wrap items-center gap-2 mt-2"><span class="df-range-t">按日历</span>${CAL.map(pill).join('')}</div>`;
+  const rest=DIARY_RANGES.filter(r=>r.k!=='all');
+  m.innerHTML=[all].concat(rest).map(pill).join('');
+  renderDfCustom();
   const note=$('#dfRangeNote');if(note){
-    note.textContent=diaryRange==='all'?'默认显示全部日记':'该时间段内共 '+dwShown().length+' 篇';}
+    if(diaryRange==='custom'){
+      note.textContent=(dfFrom||dfTo)?('自定义区间内共 '+dwShown().length+' 篇'):'选好起止日期后点「应用」';
+    }else{
+      note.textContent=diaryRange==='all'?'默认显示全部日记':'该时间段内共 '+dwShown().length+' 篇';}}
   renderDfCount();}
+/* 自定义起止时间段（2026-10-19 产品令「那三四年以前的怎么办？增加一个起始、结束时间的选择器」）：
+   8 档预设最长只到「近两年」，更早的日记按预设筛不出来。这里给一对原生 date 输入：
+   - 两端都可留空 ⇒ 只填一端就是「某日之后／某日之前」的开区间，比预设更通用；
+   - 只有两端都合法（from ≤ to）时「应用」才可点（`.df-go-on`），避免非法区间静默全空；
+   - 应用后 `diaryRange='custom'`，胶囊里那枚「自定义」自然进选中态（它不在 DIARY_RANGES 里，
+     由 `dfRangeName()` 兜出名字，见下）。 */
+let dfFrom='',dfTo='';
+function dfRangeName(){
+  if(diaryRange==='custom'){
+    if(dfFrom&&dfTo)return dfFrom+' 至 '+dfTo;
+    if(dfFrom)return dfFrom+' 起';
+    if(dfTo)return dfTo+' 前';
+    return '自定义';
+  }
+  const r=DIARY_RANGES.filter(x=>x.k===diaryRange)[0];
+  return r?r.n:'全部';
+}
+function renderDfCustom(){const m=$('#dfCustom');if(!m)return;
+  const on=diaryRange==='custom';
+  const ok=!!(dfFrom&&dfTo&&dfFrom<=dfTo);
+  /* 胶囊行尾补一枚「自定义」：选过起止后就常驻，否则用户找不到回入口 */
+  const hasCustomPill=!!$('#dfRange button[data-range="custom"]');
+  if(on&&!hasCustomPill&&$('#dfRange')){
+    const b=document.createElement('button');
+    b.className='df-pill';b.dataset.range='custom';b.setAttribute('aria-pressed','true');
+    b.textContent='自定义';b.onclick=()=>diaryRangeSet('custom');
+    $('#dfRange').appendChild(b);
+  }
+  m.className='df-custom mt-2.5'+(on?' df-custom-on':'');
+  m.innerHTML=
+    `<input type="date" class="df-custom-in" id="dfFrom" value="${dfFrom}" aria-label="起始日期" onchange="dfCustomSet('from',this.value)">`+
+    `<span class="df-custom-dash">—</span>`+
+    `<input type="date" class="df-custom-in" id="dfTo" value="${dfTo}" aria-label="结束日期" onchange="dfCustomSet('to',this.value)">`+
+    `<button class="df-custom-go ${ok?'df-go-on':''}" onclick="dfCustomApply()">应用</button>`;}
+function dfCustomSet(which,v){
+  if(which==='from')dfFrom=v;else dfTo=v;
+  renderDfCustom();}
+function dfCustomApply(){
+  if(!(dfFrom&&dfTo&&dfFrom<=dfTo)){toast('请选择有效的起止日期');return;}
+  diaryRange='custom';renderDiaryRange();renderDiaryList();
+  if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
+  toast('时间段：'+dfRangeName());}
 /* 底部实时计数：「当前筛选：XX，共 X 篇日记」——筛选名走 `dfLabel` 去符号 */
 function renderDfCount(){const el=$('#dfCount');if(!el)return;
-  const n=dwShown().length,rg=DIARY_RANGES.find(r=>r.k===diaryRange);
+  const n=dwShown().length;
   const parts=[];
   if(diaryFilter&&diaryFilter!=='全部')parts.push(dfLabel(diaryFilter));
-  if(diaryRange!=='all')parts.push(rg?rg.n:'');
+  if(diaryRange!=='all')parts.push(dfRangeName());
   el.textContent=parts.length?('当前筛选：'+parts.join(' · ')+'，共 '+n+' 篇'):('共 '+n+' 篇日记');}
 /* 某篇是否命中当前筛选（轨道/列表/INS 三档共用同一判据）；批1c 起先过「时间段」再判标签/互动 */
 function dwHit(i){const d=D.diary[i];
@@ -3984,20 +4107,24 @@ function dwDateLabel(d){
   return (typeof d.y==='number'&&d.y!==y)?(d.y+'-'+d.d):d.d;
 }
 function renderDiaryFilterSheet(){const m=$('#dfGroups');if(!m)return;
+  /* 横排胶囊（产品令「标记、标签都横排选择，减少屏幕占用高度」）：
+     原来每项 48px 独占一行，标记 4 项 + 标签 2 项 ≈ 288px，加上时间段与底栏几乎顶满一屏；
+     改横排后两组各占一行（标记 4 枚约一行、标签 2 枚同行），高度从 ~290px 降到 ~100px。 */
   m.innerHTML=DF_GROUPS.map(g=>
     `<div class="df-group-t">${g.t}</div>`+
+    `<div class="flex flex-wrap gap-2 mb-1">`+
     g.items.map(it=>{
       const on=diaryFilter===it.k;
-      return `<button class="df-row ${on?'df-on':''}" data-f="${it.k}" onclick="diaryFilterSet('${it.k}')">
-        <span class="df-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${it.ico}</svg></span>
-        <span>${it.label}</span><span class="df-tick">✓</span></button>`}).join('')).join('');
+      return `<button class="df-chip ${on?'df-on':''}" data-f="${it.k}" aria-pressed="${on}" onclick="diaryFilterSet('${it.k}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${it.ico}</svg>
+        <span>${it.label}</span></button>`}).join('')+`</div>`).join('');
   renderDiaryRange();syncDiaryFilterBtn();}
 /* 选中即生效并回写列表；**不自动关弹层**——指导件要求「实时统计数量 + 可连续调整」，关掉就看不到计数了 */
 function diaryFilterSet(f){diaryFilter=f;renderDiaryFilterSheet();renderDiaryList();
   if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
   toast('已按「'+dfLabel(f)+'」筛选');}
-/* 重置：标记回全部、时间段回全部 */
-function diaryFilterReset(){diaryFilter='全部';diaryRange='all';renderDiaryFilterSheet();renderDiaryList();
+/* 重置：标记回全部、时间段回全部、自定义起止一并清空 */
+function diaryFilterReset(){diaryFilter='全部';diaryRange='all';dfFrom='';dfTo='';renderDiaryFilterSheet();renderDiaryList();
   if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
   toast('已重置筛选');}
 /* ================= V1.29批2 · 回顾弹层（心情趋势+词云+那年今日） =================
