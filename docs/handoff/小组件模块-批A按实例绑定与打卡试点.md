@@ -134,4 +134,5 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 - **快照只推记账三键**：新增 `pushWidgetLedgerSnapshot`（只 `amount_cell`／`month_amount_cell`／`balance_cell`，只重绘记账 2×2 与 4×1）——弹窗引擎拿不到待办/习惯域，整包下发会把那两张卡推成空（批A 同一坑）。三键口径抽成 `ledgerWidgetCells`，整包与弹窗共用（`mStat` 只在该函数里出现）。
 - **闸**：新 `test/widget_quick_add_test.dart` **19 例全绿**（表单同源／容器两处／关闭出口／入口点 pragma／只推三键／口径唯一／渲染无 AppBar／原生八条）；回归 `desktop_widget` 30＋`widget_render` 22＋`architecture` 11＋`ledger_l2` 11＋`desktop_settings` 10＋`widget_config` 15＋`widget_checkin_echo` 14＋`size_budget` 1 全绿；`kotlin_check` BUILD SUCCESSFUL；变异三刀（摘 `shrinkWrap`／三键下发多推一枚／摘 Manifest `noHistory`）各红其位·md5 复原全等。
 - **体量登记**：`feature_size_budget_test` ledger 18045→18132（本刀净 +87 行·同一份表单换容器，无第二套 UI），此后只许减。
-- **待真机**（攒 6175）：软键盘不遮挡／返回即消／深色跟随／横竖屏（拍板件 §三 真机门四项）＋ 4×1 三区读数与隐藏金额遮蔽。
+- **6175 已出·已装机**（2026-10-18·产品令装机 `192.168.31.173:44495`）：arm64 单 ABI·versionCode 8175·52,205,537 字节·md5 `96d6170a`·预检 PASS＋aapt 四验过·构建 6m43s·`install -r` 保数据（首装时间仍 2026-09-19）·装机后启动进程存活、crash 缓冲零条。
+- **待真机验**：软键盘不遮挡／返回即消／深色跟随／横竖屏（拍板件 §三 真机门四项）＋ 4×1 三区读数与隐藏金额遮蔽。
