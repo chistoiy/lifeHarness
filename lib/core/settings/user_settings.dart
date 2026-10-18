@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../nav/nav_collapse.dart';
 import '../nav/nav_module.dart';
 
 /// V1.65·底栏收起线索「距屏幕底部」的档位（px，闭区间）——设置滑杆与
@@ -201,6 +202,8 @@ class UserSettings {
 
   /// V1.65·底栏收起后的「可见线索」形态：'a'＝细握把（默认）· 'b'＝胶囊折角。
   /// 两条都保留、由设置切换（产品 2026-10-11 拍板）。
+  /// 2026-10-18 加第三档 'none'＝不画线索（靠双指捏合还原，产品令），
+  /// 收敛口径见 `navCueStyleOf`（'a'/'b'/'none' 之外一律回落 'a'）。
   final String navLineStyle;
 
   /// V1.65·线索距屏幕底部的距离（px，档位闭区间 [kNavLineGapMin,kNavLineGapMax]）。
@@ -363,7 +366,7 @@ class UserSettings {
         profileNick: m['profileNick'] as String? ?? '',
         profileBio: m['profileBio'] as String? ?? '',
         navGestureOn: m['navGestureOn'] as bool? ?? false,
-        navLineStyle: m['navLineStyle'] == 'b' ? 'b' : 'a',
+        navLineStyle: navCueStyleOf(m['navLineStyle'] as String? ?? 'a'),
         // 越界值一律收敛到档位闭区间（照 trashKeepDays 的先例，界面不出现越界读数）。
         navLineGap: (m['navLineGap'] as int? ?? kNavLineGapDefault).clamp(
             kNavLineGapMin, kNavLineGapMax),

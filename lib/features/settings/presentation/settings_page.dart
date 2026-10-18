@@ -1372,10 +1372,10 @@ class AppearanceSettingsPage extends ConsumerWidget {
                           key: const ValueKey('nav-line-seg'),
                           keyPrefix: 'nav-line',
                           value: settings.navLineStyle,
+                          // 2026-10-18 产品令加第三档：不画线索，靠双指捏合还原。
                           items: const [
-                            (id: 'a', label: '细握把'),
-                            (id: 'b', label: '胶囊折角'),
-                          ],
+                            (id: 'a', label: '细握把'), (id: 'b', label: '胶囊折角'),
+                            (id: 'none', label: '不显示')],
                           onChanged: (v) => ref
                               .read(settingsControllerProvider.notifier)
                               .setNavLineStyle(v),
@@ -1393,12 +1393,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
                             ),
                             Text('${settings.navLineGap} px',
                                 key: const ValueKey('nav-gap-val'),
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant)),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
                           ],
                         ),
                         Slider(
@@ -1418,8 +1414,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         const SizedBox(height: 8),
                         Text(
                           '悬浮球保持原位（不随底栏落底）· 预览仅示意线索相对屏幕底部的位置',
-                          style: TextStyle(
-                              fontSize: 10,
+                          style: TextStyle(fontSize: 10,
                               color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ],
@@ -1537,13 +1532,17 @@ class _NavLinePreview extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+            left: 0, right: 0, bottom: 0,
             child: Padding(
               padding: EdgeInsets.only(bottom: gap.toDouble()),
               child: Center(
-                child: style == 'b' ? const NavLineCapsule() : const NavLineGrip(),
+                // 'none' 档：预览不画线索，改标「双指捏合还原」（否则一片空白看不出效果）。
+                child: style == 'none'
+                    ? Text('双指捏合还原底栏', key: const ValueKey('nav-line-prev-none'),
+                        style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant))
+                    : style == 'b'
+                        ? const NavLineCapsule()
+                        : const NavLineGrip(),
               ),
             ),
           ),

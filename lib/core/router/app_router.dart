@@ -816,11 +816,14 @@ class _CollapsibleNavState extends State<_CollapsibleNav>
 
 /// 底栏收起态的「可见线索」（原型 #tbGrab / #tbBadge）：防「东西去哪了」。
 ///
-/// 两条形态由设置项切换：'a' 细握把 / 'b' 胶囊折角（产品 2026-10-11：两条都留）。
+/// 两条形态由设置项切换：'a' 细握把 / 'b' 胶囊折角（产品 2026-10-11：两条都留）；
+/// 2026-10-18 产品令加第三档 'none'＝**一条都不画**（靠双指捏合还原）。
 /// 距屏幕底部＝设置档位，并**再让过系统手势条**（贴底会落进系统边缘手势区，本机踩过）。
 /// **批C-2（2026-10-18 产品令）**：原来是 `IgnorePointer` 纯线索（「箭头或短线没有
 /// 实际功能」），现在它就是还原按钮——命中区比图形大（细握把只有 4dp 高）、语义给了
 /// `button` ＋「显示底部导航栏」；手势总开关关着时这是**唯一**的回来路。
+/// `'none'` 档**只把图形画成透明**（`Opacity(0)`），命中区与语义一律保留：总开关出厂关，
+/// 若连按钮也撤掉，一旦收起就没有任何回得来的路（用户被锁死在收起态）。
 class _NavLineHint extends StatelessWidget {
 
   const _NavLineHint({
@@ -875,11 +878,15 @@ class _NavLineHint extends StatelessWidget {
                 width: kNavCueHitWidth,
                 // 图形**贴命中区底边**：视觉位置与原来逐像素相同（距底仍是 gap），
                 // 多出来的命中区全在图形上方——不往下压系统边缘手势区。
+                // 'none' 档：图形透明（不是 `SizedBox.shrink()`——那会连命中区一起没了）。
                 child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: style == 'b'
-                      ? const NavLineCapsule()
-                      : const NavLineGrip(),
+                  child: Opacity(
+                    opacity: style == 'none' ? 0 : 1,
+                    child: style == 'b'
+                        ? const NavLineCapsule()
+                        : const NavLineGrip(),
+                  ),
                 ),
               ),
             ),

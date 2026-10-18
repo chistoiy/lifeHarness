@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../nav/nav_collapse.dart';
 import '../nav/nav_module.dart';
 import '../providers.dart';
 import 'user_settings.dart';
@@ -156,9 +157,10 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
-  /// V1.65·收起后线索形态：'a' 细握把（默认）/ 'b' 胶囊折角。未知值收敛到 'a'。
+  /// V1.65·收起后线索形态：'a' 细握把（默认）/ 'b' 胶囊折角 / 'none' 不画（2026-10-18）。
+  /// 未知值收敛到 'a'（口径函数与 `fromMap` 共用 `navCueStyleOf`，禁两处各写一份）。
   Future<void> setNavLineStyle(String style) async {
-    final v = style == 'b' ? 'b' : 'a';
+    final v = navCueStyleOf(style);
     if (v == state.navLineStyle) return;
     state = state.copyWith(navLineStyle: v);
     await _persist();
