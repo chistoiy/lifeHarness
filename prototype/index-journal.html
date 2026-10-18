@@ -176,6 +176,11 @@ tailwind.config = {
   html.dark .df-pill{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.7)}
   .df-pill[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:rgba(99,102,241,.06);font-weight:600}
   .dark .df-pill[aria-pressed="true"]{background:rgba(129,140,248,.12)}
+  /* 时间段两组之间的竖分隔 + 第二组行首小标签 */
+  .df-range-sep{width:1px;height:20px;background:rgba(148,163,184,.35);align-self:center}
+  html.dark .df-range-sep{background:rgba(255,255,255,.14)}
+  .df-range-t{font-size:12px;color:rgba(100,116,139,.8);margin-right:2px}
+  html.dark .df-range-t{color:rgba(255,255,255,.42)}
   button.mood{font-size:22px;opacity:.5;filter:grayscale(.4);transition:.15s}
   /* 日记编辑批2（2026-10-19）：心情单选组——选中态在 JS 里拼（淡底+放大+小叉）；
      未选中给降饱和，选中还原全彩（避免整行花花绿绿抢正文）。 */
@@ -1268,7 +1273,11 @@ const D = {
          /* 批1c 修订：补两条更早样例——「时间段」筛选（近 30 天／今年／全部）要有可读差异，
             否则三档读数全等，看不出筛选是否真的生效。 */
          {d:'08-02',wd:'周日',wx:'晴 31°',emo:'😄',m:'开心',txt:'伏天里最痛快的一次游泳，一千五百米不停。回家路上买了两支冰棍。',tags:['运动'],img:2,linked:0,tm:'18:20',tm2:'18:20',loc:'上海市 青浦区 · 淀山湖'},
-         {d:'06-14',wd:'周日',wx:'阵雨 26°',emo:'😌',m:'平静',txt:'梅雨季第一场雨。在家把书架按心情重排了一遍，翻出三本没读过的旧书。',tags:['生活'],img:1,linked:0,tm:'15:40',tm2:'15:40',loc:'上海市 静安区 · 家'}],
+         {d:'06-14',wd:'周日',wx:'阵雨 26°',emo:'😌',m:'平静',txt:'梅雨季第一场雨。在家把书架按心情重排了一遍，翻出三本没读过的旧书。',tags:['生活'],img:1,linked:0,tm:'15:40',tm2:'15:40',loc:'上海市 静安区 · 家'},
+         /* 2026-10-19：时间段扩到「近一年／近两年」后，样例全是今年数据 ⇒ 这两档恒等于「全部」，看不出差异。
+            补两条带 `y`（年份显式值）的往年样例；不写 `y` 的一律按当年解释，不影响既有条目。 */
+         {y:2024,d:'03-08',wd:'周五',wx:'阴 14°',emo:'🙂',m:'不错',txt:'搬进新办公室的第一周，窗台朝西，下午的光很好。买了一盆绿萝放在显示器旁边。',tags:['工作'],img:1,linked:0,tm:'18:20',tm2:'18:20',loc:'上海市 徐汇区 · 漕河泾'},
+         {y:2023,d:'12-31',wd:'周日',wx:'晴 9°',emo:'😌',m:'平静',txt:'年末最后一个下午，把全年的日记从头翻了一遍。很多当时觉得过不去的事，现在只剩一句话。',tags:['复盘'],img:0,linked:0,tm:'17:05',tm2:'17:05',loc:'上海市 静安区 · 家'}],
   noteTags:['全部','方法论','灵感','工作','关联阅读'],
   notes:[{t:'SPACED 输出式学习框架',txt:'学习→复述→输出→反馈的闭环。可套用到读书摘录流程，每条摘录要求自己用三句话改写。',folder:'方法论',words:1268,time:'今天 14:20',cre:'09-02',pin:1,md:1},
          {t:'论写作工具的克制设计',txt:'写作工具的第一要务，是让人忘记工具的存在。自动保存、版本快照、断点续写，应该像地基一样平时看不见。',folder:'灵感',words:312,time:'今天 15:42',cre:'09-15',pin:0,md:0},
@@ -3873,46 +3882,69 @@ let diaryFilter='全部';
 /* 日记改版批1（2026-10-19）：切档「收藏／点亮」两个出口——原落库字段无消费口（评估件 §一「死胡同」） */
 const DIARY_FILTERS=['全部','♥ 收藏','★ 点亮','☐ 待办','#加班','#复盘'];
 /* 批1c 修订（2026-10-19 产品令四）：筛选增加「时间段」，**默认全部显示**。
-   档位取法：全部=0（默认·不设限）；近 30 天=30；今年=按 1 月 1 日起算；上月＝上一自然月整月。
-   样例数据只有 `MM-DD` 无年份，一律按「当年」解释（跨年数据不在原型演示范围内）。 */
+   2026-10-19 二次扩展（产品令「时间段选择不止近两年是否也支持选择切换」）：档位从 4 档扩到 **8 档**，
+   覆盖「近 7 天 → 近两年 → 全部」的完整跨度。判据分三类：
+   ① 相对今天的天数窗（7/30/90/365/730 天）；② 自然月/自然年（上月/今年/去年）；③ 全部＝不设限。
+   样例数据只有 `MM-DD` 无年份，一律按「当年」解释（跨年数据不在原型演示范围内）；
+   也因此「近两年」在原型上等同「全部」——**口径差别留给实现批**（真库有年份）。 */
 const DIARY_RANGES=[
-  {k:'all',   n:'全部',   d:0},
-  {k:'30d',   n:'近 30 天',d:30},
-  {k:'year',  n:'今年',   d:-1},
-  {k:'month', n:'上月',   d:-2}
+  {k:'all',   n:'全部',    g:0},
+  {k:'7d',    n:'近 7 天', g:1},
+  {k:'30d',   n:'近 30 天',g:1},
+  {k:'90d',   n:'近 3 月', g:1},
+  {k:'year',  n:'今年',    g:2},
+  {k:'month', n:'上月',    g:2},
+  {k:'1y',    n:'近一年',  g:1},
+  {k:'2y',    n:'近两年',  g:1}
 ];
 let diaryRange='all';
-/* 某篇是否落在当前时间段内。`MM-DD` → Date(当年)，用「今天 0 点」为基准算天数差。 */
+/* 某篇是否落在当前时间段内。日期取 `y`（有则用显式年份，缺省＝当年）＋ `MM-DD`，
+   以「今天 0 点」为基准算天数差；跨年条目必须显式给 `y`，否则会被当年解释。 */
 function dwInRange(i){
   if(diaryRange==='all')return true;
   const d=D.diary[i];if(!d||!d.d)return true;
   const m=/^(\d{2})-(\d{2})$/.exec(d.d);if(!m)return true;
   const now=new Date();
   const y=now.getFullYear(), mo=Number(m[1])-1, dy=Number(m[2]);
-  const t=new Date(y,mo,dy);
+  const yy=(typeof d.y==='number')?d.y:y;
+  const t=new Date(yy,mo,dy);
   const base=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  if(diaryRange==='30d')return Math.round((base-t)/86400000)<=29; /* 含今天共 30 天 */
-  if(diaryRange==='year')return t.getFullYear()===y;
+  const diff=Math.round((base-t)/86400000);
+  /* 相对天数窗：含今天 */
+  if(diaryRange==='7d')return diff>=0&&diff<=6;
+  if(diaryRange==='30d')return diff>=0&&diff<=29;
+  if(diaryRange==='90d')return diff>=0&&diff<=89;
+  if(diaryRange==='1y')return diff>=0&&diff<=364;
+  if(diaryRange==='2y')return diff>=0&&diff<=729;
+  if(diaryRange==='year')return yy===y;
   if(diaryRange==='month'){                                     /* 上一自然月 */
     const pm=now.getMonth()===0?11:now.getMonth()-1;
     const py=now.getMonth()===0?y-1:y;
-    return t.getFullYear()===py&&t.getMonth()===pm;
+    return yy===py&&mo===pm;
   }
   return true;
 }
 function diaryRangeSet(k){diaryRange=k;renderDiaryRange();
   renderDiaryList();if(dlLayout==='track'){dwRenderWall&&dwRenderWall()}
-  toast(k==='all'?'时间段：全部':('时间段：'+(DIARY_RANGES.find(r=>r.k===k)||{}).n));}
+  const r=DIARY_RANGES.find(x=>x.k===k)||{n:'全部'};
+  toast('时间段：'+r.n);}
 function renderDiaryRange(){const m=$('#dfRange');if(!m)return;
-  m.innerHTML=DIARY_RANGES.map(r=>`<button class="df-pill" data-range="${r.k}" aria-pressed="${r.k===diaryRange}" onclick="diaryRangeSet('${r.k}')">${r.n}</button>`).join('');
+  /* 8 档一行放不下 ⇒ 按跨度分两组：「近期」＝相对天数窗（7/30/90 天 + 近一年/近两年）；
+     「按日历」＝上月/今年。两组各一行，胶囊自动换行。 */
+  const RECENT=DIARY_RANGES.filter(r=>r.g===1), CAL=DIARY_RANGES.filter(r=>r.g===2);
+  const pill=r=>`<button class="df-pill" data-range="${r.k}" aria-pressed="${r.k===diaryRange}" onclick="diaryRangeSet('${r.k}')">${r.n}</button>`;
+  const all=DIARY_RANGES.filter(r=>r.k==='all')[0];
+  m.innerHTML=`
+    <div class="w-full flex flex-wrap gap-2">${pill(all)}<span class="df-range-sep"></span>${RECENT.map(pill).join('')}</div>
+    <div class="w-full flex flex-wrap items-center gap-2 mt-2"><span class="df-range-t">按日历</span>${CAL.map(pill).join('')}</div>`;
   const note=$('#dfRangeNote');if(note){
     note.textContent=diaryRange==='all'?'默认显示全部日记':'该时间段内共 '+dwShown().length+' 篇';}
   renderDfCount();}
-/* 底部实时计数：「当前筛选：XX，共 X 篇日记」 */
+/* 底部实时计数：「当前筛选：XX，共 X 篇日记」——筛选名走 `dfLabel` 去符号 */
 function renderDfCount(){const el=$('#dfCount');if(!el)return;
   const n=dwShown().length,rg=DIARY_RANGES.find(r=>r.k===diaryRange);
   const parts=[];
-  if(diaryFilter&&diaryFilter!=='全部')parts.push(diaryFilter);
+  if(diaryFilter&&diaryFilter!=='全部')parts.push(dfLabel(diaryFilter));
   if(diaryRange!=='all')parts.push(rg?rg.n:'');
   el.textContent=parts.length?('当前筛选：'+parts.join(' · ')+'，共 '+n+' 篇'):('共 '+n+' 篇日记');}
 /* 某篇是否命中当前筛选（轨道/列表/INS 三档共用同一判据）；批1c 起先过「时间段」再判标签/互动 */
@@ -3926,17 +3958,31 @@ function dwHit(i){const d=D.diary[i];
 /* 当前筛选下的条目下标序（保持新→旧原序） */
 function dwShown(){return D.diary.map((_,i)=>i).filter(dwHit)}
 /* 筛选弹层＝**两段分组**（标记／标签），每段带小标题；选中态＝文字+图标变主色+右侧对勾，背景透明。
-   指导件「标记与标签层级混杂」的解法就是这一层分组：标记解决「看哪一类互动」，标签解决「看了什么主题」。 */
+   指导件「标记与标签层级混杂」的解法就是这一层分组：标记解决「看哪一类互动」，标签解决「看了什么主题」。
+   ⚠ 2026-10-19 修订：`label` 只放**纯文字**——原来把 `♥ 收藏` 整串当标签渲染，行首已经有一枚线性图标，
+   文字前又多出一个 `♥`／`★`／`☐`／`#`，同一个符号出现两遍（产品实测指出）。`k` 仍带符号，
+   因为它是筛选值、`D.diary[].tags` 与既有 `dwHit` 判定都按带符号串比对，不动数据层。 */
 const DF_GROUPS=[
   {t:'标记', items:[
-    {k:'全部', ico:'<circle cx="12" cy="12" r="8"/>'},
-    {k:'♥ 收藏', ico:'<path d="M12 20s-7-4.6-7-9.2A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19 10.8C19 15.4 12 20 12 20Z"/>'},
-    {k:'★ 点亮', ico:'<path d="M12 3.5l2.6 5.3 5.9.85-4.3 4.2 1 5.85L12 16.9l-5.2 2.8 1-5.85L3.5 9.65l5.9-.85L12 3.5Z"/>'},
-    {k:'☐ 待办', ico:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.4 2.4 4.6-4.8"/>'}]},
+    {k:'全部',  label:'全部', ico:'<circle cx="12" cy="12" r="8"/>'},
+    {k:'♥ 收藏', label:'收藏', ico:'<path d="M12 20s-7-4.6-7-9.2A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19 10.8C19 15.4 12 20 12 20Z"/>'},
+    {k:'★ 点亮', label:'点亮', ico:'<path d="M12 3.5l2.6 5.3 5.9.85-4.3 4.2 1 5.85L12 16.9l-5.2 2.8 1-5.85L3.5 9.65l5.9-.85L12 3.5Z"/>'},
+    {k:'☐ 待办', label:'待办', ico:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.4 2.4 4.6-4.8"/>'}]},
   {t:'标签', items:[
-    {k:'#加班', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'},
-    {k:'#复盘', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'}]}
+    {k:'#加班', label:'加班', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'},
+    {k:'#复盘', label:'复盘', ico:'<path d="M8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"/>'}]}
 ];
+/* 给用户看的筛选名（去掉数据层的符号前缀）：底部计数与 toast 都走这里，别直接吐 `♥ 收藏` */
+function dfLabel(k){
+  const all=[];DF_GROUPS.forEach(g=>g.items.forEach(it=>all.push(it)));
+  const hit=all.filter(it=>it.k===k)[0];
+  return hit?hit.label:k;
+}
+/* 卡片日期显示：当年省略年份（`10-17`），往年的补 `YYYY-` 前缀（`2023-12-31`），避免同年同月同日分不清 */
+function dwDateLabel(d){
+  const y=new Date().getFullYear();
+  return (typeof d.y==='number'&&d.y!==y)?(d.y+'-'+d.d):d.d;
+}
 function renderDiaryFilterSheet(){const m=$('#dfGroups');if(!m)return;
   m.innerHTML=DF_GROUPS.map(g=>
     `<div class="df-group-t">${g.t}</div>`+
@@ -3944,12 +3990,12 @@ function renderDiaryFilterSheet(){const m=$('#dfGroups');if(!m)return;
       const on=diaryFilter===it.k;
       return `<button class="df-row ${on?'df-on':''}" data-f="${it.k}" onclick="diaryFilterSet('${it.k}')">
         <span class="df-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${it.ico}</svg></span>
-        <span>${it.k}</span><span class="df-tick">✓</span></button>`}).join('')).join('');
+        <span>${it.label}</span><span class="df-tick">✓</span></button>`}).join('')).join('');
   renderDiaryRange();syncDiaryFilterBtn();}
 /* 选中即生效并回写列表；**不自动关弹层**——指导件要求「实时统计数量 + 可连续调整」，关掉就看不到计数了 */
 function diaryFilterSet(f){diaryFilter=f;renderDiaryFilterSheet();renderDiaryList();
   if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
-  toast('已按「'+f+'」筛选');}
+  toast('已按「'+dfLabel(f)+'」筛选');}
 /* 重置：标记回全部、时间段回全部 */
 function diaryFilterReset(){diaryFilter='全部';diaryRange='all';renderDiaryFilterSheet();renderDiaryList();
   if(dlLayout==='track'){try{dwRenderWall()}catch(e){}}
@@ -4014,7 +4060,7 @@ function renderDiaryList(){const el=$('#diaryList');if(!el)return;
  el.innerHTML=shown.map(i=>{const d=D.diary[i];return `<div class="card mb-3 ${dlSelMode&&dlSel.has(i)?'ring-2 ring-brand-500':''}" onclick="dlRowTap(${i})" oncontextmenu="event.preventDefault();dlEnterSel(${i})">
     <!-- 浅色质感优化（2026-10-19 指导件 · 信息层级）：左上日期+天气为主文字、右上 emoji+心情为次级灰、正文主黑、底部标签左时间右 -->
     <div class="flex items-start gap-2">
-      <div class="flex items-baseline gap-1.5 min-w-0"><b class="text-[15px] text-[#1D2129] dark:text-slate-100 tracking-tight">${d.d}</b><span class="text-[10px] text-slate-400 dark:text-slate-500">${d.wd} · ${d.wx}</span></div>
+      <div class="flex items-baseline gap-1.5 min-w-0"><b class="text-[15px] text-[#1D2129] dark:text-slate-100 tracking-tight">${dwDateLabel(d)}</b><span class="text-[10px] text-slate-400 dark:text-slate-500">${d.wd} · ${d.wx}</span></div>
       <span class="ml-auto flex items-center gap-1 shrink-0">${(DI_LIKE[i]&&DI_LIKE[i].like)?`<span class="text-[10px]" style="color:#e11d48" title="已收藏">${IC_HEART_F}</span>`:''}${(DI_LIKE[i]&&DI_LIKE[i].star)?`<span class="text-[10px]" style="color:#f59e0b" title="已点亮">${IC_STAR_F}</span>`:''}<span class="text-[13px] opacity-80">${d.emo}</span><span class="text-[10px] text-slate-400 dark:text-slate-500">${d.m}</span></span></div>
     <div class="text-[13.5px] leading-6 mt-1.5 text-[#1D2129] dark:text-slate-200">${d.txt}</div>
     ${d.img?`<div class="mt-2 flex gap-1">${Array.from({length:Math.min(4,d.img)},(_,k)=>`<span class="w-14 h-14 rounded-[10px] bg-gradient-to-br ${DI_IMG[k%3]}" onclick="event.stopPropagation();insImgView(${i},${k})"></span>`).join('')}${d.img>4?`<span class="w-14 h-14 rounded-[10px] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-400">+${d.img-4}</span>`:''}</div>`:''}
