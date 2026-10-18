@@ -169,15 +169,27 @@ void main() {
       expect(strings, contains('连击 %1\$d 天'), reason: '带连击的两档须带天数占位');
     });
 
-    test('点击一律走 C15 唯一出口 clickIntent（禁自拼 Intent）', () {
+    test('点击一律走 LhWidget 出口（clickIntent/habitCheckIntent·禁自拼 Intent）', () {
       final clicks = RegExp(r'setOnClickPendingIntent\(').allMatches(habit).length;
       final viaHelper =
-          RegExp(r'LhWidget\.clickIntent\(').allMatches(habit).length;
-      expect(clicks, greaterThanOrEqualTo(2));
-      expect(viaHelper, greaterThanOrEqualTo(2),
-          reason: '有 $clicks 处点击、只有 $viaHelper 处走 clickIntent ⇒ 有人自拼了 Intent');
+          RegExp(r'LhWidget\.(clickIntent|habitCheckIntent)\(').allMatches(habit).length;
+      final viaNull = RegExp(r'setOnClickPendingIntent\(R\.id\.lh_wg_btn, null\)')
+          .allMatches(habit)
+          .length;
+      expect(clicks, greaterThanOrEqualTo(3));
+      // 每处点击都必须是「LhWidget 出口」或「显式撤意图」之一，禁裸拼 Intent。
+      expect(viaHelper + viaNull, clicks,
+          reason: '有 $clicks 处点击、只有 ${viaHelper + viaNull} 处走 LhWidget 出口'
+              '（含显式 null）⇒ 有人自拼了 Intent');
       expect(habit, contains('LhWidget.SEG_HABIT_CHECK'));
+      // 批A 交互闭环层：未打卡按钮走**广播直达**（不开 App），root 仍走 C15 起 App。
+      expect(habit, contains('LhWidget.habitCheckIntent('));
+      expect(habit, contains('LhWidget.habitCheckIntent(context, appWidgetId, row.name)'));
+      expect(support, contains('fun habitCheckIntent('));
       expect(support, contains('const val SEG_HABIT_CHECK = "habit/check"'));
+      // requestCode 必须每实例一个（PendingIntent 相等性不比 extras：
+      // 同码＋FLAG_UPDATE_CURRENT 会让第二枚覆写第一枚里的习惯名）。
+      expect(support, contains('REQ_HABIT_CHECK_BASE + appWidgetId'));
     });
   });
 

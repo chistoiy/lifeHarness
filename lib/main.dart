@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show File;
 import 'dart:isolate';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodChannel, MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +16,7 @@ import 'core/backup/backup_service.dart';
 import 'core/backup/db_overview.dart';
 import 'core/backup/lh_bak.dart' show LhBak;
 import 'shared/linkage/backup_projection.dart' show buildNoteProjectionMembers;
+import 'shared/linkage/widget_checkin_mounts.dart' show runWidgetHabitCheckin;
 import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
@@ -40,6 +42,39 @@ import 'features/read/domain/s2t_map.dart';
 import 'features/todo/data/todo_dao.dart';
 import 'features/todo/domain/todo.dart';
 import 'shared/trash/trash_repository.dart';
+
+/// 小组件打卡的**后台 isolate 入口**（批A 交互闭环层·原生
+/// `HabitCheckReceiver` 起无头引擎时跑这里，`main()` 不执行）。
+///
+/// ## 为什么必须是根库顶层函数
+///
+/// 原生侧 `DartExecutor.DartEntrypoint(bundlePath, "widgetBackgroundMain")`
+/// 按**函数名**在根库解析；`@pragma('vm:entry-point')` 告诉编译器别把它当死
+/// 代码摇掉（release 树摇后全仓无引用点，不加 pragma 上线即「点了没反应」）。
+///
+/// ## B8 纪律：不初始化任何 UI 依赖
+///
+/// 本 isolate 没有 FlutterView/WidgetsBinding——只用方法通道调
+/// [runWidgetHabitCheckin]（开库→写库→推习惯三键→收敛重绘）。失败由原生
+/// 回滚显示态并入队，App 启动排空兜底。
+@pragma('vm:entry-point')
+void widgetBackgroundMain() {
+  const channel = MethodChannel(kWidgetBgChannel);
+  channel.setMethodCallHandler((call) async {
+    if (call.method == kWidgetBgCheckin) {
+      final args = call.arguments;
+      final name = args is Map ? args['habit'] as String? : null;
+      return runWidgetHabitCheckin(name ?? '');
+    }
+    throw MissingPluginException('No handler for ${call.method} on $kWidgetBgChannel');
+  });
+}
+
+/// 后台 isolate 通道名（原生 `HabitCheckReceiver` 逐字一致·守护测试交叉核对）。
+const String kWidgetBgChannel = 'lh/widget_bg';
+
+/// 后台 isolate 方法名（打卡一站式：写库＋快照收敛）。
+const String kWidgetBgCheckin = 'habitCheckin';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

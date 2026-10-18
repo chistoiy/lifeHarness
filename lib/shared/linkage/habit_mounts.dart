@@ -147,6 +147,11 @@ class HabitCheckOutcome {
 /// 打卡成功同时发一条 Heads-Up 横幅（与打卡页同一出口 ⇒ 两处行为一致）。
 ///
 /// 返回 null ＝ 习惯不在册（已删）。
+///
+/// ⚠ 写库核心已抽成 [habitCheckinWrite]——小组件后台 isolate 打卡
+/// （`widget_checkin_mounts.dart`）与之**共用同一实现**：两处入口可以不同
+/// （一个按 id 一个按名字），写库口径禁分叉（评估件 §4.1：打卡不是单列写，
+/// 复刻＝行为分叉）。
 Future<HabitCheckOutcome?> habitCheckInById(
   String habitId, {
   Database? db,
@@ -155,6 +160,27 @@ Future<HabitCheckOutcome?> habitCheckInById(
   final repo = HabitRepository(db ?? AppDatabase.instance.db);
   final h = await repo.habitById(habitId);
   if (h == null) return null;
+  final out = await habitCheckinWrite(repo, h, now: now);
+  // 回执**延后发**（不 await）：本出口的唯一调用方是 NFC 贴卡——App 在执行链上
+  // 可能正在退后台，横幅得等界面落定再弹（前台则由触发链自己的 toast 覆盖）。
+  // 批3e：改走自绘悬浮横幅（系统 Heads-Up 在本机 ROM 上只进通知栏不上浮）。
+  unawaited(nfcReceiptLater(
+      out.streak > 0 ? '打卡成功 · ${h.name} · 连续 ${out.streak} 天' : '打卡成功 · ${h.name}'));
+  return out;
+}
+
+/// 打卡写库核心（**NFC 贴卡与小组件后台打卡共用的唯一写出口**）。
+///
+/// 口径＝打卡页手动打卡：`upsertEntry(checked:true, origin:manual)`，连续天数
+/// 由仓库重算后回读。**已打卡不重复计、也不撤销**（贴卡/点小组件都是「补一下」，
+/// 误触不该抹掉记录）。整段不含任何 UI/回执依赖——后台 isolate 可直接调用。
+///
+/// ⚠ [h] 必须已在册（调用方负责判空）；习惯被删/改名后原样调用会抛，由上层兜。
+Future<HabitCheckOutcome> habitCheckinWrite(
+  HabitRepository repo,
+  Habit h, {
+  DateTime? now,
+}) async {
   final t = now ?? DateTime.now();
   final k = dayKey(t);
   final entries = await repo.entriesOf(h.id);
@@ -171,12 +197,6 @@ Future<HabitCheckOutcome?> habitCheckInById(
         '${t.minute.toString().padLeft(2, '0')}',
   );
   final after = await repo.habitById(h.id);
-  final streak = after?.streak ?? 0;
-  // 回执**延后发**（不 await）：本出口的唯一调用方是 NFC 贴卡——App 在执行链上
-  // 可能正在退后台，横幅得等界面落定再弹（前台则由触发链自己的 toast 覆盖）。
-  // 批3e：改走自绘悬浮横幅（系统 Heads-Up 在本机 ROM 上只进通知栏不上浮）。
-  unawaited(nfcReceiptLater(
-      streak > 0 ? '打卡成功 · ${h.name} · 连续 $streak 天' : '打卡成功 · ${h.name}'));
   return HabitCheckOutcome(
-      checked: true, already: false, name: h.name, streak: streak);
+      checked: true, already: false, name: h.name, streak: after?.streak ?? 0);
 }

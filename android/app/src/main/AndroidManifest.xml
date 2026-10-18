@@ -260,6 +260,15 @@
             android:name=".TodoActionReceiver"
             android:exported="false" />
 
+        <!-- 批A 交互闭环层 · 打卡主按钮的闭环执行器（**内部广播，不导出**）。
+             ⚠ `exported=false` 是硬要求：无头引擎入口若可被外部唤起＝任意 app 能
+             驱动我们的 Dart 写库。同进程（widget 的 PendingIntent）投递不受此限。
+             ⚠ 它**一行 sqlite 都不碰**：打卡不是单列写，写库归后台 isolate 跑
+             Dart 仓库出口（评估件 §4.1）；本 Receiver 只负责起引擎＋回执收摊。 -->
+        <receiver
+            android:name=".HabitCheckReceiver"
+            android:exported="false" />
+
         <!-- V1.67 桌面批2（F2-4）：拖到桌面时的配置页（可选「显示什么」）。
              与设置页共用同一份偏好（FlutterSharedPreferences 的 desktop.* 键 · 禁两套）。
 

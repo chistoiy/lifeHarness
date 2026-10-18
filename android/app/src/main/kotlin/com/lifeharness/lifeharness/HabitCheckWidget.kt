@@ -27,12 +27,13 @@ import es.antonborri.home_widget.HomeWidgetProvider
  * 「未选择内容，点此设置」／源失效「内容已失效，点此重新选择」。三态共用同一个
  * `lh_wg_ph` 占位控件，只换文案——**不另画三套布局**（一维结构最不容易错位）。
  *
- * ⚠ 点击去向（本刀＝过渡态）：
- *  · 未打卡 → `lh://habit/check`（起 App 习惯页）；
+ * ⚠ 点击去向（批A 交互闭环层·评估件 §4.1/§4.2）：
+ *  · 未打卡 → **广播直达** [LhWidget.habitCheckIntent]（起无头 Flutter 引擎跑
+ *    Dart 仓库出口，**不开 App**；点击瞬间先乐观回显成已打卡，写库结果由
+ *    快照收敛/回滚入队兜底）；
  *  · 三态占位 → 同段（起 App 让用户去选/去核对）。
- * 交互闭环刀会把「未打卡」换成**广播直达**（乐观回显 → 后台提交 → 快照收敛，
- * 不开 App）；占位态届时改指「设置 › 桌面与快捷方式」（需新增 `lh://settings/desktop`
- * 段，跨 C19 白名单与路由解析，单独一刀做）。
+ *  · 占位态将来改指「设置 › 桌面与快捷方式」需新增 `lh://settings/desktop` 段
+ *    （跨 C19 白名单与路由解析），单独一刀做。
  */
 class HabitCheckWidget : HomeWidgetProvider() {
 
@@ -73,7 +74,7 @@ class HabitCheckWidget : HomeWidgetProvider() {
             renderPlaceholder(context, views, R.string.lh_widget_source_invalid)
             return
         }
-        renderHabit(context, views, row)
+        renderHabit(context, views, row, appWidgetId)
     }
 
     /** 失效三态：只留标题＋居中占位文案，整卡可点（起 App 去处理）。 */
@@ -93,7 +94,12 @@ class HabitCheckWidget : HomeWidgetProvider() {
     }
 
     /** 正常态：习惯名＋（状态点·连击/今日）＋主按钮。 */
-    private fun renderHabit(context: Context, views: RemoteViews, row: LhWidget.HabitRow) {
+    private fun renderHabit(
+        context: Context,
+        views: RemoteViews,
+        row: LhWidget.HabitRow,
+        appWidgetId: Int,
+    ) {
         views.setViewVisibility(R.id.lh_wg_habit, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_status_row, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_gap, View.VISIBLE)
@@ -143,10 +149,12 @@ class HabitCheckWidget : HomeWidgetProvider() {
         if (row.done) {
             views.setOnClickPendingIntent(R.id.lh_wg_btn, null)
         } else {
-            // ⚠ 过渡态：本刀先起 App 习惯页；交互闭环刀换成广播直达（不开 App）。
+            // 批A 交互闭环层：**广播直达**（起无头引擎跑 Dart 仓库出口，不开 App）。
+            // ⚠ requestCode 每实例一个（PendingIntent 相等性不比 extras）——
+            //   见 [LhWidget.habitCheckIntent]。
             views.setOnClickPendingIntent(
                 R.id.lh_wg_btn,
-                LhWidget.clickIntent(context, LhWidget.SEG_HABIT_CHECK, REQ_BTN),
+                LhWidget.habitCheckIntent(context, appWidgetId, row.name),
             )
         }
         views.setOnClickPendingIntent(
@@ -159,8 +167,30 @@ class HabitCheckWidget : HomeWidgetProvider() {
         )
     }
 
+    /**
+     * 乐观回显：把该实例**当场画成**「已打卡」（批A 交互闭环层·评估件 §4.2）。
+     *
+     * 为什么需要：后台 isolate 冷启动要几百 ms~1s+，这段时间用户看到的还是
+     * 旧态——「点了没反应」是桌面交互最劣的反馈。回显借用 [renderHabit] 的
+     * 已打卡分支（淡底＋「已打卡」文案＋**按钮意图撤掉**防连点），与真打卡后
+     * 的观感逐像素一致；连击数暂用旧值，等 Dart 推回真快照时自然收敛。
+     *
+     * 三条纪律：
+     *  · **只画自己这一枚**（appWidgetId 直改，不走广播重绘——回显要的是即时）；
+     *  · 快照表里查不到这个名字 ⇒ **不猜一个状态画上去**（源失效让它走占位）；
+     *  · 本函数不碰任何业务库——回显只改「显示态」，写库归 isolate（C5 精神）。
+     */
+    fun echoChecked(context: Context, appWidgetId: Int, habitName: String) {
+        val mgr = AppWidgetManager.getInstance(context) ?: return
+        val row = LhWidget.readHabitRows(LhWidget.snapshot(context))
+            .firstOrNull { it.name == habitName } ?: return
+        val views = RemoteViews(context.packageName, R.layout.lh_widget_habit)
+        // 借实例方法即可（provider 无状态，渲染不吃字段）；done=true 走已打卡分支。
+        HabitCheckWidget().renderHabit(context, views, row.copy(done = true), appWidgetId)
+        mgr.updateAppWidget(appWidgetId, views)
+    }
+
     private companion object {
         const val REQ_ROOT = 0x4C4001
-        const val REQ_BTN = 0x4C4100
     }
 }

@@ -311,3 +311,29 @@ Future<void> pushDesktopWidgetSnapshot(DesktopWidgetSnapshot snap) async {
     // 静默降级——小组件保留上次快照，不影响 App 主链路（B13）。
   }
 }
+
+/// **只下发习惯相关三个键**并重绘两枚会显示它们的 widget（批A 交互闭环层）。
+///
+/// 为什么不能直接复用 [pushDesktopWidgetSnapshot]：后台 isolate 里拿不到
+/// 待办/读数域（无 riverpod 容器），整包下发会把它们覆盖成空值——桌面上的
+/// 待办/金额会整片消失。收敛只该动习惯这三个键：
+/// `habit_items`／`habit_done`／`habit_total`，重绘范围＝打卡枚＋今日概览
+/// （唯一消费这三键的两枚）。
+Future<void> pushWidgetHabitSnapshot({
+  required List<WidgetHabitItem> items,
+  required int done,
+  required int total,
+}) async {
+  try {
+    await HomeWidget.saveWidgetData<String>(
+        LhWidgetKeys.habitItems, encodeWidgetHabitItems(items));
+    await HomeWidget.saveWidgetData<String>(
+        LhWidgetKeys.habitDone, '$done');
+    await HomeWidget.saveWidgetData<String>(
+        LhWidgetKeys.habitTotal, '$total');
+    await HomeWidget.updateWidget(androidName: LhWidgetNames.habitCheck);
+    await HomeWidget.updateWidget(androidName: LhWidgetNames.todayOverview);
+  } catch (_) {
+    // catch-ok: 与整包下发同口径——收敛失败不致命，下次 App 推快照自然纠正。
+  }
+}

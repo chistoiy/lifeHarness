@@ -192,7 +192,7 @@ AGENTS_BYTES_MAX = 16384            # 16 KiB（Codex project_doc_max_bytes 默�
 _gate("守护十一", "AGENTS.md", os.path.getsize("AGENTS.md"), AGENTS_BYTES_MAX, yellow=False)
 # 十二) 交接文档（2026-10-14 首次瘦身＝正文变更日志改滚动窗口只留近 7 天：203140→149674 字节；
 #       2026-10-16 治理五轮T2 二次瘦身＝「附」段被当成第二面变更日志，164 条流水 137 KB 整段沉档：161031→21540 字节）
-JIAOJIE_BYTES_MAX = 25600            # 25 KiB（棘轮＝瘦身后实测 21540 × 1.15 取整；旧上限 168 KiB）
+JIAOJIE_BYTES_MAX = 24289            # 23.7 KiB（棘轮＝瘦身后实测 21121 × 1.15 取整；上一档 25600·只降不升）
 _gate("守护十二", "docs/交接文档.md", os.path.getsize("docs/交接文档.md"), JIAOJIE_BYTES_MAX)
 # 十二B) 交接文档「唯一活体变更日志面」内容型闸（2026-10-16 治理五轮T2 新增·守护十二只卡总字节看不见病根）
 #        病灶＝「附·本机未入库资产清单」标题之下被当成第二面变更日志，逐轮流水堆到 137 KB／全文 87%，

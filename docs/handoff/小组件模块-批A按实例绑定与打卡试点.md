@@ -58,11 +58,11 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 
 1. 读评估件 §一~§五＋本工单 §1 面板；2. 过 §3 拍板五项（产品勾定后回填面板「批内增量」对应项）；3. 与在飞 NFC 线确认 `android/**` 写面串行（先落 Dart 侧）；4. 原型样张先过门再动实现；5. 按 §2 五层顺序落刀，每刀编译＋测试＋doclint。
 
-**新会话从这里接（2026-10-18 收尾态）**：
+**新会话从这里接（2026-10-18 收尾态 · 五层全落）**：
 
-- **已交付**：绑定层第一刀（`67f1eda9`·域＋store＋16 例）；原型整改（4×1 三区／待办勾圈／**记一笔弹窗版式同源**·`widget_acheck` 38/38）；复测包 **6174 已出已装机**（8174）。
-- **卡在**：**原型样张待产品过门**（截图＝`tempWork/wa-shots/dt-desk-quickpopup-{open,transfer,debt}.png`＋`dt-widget-quickpopup-card.png`）。过门后第一刀＝**对话框 Activity（内嵌 Flutter 渲染记账页同一份表单）**，见拍板件 §五；不要再按「原生复刻紧凑表单」起手。
-- **写区**：本批 `android/**` 与在飞 NFC 线**串行**（NFC 收口前只落 Dart 侧：选择器参数化／配置页 provider／回显逻辑）。
+- **已交付**：原型整改（4×1 三区／待办勾圈／**记一笔弹窗版式同源**·`widget_acheck` 38/38·样张**已过门**）；Dart 侧四层（绑定层 16 例／选择层 20 例／配置页 15 例）＋渲染层 22 例；**交互闭环层 14 例**（`test/widget_checkin_echo_test.dart`·回归八波 108 例全绿·kotlin 过）；复测包 **6174 已出已装机**（8174）。
+- **下一站**：① **攒 6175 出包**（产品令装机时一枚打包——动过 `android/**`：新 provider＋闭环 receiver＋Manifest；届时设置页「添加小组件」才真能落桌面）；② §7.1 记一笔**对话框 Activity**（内嵌 Flutter 渲染记账页同一份表单·已登排期池 #20，过门后另起一刀）；③ 批B＝计时/快捷动作两枚 provider（规格见评估件 §2.5 批次建议）。
+- **写区**：`android/**` 已随本批落地（NFC 线收口前曾只落 Dart 侧的串行纪律已解除——NFC 批3f 已装机待真机复测，不再写码）。
 - **口径提醒**：`--target-platform android-arm64` **不**自动 +2000（偏移只在 `split-per-abi`）⇒ 装机号靠 `--build-number <编号+2000>`＋`local.properties` 同值钉版。
 
 ## §6 原型样张交付记录（2026-10-17 · **待产品过门**）
@@ -98,6 +98,14 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
   - **预览图**：`tools/gen_widget_previews.py` 增第五枚 `draw_habit`（浅/深两档；MIUI 只认 `previewImage`，缺图会回落应用图标、五枚长得一模一样）。
   - **本刀刻意未做**：未打卡按钮与占位态仍指 `lh://habit/check`（白名单既有段）——**广播直达**与「点占位去设置页」（需新增 `lh://settings/desktop` 段）留给交互闭环刀，避免跨线改 C19 白名单与路由解析。
 - **下一步**：交互闭环（点击打卡 → 乐观回显 → 后台 isolate → 同源仓库出口；失败入待排空队列·App 启动排空；`test/widget_checkin_echo_test.dart`）→ 之后攒 6175 出包（产品要装机就提前，届时设置页「添加小组件」才真能落桌面）。
+- **交互闭环层已落（第五刀·2026-10-18·动 `android/**`）**：点击 → 原生乐观回显 → 无头 Flutter 引擎跑 Dart → 同源仓库出口 → 收敛；失败/超时回滚入待排空队列，App 启动排空（幂等）。
+  - **Dart 侧**：`lib/shared/linkage/widget_checkin_mounts.dart`（`widgetCheckinByName` 按名打卡复用 `habitCheckinWrite`——NFC/App/小组件三入口一个写实现；`runWidgetHabitCheckin` = 开库→写库→推快照；`pushWidgetHabitSnapshot` **只推习惯三键**重绘两枚，禁整包下发（会把待办/金额推成空值）；`drainPendingWidgetChecks` 逐名补写逐名清）＋`main.dart` 增 `@pragma('vm:entry-point') widgetBackgroundMain`（自定义入口点·不初始化 UI 依赖·B8）＋`habit_mounts` 抽出 `habitCheckinWrite` 写核。
+  - **原生侧**：`HabitCheckReceiver`（起无头引擎＋等回执收摊＋销毁·**零 sqlite**——打卡不是单列写，禁复刻）＋`HabitCheckWidget.echoChecked`（`row.copy(done = true)` 借已打卡分支·只画自己一枚·查不到不猜）＋`LhWidget.habitCheckIntent`（广播直达·**requestCode 每实例一个**）＋Manifest 收编（exported=false）。
+  - **四个坑**：① `FlutterLoader.ensureInitializationComplete` 带 Looper 检查（非主线程直接抛）⇒ 引擎只能在 **onReceive 主线程**建、worker 单线程等回执；② `DartExecutor.DartEntrypoint(bundlePath, "widgetBackgroundMain")` 两参构造＝「默认 bundle＋根库自定义入口」，native 侧 null bundle 不可靠故显式取 `findAppBundlePath()`；③ Kotlin 匿名实现 `MethodChannel.Result` 的 `error` 首参平台类型是**非空** `String`（写成 `String?` 编译红）；④ import 路径是 `io.flutter.embedding.engine.dart.DartExecutor`（带 `.dart` 子包）。
+  - **闸**：新 `test/widget_checkin_echo_test.dart` **14 例全绿**（出口同源四／回显三态四／队列行为六）＋回归八波 108 例全绿（render 22／desktop_widget 30／snapshot_exec 6／actions 13／settings 10／architecture 11／size_budget 1／nfc_linkage 15）；`flutter analyze` 本批零 error；`kotlin_check.sh` `BUILD SUCCESSFUL`；变异两刀各自红其位（receiver 塞原生 SQL⇒「禁碰 sqlite」红；摘回显 `done = true`⇒「乐观回显」红）·md5 复原全等。
+  - **存量红处理（非本刀净增）**：`feature_size_budget_test` 两处越档按实测同步登记（此后只许减）——settings +132＝NFC 批1b 管理屏入口（`b4e98058`·+49）＋批A 配置页刀（`ed834d9f`·设置页「添加小组件」＋打卡枚行·+93）；habit +9＝NFC 批3 贴卡触发链（`52bb9e1e`）。两刀均未跑过本闸，越档滚到本收口轮才发现。
+  - **存量红处理二（文档域）**：交接文档 §5 超上限 54 字节（存量）⇒ 最旧块（2026-10-17 NFC 批3 系与推送 12 行）整段沉 `docs/archive/变更台账-20261017-NFC批3系与推送.md`，正文留指针；doclint 守护十二棘轮随之下调 25,600→24,289（只降不升）。排期池黄灯的不瘦理由沿用 §7.3。
+  - **存量红处理三（代码域）**：`feature_size_budget_test` 第二道断言红＝nfc（4,723 行）与 widget（1,079 行）两个新 feature 目录**从未登记**（批1~批3f 与本批前四刀均未跑过本闸）⇒ 按现值登记（此后只许减）；连同 settings/habit 两处越档一并同步。修后该件 2 例全绿。
 
 ### §7.1 产品追加需求：记一笔「不打开 App 直接弹窗记账」（2026-10-18 拍板走 A 路）
 

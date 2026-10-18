@@ -5,11 +5,14 @@ import '../../core/platform/desktop_widget.dart';
 import '../../core/providers.dart';
 import '../../features/habit/domain/habit_calc.dart' show dayKey, habitStreak;
 import '../../features/habit/presentation/habit_providers.dart'
-    show habitDataProvider;
+    show HabitData, habitDataProvider;
 import '../../features/ledger/domain/ledger_calc.dart' show mStat, monthKey;
 import '../../features/ledger/presentation/ledger_providers.dart'
     show ledgerDataProvider;
 import 'stats_providers.dart' show Todo, todosProvider, todoRepositoryProvider;
+// 打卡闭环的排空在 widget_checkin_mounts（写库编排）；本文件持有组合根
+// mount 点，故此处反向 import——Dart 允许库间循环引用，两侧只碰各自符号。
+import 'widget_checkin_mounts.dart' show drainPendingWidgetChecks;
 
 /// 桌面模块批2 · 小组件快照同步挂载点（app.dart watch，仿 `desktopShortcutSeedProvider`）。
 ///
@@ -37,6 +40,10 @@ final desktopWidgetSyncProvider = Provider<void>((ref) {
 
   // 桌面勾圈闭环的补写队列排空（批3）。见 [drainPendingWidgetToggles] 的来由。
   Future(() => drainPendingWidgetToggles(ref));
+
+  // 打卡闭环的补写队列排空（批A 交互闭环层：广播直达写库失败时的兜底）。
+  // 见 [drainPendingWidgetChecks] 的来由。
+  Future(() => drainPendingWidgetChecks(ref));
 
   ref.listen(todosProvider, (_, _) => push());
   ref.listen(habitDataProvider, (_, _) => push());
@@ -112,23 +119,11 @@ DesktopWidgetSnapshot? buildSnapshot(WidgetSnapshotRead read) {
       (todos ?? const <Todo>[]).where((t) => _isOnToday(t.dueAt, now)).length;
 
   // 今日习惯：应打卡集合（dueToday）＋其中已完成（okOn）。
-  var habitTotal = 0;
-  var habitDone = 0;
-  // 打卡-单习惯 2×2 的查表数据：**未归档**全部习惯的今日状态。
-  // 归档/删除的习惯不进表 ⇒ 绑着它的桌面实例查不到行 ⇒ 显示「内容已失效」。
-  final habitItems = <WidgetHabitItem>[];
-  if (habit != null) {
-    final due = habit.dueToday(now);
-    habitTotal = due.length;
-    habitDone = due.where((h) => habit.okOn(h, k)).length;
-    for (final h in habit.book) {
-      habitItems.add(WidgetHabitItem(
-        name: h.name,
-        streak: habitStreak(h, habit.of(h.id), now),
-        done: habit.okOn(h, k),
-      ));
-    }
-  }
+  // null＝习惯域还没首达（预览卡占位；桌面保持上次快照 · B6）。
+  final (habitDone, habitTotal) = habitDueCounts(habit, now);
+  // 打卡-单习惯 2×2 的查表数据：**未归档**全部习惯的今日状态（唯一真源
+  // ＝[widgetHabitItems]，后台 isolate 打卡收敛与设置页预览都走它）。
+  final habitItems = widgetHabitItems(habit, now);
 
   // 今日支出：当前账本、排除「不计入」（nb）；refund 按 mStat 口径冲抵。
   // 记账 2×2 要三行读数 ⇒ 今日/本月各算一次，结余＝本月收入−本月支出（口径同 mStat）。
@@ -179,3 +174,34 @@ bool _isOnToday(DateTime? dueAt, DateTime now) =>
     dueAt.year == now.year &&
     dueAt.month == now.month &&
     dueAt.day == now.day;
+
+/// 今日达成聚合（`widgetHabitItems`/概览 2×2 计数共用的唯一真源）。
+///
+/// 返回 `(已完成, 应打卡)`；[habit] 为 null（域未首达）⇒ `(0, 0)`。
+(int, int) habitDueCounts(HabitData? habit, DateTime now) {
+  if (habit == null) return (0, 0);
+  final due = habit.dueToday(now);
+  final k = dayKey(now);
+  return (due.where((h) => habit.okOn(h, k)).length, due.length);
+}
+
+/// 打卡-单习惯 2×2 的查表数据（**未归档**全部习惯的今日状态）。
+///
+/// 归档/删除的习惯不进表 ⇒ 绑着它的桌面实例查不到行 ⇒ 桌面显示「内容已失效」
+/// （不需要另设失效标记位）。
+///
+/// **为什么抽成共享函数**：App 内快照下发（[buildSnapshot]）、后台 isolate
+/// 打卡收敛推送、设置页预览卡三处消费同一份表——各算一套必然漂移（批A
+/// 交互闭环层口径）。[now] 可注入（测试/调用点统一传同一个时刻）。
+List<WidgetHabitItem> widgetHabitItems(HabitData? habit, DateTime now) {
+  if (habit == null) return const <WidgetHabitItem>[];
+  final k = dayKey(now);
+  return <WidgetHabitItem>[
+    for (final h in habit.book)
+      WidgetHabitItem(
+        name: h.name,
+        streak: habitStreak(h, habit.of(h.id), now),
+        done: habit.okOn(h, k),
+      ),
+  ];
+}

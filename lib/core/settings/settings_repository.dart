@@ -47,6 +47,11 @@ class SettingsRepository {
 
   /// 批3 · 勾圈闭环的补写队列（原生写库失败时暂存，App 启动时排空）。
   static const String kDeskPendingTogglesKey = 'desktop.widget_pending_toggles';
+  /// 打卡闭环的补写队列（批A·原生 `LhWidget.PREF_PENDING_CHECKS` 同值）。
+  ///
+  /// 存的是**习惯名**（原生侧只有名字，C5 禁直读库取 id），`\u001e` 分隔——
+  /// 习惯名可含逗号，逗号分隔会把一条切成两条。
+  static const String kDeskPendingChecksKey = 'desktop.widget_pending_checks';
 
   // ===== NFC 卡片批1（2026-10-16 · 冻结档 F1-7 · C42）=====
   // 三键：总闸（默认开）/ 贴卡先确认再执行（默认关）/ 未识别卡片提示绑定（默认开）。
@@ -293,5 +298,30 @@ class SettingsRepository {
   Future<void> saveDesktopPendingToggles(List<int> ids) => _prefs.setString(
         kDeskPendingTogglesKey,
         ids.isEmpty ? '' : (ids.toSet().toList()..sort()).join(','),
+      );
+
+  // ---- 打卡闭环的补写队列（批A · 原生广播直达写库失败时的兜底）----
+  //
+  // 与待办勾圈同族、但存**习惯名**（widget 进程拿不到 habit id·C5）：
+  // `\u001e` 分隔（习惯名可含逗号，禁逗号分隔）。App 启动排空见
+  // `shared/linkage/widget_checkin_mounts.dart` 的 drainPendingWidgetChecks。
+  // ⚠ 键名与分隔符与原生 `LhWidget.PREF_PENDING_CHECKS` 逐字一致（守护测试交叉核对）。
+
+  List<String> loadDesktopPendingChecks() => (_prefs.getString(kDeskPendingChecksKey) ?? '')
+      .split('\u001e')
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toSet()
+      .toList();
+
+  /// 逐名移除（补写成功一条清一条；中途死掉不丢剩下的）。
+  Future<void> removeDesktopPendingCheck(String name) {
+    final left = loadDesktopPendingChecks().where((e) => e != name.trim()).toSet();
+    return saveDesktopPendingChecks(left.toList());
+  }
+
+  Future<void> saveDesktopPendingChecks(List<String> names) => _prefs.setString(
+        kDeskPendingChecksKey,
+        names.isEmpty ? '' : names.toSet().join('\u001e'),
       );
 }

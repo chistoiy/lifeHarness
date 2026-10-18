@@ -233,6 +233,66 @@ internal object LhWidget {
         )
     }
 
+    /**
+     * 打卡-单习惯主按钮的**闭环动作**意图（批A 交互闭环层）。
+     *
+     * ⚠ 走**广播**而非 `PendingIntent.getActivity`：闭环是写入动作，而打卡不是
+     * 单列写（流水 upsert＋连击重算＋子项）——禁原生复刻，广播给
+     * [HabitCheckReceiver] 起**无头 Flutter 引擎**跑 Dart 仓库出口（评估件
+     * §4.1·B8）。用户全程看不到 App。
+     *
+     * ⚠ **requestCode 必须带 appWidgetId**：`PendingIntent` 的相等性**不比
+     * extras**（只比 action/data/type/component）。多枚实例共用一个固定码时，
+     * 第二枚的创建会以 `FLAG_UPDATE_CURRENT` **覆写**第一枚里的习惯名——两枚
+     * 都打到同一个习惯上（实例 A 点了写实例 B 的习惯）。故这里每人一个码。
+     *
+     * ⚠ 与读数链路同纪律：意图里只带**纯数据**（实例 id＋习惯名），不带任何
+     * scheme 字面量（C15 只管起 App 的那条；闭环广播不经 `lh://` 派发）。
+     */
+    fun habitCheckIntent(
+        context: Context,
+        appWidgetId: Int,
+        habitName: String,
+    ): PendingIntent {
+        val i = Intent(context, HabitCheckReceiver::class.java).apply {
+            action = HabitCheckReceiver.ACTION_CHECK
+            putExtra(HabitCheckReceiver.EXTRA_WIDGET_ID, appWidgetId)
+            putExtra(HabitCheckReceiver.EXTRA_HABIT_NAME, habitName)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            REQ_HABIT_CHECK_BASE + appWidgetId,
+            i,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** 打卡闭环请求码基址（每枚实例 = 基址 + appWidgetId；与 root 0x4C4001 不撞）。 */
+    const val REQ_HABIT_CHECK_BASE = 0x4C5000
+
+    /**
+     * 打卡没能当场写成 ⇒ 记住这个习惯名，等 App 起来补写（闭环不能丢）。
+     *
+     * 去重后 `\u001e` 拼接（Dart 侧 loadDesktopPendingChecks 同口径）；
+     * 连续失败也只写一条——App 启动排空是幂等补写，重复条目没有意义。
+     */
+    fun enqueuePendingCheck(context: Context, name: String) {
+        val n = name.trim()
+        if (n.isEmpty()) return
+        try {
+            val p = prefs(context)
+            val cur = p.getString(PREF_PENDING_CHECKS, "") ?: ""
+            val names = cur.split(CHECK_SEP).map { it.trim() }
+                .filter { it.isNotEmpty() }.toMutableSet()
+            if (names.add(n)) {
+                p.edit().putString(PREF_PENDING_CHECKS, names.joinToString(CHECK_SEP.toString()))
+                    .apply()
+            }
+        } catch (_: Exception) {
+            // catch-ok: 连偏好都写不了（极端情况）只能放弃本次闭环，不崩宿主。
+        }
+    }
+
     // ── 点击目标：段取自 `MainActivity.LH_WHITELIST`（禁散落 scheme 字面量 · C19）──
     const val SEG_TODAY = "today"
     const val SEG_LEDGER_ADD = "ledger/add"
@@ -255,6 +315,19 @@ internal object LhWidget {
 
     /** 待勾圈闭环但**没能当场写库**的 id 队列（逗号分隔；App 下次启动时排空）。 */
     const val PREF_PENDING_TOGGLES = FLUTTER_KEY_PREFIX + "desktop.widget_pending_toggles"
+
+    /**
+     * 打卡闭环但**没能当场写库**的习惯名队列（`\u001e` 分隔；App 下次启动排空）。
+     *
+     * 与 [PREF_PENDING_TOGGLES] 的分野：待办存 **id**（原生直写库只认 id），
+     * 打卡存**名字**——打卡走后台 isolate 跑 Dart 出口，widget 进程拿得到的
+     * 只有绑定里的习惯名（C5：禁直读库取 id）。名字可能含逗号 ⇒ 禁逗号分隔
+     * （一条会被切成两条），用与待办行同族的控制字符。
+     */
+    const val PREF_PENDING_CHECKS = FLUTTER_KEY_PREFIX + "desktop.widget_pending_checks"
+
+    /** 打卡补写队列的分隔符（与 Dart `kWidgetCheckSep` 同值）。 */
+    const val CHECK_SEP = '\u001e'
 
     // ── 按实例绑定（批A · 与 Dart `features/widget/domain/widget_binding.dart` 同口径）──
     //
