@@ -17,6 +17,8 @@ import 'core/backup/db_overview.dart';
 import 'core/backup/lh_bak.dart' show LhBak;
 import 'shared/linkage/backup_projection.dart' show buildNoteProjectionMembers;
 import 'shared/linkage/widget_checkin_mounts.dart' show runWidgetHabitCheckin;
+import 'shared/linkage/widget_quick_add_mounts.dart'
+    show runWidgetQuickAddApp;
 import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
@@ -69,6 +71,16 @@ void widgetBackgroundMain() {
     throw MissingPluginException('No handler for ${call.method} on $kWidgetBgChannel');
   });
 }
+
+/// 4×1「记一笔」弹窗的 **UI 入口点**（工单 §7.1 · 原生 `QuickAddActivity`
+/// 起独立引擎时按函数名解析到这里）。
+///
+/// 与 [widgetBackgroundMain] 的区别：那个是**无头** isolate（不初始化 UI），
+/// 这个是**有界面**的（跑 [runWidgetQuickAddApp] 起一棵只含记账表单的
+/// widget 树）。两者都用 `@pragma('vm:entry-point')` 保命——release 树摇后
+/// 全仓无静态引用，不加就被摇掉，真机表现是「点了没反应」。
+@pragma('vm:entry-point')
+void widgetQuickAddMain() => runWidgetQuickAddApp();
 
 /// 后台 isolate 通道名（原生 `HabitCheckReceiver` 逐字一致·守护测试交叉核对）。
 const String kWidgetBgChannel = 'lh/widget_bg';

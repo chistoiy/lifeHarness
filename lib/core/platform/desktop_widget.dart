@@ -337,3 +337,28 @@ Future<void> pushWidgetHabitSnapshot({
     // catch-ok: 与整包下发同口径——收敛失败不致命，下次 App 推快照自然纠正。
   }
 }
+
+/// **只下发记账三个键**并重绘两枚消费它们的 widget（工单 §7.1 弹窗引擎）。
+///
+/// 与 [pushWidgetHabitSnapshot] 同一条理由：弹窗跑在独立引擎里，待办/习惯域
+/// 从未被 watch（`valueOrNull` 是 null），整包下发会把那两张卡推成空值。
+/// 记账落库后真正会变的只有这三个键：
+/// `amount_cell`（今日支出）／`month_amount_cell`（本月支出）／`balance_cell`
+/// （本月结余），重绘范围＝记账 2×2 ＋ 4×1 快捷记录（唯一消费这三键的两枚）。
+Future<void> pushWidgetLedgerSnapshot({
+  required String amountCell,
+  required String monthAmountCell,
+  required String balanceCell,
+}) async {
+  try {
+    await HomeWidget.saveWidgetData<String>(LhWidgetKeys.amountCell, amountCell);
+    await HomeWidget.saveWidgetData<String>(
+        LhWidgetKeys.monthAmountCell, monthAmountCell);
+    await HomeWidget.saveWidgetData<String>(
+        LhWidgetKeys.balanceCell, balanceCell);
+    await HomeWidget.updateWidget(androidName: LhWidgetNames.ledgerOverview);
+    await HomeWidget.updateWidget(androidName: LhWidgetNames.quickRecord);
+  } catch (_) {
+    // catch-ok: 与整包下发同口径——弹窗关掉后 App 下次推快照自然纠正。
+  }
+}

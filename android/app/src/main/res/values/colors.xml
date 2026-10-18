@@ -27,4 +27,7 @@
          页面底＝比卡片底更深一档的浅灰，卡片底＝纯白，与 App 内 token.card 的层级一致。 -->
     <color name="lh_cfg_bg">#F1F5F9</color>
     <color name="lh_cfg_card_bg">#FFFFFF</color>
+    <!-- 4×1 三区（2026-10-18）：区与区之间的 1dp 分隔线＝次文本 14% 透明
+         （原型 `.wg` 内联分隔线口径；浅/深两档各一值）。 -->
+    <color name="lh_wg_div">#2464748B</color>
 </resources>

@@ -27,4 +27,22 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
+
+    <!-- 记一笔弹窗（工单 §7.1 · 2026-10-18 拍板 A 路）。
+         要点三条：
+         ① `windowIsFloating=false`——浮动窗口的 `adjustResize` **不生效**，软键盘会
+            盖住保存键（真机门第 1 项）。全屏铺开、由 Flutter 侧自己居中收边；
+         ② `windowBackground` 透明——桌面透出来，观感才是「浮起一个对话框」；
+         ③ 无窗口动画（`windowAnimationStyle=@null`）：Flutter 侧第一帧自带圆角卡片，
+            系统再叠一层缩放动画会闪。 -->
+    <style name="QuickAddTheme" parent="@android:style/Theme.DeviceDefault.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

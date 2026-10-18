@@ -8,7 +8,7 @@ import '../../features/habit/presentation/habit_providers.dart'
     show HabitData, habitDataProvider;
 import '../../features/ledger/domain/ledger_calc.dart' show mStat, monthKey;
 import '../../features/ledger/presentation/ledger_providers.dart'
-    show ledgerDataProvider;
+    show LedgerData, ledgerDataProvider;
 import 'stats_providers.dart' show Todo, todosProvider, todoRepositoryProvider;
 // 打卡闭环的排空在 widget_checkin_mounts（写库编排）；本文件持有组合根
 // mount 点，故此处反向 import——Dart 允许库间循环引用，两侧只碰各自符号。
@@ -112,7 +112,6 @@ DesktopWidgetSnapshot? buildSnapshot(WidgetSnapshotRead read) {
   if (todos == null && habit == null && ledger == null) return null;
 
   final now = DateTime.now();
-  final k = dayKey(now);
 
   // 今日待办数＝截止日落在今天（口径与今天页问候卡逐字一致：逾期不混计）。
   final todoCount =
@@ -125,21 +124,10 @@ DesktopWidgetSnapshot? buildSnapshot(WidgetSnapshotRead read) {
   // ＝[widgetHabitItems]，后台 isolate 打卡收敛与设置页预览都走它）。
   final habitItems = widgetHabitItems(habit, now);
 
-  // 今日支出：当前账本、排除「不计入」（nb）；refund 按 mStat 口径冲抵。
-  // 记账 2×2 要三行读数 ⇒ 今日/本月各算一次，结余＝本月收入−本月支出（口径同 mStat）。
-  double? todayExp;
-  double? monthExp;
-  double? monthBal;
-  if (ledger != null) {
-    todayExp =
-        mStat(ledger.txns.where((t) => !t.nb && t.date == k)).exp;
-    final mk = monthKey(now);
-    final monthStat = mStat(
-      ledger.txns.where((t) => !t.nb && t.date.startsWith(mk)),
-    );
-    monthExp = monthStat.exp;
-    monthBal = monthStat.inc - monthStat.exp;
-  }
+  // 今日支出／本月支出／本月结余：口径在 [ledgerWidgetCells] 一处（弹窗引擎
+  // 只推这三键，两处各算一套必然漂移）。
+  final hide = read(settingsRepositoryProvider).loadDesktopHideAmount();
+  final cells = ledgerWidgetCells(ledger, now, hideAmount: hide);
 
   // 待办 2×2 的行数据：今天到期 + 已逾期（都还没完事的），按截止日升序取前3。
   // ⚠ 与 `todo_count` 口径**故意不同**：那张卡报的是「今天要做几件」，这张卡要的是
@@ -151,14 +139,13 @@ DesktopWidgetSnapshot? buildSnapshot(WidgetSnapshotRead read) {
     ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
   final rows = pool.take(kWidgetTodoRows).toList();
 
-  final hide = read(settingsRepositoryProvider).loadDesktopHideAmount();
   return DesktopWidgetSnapshot(
     todoCount: todoCount,
     habitDone: habitDone,
     habitTotal: habitTotal,
-    amountCell: widgetAmountCell(todayExp, hideAmount: hide),
-    monthAmountCell: widgetAmountCell(monthExp, hideAmount: hide),
-    balanceCell: widgetBalanceCell(monthBal, hideAmount: hide),
+    amountCell: cells.amount,
+    monthAmountCell: cells.month,
+    balanceCell: cells.balance,
     todoItems: <WidgetTodoItem>[
       for (final t in rows)
         WidgetTodoItem(id: t.id ?? 0, done: t.done, title: t.title),
@@ -204,4 +191,37 @@ List<WidgetHabitItem> widgetHabitItems(HabitData? habit, DateTime now) {
         done: habit.okOn(h, k),
       ),
   ];
+}
+
+/// 记账三键（今日支出／本月支出／本月结余）的**唯一口径**。
+///
+/// 两个消费点：App 存活时的整包下发（[buildSnapshot]）与 4×1「记一笔」弹窗
+/// 引擎（只推这三键）。**禁在两处各算一套**——否则同一天会「App 里一个数、
+/// 弹窗保存后另一个数」。
+///
+/// 口径同 `mStat`：排除「不计入」（nb）、refund 按冲抵；结余＝本月收入−本月支出。
+/// [ledger] 为 null（域未首达）⇒ 三个位置占位。
+({String amount, String month, String balance}) ledgerWidgetCells(
+  LedgerData? ledger,
+  DateTime now, {
+  required bool hideAmount,
+}) {
+  double? todayExp;
+  double? monthExp;
+  double? monthBal;
+  if (ledger != null) {
+    final k = dayKey(now);
+    todayExp = mStat(ledger.txns.where((t) => !t.nb && t.date == k)).exp;
+    final mk = monthKey(now);
+    final monthStat = mStat(
+      ledger.txns.where((t) => !t.nb && t.date.startsWith(mk)),
+    );
+    monthExp = monthStat.exp;
+    monthBal = monthStat.inc - monthStat.exp;
+  }
+  return (
+    amount: widgetAmountCell(todayExp, hideAmount: hideAmount),
+    month: widgetAmountCell(monthExp, hideAmount: hideAmount),
+    balance: widgetBalanceCell(monthBal, hideAmount: hideAmount),
+  );
 }

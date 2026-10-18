@@ -124,3 +124,14 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 ### §7.3 体量黄灯不瘦的理由
 
 `docs/交接文档.md` 100%、`docs/排期池.md` 90% 两处黄灯均属**存量累积**（本批只在排期池加 #20 一行＋一条注，净增 <400 字节）；瘦身须整件重排（跨多批变更日志归并），混在本批做会把「批A 增量」与「历史流水压缩」缠在一起、影响回溯——故本批不瘦，另立瘦身批处理（沿用 2026-10 前几批口径）。
+
+### §7.4 记一笔弹窗已落（2026-10-18 · 两刀 · 排期池 #20）
+
+- **路②落地**（拍板件 §五首选）：`LedgerAddPage` 加 `dialogMode`——**同一份表单换容器**，只差两处（无 AppBar、按内容收高 `shrinkWrap`）；四类型 tab／分类行／子类 chips／四则键盘仍走 `_body` 那一棵，全仓各只有一处（测试钉死）。离开出口 `_leave()`：弹窗形态 `SystemNavigator.pop()` 收 Activity，整页形态仍 `context.go('/ledger')`。
+- **独立引擎**：`main.dart` 加 `@pragma('vm:entry-point') widgetQuickAddMain` → `runWidgetQuickAddApp()`（`lib/shared/linkage/widget_quick_add_mounts.dart`）——初始化只三件事（prefs／开库／主题令牌），**不跑 `main()` 其余初始化**（提醒重排/迁移/备份）。
+- **原生**：`QuickAddActivity : FlutterActivity`（`getDartEntrypointFunctionName` → `widgetQuickAddMain`）＋ `QuickAddTheme`（`windowIsFloating=false` 才顶得动软键盘·透明底·无窗口动画）＋ Manifest（独立 affinity／`excludeFromRecents`／`noHistory`／`singleTask`／`exported=false`）。意图走 `LhWidget.quickAddIntent`（C15 唯一出口·**不派发 scheme**）。
+- **4×1 三区原生同批落**（拍板件 §三「同批合并」）：`lh_widget_quick.xml` 记一笔｜今日支出｜本月结余（权重 3/3.5/3.5·分隔线用 `ImageView`，裸 `<View>` 撞 RemoteViews 白名单）；`QuickRecordWidget` 加 `readBalance` 读数、点击改走弹窗（不再 `lh://ledger/add` 起 App）。
+- **快照只推记账三键**：新增 `pushWidgetLedgerSnapshot`（只 `amount_cell`／`month_amount_cell`／`balance_cell`，只重绘记账 2×2 与 4×1）——弹窗引擎拿不到待办/习惯域，整包下发会把那两张卡推成空（批A 同一坑）。三键口径抽成 `ledgerWidgetCells`，整包与弹窗共用（`mStat` 只在该函数里出现）。
+- **闸**：新 `test/widget_quick_add_test.dart` **19 例全绿**（表单同源／容器两处／关闭出口／入口点 pragma／只推三键／口径唯一／渲染无 AppBar／原生八条）；回归 `desktop_widget` 30＋`widget_render` 22＋`architecture` 11＋`ledger_l2` 11＋`desktop_settings` 10＋`widget_config` 15＋`widget_checkin_echo` 14＋`size_budget` 1 全绿；`kotlin_check` BUILD SUCCESSFUL；变异三刀（摘 `shrinkWrap`／三键下发多推一枚／摘 Manifest `noHistory`）各红其位·md5 复原全等。
+- **体量登记**：`feature_size_budget_test` ledger 18045→18132（本刀净 +87 行·同一份表单换容器，无第二套 UI），此后只许减。
+- **待真机**（攒 6175）：软键盘不遮挡／返回即消／深色跟随／横竖屏（拍板件 §三 真机门四项）＋ 4×1 三区读数与隐藏金额遮蔽。

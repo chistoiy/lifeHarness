@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemNavigator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,6 +31,8 @@ class LedgerAddPage extends ConsumerStatefulWidget {
     this.catId,
     this.date,
     this.note,
+    this.dialogMode = false,
+    this.onDialogClose,
   });
 
   /// 编辑既有流水（openL2({editId})）。
@@ -41,6 +44,14 @@ class LedgerAddPage extends ConsumerStatefulWidget {
   final int? catId;
   final String? date;
   final String? note;
+
+  /// 弹窗形态（工单 §7.1 · 2026-10-18 拍板 A 路）：**同一份表单换容器**——
+  /// 无 AppBar、按内容收高、保存/取消即关窗。只允许差两处：容器与高度。
+  /// 四类型 tab／分类行／子类 chips／四则键盘逐字复用，禁另造一套样式。
+  final bool dialogMode;
+
+  /// 弹窗形态的关窗回调（null ⇒ [SystemNavigator.pop] 直接收掉宿主 Activity）。
+  final VoidCallback? onDialogClose;
 
   @override
   ConsumerState<LedgerAddPage> createState() => _LedgerAddPageState();
@@ -204,6 +215,20 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     return _personErr != null || _amtErr != null || _acctErr != null;
   }
 
+  /// 离开记一笔：整页形态回 L1；弹窗形态关窗（收掉宿主 Activity，不进最近任务）。
+  void _leave() {
+    if (widget.dialogMode) {
+      final close = widget.onDialogClose;
+      if (close != null) {
+        close();
+      } else {
+        SystemNavigator.pop();
+      }
+      return;
+    }
+    context.go('/ledger');
+  }
+
   // ---- 保存（§4 校验 + 统一写路径五处联动） ----
 
   Future<void> _save({bool stay = false}) async {
@@ -229,7 +254,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
         ledgerTouch(ref);
         _toast('${_f.debtDir == 'lend' ? '借出' : '借入'} ${money(amt)} 已记入借贷'
             ' · ${_f.person.trim()}');
-        if (mounted) context.go('/ledger');
+        if (mounted) _leave();
         return;
       }
       final tags = [..._f.tags];
@@ -275,7 +300,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
       // 再记=必留；保存=按 afterSave 设置（back 回 L1 · stay 清金额留表单）。
       final back = !stay && d.afterSave == 'back';
       if (back) {
-        if (mounted) context.go('/ledger');
+        if (mounted) _leave();
         return;
       }
       setState(() {
@@ -292,6 +317,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(ledgerDataProvider);
+    if (widget.dialogMode) return _dialogShell(async);
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -321,6 +347,66 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     );
   }
 
+  /// 弹窗形态外壳（工单 §7.1）：**只换容器与高度**——表单仍是 [_body] 那一棵，
+  /// 四类型 tab／分类行／子类 chips／四则键盘与整页逐字同源（禁另造样式）。
+  ///
+  /// 高度按内容收：`shrinkWrap`（见 [_body]）让内容短时窗口短、内容长时到上限
+  /// 再滚动；上限取屏高 88%——再高就顶到状态栏，观感变成「切了个全屏页」。
+  Widget _dialogShell(AsyncValue<LedgerData> async) {
+    final scheme = Theme.of(context).colorScheme;
+    final maxH = MediaQuery.sizeOf(context).height * 0.88;
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxH),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          '记一笔',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '关闭',
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: _leave,
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: async.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('加载失败：$e')),
+                    data: (d) {
+                      if (!_inited) _initFrom(d);
+                      return TabularNums(child: _body(d));
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _body(LedgerData d) {
     final scheme = Theme.of(context).colorScheme;
     final tokens = context.tokens;
@@ -333,6 +419,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     };
     final acct = d.acct(_f.acct);
     return ListView(
+      shrinkWrap: widget.dialogMode,
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
         // 四 tab（支出/收入/转账/借贷）

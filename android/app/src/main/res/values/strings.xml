@@ -7,7 +7,7 @@
     <string name="lh_widget_overview_name">LifeHarness · 今日概览</string>
     <string name="lh_widget_overview_desc">今日待办与习惯打卡进度</string>
     <string name="lh_widget_quick_name">LifeHarness · 快捷记录</string>
-    <string name="lh_widget_quick_desc">一键记一笔，并显示今日支出</string>
+    <string name="lh_widget_quick_desc">记一笔｜今日支出｜本月结余</string>
 
     <string name="lh_widget_no_data">暂无数据，打开 App 后同步</string>
     <!-- 总开关关闭后的空态（8148 装机实锤修「死开关」时新增） -->
@@ -19,6 +19,8 @@
     <string name="lh_widget_label_todo">待办</string>
     <string name="lh_widget_label_habit">打卡</string>
     <string name="lh_widget_label_today_cost">今日支出</string>
+    <!-- 4×1 三区（2026-10-18 改版）：第三区读数标题 -->
+    <string name="lh_widget_label_month_balance">本月结余</string>
     <string name="lh_widget_quick_action">记一笔</string>
 
     <!-- 批3 · 2×2 待办清单 -->

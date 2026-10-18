@@ -288,6 +288,27 @@
             </intent-filter>
         </activity>
 
+        <!-- 记一笔弹窗（工单 §7.1 · 2026-10-18 拍板 A 路）。
+             点 4×1 小组件「记一笔」浮起：对话框主题 Activity 内嵌 Flutter 渲染
+             记账页同一份表单，保存交 Dart 写库，关掉即走。
+             配置要点：
+             ① 独立 `taskAffinity`（带包名前缀）——不归并主任务，否则点小组件会把
+                App 的栈一并拉到前台（＝「打开 App」了，正是产品要避免的）；
+                也**不能写空串**：空 affinity 与 MainActivity 那处同病，且撞桌面
+                批3 守卫（见 test/desktop_widget_test.dart 有条件豁免条）；
+             ② `excludeFromRecents`＋`noHistory`——最近任务不留痕、离开即销毁；
+             ③ `singleTask`——连点两下不会叠出两个对话框；
+             ④ `exported=false`——意图只由本 App 的小组件 PendingIntent 发起。 -->
+        <activity
+            android:name=".QuickAddActivity"
+            android:exported="false"
+            android:theme="@style/QuickAddTheme"
+            android:taskAffinity="com.lifeharness.lifeharness.quickadd"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

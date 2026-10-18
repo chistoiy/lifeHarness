@@ -267,6 +267,26 @@ internal object LhWidget {
         )
     }
 
+    /**
+     * 4×1「记一笔」的**弹窗意图**（工单 §7.1 · 2026-10-18 拍板 A 路）。
+     *
+     * 与 [clickIntent] 的区别：那条走 `lh://` 派发去起 App（C15 管的是**起 App**
+     * 的那条），这条**不派发任何 scheme**——直接起对话框主题的 [QuickAddActivity]，
+     * 里面嵌 Flutter 渲染记账页同一份表单。产品口径是「不要打开 App」：不起全屏、
+     * 不进最近任务（`excludeFromRecents`＋`noHistory`＋独立 affinity，见 Manifest）。
+     *
+     * 仍收在本类＝C15「小组件点击意图唯一出口」不变，禁在 provider 里自己拼 Intent。
+     */
+    fun quickAddIntent(context: Context, requestCode: Int): PendingIntent {
+        val i = Intent(context, QuickAddActivity::class.java)
+        return PendingIntent.getActivity(
+            context,
+            requestCode,
+            i,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
     /** 打卡闭环请求码基址（每枚实例 = 基址 + appWidgetId；与 root 0x4C4001 不撞）。 */
     const val REQ_HABIT_CHECK_BASE = 0x4C5000
 
