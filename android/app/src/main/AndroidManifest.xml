@@ -269,6 +269,198 @@
                 android:resource="@xml/lh_tile_todo_info" />
         </receiver>
 
+        <receiver
+            android:name=".TileToday"
+            android:exported="true"
+            android:label="@string/lh_tile_today_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_today_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileCalendar"
+            android:exported="true"
+            android:label="@string/lh_tile_calendar_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_calendar_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileJournal"
+            android:exported="true"
+            android:label="@string/lh_tile_journal_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_journal_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileHabit"
+            android:exported="true"
+            android:label="@string/lh_tile_habit_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_habit_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileInbox"
+            android:exported="true"
+            android:label="@string/lh_tile_inbox_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_inbox_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileLedger"
+            android:exported="true"
+            android:label="@string/lh_tile_ledger_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_ledger_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileItems"
+            android:exported="true"
+            android:label="@string/lh_tile_items_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_items_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileDays"
+            android:exported="true"
+            android:label="@string/lh_tile_days_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_days_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileGoals"
+            android:exported="true"
+            android:label="@string/lh_tile_goals_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_goals_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileSettings"
+            android:exported="true"
+            android:label="@string/lh_tile_settings_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_settings_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileCare"
+            android:exported="true"
+            android:label="@string/lh_tile_care_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_care_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileRead"
+            android:exported="true"
+            android:label="@string/lh_tile_read_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_read_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileMedia"
+            android:exported="true"
+            android:label="@string/lh_tile_media_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_media_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileHealth"
+            android:exported="true"
+            android:label="@string/lh_tile_health_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_health_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileMindmap"
+            android:exported="true"
+            android:label="@string/lh_tile_mindmap_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_mindmap_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TileNfc"
+            android:exported="true"
+            android:label="@string/lh_tile_nfc_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_nfc_info" />
+        </receiver>
+
         <!-- 批3 · 待办勾圈的闭环执行器（**内部广播，不导出**）。
              ⚠ `exported=false` 是硬要求：它能被任意 app 用来改我们的待办库。
              勾圈的 PendingIntent 由本进程发出，同进程投递到未导出 receiver 不受此限。 -->

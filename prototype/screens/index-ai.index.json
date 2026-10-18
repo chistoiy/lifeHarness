@@ -1,6 +1,6 @@
 {
  "file": "index-ai.html",
- "total": 92312,
+ "total": 93456,
  "cut": 0,
  "screens": [
   {
@@ -8,64 +8,64 @@
    "kind": "screen",
    "title": "AI 增强",
    "role": "home",
-   "size": 4153,
-   "hash": "e1af55f1"
+   "size": 4194,
+   "hash": "349c6722"
   },
   {
    "id": "p-sub-aiVerify",
    "kind": "screen",
    "title": "AI API 验证",
    "role": "home",
-   "size": 1754,
-   "hash": "97989639"
+   "size": 1774,
+   "hash": "e49ea4fc"
   },
   {
    "id": "p-sub-aiPrompts",
    "kind": "screen",
    "title": "提示词管理",
    "role": "home",
-   "size": 249,
-   "hash": "3251ae01"
+   "size": 252,
+   "hash": "e897f36b"
   },
   {
    "id": "p-sub-aiPromptEdit",
    "kind": "screen",
    "title": "编辑提示词",
    "role": "home",
-   "size": 1171,
-   "hash": "e2e7111c"
+   "size": 1185,
+   "hash": "9514c2e8"
   },
   {
    "id": "p-aiUsage",
    "kind": "screen",
    "title": "AI 使用记录",
    "role": "home",
-   "size": 1065,
-   "hash": "134ce3a0"
+   "size": 1078,
+   "hash": "3506bf31"
   },
   {
    "id": "sheetAiUsageCfg",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1789,
-   "hash": "2ce7bf81"
+   "size": 1810,
+   "hash": "74d048d4"
   },
   {
    "id": "sheetAiPick",
    "kind": "sheet",
    "title": "选择服务商",
    "role": "home",
-   "size": 572,
-   "hash": "728a9121"
+   "size": 579,
+   "hash": "9d00ea0d"
   },
   {
    "id": "sheetAiProv",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3448,
-   "hash": "327992dc"
+   "size": 3484,
+   "hash": "38fdacff"
   }
  ]
 }

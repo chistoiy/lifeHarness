@@ -224,7 +224,25 @@ def draw_tile(c, label, color):
 
 TILES = {
     # id → (瓦片标签, 色块)。标签与 `strings.xml` 的 `lh_tile_label_<id>` 同字。
+    # 17 枚共用同一个底色（#6366F1，与七枚既有 `ic_lh_*` 矢量图一致）；
+    # 缩略图靠**标签**分辨——色块相同是照实画，别为了好认改色（桌面那枚不是这个色）。
+    'today': ('今天', TILE_COLORS['todo']),
     'todo': ('待办', TILE_COLORS['todo']),
+    'calendar': ('时间', TILE_COLORS['todo']),
+    'journal': ('记录', TILE_COLORS['todo']),
+    'habit': ('习惯', TILE_COLORS['todo']),
+    'inbox': ('收集箱', TILE_COLORS['todo']),
+    'ledger': ('记账', TILE_COLORS['todo']),
+    'items': ('物品', TILE_COLORS['todo']),
+    'days': ('日子', TILE_COLORS['todo']),
+    'goals': ('目标', TILE_COLORS['todo']),
+    'settings': ('我的', TILE_COLORS['todo']),
+    'care': ('呵护', TILE_COLORS['todo']),
+    'read': ('阅读', TILE_COLORS['todo']),
+    'media': ('影音', TILE_COLORS['todo']),
+    'health': ('健康', TILE_COLORS['todo']),
+    'mindmap': ('导图', TILE_COLORS['todo']),
+    'nfc': ('卡片', TILE_COLORS['todo']),
 }
 
 

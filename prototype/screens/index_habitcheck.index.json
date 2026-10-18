@@ -1,6 +1,6 @@
 {
  "file": "index_habitcheck.html",
- "total": 332300,
+ "total": 335630,
  "cut": 0,
  "screens": [
   {
@@ -8,128 +8,128 @@
    "kind": "screen",
    "title": "习惯打卡",
    "role": "home",
-   "size": 3158,
-   "hash": "bca2d6da"
+   "size": 3190,
+   "hash": "91762af1"
   },
   {
    "id": "p-habitDetail",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 112,
-   "hash": "4a6f4835"
+   "size": 114,
+   "hash": "8bbeda17"
   },
   {
    "id": "p-habitStat",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 5735,
-   "hash": "6fa7ced5"
+   "size": 5785,
+   "hash": "ac8434f4"
   },
   {
    "id": "p-habitSet",
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 802,
-   "hash": "8d23b191"
+   "size": 810,
+   "hash": "d9242238"
   },
   {
    "id": "sheetAddHabit",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3325,
-   "hash": "8bd4a9a5"
+   "size": 3350,
+   "hash": "53ce175b"
   },
   {
    "id": "sheetHabitEdit",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 4984,
-   "hash": "b86ea9d0"
+   "size": 5038,
+   "hash": "59c7e20e"
   },
   {
    "id": "sheetHabitLog",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1297,
-   "hash": "e342e3f5"
+   "size": 1307,
+   "hash": "8989bd5e"
   },
   {
    "id": "sheetHabitBackfill",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3432,
-   "hash": "001f2083"
+   "size": 3460,
+   "hash": "78d8cba1"
   },
   {
    "id": "sheetHabitTrigger",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1256,
-   "hash": "52e2bbd8"
+   "size": 1267,
+   "hash": "c7870a46"
   },
   {
    "id": "sheetHabitOps",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 419,
-   "hash": "5a64d0b8"
+   "size": 425,
+   "hash": "52c34708"
   },
   {
    "id": "sheetHabitSrc",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 762,
-   "hash": "37a46eec"
+   "size": 771,
+   "hash": "ae22eee4"
   },
   {
    "id": "sheetHabitDay",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2033,
-   "hash": "70b62970"
+   "size": 2047,
+   "hash": "aa087584"
   },
   {
    "id": "sheetHabitMgr",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1149,
-   "hash": "f8847f38"
+   "size": 1159,
+   "hash": "258e788a"
   },
   {
    "id": "sheetHabitPend",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 654,
-   "hash": "b11b7ed5"
+   "size": 662,
+   "hash": "25a3614f"
   },
   {
    "id": "sheetHabitTpl",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 655,
-   "hash": "07c9037d"
+   "size": 663,
+   "hash": "9fb23549"
   },
   {
    "id": "sheetHabitShare",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 880,
-   "hash": "e57a8720"
+   "size": 889,
+   "hash": "4430718f"
   }
  ]
 }

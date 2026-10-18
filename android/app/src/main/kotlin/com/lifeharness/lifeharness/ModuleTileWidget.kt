@@ -77,3 +77,179 @@ class TileTodo : ModuleTileProvider() {
     override val iconRes: Int = R.drawable.ic_lh_todo
     override val labelRes: Int = R.string.lh_tile_label_todo
 }
+
+/**
+ * 模块瓦片 · 今天（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileToday : ModuleTileProvider() {
+    override val seg: String = "modules/today"
+    override val iconRes: Int = R.drawable.ic_lh_today
+    override val labelRes: Int = R.string.lh_tile_label_today
+}
+
+/**
+ * 模块瓦片 · 时间（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileCalendar : ModuleTileProvider() {
+    override val seg: String = "modules/calendar"
+    override val iconRes: Int = R.drawable.ic_lh_calendar
+    override val labelRes: Int = R.string.lh_tile_label_calendar
+}
+
+/**
+ * 模块瓦片 · 记录（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileJournal : ModuleTileProvider() {
+    override val seg: String = "modules/journal"
+    override val iconRes: Int = R.drawable.ic_lh_journal
+    override val labelRes: Int = R.string.lh_tile_label_journal
+}
+
+/**
+ * 模块瓦片 · 习惯（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileHabit : ModuleTileProvider() {
+    override val seg: String = "modules/habit"
+    override val iconRes: Int = R.drawable.ic_lh_habit
+    override val labelRes: Int = R.string.lh_tile_label_habit
+}
+
+/**
+ * 模块瓦片 · 收集箱（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileInbox : ModuleTileProvider() {
+    override val seg: String = "modules/inbox"
+    override val iconRes: Int = R.drawable.ic_lh_inbox
+    override val labelRes: Int = R.string.lh_tile_label_inbox
+}
+
+/**
+ * 模块瓦片 · 记账（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileLedger : ModuleTileProvider() {
+    override val seg: String = "modules/ledger"
+    override val iconRes: Int = R.drawable.ic_lh_ledger
+    override val labelRes: Int = R.string.lh_tile_label_ledger
+}
+
+/**
+ * 模块瓦片 · 物品（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileItems : ModuleTileProvider() {
+    override val seg: String = "modules/items"
+    override val iconRes: Int = R.drawable.ic_lh_items
+    override val labelRes: Int = R.string.lh_tile_label_items
+}
+
+/**
+ * 模块瓦片 · 日子（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileDays : ModuleTileProvider() {
+    override val seg: String = "modules/days"
+    override val iconRes: Int = R.drawable.ic_lh_days
+    override val labelRes: Int = R.string.lh_tile_label_days
+}
+
+/**
+ * 模块瓦片 · 目标（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileGoals : ModuleTileProvider() {
+    override val seg: String = "modules/goals"
+    override val iconRes: Int = R.drawable.ic_lh_goals
+    override val labelRes: Int = R.string.lh_tile_label_goals
+}
+
+/**
+ * 模块瓦片 · 我的（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileSettings : ModuleTileProvider() {
+    override val seg: String = "modules/settings"
+    override val iconRes: Int = R.drawable.ic_lh_settings
+    override val labelRes: Int = R.string.lh_tile_label_settings
+}
+
+/**
+ * 模块瓦片 · 呵护（批C-2/C-3 铺量）。
+ *
+ * 壳内 tab ⇒ 深链消费端用 `go`。
+ */
+class TileCare : ModuleTileProvider() {
+    override val seg: String = "modules/care"
+    override val iconRes: Int = R.drawable.ic_lh_care
+    override val labelRes: Int = R.string.lh_tile_label_care
+}
+
+/**
+ * 模块瓦片 · 阅读（批C-2/C-3 铺量）。
+ *
+ * 全屏栈页 ⇒ 深链消费端用 `push`。
+ */
+class TileRead : ModuleTileProvider() {
+    override val seg: String = "modules/read"
+    override val iconRes: Int = R.drawable.ic_lh_read
+    override val labelRes: Int = R.string.lh_tile_label_read
+}
+
+/**
+ * 模块瓦片 · 影音（批C-2/C-3 铺量）。
+ *
+ * 全屏栈页 ⇒ 深链消费端用 `push`。
+ */
+class TileMedia : ModuleTileProvider() {
+    override val seg: String = "modules/media"
+    override val iconRes: Int = R.drawable.ic_lh_media
+    override val labelRes: Int = R.string.lh_tile_label_media
+}
+
+/**
+ * 模块瓦片 · 健康（批C-2/C-3 铺量）。
+ *
+ * 全屏栈页 ⇒ 深链消费端用 `push`。
+ */
+class TileHealth : ModuleTileProvider() {
+    override val seg: String = "modules/health"
+    override val iconRes: Int = R.drawable.ic_lh_health
+    override val labelRes: Int = R.string.lh_tile_label_health
+}
+
+/**
+ * 模块瓦片 · 导图（批C-2/C-3 铺量）。
+ *
+ * 全屏栈页 ⇒ 深链消费端用 `push`。
+ */
+class TileMindmap : ModuleTileProvider() {
+    override val seg: String = "modules/mindmap"
+    override val iconRes: Int = R.drawable.ic_lh_mindmap
+    override val labelRes: Int = R.string.lh_tile_label_mindmap
+}
+
+/**
+ * 模块瓦片 · 卡片（批C-2/C-3 铺量）。
+ *
+ * 全屏栈页 ⇒ 深链消费端用 `push`。
+ */
+class TileNfc : ModuleTileProvider() {
+    override val seg: String = "modules/nfc"
+    override val iconRes: Int = R.drawable.ic_lh_nfc
+    override val labelRes: Int = R.string.lh_tile_label_nfc
+}

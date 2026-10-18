@@ -1195,7 +1195,23 @@ class MainActivity : FlutterActivity() {
      * 守护 `module_tiles_test` 双向核对（Dart 表 ↔ 本函数 ↔ Manifest ↔ info XML）。
      */
     private fun moduleTileClass(moduleId: String): Class<*>? = when (moduleId) {
+        "today" -> TileToday::class.java
         "todo" -> TileTodo::class.java
+        "calendar" -> TileCalendar::class.java
+        "journal" -> TileJournal::class.java
+        "habit" -> TileHabit::class.java
+        "inbox" -> TileInbox::class.java
+        "ledger" -> TileLedger::class.java
+        "items" -> TileItems::class.java
+        "days" -> TileDays::class.java
+        "goals" -> TileGoals::class.java
+        "settings" -> TileSettings::class.java
+        "care" -> TileCare::class.java
+        "read" -> TileRead::class.java
+        "media" -> TileMedia::class.java
+        "health" -> TileHealth::class.java
+        "mindmap" -> TileMindmap::class.java
+        "nfc" -> TileNfc::class.java
         else -> null
     }
 

@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/app.dart';
 import 'package:lifeharness/core/nav/nav_collapse.dart';
 import 'package:lifeharness/core/providers.dart';
+import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart'
+    show calendarTickerProvider;
 import 'package:lifeharness/core/router/app_router.dart' show shellBottomSlack;
 import 'package:lifeharness/core/theme/theme_repository.dart';
 import 'package:lifeharness/core/widgets/grad_fab.dart';
@@ -41,12 +45,20 @@ void main() {
   Future<void> pinch(WidgetTester t) => twoFinger(t, -18);
 
   testWidgets('双指张开收起底栏 / 捏合还原；线索与悬浮球符合拍板', (tester) async {
+    // ⚠ 本用例收尾必须让 pumpAndSettle 把世界跑够**一整个周期**：全 app 起来后
+    //   `sysPillSyncProvider` 会挂一条 1s 周期流，只排空日志节流那条 timer 不够，
+    //   留下一条 1s periodic 就会以「A Timer is still pending」判红。
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final registry = await const ThemeRepository().loadAll();
     final c = ProviderContainer(overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       themeRegistryProvider.overrideWithValue(registry),
+      // sysPillSync 会 watch 秒级心跳；真实 `Stream.periodic` 在 fake_async 里
+      // **永不排空**（periodic 不会被 pumpAndSettle 耗尽）⇒ 收尾判「A Timer is still
+      // pending」。与本仓其余全 app 用例同口径：心跳换成空流
+      // （`read_f2_nav_test` / `read_pill_fab_test` / `read_timer_bar_test` 同）。
+      calendarTickerProvider.overrideWith((ref) => const Stream.empty()),
     ]);
     addTearDown(c.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
@@ -118,12 +130,52 @@ void main() {
         h - tester.getRect(find.byType(NavLineCapsule)).bottom, closeTo(40, 1.0),
         reason: '距底档位（设置滑杆）要真的生效');
 
-    // ⑥ 关掉总开关＝立刻展开（不残留收起态，两态不打架）。
+    // ⑥ 关掉总开关＝立刻展开（不残留手势收起态，两态不打架）。
     await c.read(settingsControllerProvider.notifier).setNavGesture(false);
     await tester.pumpAndSettle();
     expect(slotH(), navSlotH);
     expect(line, findsNothing);
 
+    // ⑦ 批C-2：线索**可点还原**（原来是 IgnorePointer 死件——产品原话
+    //    「箭头或短线没有实际功能」）。总开关已关 ⇒ 这是唯一能回来的路。
+    c.read(navEntryCollapsedProvider.notifier).hide();
+    await tester.pumpAndSettle();
+    expect(slotH(), 0, reason: '入口态不看总开关：瓦片进来默认收起');
+    expect(line, findsOne);
+    // 命中区比图形大（细握把只有 4dp 高），点的位置可以偏开图形本身。
+    expect(tester.getSize(find.byKey(const ValueKey('shell-nav-line-tap'))),
+        const Size(120, 44));
+    // （常量值同上：命中区 120×44，见 nav_collapse 的 kNavCueHitWidth/Height）
+    // 图形仍贴命中区底边 ⇒ 距屏幕底部的视觉位置与二修口径逐像素相同。
+    expect(h - tester.getRect(find.byType(NavLineCapsule)).bottom,
+        closeTo(40, 1.0),
+        reason: '命中区只许向上长，图形位置不能动');
+    await tester.tap(find.byKey(const ValueKey('shell-nav-line-tap')));
+    await tester.pumpAndSettle();
+    expect(slotH(), navSlotH, reason: '点线索＝还原底栏');
+    expect(line, findsNothing);
+
+    // ⑧ 线索给了无障碍语义（读屏能念出「显示底部导航栏」）。
+    c.read(navEntryCollapsedProvider.notifier).hide();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shell-nav-line-tap')), findsOneWidget);
+    // 用源码守护而不是 widget 树断言：`Semantics(button:, label:)` 与
+    // GestureDetector 会各自插一个 Semantics 节点，按位置取外层/内层都会随 SDK
+    // 实现细节漂；这里钉的是「有没有写这三样」。
+    final src = File('lib/core/router/app_router.dart').readAsStringSync();
+    expect(src, contains("label: '显示底部导航栏'"), reason: '线索缺无障碍文案');
+    expect(src, contains('button: true'), reason: '线索没标成按钮');
+    expect(src, contains("ValueKey('shell-nav-line-tap')"),
+        reason: '线索缺可点命中区');
+    expect(src.contains('IgnorePointer('), isFalse,
+        reason: '线索不再是死件——别再套回 IgnorePointer');
+
+    // 收尾：还原底栏 → 排空日志节流 → 让世界跑够 1 个整轮再收（见文件头注释）。
+    await tester.tap(find.byKey(const ValueKey('shell-nav-line-tap')));
+    await tester.pumpAndSettle();
     await drainLogTimer(tester);
+    // 世界跑够一整个周期（见用例头注释：sysPillSync 那条 1s periodic 流）。
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
   });
 }

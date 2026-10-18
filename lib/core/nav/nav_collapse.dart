@@ -64,6 +64,53 @@ class NavCollapseController extends Notifier<bool> {
 final navCollapsedProvider =
     NotifierProvider<NavCollapseController, bool>(NavCollapseController.new);
 
+/// **入口触发的临时收起**（批C-2 · 2026-10-18 产品令）。
+///
+/// 产品原话：「如果用户通过 1×1 模块小组件进入 app，默认隐藏底部导航栏
+/// （相当于用户已进入就用双指放大，触发隐藏底部导航栏）」。
+///
+/// 为什么要与 [navCollapsedProvider] **分成两个**而不是共用一个布尔：
+/// 手势那枚受总开关管（`navCollapsed = navGestureOn && 手势态`，这是「默认关＝对
+/// 老用户零行为变化」的落点，关开关必须立刻展开、不残留）；而入口收起**不受总开关管**
+/// ——总开关出厂是关的，若共用一份状态，瓦片进来这条功能对绝大多数用户直接失效。
+/// 两份状态由壳层做「或」：任一为真就收起，线索点击一次清掉两份。
+///
+/// 仍是**会话内存态**：冷启动/重进 app 回到展开（瓦片进来那一刻由深链消费端置真）。
+class NavEntryCollapseController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void hide() {
+    if (!state) state = true;
+  }
+
+  void show() {
+    if (state) state = false;
+  }
+}
+
+final navEntryCollapsedProvider =
+    NotifierProvider<NavEntryCollapseController, bool>(
+        NavEntryCollapseController.new);
+
+/// 壳层实际要不要收起底栏（**唯一判据**，壳层只许读它，禁各写一份「或」）。
+///
+/// - 手势态：只在总开关打开时生效（关开关＝立刻展开，两态不打架）；
+/// - 入口态：不看总开关（瓦片进来默认收起）。
+bool navCollapsedOf({
+  required bool gestureOn,
+  required bool gestureHidden,
+  required bool entryHidden,
+}) =>
+    (gestureOn && gestureHidden) || entryHidden;
+
+/// 收起线索的命中区尺寸（图形本身只有 56×4 / 44×20，直接点几乎点不到）。
+///
+/// 只**向上**长：命中区底边仍贴线索原位（`gap` 已让过系统手势条），
+/// 不往下压住边缘手势区。
+const double kNavCueHitHeight = 44;
+const double kNavCueHitWidth = 120;
+
 /// 给「页面内锚定底边」的悬浮球用的补偿量（＝底栏收起后飘出来的那段高度）。
 ///
 /// 为什么需要它：悬浮球是**页面级** `floatingActionButton`（锚在页面 Scaffold 底边），

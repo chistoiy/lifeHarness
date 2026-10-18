@@ -129,7 +129,23 @@ final Map<String, ModuleTile> moduleTileBySeg = <String, ModuleTile>{
 /// 每加一枚 provider 就往这里加一个 id；守护 `module_tiles_test` 钉死
 /// 「本表 ≡ 资源与 receiver 实际存在的集合」，漏登记或登记了没实现都红。
 const Set<String> kImplementedModuleTileIds = <String>{
+  'today',
   'todo', // C-1 试点
+  'calendar',
+  'journal',
+  'habit',
+  'inbox',
+  'ledger',
+  'items',
+  'days',
+  'goals',
+  'settings',
+  'care',
+  'read',
+  'media',
+  'health',
+  'mindmap',
+  'nfc',
 };
 
 /// 已落地的瓦片（选择器直接列这一批）。

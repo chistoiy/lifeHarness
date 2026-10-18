@@ -360,7 +360,19 @@ class HomeShell extends ConsumerWidget {
     final navLineGap = ref.watch(
       settingsControllerProvider.select((s) => s.navLineGap),
     );
-    final navCollapsed = navGestureOn && ref.watch(navCollapsedProvider);
+    // 批C-2（2026-10-18 产品令）：从 1×1 模块瓦片进来默认收起底栏。
+    // 入口态与手势态**分开存**（入口态不看总开关，总开关出厂是关的），
+    // 合成判据只此一处——见 `navCollapsedOf`。
+    final navCollapsed = navCollapsedOf(
+      gestureOn: navGestureOn,
+      gestureHidden: ref.watch(navCollapsedProvider),
+      entryHidden: ref.watch(navEntryCollapsedProvider),
+    );
+    // 线索点一下＝两份状态一起清（只清一份会出现「点了没反应」）。
+    void restoreNav() {
+      ref.read(navCollapsedProvider.notifier).show();
+      ref.read(navEntryCollapsedProvider.notifier).show();
+    }
     // 系统底部安全区（手势条）：收起后内容通底，得自己把它让出来（壳层 context 在
     // Scaffold 之上，读到的是真实读数；body 内的读数可能已被 Scaffold 处理过）。
     final safeBottom = MediaQuery.paddingOf(context).bottom;
@@ -506,9 +518,15 @@ class HomeShell extends ConsumerWidget {
                 ),
               ),
             ),
-            // 收起后的「可见线索」：防「底栏去哪了」（纯线索，不占点击区）。
+            // 收起后的「可见线索」：防「底栏去哪了」。
+            // 批C-2 起它**不再是死件**——点一下（或向上拖一下）还原底栏，
+            // 这也是手势总开关关着时唯一能回来的路（总开关出厂关）。
             if (navCollapsed)
-              _NavLineHint(style: navLineStyle, gap: navLineGap),
+              _NavLineHint(
+                style: navLineStyle,
+                gap: navLineGap,
+                onTap: restoreNav,
+              ),
           ],
         ),
 
@@ -800,14 +818,23 @@ class _CollapsibleNavState extends State<_CollapsibleNav>
 ///
 /// 两条形态由设置项切换：'a' 细握把 / 'b' 胶囊折角（产品 2026-10-11：两条都留）。
 /// 距屏幕底部＝设置档位，并**再让过系统手势条**（贴底会落进系统边缘手势区，本机踩过）。
-/// 纯线索、不占点击区（[IgnorePointer]）——它不承担「点一下还原」，还原靠双指捏合。
+/// **批C-2（2026-10-18 产品令）**：原来是 `IgnorePointer` 纯线索（「箭头或短线没有
+/// 实际功能」），现在它就是还原按钮——命中区比图形大（细握把只有 4dp 高）、语义给了
+/// `button` ＋「显示底部导航栏」；手势总开关关着时这是**唯一**的回来路。
 class _NavLineHint extends StatelessWidget {
 
-  const _NavLineHint({required this.style, required this.gap});
+  const _NavLineHint({
+    required this.style,
+    required this.gap,
+    required this.onTap,
+  });
 
   final String style;
 
   final int gap;
+
+  /// 点一下还原底栏（壳层传 `restoreNav`：手势态＋入口态一起清）。
+  final VoidCallback onTap;
 
   @override
 
@@ -825,16 +852,37 @@ class _NavLineHint extends StatelessWidget {
 
       bottom: 0,
 
-      child: IgnorePointer(
+      child: Padding(
 
-        child: Padding(
+        padding: EdgeInsets.only(bottom: bottom.toDouble()),
 
-          padding: EdgeInsets.only(bottom: bottom.toDouble()),
+        child: Center(
 
-          child: Center(
-
-            child: style == 'b' ? const NavLineCapsule() : const NavLineGrip(),
-
+          child: Semantics(
+            button: true,
+            label: '显示底部导航栏',
+            child: GestureDetector(
+              key: const ValueKey('shell-nav-line-tap'),
+              // opaque：透明命中区也要吃点击（细握把图形只有 56×4）。
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              // 向上拖也认（用户对「底边那条」的直觉动作）。
+              onVerticalDragEnd: (d) {
+                if ((d.primaryVelocity ?? 0) < 0) onTap();
+              },
+              child: SizedBox(
+                height: kNavCueHitHeight,
+                width: kNavCueHitWidth,
+                // 图形**贴命中区底边**：视觉位置与原来逐像素相同（距底仍是 gap），
+                // 多出来的命中区全在图形上方——不往下压系统边缘手势区。
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: style == 'b'
+                      ? const NavLineCapsule()
+                      : const NavLineGrip(),
+                ),
+              ),
+            ),
           ),
 
         ),

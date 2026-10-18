@@ -1,6 +1,6 @@
 {
  "file": "index-maternity_bady.html",
- "total": 319545,
+ "total": 322893,
  "cut": 0,
  "screens": [
   {
@@ -8,216 +8,216 @@
    "kind": "screen",
    "title": "母婴呵护",
    "role": "home",
-   "size": 4066,
-   "hash": "52f3e8c8"
+   "size": 4110,
+   "hash": "fdc84578"
   },
   {
    "id": "p-baby",
    "kind": "screen",
    "title": "呵护 · 宝宝",
    "role": "home",
-   "size": 4354,
-   "hash": "c3f7b424"
+   "size": 4406,
+   "hash": "217f7b21"
   },
   {
    "id": "p-milestones",
    "kind": "screen",
    "title": "发育里程碑",
    "role": "home",
-   "size": 582,
-   "hash": "f138149f"
+   "size": 589,
+   "hash": "5278db9e"
   },
   {
    "id": "p-cycleCal",
    "kind": "screen",
    "title": "周期日历",
    "role": "home",
-   "size": 2258,
-   "hash": "99dd3dd6"
+   "size": 2285,
+   "hash": "9694a49a"
   },
   {
    "id": "p-cycleStats",
    "kind": "screen",
    "title": "周期统计",
    "role": "home",
-   "size": 1757,
-   "hash": "dff0521e"
+   "size": 1782,
+   "hash": "b7765e90"
   },
   {
    "id": "p-symHistory",
    "kind": "screen",
    "title": "感受历史",
    "role": "home",
-   "size": 427,
-   "hash": "46656b49"
+   "size": 431,
+   "hash": "6a355676"
   },
   {
    "id": "p-careRemind",
    "kind": "screen",
    "title": "呵护提醒",
    "role": "home",
-   "size": 2847,
-   "hash": "50af3d47"
+   "size": 2877,
+   "hash": "89a59db7"
   },
   {
    "id": "p-babies",
    "kind": "screen",
    "title": "宝宝档案",
    "role": "home",
-   "size": 1156,
-   "hash": "160d5f8d"
+   "size": 1173,
+   "hash": "00a5fe35"
   },
   {
    "id": "p-babyDay",
    "kind": "screen",
    "title": "全天记录",
    "role": "home",
-   "size": 1421,
-   "hash": "fad2bb99"
+   "size": 1429,
+   "hash": "b8f7abef"
   },
   {
    "id": "p-growth",
    "kind": "screen",
    "title": "生长曲线",
    "role": "home",
-   "size": 1753,
-   "hash": "c515aed4"
+   "size": 1776,
+   "hash": "90d26747"
   },
   {
    "id": "p-vaccine",
    "kind": "screen",
    "title": "疫苗计划",
    "role": "home",
-   "size": 1297,
-   "hash": "6c73dc66"
+   "size": 1312,
+   "hash": "bbfdbb3a"
   },
   {
    "id": "p-babyStats",
    "kind": "screen",
    "title": "呵护 · 汇总",
    "role": "home",
-   "size": 1572,
-   "hash": "1499c85e"
+   "size": 1591,
+   "hash": "b1d67ee4"
   },
   {
    "id": "sheetBabyMeasure",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1280,
-   "hash": "1608a18b"
+   "size": 1293,
+   "hash": "e03243b9"
   },
   {
    "id": "sheetCycleDay",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2562,
-   "hash": "dfdbda79"
+   "size": 2591,
+   "hash": "d82668b6"
   },
   {
    "id": "sheetBabySwitch",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 858,
-   "hash": "a151192a"
+   "size": 868,
+   "hash": "6cf88110"
   },
   {
    "id": "sheetAddBaby",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2364,
-   "hash": "07d4e2c5"
+   "size": 2386,
+   "hash": "3abb30d5"
   },
   {
    "id": "sheetCarer",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 931,
-   "hash": "5e230121"
+   "size": 941,
+   "hash": "c992dd12"
   },
   {
    "id": "sheetCareDate",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1561,
-   "hash": "fa50de2a"
+   "size": 1574,
+   "hash": "be6e1dde"
   },
   {
    "id": "sheetEvManage",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 613,
-   "hash": "2585614e"
+   "size": 620,
+   "hash": "e55293ee"
   },
   {
    "id": "sheetEvForm",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1547,
-   "hash": "575af099"
+   "size": 1564,
+   "hash": "4d459627"
   },
   {
    "id": "sheetVaxAdd",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1957,
-   "hash": "6839b52a"
+   "size": 1974,
+   "hash": "534db1df"
   },
   {
    "id": "sheetMilestone",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1718,
-   "hash": "00029164"
+   "size": 1735,
+   "hash": "9b2e1807"
   },
   {
    "id": "sheetEventLog",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 9842,
-   "hash": "d9a7b588"
+   "size": 9952,
+   "hash": "6a632986"
   },
   {
    "id": "sheetEvPanel",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 674,
-   "hash": "2b85eeb2"
+   "size": 681,
+   "hash": "7c631fc1"
   },
   {
    "id": "sheetDayFilter",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 818,
-   "hash": "8141335d"
+   "size": 828,
+   "hash": "01068799"
   },
   {
    "id": "sheetAllergy",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1113,
-   "hash": "7f509755"
+   "size": 1125,
+   "hash": "9b342013"
   },
   {
    "id": "sheetBsFilter",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 867,
-   "hash": "6c9c3d34"
+   "size": 877,
+   "hash": "cc0d2544"
   }
  ]
 }

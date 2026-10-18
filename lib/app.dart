@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import 'core/ai/ai_review.dart' show aiRootNavKey;
 import 'core/logging/app_log.dart' show AppLog, LhLogLine;
+import 'core/nav/nav_collapse.dart' show navEntryCollapsedProvider;
 import 'core/platform/desktop_actions.dart' show LaunchRoute;
+import 'core/platform/module_tiles.dart' show kShellLaunchSegs;
 import 'core/platform/launch_route.dart'
     show markLaunchRouteReady, moveTaskToBack, takeLaunchRoute;
 import 'core/platform/open_intent.dart'
@@ -164,6 +166,13 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       }
       // 目标路由查不到 → 走 unknownRouteFallback（B4），不抛 GoException。
       final router = GoRouter.of(navCtx);
+      // 批C-2（2026-10-18 产品令）：**从 1×1 模块瓦片进来 ⇒ 底栏默认收起**。
+      // 产品原话「相当于用户已进入就用双指放大，触发隐藏底部导航栏」。
+      // 只对**壳内模块段**生效：全屏模块（阅读/影音/健康/导图/卡片）本来就没有底栏，
+      // 给它们置收起态反而会在返回壳内时凭空少一条底栏。
+      if (kShellLaunchSegs.contains(route.action)) {
+        ref.read(navEntryCollapsedProvider.notifier).hide();
+      }
       if (route.fullScreen) {
         // 全屏栈路由（/journal/edit、/ledger/add）：**必须 push**。
         // `go` 会把栈底那条壳页一并换掉 ⇒ 页内 `Navigator.pop()` 无处可去 ⇒

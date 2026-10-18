@@ -1,6 +1,6 @@
 {
  "file": "index-time.html",
- "total": 110989,
+ "total": 112204,
  "cut": 0,
  "screens": [
   {
@@ -8,64 +8,64 @@
    "kind": "screen",
    "title": "时间",
    "role": "home",
-   "size": 5824,
-   "hash": "54079063"
+   "size": 5890,
+   "hash": "4a5e9f0e"
   },
   {
    "id": "p-timeStats",
    "kind": "screen",
    "title": "时间账本",
    "role": "home",
-   "size": 782,
-   "hash": "d8f30482"
+   "size": 793,
+   "hash": "4e039d06"
   },
   {
    "id": "p-sub-cats",
    "kind": "screen",
    "title": "分类管理",
    "role": "home",
-   "size": 916,
-   "hash": "b0872a5e"
+   "size": 926,
+   "hash": "5ac36c6b"
   },
   {
    "id": "p-sub-catAdd",
    "kind": "screen",
    "title": "添加分类",
    "role": "home",
-   "size": 2759,
-   "hash": "9f9362d2"
+   "size": 2796,
+   "hash": "0c1dda49"
   },
   {
    "id": "sheetTimePick",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2687,
-   "hash": "62ef285e"
+   "size": 2714,
+   "hash": "532abf13"
   },
   {
    "id": "sheetTsCat",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1085,
-   "hash": "6dea1639"
+   "size": 1098,
+   "hash": "c24b98c0"
   },
   {
    "id": "sheetCatParent",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 678,
-   "hash": "dcad8fc6"
+   "size": 686,
+   "hash": "74bc806c"
   },
   {
    "id": "sheetDatePick",
    "kind": "sheet",
    "title": "",
    "role": "rep",
-   "size": 1086,
-   "hash": "27e8e5ef"
+   "size": 1101,
+   "hash": "fcf01314"
   }
  ]
 }

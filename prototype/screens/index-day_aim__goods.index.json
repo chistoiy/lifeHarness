@@ -1,6 +1,6 @@
 {
  "file": "index-day_aim__goods.html",
- "total": 282517,
+ "total": 285496,
  "cut": 0,
  "screens": [
   {
@@ -8,160 +8,160 @@
    "kind": "screen",
    "title": "物品价值",
    "role": "home",
-   "size": 1389,
-   "hash": "ec5fde49"
+   "size": 1406,
+   "hash": "b3fc94b7"
   },
   {
    "id": "p-itemDetail",
    "kind": "screen",
    "title": "物品详情",
    "role": "home",
-   "size": 119,
-   "hash": "c1804df8"
+   "size": 121,
+   "hash": "da7b88aa"
   },
   {
    "id": "p-itemEdit",
    "kind": "screen",
    "title": "编辑档案",
    "role": "home",
-   "size": 3639,
-   "hash": "09e5df87"
+   "size": 3680,
+   "hash": "0966a4b8"
   },
   {
    "id": "p-itemStats",
    "kind": "screen",
    "title": "持有成本统计",
    "role": "home",
-   "size": 1782,
-   "hash": "df20479e"
+   "size": 1811,
+   "hash": "d774bcf9"
   },
   {
    "id": "p-itemSettle",
    "kind": "screen",
    "title": "决算报告",
    "role": "home",
-   "size": 115,
-   "hash": "c281cd6d"
+   "size": 117,
+   "hash": "28fe9b2c"
   },
   {
    "id": "p-days",
    "kind": "screen",
    "title": "重要日子",
    "role": "home",
-   "size": 1639,
-   "hash": "c7adc9e7"
+   "size": 1661,
+   "hash": "d2d4dc63"
   },
   {
    "id": "p-dayDetail",
    "kind": "screen",
    "title": "日子详情",
    "role": "home",
-   "size": 117,
-   "hash": "b1462474"
+   "size": 119,
+   "hash": "51335914"
   },
   {
    "id": "p-dayEdit",
    "kind": "screen",
    "title": "编辑日子",
    "role": "home",
-   "size": 3108,
-   "hash": "08eac240"
+   "size": 3150,
+   "hash": "1e976024"
   },
   {
    "id": "p-dayRemind",
    "kind": "screen",
    "title": "提醒中心",
    "role": "home",
-   "size": 517,
-   "hash": "09527502"
+   "size": 523,
+   "hash": "8f0767b1"
   },
   {
    "id": "p-goals",
    "kind": "screen",
    "title": "目标 OKR",
    "role": "home",
-   "size": 1386,
-   "hash": "954cd67f"
+   "size": 1405,
+   "hash": "c912b78a"
   },
   {
    "id": "p-goalDetail",
    "kind": "screen",
    "title": "目标详情",
    "role": "home",
-   "size": 119,
-   "hash": "11857298"
+   "size": 121,
+   "hash": "af5f9db0"
   },
   {
    "id": "p-goalEdit",
    "kind": "screen",
    "title": "编辑目标",
    "role": "home",
-   "size": 1351,
-   "hash": "82ae9cd6"
+   "size": 1366,
+   "hash": "26d7a3f5"
   },
   {
    "id": "p-goalReview",
    "kind": "screen",
    "title": "季度复盘 · KPT",
    "role": "home",
-   "size": 193,
-   "hash": "b150348f"
+   "size": 196,
+   "hash": "396f44e9"
   },
   {
    "id": "sheetExtra",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1164,
-   "hash": "fa8de3dd"
+   "size": 1175,
+   "hash": "374735a8"
   },
   {
    "id": "sheetRecycle",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1243,
-   "hash": "f4730e92"
+   "size": 1256,
+   "hash": "8eef908d"
   },
   {
    "id": "sheetScrap",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1120,
-   "hash": "d652eb38"
+   "size": 1131,
+   "hash": "455927c2"
   },
   {
    "id": "sheetItemDel",
    "kind": "sheet",
    "title": "删除档案",
    "role": "home",
-   "size": 912,
-   "hash": "2599c986"
+   "size": 923,
+   "hash": "005c9d0b"
   },
   {
    "id": "sheetAddItem",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2982,
-   "hash": "4aab3e2b"
+   "size": 3010,
+   "hash": "646340e5"
   },
   {
    "id": "sheetRemindPick",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 799,
-   "hash": "e75f3138"
+   "size": 808,
+   "hash": "71a09c17"
   },
   {
    "id": "sheetShareCard",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 867,
-   "hash": "3ef20975"
+   "size": 876,
+   "hash": "c5febc14"
   }
  ]
 }
