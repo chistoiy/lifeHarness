@@ -210,12 +210,9 @@ Future<HabitCheckOutcome> habitCheckinWrite(
 /// 「今天完成了」，量还是空的。用户原话：「带数值的打卡也只显示一个打卡，
 /// 不显示数值修改能力」。
 ///
-/// 本函数口径＝App 内记量弹层 `_save()` 的**增量版**：
-///  · 读今日已有流水 → 当前值（无记录＝0）；
-///  · `+ habitStepOf(goal)`（与弹层加减按钮同一个 domain 阶梯，禁各算一套）；
-///  · `upsertEntry(checked:true, value:新值)` —— **已达标也照样加**
-///    （喝了第 9 杯就是 9 杯，卡在目标上等于把真数据抹掉）；
-///  · `checkAt` 保留首次打卡时刻（同弹层 `e?.checkAt ?? now`）。
+/// 本函数口径＝App 内记量弹层 `_save()` 的**增量版**：读今日已有流水 → 加一档
+/// （`+ habitStepOf(goal)`）→ 写回。批D 起它只是 [habitValueWrite] 的薄包装
+/// （「当前值 + 一档」），真正的写库动作只剩一处。
 ///
 /// 不加「只允许加不许减」之外的守卫：负数目标/0 目标不走本函数（调用方按
 /// `goal > 0` 分流，见 `widgetCheckinByName`）。
@@ -225,16 +222,38 @@ Future<HabitCheckOutcome> habitIncrementWrite(
   DateTime? now,
 }) async {
   final t = now ?? DateTime.now();
+  final cur = (await repo.entriesOf(h.id))[dayKey(t)];
+  final step = habitStepOf(h.goal ?? 0);
+  return habitValueWrite(repo, h, value: (cur?.value ?? 0) + step, now: t);
+}
+
+/// 数值型习惯「**按绝对量**记今日」的写库核心（桌面计数型 `打卡` 一次提交 · 批D）。
+///
+/// 与 [habitIncrementWrite] 的唯一区别：量由调用方给定（步进行中间格那一刻的值），
+/// 而不是「当前值 + 一档」。原型口径＝「『打卡』把中间值一次提交」——所以这里
+/// 是**设值**（`upsertEntry(value:)`），不是加值。
+///
+/// 三条与 App 内记量弹层 `_save()` 同源：`checked:true`＋`origin=manual`；
+/// `checkAt` 保留首次打卡时刻（同日改值不重记时间）；`value < 0` 一律按 0 兜
+/// （桌面上「减到负数」没有业务含义）。
+///
+/// ⚠ **写库仍只有这一处**（连同布尔口径的 [habitCheckinWrite]）：原生侧一行
+/// sqlite 都不碰，只把量随广播带进来（C5／评估件 §4.1）。
+Future<HabitCheckOutcome> habitValueWrite(
+  HabitRepository repo,
+  Habit h, {
+  required double value,
+  DateTime? now,
+}) async {
+  final t = now ?? DateTime.now();
   final k = dayKey(t);
   final entries = await repo.entriesOf(h.id);
   final cur = entries[k];
-  final step = habitStepOf(h.goal ?? 0);
-  final next = (cur?.value ?? 0) + step;
   await repo.upsertEntry(
     h.id,
     day: k,
     checked: true,
-    value: next,
+    value: value < 0 ? 0 : value,
     origin: HabitEntry.oManual,
     checkAt: cur?.checkAt ??
         '${t.hour.toString().padLeft(2, '0')}:'

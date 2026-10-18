@@ -169,6 +169,111 @@ internal object LhWidget {
     }
 
     /**
+     * 计数型（记量）打卡的**实例级中间值**（批D · 纯显示态草稿）。
+     *
+     * 存 `id␟日期␟习惯名␟值`，条目间 `\u001e`、字段间 `\u001f`（与绑定值/待办行同族）。
+     * **不是业务数据**：± 只改这里、不动库；「打卡」才把中间值一次提交（原型口径：
+     * 不产生半成品数据）。三条作废规则都在读取端判（见 [draftValue]）。
+     *
+     * ⚠ 键名常量 `PREF_WIDGET_HABIT_DRAFT` 声明在文件下方 `FLUTTER_KEY_PREFIX` 之后
+     *   （`const val` 按声明次序解析，写在这里编译期直接报未初始化）。
+     */
+
+    /** 草稿条目分隔符／字段分隔符（与待办行同族；习惯名里的这两种字符写入时换空格）。 */
+    const val DRAFT_ITEM_SEP = '\u001e'
+    const val DRAFT_FIELD_SEP = '\u001f'
+
+    /** 补写队列里「名字＋本次量」的字段分隔符（老条目只有名字，无此字符 ⇒ 向后兼容）。 */
+    const val PENDING_FIELD_SEP = '\u001f'
+
+    /** 一条中间值草稿（[HabitCheckWidget] 渲染时取用）。 */
+    data class HabitDraft(
+        val id: Int,
+        val day: String,
+        val name: String,
+        val value: Double,
+    )
+
+    /** 今天的日键（`yyyy-MM-dd` 本地时区，与 Dart `dayKey` 同形——跨日判定靠它）。 */
+    fun todayKey(): String = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        .format(java.util.Date())
+
+    /** 解码中间值草稿（脏行整条丢弃：宁可回到初值，也不要在桌面上显示半个数）。 */
+    fun readDrafts(context: Context): List<HabitDraft> {
+        val raw = try {
+            prefs(context).getString(PREF_WIDGET_HABIT_DRAFT, "") ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+        if (raw.isEmpty()) return emptyList()
+        return raw.split(DRAFT_ITEM_SEP).mapNotNull { chunk ->
+            val f = chunk.split(DRAFT_FIELD_SEP)
+            if (f.size < 4) return@mapNotNull null
+            val id = clean(f[0]).toIntOrNull() ?: return@mapNotNull null
+            val v = clean(f[3]).toDoubleOrNull() ?: return@mapNotNull null
+            HabitDraft(id, clean(f[1]), clean(f[2]), v)
+        }
+    }
+
+    /**
+     * 该实例当前该显示的中间值；**没有有效草稿就返回 null**（由调用方取初值）。
+     *
+     * 三条作废规则（原型「切日/换绑即丢弃中间值」）：
+     *  · 日期不符 ⇒ 作废（昨天调好的量不能带到今天）；
+     *  · 习惯名不符 ⇒ 作废（换绑后旧草稿属于别的习惯）；
+     *  · 值为负 ⇒ 作废（理论上写不进，脏值一律不认）。
+     */
+    fun draftValue(context: Context, appWidgetId: Int, name: String, day: String): Double? {
+        val d = readDrafts(context).firstOrNull { it.id == appWidgetId } ?: return null
+        if (d.day != day || d.name != name || d.value < 0) return null
+        return d.value
+    }
+
+    /** 写中间值（同实例覆盖；顺手清掉别的实例的历史条目——它们各自随自己的下一笔刷新）。 */
+    fun putDraft(context: Context, appWidgetId: Int, name: String, day: String, value: Double) {
+        try {
+            val keep = readDrafts(context).filter { it.id != appWidgetId }
+            val all = keep + HabitDraft(appWidgetId, day, draftField(name), value.coerceAtLeast(0.0))
+            prefs(context).edit()
+                .putString(PREF_WIDGET_HABIT_DRAFT, encodeDrafts(all))
+                .apply()
+        } catch (_: Exception) {
+            // catch-ok: 写不了草稿＝这次 ± 不生效（显示回旧值），不影响业务数据。
+        }
+    }
+
+    /** 提交成功后清掉该实例的草稿（下一天/下一次从初值重新开始）。 */
+    fun clearDraft(context: Context, appWidgetId: Int) {
+        try {
+            val keep = readDrafts(context).filter { it.id != appWidgetId }
+            prefs(context).edit()
+                .putString(PREF_WIDGET_HABIT_DRAFT, encodeDrafts(keep))
+                .apply()
+        } catch (_: Exception) {
+            // catch-ok: 清不掉也不致命——草稿带日期戳，跨日自动作废。
+        }
+    }
+
+    private fun encodeDrafts(list: List<HabitDraft>): String = list.joinToString(DRAFT_ITEM_SEP.toString()) { d ->
+        listOf(d.id.toString(), d.day, draftField(d.name), numText(d.value))
+            .joinToString(DRAFT_FIELD_SEP.toString())
+    }
+
+    /** 草稿字段清洗：把两种分隔符换成空格（与快照 `_widgetClean` 同口径，避免切错段）。 */
+    private fun draftField(s: String): String =
+        s.replace(DRAFT_ITEM_SEP, ' ').replace(DRAFT_FIELD_SEP, ' ')
+
+    /**
+     * 未动过 ± 时的中间值初值＝**今日目标量**（原型「计数型习惯（默认 30）」——
+     * 中间格默认就是「这次准备记满多少」）；目标缺失才回落一档步长。
+     */
+    fun initialDraftValue(row: HabitRow): Double = when {
+        row.goal > 0 -> row.goal
+        row.step > 0 -> row.step
+        else -> 1.0
+    }
+
+    /**
      * 某实例绑定的**习惯名**（实例键优先，回落全局默认·R2；无/脏 ⇒ null）。
      *
      * 绑定值＝`kind␟ref␟sub`；打卡目标形态是 `nav␟habit␟<习惯名>`——三段落
@@ -399,15 +504,51 @@ internal object LhWidget {
         context: Context,
         appWidgetId: Int,
         habitName: String,
+        amount: Double? = null,
     ): PendingIntent {
         val i = Intent(context, HabitCheckReceiver::class.java).apply {
             action = HabitCheckReceiver.ACTION_CHECK
             putExtra(HabitCheckReceiver.EXTRA_WIDGET_ID, appWidgetId)
             putExtra(HabitCheckReceiver.EXTRA_HABIT_NAME, habitName)
+            // 计数型（批D）：带「本次提交量」＝步进行中间格那一刻的值。
+            // 不带 ⇒ Dart 走老口径（布尔打卡／加一档）。
+            if (amount != null) putExtra(HabitCheckReceiver.EXTRA_VALUE, amount)
         }
         return PendingIntent.getBroadcast(
             context,
             REQ_HABIT_CHECK_BASE + appWidgetId,
+            i,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * 计数型步进行 `±` 的**纯显示态**意图（批D）。
+     *
+     * ⚠ 与 [habitCheckIntent] 的根本区别：这条**不写库、不起 Flutter 引擎**——
+     * 只改本实例的中间值草稿（[putDraft]）并重绘，毫秒级。若把 ± 也做成
+     * 「起无头引擎跑 Dart」，每次点一下都要等 1~3s 冷启动，用户连点几下就是
+     * 一场灾难；而中间值本来就只是显示态（不进库），原生改它不构成「复刻写库」。
+     *
+     * ⚠ **requestCode 每实例每钮一个**：`PendingIntent` 相等性**不比 extras**，
+     * 同码会让「＋」与「−」互相覆写（同 [habitCheckIntent] 的坑）。故按
+     * `id*2 + 正负位` 取码，两个方向各占一个。
+     */
+    fun habitAdjustIntent(
+        context: Context,
+        appWidgetId: Int,
+        habitName: String,
+        delta: Double,
+    ): PendingIntent {
+        val i = Intent(context, HabitAdjustReceiver::class.java).apply {
+            action = HabitAdjustReceiver.ACTION_ADJUST
+            putExtra(HabitAdjustReceiver.EXTRA_WIDGET_ID, appWidgetId)
+            putExtra(HabitAdjustReceiver.EXTRA_HABIT_NAME, habitName)
+            putExtra(HabitAdjustReceiver.EXTRA_DELTA, delta)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            REQ_HABIT_ADJUST_BASE + appWidgetId * 2 + (if (delta < 0) 0 else 1),
             i,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -436,24 +577,34 @@ internal object LhWidget {
     /** 打卡闭环请求码基址（每枚实例 = 基址 + appWidgetId；与 root 0x4C4001 不撞）。 */
     const val REQ_HABIT_CHECK_BASE = 0x4C5000
 
+    /** 计数型 ± 请求码基址（每枚实例每钮一个：基址 + id*2 + 正负位；与上面两个基址不撞）。 */
+    const val REQ_HABIT_ADJUST_BASE = 0x500000
+
     /**
-     * 打卡没能当场写成 ⇒ 记住这个习惯名，等 App 起来补写（闭环不能丢）。
+     * 打卡没能当场写成 ⇒ 记住这个习惯名（及本次量），等 App 起来补写（闭环不能丢）。
      *
      * 去重后 `\u001e` 拼接（Dart 侧 loadDesktopPendingChecks 同口径）；
-     * 连续失败也只写一条——App 启动排空是幂等补写，重复条目没有意义。
+     * **同名只留最新一条**：连续失败也只补最后那笔（补写是「设为这个量」，
+     * 中间那几笔本来就被后一笔覆盖了）。
+     *
+     * 计数型（批D）条目＝`名字␟本次量`；布尔型/老条目只有名字 ⇒ Dart 侧按
+     * 「无第二段」回落加一档口径（向后兼容，升级后队列里的旧条目照样能排空）。
      */
-    fun enqueuePendingCheck(context: Context, name: String) {
+    fun enqueuePendingCheck(context: Context, name: String, amount: Double? = null) {
         val n = name.trim()
         if (n.isEmpty()) return
+        val entry = if (amount == null) n else "$n$PENDING_FIELD_SEP${numText(amount)}"
         try {
             val p = prefs(context)
             val cur = p.getString(PREF_PENDING_CHECKS, "") ?: ""
-            val names = cur.split(CHECK_SEP).map { it.trim() }
-                .filter { it.isNotEmpty() }.toMutableSet()
-            if (names.add(n)) {
-                p.edit().putString(PREF_PENDING_CHECKS, names.joinToString(CHECK_SEP.toString()))
-                    .apply()
-            }
+            val items = cur.split(CHECK_SEP).map { it.trim() }
+                .filter { it.isNotEmpty() }
+            // 同名去旧留新（判据＝分隔符前的名字段）。
+            val kept = items.filter { it.substringBefore(PENDING_FIELD_SEP) != n }
+            val next = kept + entry
+            p.edit()
+                .putString(PREF_PENDING_CHECKS, next.joinToString(CHECK_SEP.toString()))
+                .apply()
         } catch (_: Exception) {
             // catch-ok: 连偏好都写不了（极端情况）只能放弃本次闭环，不崩宿主。
         }
@@ -506,6 +657,14 @@ internal object LhWidget {
 
     /** 打卡补写队列的分隔符（与 Dart `kWidgetCheckSep` 同值）。 */
     const val CHECK_SEP = '\u001e'
+
+    /**
+     * 计数型打卡的中间值草稿键（批D）。
+     *
+     * ⚠ 声明位置不能上移：`const val` 按**声明次序**初始化，`FLUTTER_KEY_PREFIX`
+     *   在上方几行才声明（本文件既有的坑，批A 首编译即踩）。
+     */
+    const val PREF_WIDGET_HABIT_DRAFT = FLUTTER_KEY_PREFIX + "desktop.widget_habit_draft"
 
     // ── 按实例绑定（批A · 与 Dart `features/widget/domain/widget_binding.dart` 同口径）──
     //

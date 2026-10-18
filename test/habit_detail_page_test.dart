@@ -83,9 +83,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('hd-dim-m')));
     await settle5(tester);
     expect(find.text('近30天达成'), findsOneWidget);
-    // 日历今日格 → 指引 toast
+    // 日历今日格 → 当天记录编辑弹层（批E：原来是「今天请在卡片上打卡或记量」死提示）
     await tester.tap(find.byKey(ValueKey('hd-cal-${key(0)}')));
-    expect(await pollText(tester, '今天请在卡片上打卡或记量'), isTrue);
+    await settle5(tester);
+    expect(find.text('打卡记量 · 晨跑'), findsOneWidget);
+    expect(find.byKey(const ValueKey('hlog-at')), findsOneWidget);
     await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 

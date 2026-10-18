@@ -710,7 +710,13 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                       () {
                         final fd = fdt.$1;
                         final fe = fdt.$2;
-                        return Container(
+                        // 批E：流水行点开**那一天的记录编辑**（改数值／打卡时间／删除）。
+                        return GestureDetector(
+                          key: ValueKey('hd-rec-${dayKey(fd)}'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () =>
+                              showHabitLogSheet(context, ref, h, day: dayKey(fd)),
+                          child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         decoration: i == 0
                             ? null
@@ -785,6 +791,7 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                               ),
                           ],
                         ),
+                      ),
                       );
                     }(),
                   const SizedBox(height: 8),
@@ -1271,8 +1278,9 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                     return GestureDetector(
                       key: ValueKey('hd-cal-$k'),
                       onTap: () {
+                        // 批E：今天不再是死提示——点开同一天的记录编辑。
                         if (k == dayKey(today)) {
-                          habitToast(context, '今天请在卡片上打卡或记量');
+                          showHabitLogSheet(context, ref, h, day: k);
                           return;
                         }
                         showHabitBackfillSheet(

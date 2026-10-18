@@ -12,7 +12,7 @@ import 'package:lifeharness/features/widget/domain/widget_binding.dart';
 /// ① 编码（Dart 唯一出口）字段序/分隔符/空名/长名不截断；
 /// ② 跨语言同源（键名、类名、绑定键前缀、种类常量、分隔符）；
 /// ③ 失效三态文案逐字 ＋ **判定优先级**（无快照 > 无绑定 > 源失效）；
-/// ④ 渲染语句（状态点切换、已打卡真不可点、连击 0 不显示）；
+/// ④ 渲染语句（状态点切换、已打卡＝回 App 改、连击 0 不显示）；
 /// ⑤ 布局（四件套 id 齐备、占位默认隐藏、状态点用白名单控件）；
 /// ⑥ 绑定解析与预选认领（三条安全线）＋ 配置页无感回写。
 void main() {
@@ -175,12 +175,18 @@ void main() {
       }
     });
 
-    test('已打卡：按钮换淡底 + 字色转次文本 + **真不可点**', () {
+    test('已打卡：按钮换淡底 + 字色转次文本 + **点了回 App 改**（批E）', () {
       expect(habit, contains('R.drawable.lh_wg_habit_btn_off'));
       expect(habit, contains('R.color.lh_wg_sub'));
-      // 「灰着但点得动、点了没反应」是最糟的一种；必须显式撤掉点击意图。
-      expect(habit, contains('views.setOnClickPendingIntent(R.id.lh_wg_btn, null)'),
-          reason: '已打卡态必须撤掉按钮点击意图，否则有点按反馈却毫无反应');
+      // 「灰着但点得动、点了没反应」是最糟的一种。批E 起选**导航**而不是死区：
+      // App 内已能改数值／改打卡时间／删记录，桌面这枚灰按钮就是去那里的入口
+      //（产品原话「缺少修改打卡记录，删除或修改（打卡时间，数值这一类的）」）。
+      expect(
+          habit,
+          contains(
+              'LhWidget.clickIntent(context, LhWidget.SEG_HABIT_CHECK, REQ_BTN)'),
+          reason: '已打卡态按钮必须是「回 App 改」的导航意图，不能是死区');
+      expect(habit, contains('const val REQ_BTN'), reason: '与 root 分开取码，互不覆写');
     });
 
     test('连击 0 不显示「连击 0 天」（0 天不是成绩）', () {
@@ -201,9 +207,12 @@ void main() {
 
     test('点击一律走 LhWidget 出口（clickIntent/habitCheckIntent·禁自拼 Intent）', () {
       final clicks = RegExp(r'setOnClickPendingIntent\(').allMatches(habit).length;
+      // 批D：计数型 ± 走 habitAdjustIntent（同样收在 LhWidget 里，禁 provider 自拼）。
       final viaHelper =
-          RegExp(r'LhWidget\.(clickIntent|habitCheckIntent)\(').allMatches(habit).length;
-      final viaNull = RegExp(r'setOnClickPendingIntent\(R\.id\.lh_wg_btn, null\)')
+          RegExp(r'LhWidget\.(clickIntent|habitCheckIntent|habitAdjustIntent)\(')
+              .allMatches(habit)
+              .length;
+      final viaNull = RegExp(r'setOnClickPendingIntent\(R\.id\.lh_wg_\w+, null\)')
           .allMatches(habit)
           .length;
       expect(clicks, greaterThanOrEqualTo(3));
@@ -215,11 +224,15 @@ void main() {
       // 批A 交互闭环层：未打卡按钮走**广播直达**（不开 App），root 仍走 C15 起 App。
       expect(habit, contains('LhWidget.habitCheckIntent('));
       expect(habit, contains('LhWidget.habitCheckIntent(context, appWidgetId, row.name)'));
+      expect(habit, contains('LhWidget.habitAdjustIntent('));
       expect(support, contains('fun habitCheckIntent('));
+      expect(support, contains('fun habitAdjustIntent('));
       expect(support, contains('const val SEG_HABIT_CHECK = "habit/check"'));
       // requestCode 必须每实例一个（PendingIntent 相等性不比 extras：
       // 同码＋FLAG_UPDATE_CURRENT 会让第二枚覆写第一枚里的习惯名）。
       expect(support, contains('REQ_HABIT_CHECK_BASE + appWidgetId'));
+      // ± 同理，且**每钮**一个（同码会让「＋」覆写「−」）。
+      expect(support, contains('REQ_HABIT_ADJUST_BASE + appWidgetId * 2'));
     });
   });
 
@@ -420,40 +433,105 @@ void main() {
           reason: '判据只能是 goal > 0（Dart 侧 isNumeric 同式，两处一分叉就「写着 +2 却是布尔打卡」）');
     });
 
-    test('状态行给进度、按钮给 +N（不显示「打卡」二字）', () {
-      final rn = bodyOf(habit, 'private fun renderNumeric(', 'fun echoChecked(');
+    test('未提交态：状态行给进度、步进行三格、主按钮「打卡」（批D）', () {
+      final rn = bodyOf(habit, 'private fun renderNumeric(', 'private fun bindRoot(');
       expect(rn, contains('R.string.lh_widget_habit_val'), reason: '缺进度文案 ⇒ 看不到今天记了多少');
-      expect(rn, contains('R.string.lh_widget_habit_add'), reason: '缺 +N 文案 ⇒ 按之前不知道会加多少');
-      expect(rn, contains('LhWidget.numText(row.value)'));
-      expect(rn, contains('LhWidget.numText(row.goal)'));
-      expect(strings, contains(r'name="lh_widget_habit_val">%1$s/%2$s %3$s<'));
+      // 报障核心：原型是 [−5] [30] [+5] 三格，不是一枚 +N。
+      expect(rn, contains('R.string.lh_widget_habit_minus'), reason: '缺减号格（报障原话「没有减数值」）');
+      expect(rn, contains('R.string.lh_widget_habit_add'), reason: '缺加号格');
+      expect(rn, contains('R.string.lh_widget_habit_btn'), reason: '主按钮必须是「打卡」（一次提交），不是 +N');
+      expect(rn, contains('LhWidget.draftValue('), reason: '中间值必须读实例草稿（± 改的就是它）');
+      expect(rn, contains('LhWidget.initialDraftValue(row)'), reason: '无草稿时取初值（今日目标量）');
+      expect(rn, contains('LhWidget.numText(mid)'), reason: '中间格文案走唯一格式化出口');
+      expect(strings, contains(r'name="lh_widget_habit_minus">−%1$s<'));
       expect(strings, contains(r'name="lh_widget_habit_add">+%1$s<'));
+      expect(strings, contains(r'name="lh_widget_habit_done_val">已打卡 · %1$s<'));
     });
 
-    test('数值型按钮**恒可点**（达标也要能继续记量）', () {
-      final rn = bodyOf(habit, 'private fun renderNumeric(', 'fun echoChecked(');
-      // 布尔型的「已打卡撤意图」不许漏进数值分支：第 9 杯水照样要记上。
-      expect(rn, isNot(contains('setOnClickPendingIntent(R.id.lh_wg_btn, null)')),
-          reason: '达标即撤意图 ⇒ 超出目标的量记不进去，等于抹数据');
-      expect(rn, contains('LhWidget.habitCheckIntent(context, appWidgetId, row.name)'),
-          reason: '数值型也走同一个广播入口（写库口径只许有一处）');
+    test('已提交态（今日 value > 0）：± 收起、按钮灰＋回 App 改、文案 已打卡 · N', () {
+      final rn = bodyOf(habit, 'private fun renderNumeric(', 'private fun bindRoot(');
+      expect(rn, contains('if (row.value > 0)'), reason: '已提交判定＝今日已有记录（不是「达标」）');
+      expect(rn, contains('R.string.lh_widget_habit_done_val'), reason: '缺「已打卡 · N」收敛态');
+      expect(rn, contains('REQ_BTN'),
+          reason: '已提交态按钮＝「回 App 改」的导航意图（批E：改数/改时间/删除都在 App 内）');
+      expect(rn, contains('R.id.lh_wg_cnt, View.GONE'), reason: '已提交态步进行必须收起');
     });
 
-    test('回显：数值型加一格、布尔型置已打卡', () {
+    test('提交带量：habitCheckIntent(amount = mid)（绝对量写，不是再加一档）', () {
+      final rn = bodyOf(habit, 'private fun renderNumeric(', 'private fun bindRoot(');
+      expect(rn, contains('amount = mid'), reason: '提交的必须是中间格那一刻的值');
+      expect(rn, contains('LhWidget.habitCheckIntent(context, appWidgetId, row.name, amount = mid)'));
+      // 中间格是「数」不是「钮」：点它不提交（提交只走主按钮，避免误记）。
+      expect(rn, contains('setOnClickPendingIntent(R.id.lh_wg_cnt_val, null)'));
+      // 中间值被减到 0：撤意图（记 0 是空记录，会污染「今日已记」）。
+      expect(rn, contains('if (mid > 0)'));
+      // 支持：意图里带不带 amount 决定 Dart 走绝对量还是加一档。
+      expect(support, contains('if (amount != null) putExtra(HabitCheckReceiver.EXTRA_VALUE, amount)'));
+    });
+
+    test('± 两条意图：每实例每钮一个 requestCode，且不起引擎不写库', () {
+      final adj = bodyOf(support, 'fun habitAdjustIntent(', 'fun quickAddIntent(');
+      expect(adj, contains('REQ_HABIT_ADJUST_BASE + appWidgetId * 2'),
+          reason: '同码会让「＋」覆写「−」（PendingIntent 相等性不比 extras）');
+      expect(adj, contains('if (delta < 0) 0 else 1'), reason: '正负各占一个码');
+      final recv = File('$kt/HabitAdjustReceiver.kt').readAsStringSync();
+      final code = recv
+          .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+          .replaceAll(RegExp(r'//.*'), '');
+      expect(recv, contains('LhWidget.putDraft('), reason: '± 只改显示态草稿');
+      expect(recv, contains('LhWidget.draftValue('), reason: '基准值必须读草稿（连点累积）');
+      expect(recv, contains('coerceAtLeast(0.0)'), reason: '下限 0：减到底停在 0，不出现负数');
+      expect(recv, contains('HabitCheckWidget().redraw(app, widgetId)'),
+          reason: '只重画自己这一枚（广播整类会让同类实例集体闪）');
+      for (final banned in <String>['FlutterEngine', 'upsertEntry', 'sqlite', 'HabitCheckReceiver']) {
+        expect(code, isNot(contains(banned)),
+            reason: '± 出现 $banned ⇒ 又在起引擎/复刻写库（± 只是显示态）');
+      }
+    });
+
+    test('草稿三条作废：跨日 / 换绑 / 负值', () {
+      final dv = bodyOf(support, 'fun draftValue(', 'fun putDraft(');
+      expect(dv, contains('d.day != day'), reason: '昨天的量不能带到今天');
+      expect(dv, contains('d.name != name'), reason: '换绑后旧草稿属于别的习惯');
+      expect(dv, contains('d.value < 0'), reason: '脏值一律不认');
+      expect(support, contains('const val PREF_WIDGET_HABIT_DRAFT = FLUTTER_KEY_PREFIX + "desktop.widget_habit_draft"'));
+    });
+
+    test('步进行三件套常驻布局且默认 gone（RemoteViews 禁动态 addView）', () {
+      for (final id in <String>[
+        'lh_wg_cnt',
+        'lh_wg_cnt_minus',
+        'lh_wg_cnt_val',
+        'lh_wg_cnt_plus',
+      ]) {
+        expect(layout, contains('@+id/$id'), reason: '布局缺 $id');
+      }
+      final at = layout.indexOf('@+id/lh_wg_cnt"');
+      expect(at, greaterThan(0));
+      final block = layout.substring(at, layout.indexOf('</LinearLayout>', at));
+      expect(block, contains('android:visibility="gone"'), reason: '默认收起（布尔型整行不出现）');
+    });
+
+    test('回显：数值型当场画成「已打卡 · 本次量」、布尔型置已打卡', () {
       final ec = bodyOf(habit, 'fun echoChecked(', 'private companion object');
       expect(ec, contains('if (row.isNumeric)'), reason: '两种形态回显内容不同');
-      expect(ec, contains('row.value + '), reason: '数值型要当场把进度往前推一格');
+      expect(ec, contains('val next = amount'), reason: '数值型回显用**本次提交量**（不是 value + step）');
+      expect(ec, contains('row.copy(value = next'), reason: '数值型把值置成提交量');
       expect(ec, contains('row.copy(done = true)'), reason: '布尔型回显已打卡');
     });
 
-    test('Dart 写库按 goal > 0 分流到加量（禁一律布尔打卡）', () {
+    test('Dart 写库按 goal > 0 分流：带量走绝对量写、不带量加一档', () {
       final cm =
           File('lib/shared/linkage/widget_checkin_mounts.dart').readAsStringSync();
       expect(cm, contains('habitIncrementWrite(repo, h, now: now)'));
+      expect(cm, contains('habitValueWrite(repo, h, value: amount, now: now)'),
+          reason: '带量提交必须走绝对量写（否则桌面写 30、库里记成加一档）');
+      expect(cm, contains('if (amount != null)'));
       expect(cm, contains('if (!h.isGroup && (h.goal ?? 0) > 0)'),
           reason: '分流判据必须与快照 isNumeric 逐字同式');
       final hm = File('lib/shared/linkage/habit_mounts.dart').readAsStringSync();
       expect(hm, contains('Future<HabitCheckOutcome> habitIncrementWrite('));
+      expect(hm, contains('Future<HabitCheckOutcome> habitValueWrite('));
       expect(hm, contains('habitStepOf(h.goal ?? 0)'),
           reason: '步进必须走 domain 那一处阶梯（与记量弹层同源）');
       // 步进阶梯只许有一份实现：弹层里的 hStepOf 只能是转发。

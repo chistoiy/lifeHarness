@@ -51,17 +51,20 @@ class HabitCheckReceiver : BroadcastReceiver() {
         val app = context.applicationContext
         val widgetId = intent.getIntExtra(EXTRA_WIDGET_ID, 0)
         val name = intent.getStringExtra(EXTRA_HABIT_NAME)?.trim()
+        // 计数型（批D）：本次提交量＝步进行中间格那一刻的值。没有这个 extra ⇒
+        // 布尔型（或老版本挂着的意图）走老口径（打卡／加一档）。
+        val amount = if (intent.hasExtra(EXTRA_VALUE)) intent.getDoubleExtra(EXTRA_VALUE, 0.0) else null
         if (widgetId <= 0 || name.isNullOrEmpty()) return
         // ① 乐观回显（主线程毫秒级；写库结果未定也先给确定感）。
         // provider 无状态，渲染不吃字段 ⇒ 借个实例调即可。
-        HabitCheckWidget().echoChecked(app, widgetId, name)
+        HabitCheckWidget().echoChecked(app, widgetId, name, amount)
         // ② 主线程建引擎＋发调用＋起 Dart（goAsync：后面还有异步等待）。
         val pending = goAsync()
         val call = try {
-            startCall(app, name)
+            startCall(app, name, amount)
         } catch (e: Exception) {
             // 引擎都起不来（极端：资源占满/ROM 限制）：回滚＋入队，App 启动补写。
-            LhWidget.enqueuePendingCheck(app, name)
+            LhWidget.enqueuePendingCheck(app, name, amount)
             rollback(app, widgetId)
             try {
                 pending.finish()
@@ -72,7 +75,7 @@ class HabitCheckReceiver : BroadcastReceiver() {
         // ③ worker 等回执收摊（不占广播主线程）。
         worker {
             try {
-                awaitOutcome(app, call, widgetId, name)
+                awaitOutcome(app, call, widgetId, name, amount)
             } finally {
                 try {
                     pending.finish()
@@ -93,6 +96,12 @@ class HabitCheckReceiver : BroadcastReceiver() {
         const val ACTION_CHECK = "com.lifeharness.lifeharness.WIDGET_HABIT_CHECK"
         const val EXTRA_WIDGET_ID = "widget_id"
         const val EXTRA_HABIT_NAME = "habit_name"
+
+        /**
+         * 本次提交量（计数型 · 批D）。**有值即「绝对量写」**：把今日量设成这个数，
+         * 而不是在已有值上加一档。缺省（布尔型/老意图）走加一档口径。
+         */
+        const val EXTRA_VALUE = "value"
 
         /** 后台 isolate 通道名（Dart `kWidgetBgChannel` 逐字一致·守护测试交叉核对）。 */
         private const val CHANNEL = "lh/widget_bg"
@@ -127,7 +136,7 @@ class HabitCheckReceiver : BroadcastReceiver() {
          * `invokeMethod` 先于 `executeDartEntrypoint` 无妨：消息在原生侧排队，
          * isolate 起来、handler 挂上后照样送达（与冷启动插件通道同机制）。
          */
-        private fun startCall(app: Context, name: String): PendingCall {
+        private fun startCall(app: Context, name: String, amount: Double?): PendingCall {
             val engine = FlutterEngine(app)
             val latch = CountDownLatch(1)
             val outcome = AtomicReference("pending")
@@ -151,8 +160,12 @@ class HabitCheckReceiver : BroadcastReceiver() {
                     latch.countDown()
                 }
             }
+            val args = HashMap<String, Any>().apply {
+                put("habit", name)
+                if (amount != null) put("value", amount)
+            }
             MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
-                .invokeMethod(CHECKIN, mapOf("habit" to name), result)
+                .invokeMethod(CHECKIN, args, result)
             engine.dartExecutor.executeDartEntrypoint(
                 DartExecutor.DartEntrypoint(
                     FlutterInjector.instance().flutterLoader().findAppBundlePath(),
@@ -174,23 +187,28 @@ class HabitCheckReceiver : BroadcastReceiver() {
             call: PendingCall,
             widgetId: Int,
             name: String,
+            amount: Double?,
         ) {
             try {
                 val replied = call.latch.await(CHECKIN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 if (!replied) {
                     // 超时：Dart 可能还在写（幂等；写了会自推快照）。并入队兜底，
                     // 不回滚——写成功的那一半让快照自己纠正显示。
-                    LhWidget.enqueuePendingCheck(app, name)
+                    LhWidget.enqueuePendingCheck(app, name, amount)
                     return
                 }
                 if (call.outcome.get() != RESULT_OK) {
                     // 明确失败：回滚显示态（按快照重绘）＋入队，App 启动补写。
-                    LhWidget.enqueuePendingCheck(app, name)
+                    LhWidget.enqueuePendingCheck(app, name, amount)
                     rollback(app, widgetId)
+                } else {
+                    // RESULT_OK：Dart 已推习惯三键＋重绘 ⇒ 已收敛。
+                    // 计数型（批D）：这一次提交已落库，中间值草稿完成使命（不清的话
+                    // 明天读到时被日期判废，但当天再进未提交态会拿旧草稿，必须清）。
+                    LhWidget.clearDraft(app, widgetId)
                 }
-                // RESULT_OK：Dart 已推习惯三键＋重绘 ⇒ 已收敛，无需动作。
             } catch (_: Exception) {
-                LhWidget.enqueuePendingCheck(app, name)
+                LhWidget.enqueuePendingCheck(app, name, amount)
                 rollback(app, widgetId)
             } finally {
                 try {

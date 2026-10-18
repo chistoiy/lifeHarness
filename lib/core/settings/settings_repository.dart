@@ -314,9 +314,13 @@ class SettingsRepository {
       .toSet()
       .toList();
 
-  /// 逐名移除（补写成功一条清一条；中途死掉不丢剩下的）。
-  Future<void> removeDesktopPendingCheck(String name) {
-    final left = loadDesktopPendingChecks().where((e) => e != name.trim()).toSet();
+  /// 逐条移除（补写成功一条清一条；中途死掉不丢剩下的）。
+  ///
+  /// ⚠ 参数是**整条原文**（批D 起条目可能是 `名字␟本次量`）：按名字比对会
+  /// 永远匹配不上，队列就永远排不空、每次启动都重试。
+  Future<void> removeDesktopPendingCheck(String entry) {
+    final left =
+        loadDesktopPendingChecks().where((e) => e != entry.trim()).toSet();
     return saveDesktopPendingChecks(left.toList());
   }
 

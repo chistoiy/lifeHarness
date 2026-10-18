@@ -16,7 +16,11 @@ void main() {
   // 治理 G0~G7d⑤ 交付后（2026-09-29）实测登记的基线预算。
   const budget = <String, int>{
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
-    'features/habit/presentation/habit_detail_page.dart': 1520,
+    // 1520→1528 存量越线归位（小组件批E · 2026-10-18）：产品令「缺少修改打卡记录」——
+    // 流水每行包一层 GestureDetector（key `hd-rec-<日键>`）点开那一天的记录编辑，
+    // 净增 8 行（1 注释＋6 包层＋1 收尾）。**已先做压缩**：onTap 六行折成两行、
+    // 原三行注释收成一行（同批曾到 1536）。真还债＝把「打卡流水」整段拆 part，另批做。
+    'features/habit/presentation/habit_detail_page.dart': 1528,
     'features/habit/presentation/habit_stat_page.dart': 1503,
     // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
     // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。

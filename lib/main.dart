@@ -66,7 +66,13 @@ void widgetBackgroundMain() {
     if (call.method == kWidgetBgCheckin) {
       final args = call.arguments;
       final name = args is Map ? args['habit'] as String? : null;
-      return runWidgetHabitCheckin(name ?? '');
+      // 计数型（批D）：本次提交量。有值 ⇒ 绝对量写（步进行中间格那一刻的值）；
+      // 无值 ⇒ 老口径（布尔打卡／加一档）。
+      final raw = args is Map ? args['value'] : null;
+      return runWidgetHabitCheckin(
+        name ?? '',
+        amount: raw is num ? raw.toDouble() : null,
+      );
     }
     throw MissingPluginException('No handler for ${call.method} on $kWidgetBgChannel');
   });

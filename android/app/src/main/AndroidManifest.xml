@@ -285,6 +285,14 @@
             android:name=".HabitCheckReceiver"
             android:exported="false" />
 
+        <!-- 批D · 计数型打卡「±」的显示态调节器（**内部广播，不导出**）。
+             与上面那枚的分工：这条**不写库、不起引擎**——只改本实例的中间值草稿
+             并重画自己这一枚（毫秒级）；「打卡」才把中间值一次提交（走上一条）。
+             ⚠ `exported=false` 同理：任意 app 不该能改我们桌面实例的显示态。 -->
+        <receiver
+            android:name=".HabitAdjustReceiver"
+            android:exported="false" />
+
         <!-- V1.67 桌面批2（F2-4）：拖到桌面时的配置页（可选「显示什么」）。
              与设置页共用同一份偏好（FlutterSharedPreferences 的 desktop.* 键 · 禁两套）。
 

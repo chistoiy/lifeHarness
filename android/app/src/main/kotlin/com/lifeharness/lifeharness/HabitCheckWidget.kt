@@ -135,6 +135,8 @@ class HabitCheckWidget : HomeWidgetProvider() {
         views.setViewVisibility(R.id.lh_wg_gap, View.GONE)
         // 占位态两枚撑开器都收掉，否则占位文本被顶到半空（正常态才需要它们居中）。
         views.setViewVisibility(R.id.lh_wg_gap_top, View.GONE)
+        // 步进行同理收掉（批D）：占位态整卡只剩一行文案。
+        views.setViewVisibility(R.id.lh_wg_cnt, View.GONE)
         views.setViewVisibility(R.id.lh_wg_btn, View.GONE)
         views.setViewVisibility(R.id.lh_wg_ph, View.VISIBLE)
         views.setTextViewText(R.id.lh_wg_ph, text)
@@ -161,6 +163,8 @@ class HabitCheckWidget : HomeWidgetProvider() {
         views.setViewVisibility(R.id.lh_wg_gap_top, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_btn, View.VISIBLE)
         views.setViewVisibility(R.id.lh_wg_ph, View.GONE)
+        // 步进行默认收起：只有计数型（数值型）的**未提交态**才展开（见 [renderNumeric]）。
+        views.setViewVisibility(R.id.lh_wg_cnt, View.GONE)
 
         views.setTextViewText(R.id.lh_wg_habit, row.name)
         views.setInt(
@@ -184,7 +188,12 @@ class HabitCheckWidget : HomeWidgetProvider() {
         }
         views.setTextViewText(R.id.lh_wg_status, status)
 
-        // 已打卡态：按钮置灰不可点（只收敛、不回滚——撤销/改数回 App 内）。
+        // 已打卡态：按钮置灰，但**不是死区**——点它回 App 的该习惯（批E）。
+        // ⚠ 「改数/撤销回 App 内」原本只是一句文案：桌面撤了意图后，已打卡态
+        //   整块按钮点下去毫无反应，而 App 里当时也**没有**改记录/改打卡时间的
+        //   入口（产品原话「缺少修改打卡记录，删除或修改」）。现在两件事一起补：
+        //   App 侧记录可改可删（`showHabitLogSheet(day:)`），桌面这枚按钮把用户
+        //   送到那里——是**导航**意图，仍然不写库。
         views.setTextViewText(
             R.id.lh_wg_btn,
             context.getString(
@@ -203,12 +212,11 @@ class HabitCheckWidget : HomeWidgetProvider() {
                 if (row.done) R.color.lh_wg_sub else R.color.lh_wg_btn_fg,
             ),
         )
-        // 已打卡态：按钮置灰**真不可点**（只收敛、不回滚——撤销/改数回 App 内）。
-        // ⚠ 「不可点」不能靠「换了淡底色」就算：必须**不给**它挂点击意图，
-        //   否则仍有点按反馈却毫无反应，是最糟的一种（比灰着更让人困惑）。
-        //   想看详情点整卡（root 点击始终指向习惯页）。
         if (row.done) {
-            views.setOnClickPendingIntent(R.id.lh_wg_btn, null)
+            views.setOnClickPendingIntent(
+                R.id.lh_wg_btn,
+                LhWidget.clickIntent(context, LhWidget.SEG_HABIT_CHECK, REQ_BTN),
+            )
         } else {
             // 批A 交互闭环层：**广播直达**（起无头引擎跑 Dart 仓库出口，不开 App）。
             // ⚠ requestCode 每实例一个（PendingIntent 相等性不比 extras）——
@@ -229,18 +237,21 @@ class HabitCheckWidget : HomeWidgetProvider() {
     }
 
     /**
-     * 数值型（记量）习惯的正常态：状态行显示进度 `3/8 杯`，主按钮显示 `+2`。
+     * 数值型（记量）习惯的正常态：状态行给进度，**步进行 `[−5] [30] [+5]` ＋「打卡」**。
      *
-     * 2026-10-18 真机报障原话：「带数值的打卡也只显示一个打卡，不显示数值修改
-     * 能力」——数值型习惯原来与布尔型走同一条渲染，桌面上只有一枚「打卡」，
-     * 用户看不到今天记了多少、也不知道点下去是加量还是完成。
+     * 2026-10-18 真机报障原话：「带数值打卡，只显示了＋10，没有减数值，跟原型里的
+     * 不一样」——原型（`index-desktop.html` 计数型）是**三格步进 ＋ 一次提交**：
+     * `±` 只改本实例显示态里的中间计数（快照键，不动业务库），「打卡」把中间值
+     * 一次提交（仍走 isolate 出口），提交后只显示「已打卡 · 30」，撤销/改数回 App 内。
      *
-     * 三条与布尔型**故意不同**的口径：
-     *  · **按钮恒可点**（不因达标撤意图）：达标只是「今天够了」，第 9 杯水、
-     *    第 31 分钟阅读照样要记上——卡在目标上等于把真数据抹掉；
-     *  · 按钮文案是 `+N` 而不是「打卡」：让「点下去会加多少」在按之前就可见，
-     *    否则用户点三下才发现一下加 10；
-     *  · 状态行让位给进度，连击只在 `streak > 0` 时追加（2×2 一行放不下两句）。
+     * 两态（同一份布局，只切 visibility）：
+     *  · **未提交**（今日 `value == 0`）⇒ 步进行展开：左 `−步长`／中 `中间值`／右 `+步长`，
+     *    主按钮「打卡」，点它把**中间值**作为本次量提交（不是再加一档）；
+     *  · **已提交**（今日 `value > 0`）⇒ 步进行收起、按钮灰底不可点、文案 `已打卡 · N`。
+     *
+     * ⚠ 与布尔型**故意不同**的三点：状态行让位给进度（`3/8 杯`，连击只在 `streak > 0`
+     *   时追加）；中间值初值是**今日目标量**（原型「计数型习惯（默认 30）」）；
+     *   已提交态才撤意图（布尔型是「打卡即终态」，数值型要等这一次提交落库）。
      */
     private fun renderNumeric(
         context: Context,
@@ -257,24 +268,90 @@ class HabitCheckWidget : HomeWidgetProvider() {
         }
         views.setTextViewText(R.id.lh_wg_status, status)
 
+        if (row.value > 0) {
+            // ── 已提交态（原型：提交后只显示「已打卡 · 30」，撤销/改数回 App 内）──
+            views.setViewVisibility(R.id.lh_wg_cnt, View.GONE)
+            views.setTextViewText(
+                R.id.lh_wg_btn,
+                context.getString(R.string.lh_widget_habit_done_val, v),
+            )
+            views.setInt(R.id.lh_wg_btn, "setBackgroundResource", R.drawable.lh_wg_habit_btn_off)
+            views.setTextColor(
+                R.id.lh_wg_btn,
+                ContextCompat.getColor(context, R.color.lh_wg_sub),
+            )
+            // 「不可点」改成「点了回 App 改」：批E 起 App 内有该日记录编辑
+            // （改数值/改打卡时间/删除），桌面这枚灰按钮就是去那里的入口。
+            views.setOnClickPendingIntent(
+                R.id.lh_wg_btn,
+                LhWidget.clickIntent(context, LhWidget.SEG_HABIT_CHECK, REQ_BTN),
+            )
+            bindRoot(context, views, row, status)
+            return
+        }
+
+        // ── 未提交态：步进行 ＋「打卡」一次提交 ──
+        val step = if (row.step > 0) row.step else 1.0
+        val mid = LhWidget.draftValue(context, appWidgetId, row.name, LhWidget.todayKey())
+            ?: LhWidget.initialDraftValue(row)
+        views.setViewVisibility(R.id.lh_wg_cnt, View.VISIBLE)
         views.setTextViewText(
-            R.id.lh_wg_btn,
-            context.getString(
-                R.string.lh_widget_habit_add,
-                LhWidget.numText(if (row.step > 0) row.step else 1.0),
-            ),
+            R.id.lh_wg_cnt_minus,
+            context.getString(R.string.lh_widget_habit_minus, LhWidget.numText(step)),
         )
+        views.setTextViewText(R.id.lh_wg_cnt_val, LhWidget.numText(mid))
+        views.setTextViewText(
+            R.id.lh_wg_cnt_plus,
+            context.getString(R.string.lh_widget_habit_add, LhWidget.numText(step)),
+        )
+        // ± 两条意图：每实例每钮一个 requestCode（见 [LhWidget.habitAdjustIntent]）。
+        views.setOnClickPendingIntent(
+            R.id.lh_wg_cnt_minus,
+            LhWidget.habitAdjustIntent(context, appWidgetId, row.name, -step),
+        )
+        views.setOnClickPendingIntent(
+            R.id.lh_wg_cnt_plus,
+            LhWidget.habitAdjustIntent(context, appWidgetId, row.name, step),
+        )
+        // 中间格是「数」不是「钮」：点它不提交（提交只走主按钮，避免误记）。
+        views.setOnClickPendingIntent(R.id.lh_wg_cnt_val, null)
+
         views.setInt(R.id.lh_wg_btn, "setBackgroundResource", R.drawable.lh_wg_habit_btn)
         views.setTextColor(
             R.id.lh_wg_btn,
             ContextCompat.getColor(context, R.color.lh_wg_btn_fg),
         )
-        // 广播直达（与布尔型同一个入口）：Dart 侧按「goal > 0」分流成加量写，
-        // 原生不判类型、不传量——写库口径只许有一处（C5）。
-        views.setOnClickPendingIntent(
-            R.id.lh_wg_btn,
-            LhWidget.habitCheckIntent(context, appWidgetId, row.name),
-        )
+        if (mid > 0) {
+            views.setTextViewText(R.id.lh_wg_btn, context.getString(R.string.lh_widget_habit_btn))
+            // 广播直达：Dart 侧按「带不带 value」分流到**绝对量写**（禁原生复刻写库）。
+            views.setOnClickPendingIntent(
+                R.id.lh_wg_btn,
+                LhWidget.habitCheckIntent(context, appWidgetId, row.name, amount = mid),
+            )
+        } else {
+            // 中间值被减到 0：记 0 是空记录（写进去只会污染「今日已记」），撤意图。
+            views.setTextViewText(R.id.lh_wg_btn, context.getString(R.string.lh_widget_habit_btn))
+            views.setInt(
+                R.id.lh_wg_btn,
+                "setBackgroundResource",
+                R.drawable.lh_wg_habit_btn_off,
+            )
+            views.setTextColor(
+                R.id.lh_wg_btn,
+                ContextCompat.getColor(context, R.color.lh_wg_sub),
+            )
+            views.setOnClickPendingIntent(R.id.lh_wg_btn, null)
+        }
+        bindRoot(context, views, row, status)
+    }
+
+    /** 整卡点击（去习惯页）＋无障碍描述（两种形态共用·批D 抽出避免两处漂移）。 */
+    private fun bindRoot(
+        context: Context,
+        views: RemoteViews,
+        row: LhWidget.HabitRow,
+        status: String,
+    ) {
         views.setOnClickPendingIntent(
             R.id.lh_wg_root,
             LhWidget.clickIntent(context, LhWidget.SEG_HABIT_CHECK, REQ_ROOT),
@@ -286,6 +363,19 @@ class HabitCheckWidget : HomeWidgetProvider() {
     }
 
     /**
+     * 只重画**这一枚**实例（± 调节后即时反馈 · 批D）。
+     *
+     * 为什么不用广播整类重绘：`±` 是高频连点操作，广播会让同类的每一枚都跟着
+     * 重建 RemoteViews（桌面肉眼可见的集体闪一下），而这次变化只属于本实例。
+     */
+    fun redraw(context: Context, appWidgetId: Int) {
+        val mgr = AppWidgetManager.getInstance(context) ?: return
+        val views = RemoteViews(context.packageName, R.layout.lh_widget_habit)
+        renderOne(context, views, LhWidget.snapshot(context), appWidgetId)
+        mgr.updateAppWidget(appWidgetId, views)
+    }
+
+    /**
      * 乐观回显：把该实例**当场画成**点完之后的样子（批A 交互闭环层·评估件 §4.2）。
      *
      * 为什么需要：后台 isolate 冷启动要几百 ms~1s+，这段时间用户看到的还是
@@ -293,25 +383,32 @@ class HabitCheckWidget : HomeWidgetProvider() {
      * 两条分支，与真写库后的观感逐像素一致；数值与连击暂用「推算值」，等 Dart
      * 推回真快照时自然收敛。
      *
-     * **两种形态各回显什么**（2026-10-18 报障补数值型）：
+     * **两种形态各回显什么**（2026-10-18 报障补数值型 · 批D 改「一次提交」）：
      *  · 布尔型 ⇒ `done=true`（淡底＋「已打卡」＋**按钮意图撤掉**防连点）；
-     *  · 数值型 ⇒ `value + step`（进度条当场往前走一格），跨过目标才同时点亮
-     *    状态点；按钮**保持可点**（与 [renderNumeric] 口径一致——连点加量是
-     *    正常操作，不是误触）。
+     *  · 数值型 ⇒ 值直接置为**本次提交量**（步进行里那一刻的中间值），当场画成
+     *    `已打卡 · N`（步进行收起、按钮置灰）——与提交成功后的观感逐像素一致。
      *
      * 三条纪律：
      *  · **只画自己这一枚**（appWidgetId 直改，不走广播重绘——回显要的是即时）；
      *  · 快照表里查不到这个名字 ⇒ **不猜一个状态画上去**（源失效让它走占位）；
      *  · 本函数不碰任何业务库——回显只改「显示态」，写库归 isolate（C5 精神）。
      */
-    fun echoChecked(context: Context, appWidgetId: Int, habitName: String) {
+    fun echoChecked(
+        context: Context,
+        appWidgetId: Int,
+        habitName: String,
+        amount: Double? = null,
+    ) {
         val mgr = AppWidgetManager.getInstance(context) ?: return
         val row = LhWidget.readHabitRows(LhWidget.snapshot(context))
             .firstOrNull { it.name == habitName } ?: return
         val views = RemoteViews(context.packageName, R.layout.lh_widget_habit)
         // 借实例方法即可（provider 无状态，渲染不吃字段）。
         val echo = if (row.isNumeric) {
-            val next = row.value + (if (row.step > 0) row.step else 1.0)
+            // 提交量以意图里带的为准（原生侧刚从草稿读出），缺省才回落到草稿/初值。
+            val next = amount
+                ?: LhWidget.draftValue(context, appWidgetId, habitName, LhWidget.todayKey())
+                ?: LhWidget.initialDraftValue(row)
             row.copy(value = next, done = row.done || next >= row.goal)
         } else {
             row.copy(done = true)
@@ -322,5 +419,8 @@ class HabitCheckWidget : HomeWidgetProvider() {
 
     private companion object {
         const val REQ_ROOT = 0x4C4001
+
+        /** 主按钮「回 App 改」请求码（与 root 分开：两个目标同一个段，码不同互不覆写）。 */
+        const val REQ_BTN = 0x4C4002
     }
 }

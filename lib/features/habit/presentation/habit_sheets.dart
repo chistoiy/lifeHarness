@@ -85,21 +85,32 @@ List<double> hQuick(double goal) {
   return l.length > 6 ? l.sublist(0, 6) : l;
 }
 
+/// 记量/记录编辑弹层（2026-10-18 批E 扩成**按日记录编辑**）。
+///
+/// 原来只服务「今日记量」（`habits_page` 点卡片进来）；产品真机反馈
+/// 「缺少修改打卡记录，删除或修改（打卡时间、数值这一类的）」——故：
+///  · 新增 [day]：传了就编辑**那一天**的记录（习惯详情「打卡流水」每行点进来）；
+///  · 新增**打卡时间**可改（`showTimePicker`，原来只有「首次打卡时刻」自动落）；
+///  · 保存时**保留原来源/补记标记**（改一条历史补记不该把它洗成手动记录）。
 Future<void> showHabitLogSheet(
   BuildContext context,
   WidgetRef ref,
-  Habit h,
-) async {
+  Habit h, {
+  String? day,
+}) async {
   await _hSheet<void>(
     context,
-    (ctx) => _HabitLogSheet(habit: h, ref: ref),
+    (ctx) => _HabitLogSheet(habit: h, ref: ref, day: day),
   );
 }
 
 class _HabitLogSheet extends ConsumerStatefulWidget {
-  const _HabitLogSheet({required this.habit, required this.ref});
+  const _HabitLogSheet({required this.habit, required this.ref, this.day});
   final Habit habit;
   final WidgetRef ref;
+
+  /// 要编辑的日键（`null`＝今天）。历史日从「打卡流水」进来。
+  final String? day;
 
   @override
   ConsumerState<_HabitLogSheet> createState() => _HabitLogSheetState();
@@ -111,10 +122,23 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
   Habit get h => widget.habit;
   String get todayK => dayKey(DateTime.now());
 
+  /// 本次编辑的目标日（`null` 传参＝今天）。
+  String get k => widget.day ?? todayK;
+
+  /// 是否在编辑今天（决定「补记」标记与文案口径）。
+  bool get isToday => k == todayK;
+
+  /// 打卡时刻（`HH:MM`）：取原记录，没有就取此刻；**可在弹层里改**。
+  late String _at = () {
+    final e = widget.ref.read(habitDataProvider).valueOrNull?.of(h.id)[k];
+    final at = e?.checkAt;
+    return (at != null && at.isNotEmpty) ? at : hhmmNow();
+  }();
+
   @override
   void initState() {
     super.initState();
-    final e = widget.ref.read(habitDataProvider).valueOrNull?.of(h.id)[todayK];
+    final e = widget.ref.read(habitDataProvider).valueOrNull?.of(h.id)[k];
     _v = h.isGroup
         ? (e != null && e.subValues.values.any((v) => v > 0)
               ? [for (final s in h.subs) e.subValues[s.id] ?? 0]
@@ -130,7 +154,7 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
   }
 
   bool get _checked {
-    final e = widget.ref.read(habitDataProvider).valueOrNull?.of(h.id)[todayK];
+    final e = widget.ref.read(habitDataProvider).valueOrNull?.of(h.id)[k];
     return e != null && habitOkAt(h, e);
   }
 
@@ -156,10 +180,10 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
       );
       return;
     }
-    final e = widget.ref.read(habitDataProvider).valueOrNull?.of(h.id)[todayK];
+    final e = widget.ref.read(habitDataProvider).valueOrNull?.of(h.id)[k];
     await repo.upsertEntry(
       h.id,
-      day: todayK,
+      day: k,
       checked: true,
       value: h.isGroup ? null : _v[0],
       subValues: h.isGroup
@@ -167,8 +191,14 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
               for (final (i, s) in h.subs.indexed) s.id: _v[i],
             }
           : null,
-      origin: HabitEntry.oManual,
-      checkAt: e?.checkAt ?? hhmmNow(),
+      // ⚠ **保留原来源**：改一条补记/自动源记录，不该把它洗成「手动」。
+      //   （旧实现一律写 oManual ⇒ 改一次值，历史来源就丢了。）
+      origin: e?.origin ?? HabitEntry.oManual,
+      // 打卡时刻＝弹层里可改的那个值（不再「沿用旧值/取此刻」二选一）。
+      checkAt: _at,
+      // 补记标记同理保留；历史日首次建记录按补记算。
+      backfilled: e?.backfilled ?? !isToday,
+      frozen: e?.frozen,
       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
     );
     final after = await repo.habitById(h.id);
@@ -179,7 +209,7 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
       h,
       HabitEntry(
         habitId: h.id,
-        day: todayK,
+        day: k,
         checked: true,
         value: h.isGroup ? null : _v[0],
         subValues: h.isGroup
@@ -194,24 +224,58 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
     Navigator.pop(context);
     messengerToast(
       messenger,
-      '已记录 · ${h.name} 今日 $valText · 连续 ${after?.streak ?? h.streak} 天',
+      isToday
+          ? '已记录 · ${h.name} 今日 $valText · 连续 ${after?.streak ?? h.streak} 天'
+          : '已修改 · ${h.name} ${_md(k)} $valText · 时刻 $_at',
     );
   }
 
   Future<void> _undo() async {
     final repo = widget.ref.read(habitRepositoryProvider);
-    await repo.deleteEntry(h.id, todayK);
+    await repo.deleteEntry(h.id, k);
     widget.ref.read(habitTickProvider.notifier).state++;
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
-    messengerToast(messenger, '已撤销今日打卡与记录量');
+    messengerToast(
+      messenger,
+      isToday ? '已撤销今日打卡与记录量' : '已删除 ${_md(k)} 的记录',
+    );
+  }
+
+  /// 日键 → `M月d日`（弹层副文案用；不引新工具函数，保持本文件自足）。
+  String _md(String day) {
+    final p = day.split('-');
+    if (p.length != 3) return day;
+    return '${int.tryParse(p[1]) ?? p[1]}月${int.tryParse(p[2]) ?? p[2]}日';
+  }
+
+  /// 改打卡时刻（任意分钟，不限整点）：`showTimePicker` 24 小时制。
+  Future<void> _pickAt() async {
+    final p = _at.split(':');
+    final init = TimeOfDay(
+      hour: int.tryParse(p.first) ?? 8,
+      minute: p.length > 1 ? (int.tryParse(p[1]) ?? 0) : 0,
+    );
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: init,
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child ?? const SizedBox.shrink(),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _at = '${picked.hour.toString().padLeft(2, '0')}:'
+          '${picked.minute.toString().padLeft(2, '0')}';
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final e = widget.ref.watch(habitDataProvider).valueOrNull?.of(h.id)[todayK];
+    final e = widget.ref.watch(habitDataProvider).valueOrNull?.of(h.id)[k];
     final rows = h.isGroup
         ? [for (final (i, s) in h.subs.indexed) (i, s.name, s.unit, s.goal)]
         : [(0, h.name, h.unit ?? '次', h.goal ?? 0)];
@@ -225,7 +289,7 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
             children: [
               Expanded(
                 child: Text(
-                  '打卡记量 · ${h.name}',
+                  '${isToday ? '打卡记量' : '记录'} · ${h.name}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -254,17 +318,60 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
             (h.isGroup
                     ? '组内 ${h.subs.length} 项 · ${HabitSubChips.ruleText(h)}'
                     : '目标 ${HabitSubChips.n(h.goal ?? 0)} ${h.unit ?? '次'} · 可直接改') +
-                (_checked && e != null
-                    ? ' · 今日 ${e.checkAt?.isNotEmpty ?? false ? e.checkAt : '时刻未记'}${e.backfilled ? ' · 补记' : ''}'
-                    : ''),
+                (isToday ? '' : ' · ${_md(k)}${e?.backfilled ?? false ? ' · 补记' : ''}'),
             style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // ── 打卡时刻（批E：可改）────────────────────────────────
+          // 原来只有「首次打卡时刻」自动落，用户想改早上补记成 07:30 没有入口；
+          // 这里给一个整行可点的时刻位，点开系统时间选择器（24 小时制）。
+          GestureDetector(
+            key: const ValueKey('hlog-at'),
+            onTap: _pickAt,
+            child: Container(
+              decoration: hCardDeco(context),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 15,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '打卡时间',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _at,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           Flexible(
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  for (final (i, name, unit, goal) in rows)
+                  // 布尔型习惯没有「量」，整块数值区不出现（批E：本弹层已是通用记录编辑）。
+                  if (h.hasVal)
+                    for (final (i, name, unit, goal) in rows)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Container(
@@ -404,7 +511,7 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
                           controller: _note,
                           style: const TextStyle(fontSize: 12),
                           decoration: InputDecoration(
-                            hintText: '可选 · 今天的情况',
+                            hintText: isToday ? '可选 · 今天的情况' : '可选 · 当天的情况',
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -445,9 +552,9 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
                     color: HK.rose500.withValues(alpha: .08),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    '撤销',
-                    style: TextStyle(
+                  child: Text(
+                    isToday ? '撤销' : '删除',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: HK.rose500,

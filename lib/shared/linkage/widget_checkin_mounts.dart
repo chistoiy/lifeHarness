@@ -26,7 +26,7 @@ import '../../core/providers.dart';
 import '../../features/habit/data/habit_repository.dart';
 import '../../features/habit/presentation/habit_providers.dart' show HabitData;
 import 'habit_mounts.dart'
-    show HabitCheckOutcome, habitCheckinWrite, habitIncrementWrite;
+    show HabitCheckOutcome, habitCheckinWrite, habitIncrementWrite, habitValueWrite;
 import 'desktop_widget_mounts.dart'
     show desktopWidgetKickProvider, habitDueCounts, widgetHabitItems;
 
@@ -42,17 +42,27 @@ const String kWidgetPendingChecksKey = 'desktop.widget_pending_checks';
 /// 故不用逗号；控制字符在名称编码链里本就要剔除（`encodeWidgetHabitItems` 同口径）。
 const String kWidgetCheckSep = '\u001e';
 
+/// 队列条目**内**的字段分隔符（名字 ␟ 本次量 · 批D）。
+///
+/// 老条目（升级前写下的）只有名字、没有这一段 ⇒ 解析时按「无第二段」回落
+/// 加一档口径，**不需要迁移队列**。
+const String kWidgetCheckFieldSep = '\u001f';
+
 /// 按**习惯名**打卡（小组件后台 isolate 出口·评估件 §4.1）。
 ///
 /// 为什么按名而不是按 id：widget 进程只拿得到绑定里的 `sub`＝习惯名（C5：
 /// 禁直读 sqlite，id 在库里）。写库口径与 NFC 贴卡/App 内手动打卡**同一实现**
 /// （[habitCheckinWrite]）——禁在原生或此处复刻一份 upsert（行为分叉）。
 ///
-/// **数值型分流**（2026-10-18 真机报障补）：`goal > 0` 的非组习惯走
-/// [habitIncrementWrite]（加一档量），其余走布尔口径 [habitCheckinWrite]。
+/// **数值型分流**（2026-10-18 真机报障补 · 批D 改「一次提交」）：`goal > 0`
+/// 的非组习惯走数值口径，其余走布尔口径 [habitCheckinWrite]。
+///  · [amount] 非空 ⇒ **绝对量写**（[habitValueWrite]）：桌面步进行中间格那一刻
+///    的值，「打卡」把它一次提交（原型口径）；
+///  · [amount] 为空 ⇒ 老口径「加一档」（[habitIncrementWrite]）：老意图 / 排空
+///    队列里的旧条目 / 非桌面入口。
 /// 分流判据必须与快照下发的 `isNumeric` **完全一致**（`goal > 0 && !isGroup`）：
-/// 桌面显示 `+N` 就说明它是数值型，原生点下去必须真是加量——两处判据一旦
-/// 分叉，就会出现「按钮写着 +2，点了却是布尔打卡」。
+/// 桌面显示步进行就说明它是数值型，原生带回来的量必须真写进去——两处判据一旦
+/// 分叉，就会出现「桌面写着 30，库里记成加一档」。
 ///
 /// 返回 null ＝ 未归档习惯里查不到这个名字（被删/改名/归档）⇒ 调用方按失败
 /// 处理（原生回滚并入队，排空时再判一次仍是 null 就清掉死条目）。
@@ -60,6 +70,7 @@ Future<HabitCheckOutcome?> widgetCheckinByName(
   String name, {
   Database? db,
   DateTime? now,
+  double? amount,
 }) async {
   final n = name.trim();
   if (n.isEmpty) return null;
@@ -72,6 +83,9 @@ Future<HabitCheckOutcome?> widgetCheckinByName(
   final h = hit.first;
   // 与 `WidgetHabitItem.isNumeric` 同一判据（组习惯即使带 unit 也走布尔）。
   if (!h.isGroup && (h.goal ?? 0) > 0) {
+    if (amount != null) {
+      return habitValueWrite(repo, h, value: amount, now: now);
+    }
     return habitIncrementWrite(repo, h, now: now);
   }
   return habitCheckinWrite(repo, h, now: now);
@@ -82,7 +96,7 @@ Future<HabitCheckOutcome?> widgetCheckinByName(
 /// 返回 false ＝ 这一趟没办成（原生收到 false 后回滚显示态并入队）。
 /// **任何异常都吞掉返回 false**：后台 isolate 崩了没人兜，且写库本身是原子的
 /// （成功一半不存在——sqflite 事务要么落要么滚）。
-Future<bool> runWidgetHabitCheckin(String name) async {
+Future<bool> runWidgetHabitCheckin(String name, {double? amount}) async {
   final n = name.trim();
   if (n.isEmpty) return false;
   try {
@@ -90,7 +104,7 @@ Future<bool> runWidgetHabitCheckin(String name) async {
       await AppDatabase.instance.open();
     }
     final now = DateTime.now();
-    final out = await widgetCheckinByName(n, now: now);
+    final out = await widgetCheckinByName(n, now: now, amount: amount);
     if (out == null) return false;
     final repo = HabitRepository(AppDatabase.instance.db);
     final data = await _loadHabitData(repo);
@@ -138,22 +152,34 @@ Future<HabitData> _loadHabitData(HabitRepository repo) async {
 /// （App 没起过/库被占/isolate 冷启动超时），失败的名字进
 /// [kWidgetPendingChecksKey]，App 起来（库已开）后补写。
 ///
-/// 幂等：`upsertEntry` 对已打卡者是 no-op；**逐名补写、逐名移除**——中途
+/// 幂等：`upsertEntry` 对已打卡者是 no-op；**逐条补写、逐条移除**——中途
 /// 进程死掉不丢剩下的条目（下次启动接着排）。查不到习惯（已删/归档）的死
 /// 条目也移除：重试一万次也不会活过来。
+///
+/// **条目形态**（批D）：`名字` 或 `名字␟本次量`。后者是计数型「一次提交」没
+/// 落库的那一笔——补写时必须**按量写**（[widgetCheckinByName] 的 `amount`），
+/// 否则会退化成「加一档」，与用户当时在桌面上看到的数字对不上。
 Future<void> drainPendingWidgetChecks(Ref ref) async {
   if (!AppDatabase.instance.isInitialized) return;
   final repo = ref.read(settingsRepositoryProvider);
-  final names = repo.loadDesktopPendingChecks();
-  if (names.isEmpty) return;
-  for (final name in names) {
+  final entries = repo.loadDesktopPendingChecks();
+  if (entries.isEmpty) return;
+  for (final entry in entries) {
+    final f = entry.split(kWidgetCheckFieldSep);
+    final name = f.first.trim();
+    // 老条目只有名字 ⇒ amount 为 null（回落加一档口径·不需要迁移队列）。
+    final amount = f.length > 1 ? double.tryParse(f[1].trim()) : null;
+    if (name.isEmpty) {
+      await repo.removeDesktopPendingCheck(entry);
+      continue;
+    }
     try {
-      await widgetCheckinByName(name);
+      await widgetCheckinByName(name, amount: amount);
     } catch (_) {
       // catch-ok: 这条没写成 ⇒ 留在队列里，下次启动再试（闭环不丢）。
       continue;
     }
-    await repo.removeDesktopPendingCheck(name);
+    await repo.removeDesktopPendingCheck(entry);
   }
   // 补写完踢一脚：让 App 侧三源快照整包重推一次（收敛 habit_done/total 等计数）。
   ref.read(desktopWidgetKickProvider.notifier).state++;

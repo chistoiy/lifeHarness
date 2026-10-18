@@ -106,6 +106,68 @@
         android:textSize="12sp"
         android:visibility="gone" />
 
+    <!--
+      计数型（记量）习惯的**步进行**（批D · 照原型 `.wg-cnt` 三格）：
+        [−5]  [ 30 ]  [+5]
+      左/右＝按步长调整本次提交量，中间＝**本次要提交的量**（可看不可点）。
+
+      ⚠ 三条硬约束：
+      ① RemoteViews 静态控件——三件套**常驻**、只切 visibility（禁动态 addView）；
+      ② 默认 `gone`：布尔型习惯整行不出现（同一份布局喂两种形态，见 Provider）；
+      ③ ± 只改**本实例显示态草稿**（偏好里的中间值），**不动业务库**；
+         「打卡」才把中间值一次提交（原型口径：不产生半成品数据）。
+
+      尺寸依据（2026-10-18 真机实测 6185 态·`uiautomator` 量得）：2×2 宿主框
+      459×521px ＝ 153×174dp，内容区 443px；四件套＋两段撑开器占 416px，
+      **撑开器共剩 141px（47dp）余量**。本行 32dp＋下留 4dp＝108px 吃掉大头，
+      余 33px 仍分给两段撑开器 ⇒ 不挤压、不溢出。
+    -->
+    <LinearLayout
+        android:id="@+id/lh_wg_cnt"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_marginBottom="4dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/lh_wg_cnt_minus"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/lh_wg_cnt_btn"
+            android:gravity="center"
+            android:textColor="@color/lh_wg_fg"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lh_wg_cnt_val"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1.5"
+            android:background="@drawable/lh_wg_cnt_val"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="@color/lh_wg_fg"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lh_wg_cnt_plus"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/lh_wg_cnt_btn"
+            android:gravity="center"
+            android:textColor="@color/lh_wg_fg"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/lh_wg_btn"
         android:layout_width="match_parent"

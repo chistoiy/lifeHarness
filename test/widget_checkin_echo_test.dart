@@ -102,12 +102,17 @@ void main() {
       expect(upserts, 2, reason: 'upsertEntry 出现 $upserts 处 ⇒ 有第三份写实现');
       expect(code, contains('checked: true'));
       expect(code, contains('origin: HabitEntry.oManual'));
-      // 两条核心必须各司其职：加量核心带 `value: next`，布尔核心的 upsert 调用
-      // 不许带 value（一旦带上就变成「半套记量」，与加量核心分叉）。
+      // 三条核心必须各司其职：布尔核心不带 value；加量核心只是「当前值＋一档」
+      // 的**薄包装**（自己不 upsert）；绝对量核心（批D 一次提交）才写 value。
       final iInc = habitMounts.indexOf('Future<HabitCheckOutcome> habitIncrementWrite(');
       expect(iInc, greaterThan(0), reason: '缺数值加量核心');
-      expect(RegExp(r'value:\s*next').allMatches(code).length, 1,
-          reason: '「写 value」只许出现在加量核心里一处');
+      final iVal = habitMounts.indexOf('Future<HabitCheckOutcome> habitValueWrite(');
+      expect(iVal, greaterThan(iInc), reason: '缺绝对量写核心（批D 桌面「打卡」一次提交）');
+      expect(RegExp(r'value:').allMatches(code).length, 2,
+          reason: '「写 value」只许两处：加量核心转发给它 + 绝对量核心 upsert 一处');
+      final incBody = stripComments(habitMounts.substring(iInc, iVal));
+      expect(RegExp(r'upsertEntry\(').allMatches(incBody), isEmpty,
+          reason: '加量核心自己 upsert ⇒ 又出现第二套写实现');
       final iBool = habitMounts.indexOf('Future<HabitCheckOutcome> habitCheckinWrite(');
       final iCall = habitMounts.indexOf('await repo.upsertEntry(', iBool);
       final boolCall =
@@ -170,7 +175,8 @@ void main() {
     test('明确失败：回滚显示态＋入队（闭环不丢）', () {
       final recv = File('$kt/HabitCheckReceiver.kt').readAsStringSync();
       final support = File('$kt/LhWidgetSupport.kt').readAsStringSync();
-      expect(recv, contains('LhWidget.enqueuePendingCheck(app, name)'));
+      // 批D：入队带上**本次量**（名字␟量），排空时才不会退化成「加一档」。
+      expect(recv, contains('LhWidget.enqueuePendingCheck(app, name, amount)'));
       expect(recv, contains('rollback(app, widgetId)'));
       expect(recv, contains('LhWidget.notifyWidget(app, HabitCheckWidget::class.java'));
       expect(support, contains('fun enqueuePendingCheck('));
@@ -184,7 +190,7 @@ void main() {
           ?.group(0) ??
           '';
       expect(timeoutBody, isNotEmpty, reason: '缺超时分支');
-      expect(timeoutBody, contains('LhWidget.enqueuePendingCheck(app, name)'));
+      expect(timeoutBody, contains('LhWidget.enqueuePendingCheck(app, name, amount)'));
       expect(timeoutBody, isNot(contains('rollback(')),
           reason: '超时回滚会把「写成功但回执慢了」的那半也画错');
     });
@@ -262,6 +268,48 @@ void main() {
       expect((await repo.entriesOf(h.id))[dayKey(DateTime.now())]?.checked, isTrue);
       expect(await runWidgetHabitCheckin(''), isFalse);
       expect(await runWidgetHabitCheckin('查无此名'), isFalse);
+    });
+
+    test('批D：带量打卡＝绝对量写（覆盖当日量），不带量仍是加一档', () async {
+      final repo = HabitRepository(AppDatabase.instance.db);
+      final h = await repo.saveHabit(
+          Habit(name: '喝水', startDate: key(60), goal: 8, unit: '杯'));
+      final k = dayKey(DateTime.now());
+      // 桌面步进行调到 3 再提交 ⇒ 库里就是 3（不是「0 + 一档」）。
+      await widgetCheckinByName('喝水', amount: 3);
+      expect((await repo.entriesOf(h.id))[k]?.value, 3);
+      // 再来一次带量 5 ⇒ **设成** 5（一次提交是「设为这个量」，不是累加）。
+      await widgetCheckinByName('喝水', amount: 5);
+      expect((await repo.entriesOf(h.id))[k]?.value, 5);
+      // 不带量（布尔/老意图/老队列条目）⇒ 加一档，老口径不破。
+      await widgetCheckinByName('喝水');
+      expect((await repo.entriesOf(h.id))[k]?.value, greaterThan(5));
+    });
+
+    test('批D：队列里的「名字␟量」按量补写，老条目（只有名字）仍走加一档', () async {
+      final repo = HabitRepository(AppDatabase.instance.db);
+      final h = await repo.saveHabit(
+          Habit(name: '阅读', startDate: key(60), goal: 30, unit: '分钟'));
+      final k = dayKey(DateTime.now());
+      // 两条：带量的「阅读␟12」＋老格式的「冥想」（无第二段）。
+      final h2 = await newHabit(repo, name: '冥想');
+      prefs.setString(
+        kWidgetPendingChecksKey,
+        '阅读${kWidgetCheckFieldSep}12$kWidgetCheckSep冥想',
+      );
+      var done = false;
+      container.read(Provider<void>((ref) {
+        Future(() async {
+          await drainPendingWidgetChecks(ref);
+          done = true;
+        });
+      }));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(done, isTrue, reason: '排空应跑完');
+      expect(prefs.getString(kWidgetPendingChecksKey), '', reason: '队列应清空');
+      // 带量的：库里是 12（按量写）；老条目：布尔打卡成功。
+      expect((await repo.entriesOf(h.id))[k]?.value, 12);
+      expect((await repo.entriesOf(h2.id))[k]?.checked, isTrue);
     });
 
     test('drain：队列逐名补写并清空＋踢一脚；死名也清除', () async {

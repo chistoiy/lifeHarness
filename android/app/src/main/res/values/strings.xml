@@ -49,10 +49,14 @@
     <string name="lh_widget_habit_streak0">今日未打卡</string>
     <string name="lh_widget_habit_streak0_done">今日已打卡</string>
     <string name="lh_widget_a11y_habit">%1$s，连击 %2$d 天，%3$s</string>
-    <!-- 数值型（记量）习惯：状态行显示进度，主按钮显示 +N（2026-10-18 报障补） -->
+    <!-- 数值型（记量）习惯：状态行显示进度，步进行 ±N ＋ 主按钮「打卡」（2026-10-18 报障补 · 批D 改三格） -->
     <string name="lh_widget_habit_val">%1$s/%2$s %3$s</string>
     <string name="lh_widget_habit_val_streak">%1$s/%2$s %3$s · 连击 %4$d 天</string>
     <string name="lh_widget_habit_add">+%1$s</string>
+    <!-- 步进行左格（原型 `−5`）。用 U+2212 减号而不是 ASCII 连字符：等宽对齐、不与数字混同 -->
+    <string name="lh_widget_habit_minus">−%1$s</string>
+    <!-- 已提交态（原型「提交后只显示「已打卡 · 30」」） -->
+    <string name="lh_widget_habit_done_val">已打卡 · %1$s</string>
 
     <!-- 批A · 失效三态（产品 2026-10-17 勾定文案；点击起 App 开配置/管理页） -->
     <string name="lh_widget_wait_data">等待数据</string>
