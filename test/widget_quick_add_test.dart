@@ -146,6 +146,19 @@ void main() {
         expect(boot.contains(banned), isFalse, reason: '弹窗引擎跑了 $banned');
       }
     });
+
+    test('首行 ensureInitialized（真机报障「点记一笔没反应」根因）', () {
+      // 自定义入口点没有框架替它建 binding；第一句 prefs 就走平台通道 ⇒
+      // binding 未初始化时抛异常，runApp 根本执行不到，宿主是透明对话框主题
+      // ⇒ 用户看到的是「窗口起来了但一个字都没画」＝完全没反应。
+      final boot =
+          bodyOf(quickMounts, 'Future<void> runWidgetQuickAddApp()', close: '\n}\n');
+      final iBind = boot.indexOf('WidgetsFlutterBinding.ensureInitialized()');
+      final iPrefs = boot.indexOf('SharedPreferences.getInstance()');
+      expect(iBind, greaterThan(-1), reason: '缺 ensureInitialized ⇒ 弹窗永远白屏');
+      expect(iBind, lessThan(iPrefs),
+          reason: 'binding 必须建在任何插件调用之前');
+    });
   });
 
   group('⑤ 只推记账三键（禁整包）', () {

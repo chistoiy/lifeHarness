@@ -36,16 +36,34 @@ void main() {
   });
 
   test('新增 ns 的正确姿势：加常量表 + 加 ns 前缀动作，禁塞进既有 ns', () {
-    // 口径自证：动作表里每个 ns 至少被一条动作或白名单覆盖（无孤儿子）。
+    // 口径自证：动作表里每个 ns 至少被一条动作、白名单或系统寻址段覆盖（无孤儿子）。
     final usedByAction = kDesktopActions.map((a) => a.ns).toSet();
     final usedByPath =
         kLaunchPathWhitelist.keys.map((k) => k.split('/').first).toSet();
+    // 2026-10-18：settings 是**系统寻址段** ns（小组件失效三态的「点此设置」），
+    // 不属于用户动作、也不进白名单（白名单每条都要求能查回动作表），故单列一张表。
+    final usedBySystem =
+        kSystemLaunchPaths.keys.map((k) => k.split('/').first).toSet();
     // nfc 由 NFC 模块消费，批 1 无动作条目 —— 它靠白名单外的 nfc/* 形态放行。
     final orphan = kDesktopNamespaces
         .difference(usedByAction)
         .difference(usedByPath)
+        .difference(usedBySystem)
         .where((ns) => ns != 'nfc');
     expect(orphan, isEmpty, reason: '常量表里有孤儿子 ns：$orphan');
+  });
+
+  test('系统寻址段：段即 id、能查到路由，且**不进**用户动作表', () {
+    for (final e in kSystemLaunchPaths.entries) {
+      expect(resolveLaunchPath(e.key), e.key, reason: '${e.key} 必须按段即 id 放行');
+      expect(LaunchRoute(action: e.key).route, e.value);
+      expect(LaunchRoute(action: e.key).fullScreen, isTrue,
+          reason: '设置二级页是全屏栈路由，消费端必须 push');
+      expect(desktopActionById.containsKey(e.key), isFalse,
+          reason: '系统寻址段禁混进动作表（会污染三张用户可勾选清单）');
+    }
+    // 反例：表外同 ns 段一律 null（不能靠「ns 对」蹭过白名单）。
+    expect(resolveLaunchPath('settings/ghost'), isNull);
   });
 
   test('nfc 不在动作表里（本模块只放行不解释，C36）', () {

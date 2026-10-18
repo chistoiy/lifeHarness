@@ -111,7 +111,9 @@ void main() {
       // 首装/清数据后先显示「等待数据」，等快照到了才暴露绑定态——否则用户会
       // 误以为「是我没选」。这个次序写反，症状是「明明选了却显示未选择」。
       final iSnap = habit.indexOf('LhWidget.hasSnapshot(data)');
-      final iBind = habit.indexOf('LhWidget.boundHabitName(context, appWidgetId)');
+      // 2026-10-18：绑定解析收进 resolveBinding（内含「实例键 → 交接位自认领 →
+      // 全局默认」三级兜底），故这里认**调用点**，不再认单个 boundHabitName。
+      final iBind = habit.indexOf('resolveBinding(context, appWidgetId)');
       final iRow = habit.indexOf('readHabitRows(data).firstOrNull');
       expect(iSnap, greaterThan(0), reason: '缺无快照判定');
       expect(iBind, greaterThan(iSnap), reason: '无绑定判定必须排在无快照之后');
@@ -290,6 +292,71 @@ void main() {
       expect(store, contains("tail == 'pending'"),
           reason: 'loadAll 未跳过 pending ⇒ 预选被当实例参与清理');
       expect(store, contains("tail == 'default'"));
+    });
+  });
+
+  // ===== 2026-10-18 真机三缺陷修复（6175 装机报障）=====
+  group('⑦ 真机报障修（点此设置／选了不生效）', () {
+    /// 抽一段原生源码（起点 → 下一个声明起点），用于「只在本函数里断言」。
+    String bodyOf(String src, String from, String to) {
+      final i = src.indexOf(from);
+      final j = src.indexOf(to, i + 1);
+      expect(i, greaterThan(-1), reason: '缺 $from');
+      expect(j, greaterThan(i), reason: '缺边界 $to');
+      return src.substring(i, j);
+    }
+
+    test('失效三态点击去设置页（写着「点此设置」就必须到设置页）', () {
+      // 真机原话：「小组件上写着点击设置，点击后直接打开习惯页面，没有设置的内容」。
+      // 三态文案里两态含「点此设置／点此重新选择」，去向却曾是 habit/check（习惯页）。
+      final ph = bodyOf(habit, 'private fun renderPlaceholder(', 'private fun renderHabit(');
+      expect(ph, contains('LhWidget.SEG_SETTINGS_DESKTOP'),
+          reason: '占位态必须指向设置页（重选入口在设置 › 桌面与快捷方式）');
+      expect(ph, isNot(contains('SEG_HABIT_CHECK')),
+          reason: '占位态禁再指向习惯页——那正是本缺陷本体');
+      expect(support, contains('const val SEG_SETTINGS_DESKTOP = "settings/desktop"'));
+    });
+
+    test('系统寻址段两侧同源（原生白名单 ↔ Dart kSystemLaunchPaths）', () {
+      // 段即 id：不进动作表（那张表喂三张用户可勾选清单），故两侧各有一份登记。
+      expect(support, contains('const val SEG_SETTINGS_DESKTOP = "settings/desktop"'));
+      final main = File('$kt/MainActivity.kt').readAsStringSync();
+      expect(main, contains('"settings/desktop" to "settings/desktop"'),
+          reason: '原生 LH_WHITELIST 缺该段 ⇒ enqueueLaunch 静默丢弃');
+      expect(main, contains('"settings"'),
+          reason: '原生 LH_NS 缺 settings ⇒ 段首 ns 校验不过');
+      final actions =
+          File('lib/core/platform/desktop_actions.dart').readAsStringSync();
+      expect(actions, contains("'settings/desktop': '/settings/desktop'"));
+      expect(actions, contains("'settings',"));
+    });
+
+    test('实例自认领预选绑定（MIUI 不跑配置页也能绑上）', () {
+      // 真机原话：「app内添加点击习惯打卡没有让先选习惯，到桌面后打卡里面没有打卡内容」。
+      // 根因：先选后落第④步靠系统拉起 android:configure，MIUI 桌面实测不拉。
+      final rb = bodyOf(habit, 'private fun resolveBinding(', 'private fun renderPlaceholder(');
+      expect(rb, contains('LhWidget.boundHabitName(context, appWidgetId)'),
+          reason: '实例键/全局默认仍要最先读');
+      expect(rb, contains('LhWidget.consumePendingBind(context, appWidgetId)'),
+          reason: '实例必须自己认领交接位——不能只指望配置页');
+      // 认领后要重新读一次（认领写的是本实例键），否则拿到的还是 null。
+      expect(RegExp(r'boundHabitName\(context, appWidgetId\)').allMatches(rb).length,
+          greaterThanOrEqualTo(2),
+          reason: '认领后必须重读绑定，否则白认领');
+    });
+
+    test('Dart 侧落点补默认绑定回落 + 当场重绘（选了立刻看得见）', () {
+      final mounts =
+          File('lib/shared/linkage/widget_bind_mounts.dart').readAsStringSync();
+      final iPick = mounts.indexOf('final picked = await showWidgetTargetPicker(');
+      final iPending = mounts.indexOf('setPendingTarget(kWidgetKindHabit, picked)');
+      final iDefault = mounts.indexOf('setGlobalDefault(picked)');
+      final iPin = mounts.indexOf('await pinDesktopWidget(kWidgetKindHabit)');
+      expect(iPending, greaterThan(iPick), reason: '缺预选交接位');
+      expect(iDefault, greaterThan(iPending), reason: '缺默认绑定回落（MIUI 不跑配置页的兜底）');
+      expect(iPin, greaterThan(iDefault), reason: '默认绑定必须在 pin 之前写好');
+      expect(mounts, contains('HomeWidget.updateWidget(androidName: LhWidgetNames.habitCheck)'),
+          reason: '选完必须推一把重绘——已在桌面的未绑定枚不会自己醒');
     });
   });
 }

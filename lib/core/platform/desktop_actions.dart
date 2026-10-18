@@ -81,6 +81,10 @@ const Set<String> kDesktopNamespaces = <String>{
   // NFC 模块（批2 起）引入：只放行不解释——本模块只解析出 cardId 并原样投给 Dart，
   // 业务含义与 cardId 格式校验归 NFC 模块（B35）。
   'nfc',
+  // 小组件模块（批A 收口后补）：**系统寻址段**专用 ns——只给 App 自己的界面部件
+  // 用（小组件「未选择/已失效」态的「点此设置」），不放任何用户动作，
+  // 故本 ns 下只有 [kSystemLaunchPaths]，不进 [kLaunchPathWhitelist]。
+  'settings',
 };
 
 /// 自有 scheme（V1.67）。原生侧常量 [`LH_SCHEME`]，禁用第二处字面量。
@@ -188,6 +192,27 @@ const Map<String, String> kLaunchPathWhitelist = <String, String>{
   'today': 'today',
 };
 
+/// **系统寻址段**（非用户动作）：`lh://<seg>` → App 内路由（2026-10-18 批A 收口后补）。
+///
+/// 与 [kLaunchPathWhitelist] 的分界：白名单那七条都指向 [kDesktopActions] 里的
+/// **用户动作**（用户能在设置页勾进长按菜单、能铺到桌面、能当小组件目标）；
+/// 本表只给 **App 自己的界面部件** 指路——小组件「未选择内容／内容已失效」
+/// 那两态写着「点此设置」，点了必须真到设置页，而不是把用户丢回功能页
+/// （真机报障：「点此设置」点开是习惯页，里面根本没有设置）。
+///
+/// 为什么不直接进动作表：动作表是**用户可勾选清单**的唯一来源（设置页勾选／
+/// 长按菜单／小组件目标三张清单都直接 map 它）——往表里加一条「桌面与快捷方式」
+/// 会让三张清单各多出一项既不能勾也不能铺的怪条目。
+///
+/// 值＝路由 path；**id 即段本身**（含斜杠，天然不会与动作 id 撞车）。
+const Map<String, String> kSystemLaunchPaths = <String, String>{
+  'settings/desktop': '/settings/desktop',
+};
+
+/// 系统寻址段是否全屏栈路由：是——设置各二级页都注册在 `<模块>PageRoutes()` 里
+/// （与 `settings_page_desktop.dart` 的 `context.push('/settings/desktop')` 同口径）。
+bool isSystemLaunchPath(String id) => kSystemLaunchPaths.containsKey(id);
+
 /// id → 动作。查表走这里，禁各写一份 switch。
 final Map<String, DesktopAction> desktopActionById = <String, DesktopAction>{
   for (final a in kDesktopActions) a.id: a,
@@ -223,7 +248,8 @@ Uri desktopLaunchUri(String actionId, {Map<String, String>? args}) {
 /// 三级判定（B17/B4/B5）：
 /// 1. ns（段首）不在 [kDesktopNamespaces] → null（表外 ns 按未知 path 走 `unknownRouteFallback`）；
 /// 2. `nfc/<cardId>` → 返回 `'nfc:<cardId>'`（**原样透传不解释**，业务含义归 NFC 模块）；
-/// 3. 整段查 [kLaunchPathWhitelist] → 命中给动作 id，未命中给 null。
+/// 3. 整段查 [kSystemLaunchPaths] → 命中给**段本身**（系统寻址段·id 即段）；
+/// 4. 整段查 [kLaunchPathWhitelist] → 命中给动作 id，未命中给 null。
 String? resolveLaunchPath(String path) {
   var seg = path.trim();
   while (seg.startsWith('/')) {
@@ -237,6 +263,7 @@ String? resolveLaunchPath(String path) {
     final cardId = parts.length > 1 ? parts[1] : '';
     return cardId.isEmpty ? null : 'nfc:$cardId';
   }
+  if (kSystemLaunchPaths.containsKey(seg)) return seg;
   return kLaunchPathWhitelist[seg];
 }
 
@@ -295,11 +322,15 @@ class LaunchRoute {
   bool get isNfc => action.startsWith('nfc:');
 
   /// 目标是否全屏栈路由 ⇒ 消费端必须 `push`（见 [DesktopAction.fullScreen]）。
-  bool get fullScreen => desktopActionOf(action)?.fullScreen ?? false;
+  ///
+  /// 系统寻址段（[kSystemLaunchPaths]）一律是设置二级页，同样全屏栈 ⇒ 也 push。
+  bool get fullScreen =>
+      desktopActionOf(action)?.fullScreen ?? isSystemLaunchPath(action);
 
-  /// 目标路由：动作 id 查表；查不到走兜底（B4）。
+  /// 目标路由：动作 id 查表；系统寻址段查 [kSystemLaunchPaths]；都没有走兜底（B4）。
   String get route {
     final a = desktopActionOf(action);
-    return a?.path ?? kUnknownRouteFallback;
+    if (a != null) return a.path;
+    return kSystemLaunchPaths[action] ?? kUnknownRouteFallback;
   }
 }

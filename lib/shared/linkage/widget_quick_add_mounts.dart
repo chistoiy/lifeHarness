@@ -27,7 +27,15 @@ import 'desktop_widget_mounts.dart' show ledgerWidgetCells;
 /// prefs → 开库 → 主题令牌。**不跑 `main()` 的其余初始化**（通知重排、备份
 /// 服务、图片迁移…）：弹窗只记账，多余初始化既拖慢冷启，也会与主进程重复做
 /// 副作用（提醒重排、垃圾箱清理）。
+///
+/// ⚠ **首行必须 `ensureInitialized`**（2026-10-18 真机报障「点记一笔没反应」根因）：
+/// 自定义入口点不像 `main()` 那样有框架替它建 binding，而下面第一句
+/// `SharedPreferences.getInstance()` 就走平台通道 ⇒ binding 未初始化时抛
+/// `Binding has not yet been initialized`，`runApp` 根本执行不到。宿主是
+/// **透明对话框主题**，于是「窗口起来了但一个字都没画」＝用户眼里完全没反应
+/// （不是闪退、也没有崩溃日志——异常在引擎的 zone 里被吞成一行红字）。
 Future<void> runWidgetQuickAddApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   await AppDatabase.instance.open();
   final registry = await const ThemeRepository().loadAll();

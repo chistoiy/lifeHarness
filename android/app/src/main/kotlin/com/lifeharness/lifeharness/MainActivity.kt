@@ -974,11 +974,16 @@ class MainActivity : FlutterActivity() {
             "items/new" to "items",
             "habit/check" to "habit",
             "today" to "today",
+            // 系统寻址段（非用户动作·2026-10-18 补）：**段即 id**。小组件失效三态
+            // 的「点此设置」靠它到设置页；Dart 侧同名条目在 `kSystemLaunchPaths`。
+            "settings/desktop" to "settings/desktop",
         )
 
         /** ns 常量表（C19/B17）；表外 ns 按未知 path 走 unknownRouteFallback。 */
         private val LH_NS = setOf(
             "inbox", "todo", "journal", "ledger", "items", "habit", "today", "nfc",
+            // 小组件模块（批A 收口后补）：系统寻址段专用 ns（见 LH_WHITELIST 末条）。
+            "settings",
         )
 
         /** 长按菜单系统硬限 4（§4.1）；Dart 侧也截断，两边都兜。 */

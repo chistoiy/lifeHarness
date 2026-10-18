@@ -91,9 +91,11 @@ void main() {
   });
 
   group('ns 常量表（C19/B17）', () {
-    test('八个 ns 全在表内', () {
+    test('九个 ns 全在表内', () {
+      // 2026-10-18：新增 settings（系统寻址段专用·小组件「点此设置」），
+      // 它不进动作表，只在 kSystemLaunchPaths 下有条目（见 desktop_ns_registry_test）。
       expect(kDesktopNamespaces,
-          containsAll(<String>['inbox', 'todo', 'journal', 'ledger', 'items', 'habit', 'today', 'nfc']));
+          containsAll(<String>['inbox', 'todo', 'journal', 'ledger', 'items', 'habit', 'today', 'nfc', 'settings']));
     });
 
     test('每条动作的 ns 都在常量表内（禁散落字面量）', () {

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/platform/desktop_widget.dart' show LhWidgetNames;
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/settings/presentation/desktop_settings_page.dart';
 import 'package:lifeharness/features/widget/data/widget_binding_store.dart';
@@ -172,6 +173,7 @@ void main() {
     late Database db;
     late SharedPreferences prefs;
     late List<String> pinCalls;
+    late List<String> redrawCalls;
 
     setUp(() async {
       db = await databaseFactory.openDatabase(inMemoryDatabasePath);
@@ -196,6 +198,7 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       prefs = await SharedPreferences.getInstance();
       pinCalls = <String>[];
+      redrawCalls = <String>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(const MethodChannel('lh/desktop'),
               (call) async {
@@ -207,11 +210,26 @@ void main() {
         if (call.method == 'syncShortcuts') return 0;
         return null;
       });
+      // 2026-10-18：流程尾部会「推一把重绘」（真机报障：MIUI 不跑配置页 ⇒
+      // 选了不生效，选完当场重绘一次让桌面立刻显示所选习惯）。这条通道在
+      // 测试绑定里必须有桩，否则那次调用会悬着不返回，整个流程走不完。
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('home_widget'),
+              (call) async {
+        if (call.method == 'updateWidget') {
+          redrawCalls
+              .add((call.arguments as Map<Object?, Object?>)['android'] as String);
+          return true;
+        }
+        return null;
+      });
     });
 
     tearDown(() async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(const MethodChannel('lh/desktop'), null);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('home_widget'), null);
       await db.close();
     });
 
@@ -249,6 +267,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('wg-confirm')));
       await tester.pumpAndSettle();
+      // 2026-10-18：流程尾部多了「落默认绑定 + 推一把重绘」两次异步（真机报障修），
+      // 提示文案的 setState 落在上一轮 settle 之后 ⇒ 再 settle 一次才画出来。
+      await tester.pumpAndSettle();
 
       // ② 预选落盘：种类＝打卡枚，目标＝nav/habit/夜读半小时。
       final staged = WidgetBindingStore(prefs).pendingBind;
@@ -259,6 +280,10 @@ void main() {
       expect(staged.target.sub, '夜读半小时');
       // ③ 只请 pin 打卡这一枚（不是四枚读数型里的任何一枚）。
       expect(pinCalls, <String>[kWidgetKindHabit]);
+      // ③b 兜底：默认绑定也落一份（MIUI 不跑配置页时实例靠它显示所选习惯），
+      //     并当场推一把重绘（已在桌面的未绑定枚不会自己醒）。
+      expect(WidgetBindingStore(prefs).globalDefault?.sub, '夜读半小时');
+      expect(redrawCalls, <String>[LhWidgetNames.habitCheck]);
       // 流程回的是人话标签（设置页直接拿去提示）。
       expect(find.text('打卡 · 夜读半小时'), findsOneWidget);
     });

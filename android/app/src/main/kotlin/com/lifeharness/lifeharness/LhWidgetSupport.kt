@@ -320,6 +320,18 @@ internal object LhWidget {
     /** 习惯页（打卡-单习惯 2×2 的点击去向·白名单既有段）。 */
     const val SEG_HABIT_CHECK = "habit/check"
 
+    /**
+     * 设置 › 桌面与快捷方式（**系统寻址段**·2026-10-18 真机报障后补）。
+     *
+     * 只给「App 自己的界面部件」指路：打卡枚的失效三态写着「未选择内容，点此设置」
+     * ／「内容已失效，点此重新选择」——点了必须真到设置页（那里才有重选入口），
+     * 不能再把用户丢回习惯页（用户原话：「点击后直接打开习惯页面，没有设置的内容」）。
+     *
+     * ⚠ 不是用户动作：不进 Dart 动作表（那张表喂三张用户可勾选清单），
+     * 故段即 id，见 `desktop_actions.dart` 的 `kSystemLaunchPaths`。
+     */
+    const val SEG_SETTINGS_DESKTOP = "settings/desktop"
+
     // ── 设置页 / 配置 Activity 共用的偏好（F2-4「禁两套」）──
     //
     // 文件＝`LegacySharedPreferencesPlugin.SHARED_PREFERENCES_NAME`；键前缀＝Dart

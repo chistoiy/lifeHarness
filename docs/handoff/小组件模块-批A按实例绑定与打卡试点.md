@@ -136,3 +136,33 @@ NFC 五段其余条目 provider（计时/快捷动作/呵护宝宝）／读数�
 - **体量登记**：`feature_size_budget_test` ledger 18045→18132（本刀净 +87 行·同一份表单换容器，无第二套 UI），此后只许减。
 - **6175 已出·已装机**（2026-10-18·产品令装机 `192.168.31.173:44495`）：arm64 单 ABI·versionCode 8175·52,205,537 字节·md5 `96d6170a`·预检 PASS＋aapt 四验过·构建 6m43s·`install -r` 保数据（首装时间仍 2026-09-19）·装机后启动进程存活、crash 缓冲零条。
 - **待真机验**：软键盘不遮挡／返回即消／深色跟随／横竖屏（拍板件 §三 真机门四项）＋ 4×1 三区读数与隐藏金额遮蔽。
+
+### §7.5 6175 真机三缺陷修复（2026-10-18 · 已落 · 6176 已出）
+
+产品报障原文：①「点击记一笔没有反应」②「app内添加点击习惯打卡没有让先选习惯，到桌面后打卡里面没有打卡内容」
+③「小组件上写着点击设置，点击后直接打开习惯页面，没有设置的内容」。三条＝**两个根因**：
+
+- **根因 A（①②共同的隐性来源）**：先选后落第④步「配置页无感回写」依赖系统在 pin 成功后拉起
+  `android:configure` 的 `WidgetConfigActivity`。**MIUI 桌面实测不拉** ⇒ 交接位里的目标没人认领 ⇒ 新实例没有
+  自己的绑定键 ⇒ 桌面落「未选择内容，点此设置」，用户视角＝「选了等于没选」。
+  - 修①（原生兜底）：`HabitCheckWidget.resolveBinding` —— 实例自己认领交接位
+    （`LhWidget.consumePendingBind`，幂等·认一次即清），配置页跑了它先认、没跑这里补。
+  - 修②（Dart 兜底）：`addHabitWidgetFromSettings` 落预选后**再写一份默认绑定**（R2 那个键，语义从
+    「只给老实例」扩成「最近一次选择的回落」）＋ `HomeWidget.updateWidget` 当场推一把重绘（已挂桌面的
+    未绑定枚不会自己醒）。两条兜底互相独立、都幂等。
+- **根因 B（③）**：失效三态文案写着「点此设置」，点击意图却指向 `habit/check`（习惯页）——文案与去向不一致。
+  - 修③：新增**系统寻址段** `lh://settings/desktop`（Dart `kSystemLaunchPaths`＋原生 `LH_WHITELIST`/`LH_NS`
+    各一条，段即 id）。三态占位点击改走它。**不进动作表**：那张表喂三张用户可勾选清单（设置页勾选／长按
+    菜单／小组件目标），塞进去会各多一项既不能勾也不能铺的怪条目。
+- **根因 C（①的表象）**：`runWidgetQuickAddApp` 首句就是 `SharedPreferences.getInstance()`，但**自定义入口点
+  没人替它建 binding**（`main()` 那条有框架管）⇒ 抛 `Binding has not yet been initialized` ⇒ `runApp` 根本
+  执行不到。宿主是**透明对话框主题**，于是「窗口起来了但一个字都没画」＝用户眼里完全没反应，且无崩溃日志。
+  - 修④：首行 `WidgetsFlutterBinding.ensureInitialized()`。
+- **闸**：新增 4 例（`widget_quick_add_test` 的 ensureInitialized 次序；`widget_render_test` 新组 ⑦ 三条：
+  占位点击去设置页／实例自认领／Dart 落点两兜底）＋改 3 处（判定顺序改认 `resolveBinding` 调用点、
+  ns 表 8→9、配置流程测试补 `home_widget` 通道桩并断言重绘与默认绑定）。回归 138 例全绿·KT-OK。
+- **变异三刀**（红其位·md5 复原全等）：删 ensureInitialized／占位改回 habit-check／去掉实例自认领。
+- **6176 已出·已装机**：arm64 单 ABI·versionCode 8176（`--build-number`＋`local.properties` 同值钉版）。
+- **真机复验三条**：① 桌面点 4×1「记一笔」→ 弹窗起、表单可见、保存后 4×1 读数变；② 设置页「添加小组件」→
+  选择器（打卡段预开）→ 选习惯 → 桌面那枚**直接显示该习惯**（无需重选）；③ 未绑定/失效那枚写着「点此设置」
+  → 点开落在**设置 › 桌面与快捷方式**（不是习惯页）。

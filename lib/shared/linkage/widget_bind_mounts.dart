@@ -13,10 +13,12 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:home_widget/home_widget.dart' show HomeWidget;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' show Database;
 
 import '../../core/platform/desktop_shortcuts.dart' show pinDesktopWidget;
+import '../../core/platform/desktop_widget.dart' show LhWidgetNames;
 import '../../features/widget/data/widget_binding_store.dart';
 import '../../features/widget/domain/widget_binding.dart'
     show kWidgetKindHabit, WidgetTarget;
@@ -46,8 +48,29 @@ Future<String?> addHabitWidgetFromSettings(
     db: db,
   );
   if (picked == null) return null;
-  await WidgetBindingStore(prefs).setPendingTarget(kWidgetKindHabit, picked);
+  final store = WidgetBindingStore(prefs);
+  await store.setPendingTarget(kWidgetKindHabit, picked);
+  // 2026-10-18 真机报障修（「到桌面后打卡里面没有打卡内容」）：先选后落的第④步
+  // 「配置页无感回写」依赖系统在 pin 成功后拉起 `android:configure` —— **MIUI 桌面
+  // 实测不拉**，于是选完等于没选，新实例一落地就是「未选择内容」。
+  //
+  // 故落点补一道**默认绑定回落**（R2 那个键，语义从「只给老实例」扩成
+  // 「最近一次选择的回落」）：实例有自己的绑定键就用它；没有就显示这次选的。
+  // 与原生侧 `HabitCheckWidget.resolveBinding` 的「实例自认领交接位」是**两条独立
+  // 兜底**——谁先到谁生效，都幂等。
+  await store.setGlobalDefault(picked);
   await pinDesktopWidget(kWidgetKindHabit);
+  // 已经在桌面上的未绑定枚不会自己重绘（等下一次快照推送）——选完当场推一把，
+  // 用户「选了 → 桌面立刻显示该习惯」闭环。桌面上没有这一枚时是空操作。
+  //
+  // 重绘是**锦上添花**：通道不可用（非 Android／测试环境／宿主拒绝广播）不该
+  // 让「已经选好并落盘」这件事报错回滚——绑定与 pin 都已完成，失败只影响
+  // 「什么时候看见」，下一次快照推送自会收敛。
+  try {
+    await HomeWidget.updateWidget(androidName: LhWidgetNames.habitCheck);
+  } catch (_) {
+    // catch-ok: 见上——重绘失败不影响已完成的绑定与 pin。
+  }
   return widgetTargetLabel(picked);
 }
 

@@ -31,9 +31,9 @@ import es.antonborri.home_widget.HomeWidgetProvider
  *  · 未打卡 → **广播直达** [LhWidget.habitCheckIntent]（起无头 Flutter 引擎跑
  *    Dart 仓库出口，**不开 App**；点击瞬间先乐观回显成已打卡，写库结果由
  *    快照收敛/回滚入队兜底）；
- *  · 三态占位 → 同段（起 App 让用户去选/去核对）。
- *  · 占位态将来改指「设置 › 桌面与快捷方式」需新增 `lh://settings/desktop` 段
- *    （跨 C19 白名单与路由解析），单独一刀做。
+ *  · 三态占位 → [LhWidget.SEG_SETTINGS_DESKTOP]（设置 › 桌面与快捷方式·重选入口）。
+ *    2026-10-18 真机报障前这里指向 `habit/check`（习惯页），文案却写「点此设置」
+ *    ⇒ 点了到习惯页找不到设置，已改。
  */
 class HabitCheckWidget : HomeWidgetProvider() {
 
@@ -63,7 +63,7 @@ class HabitCheckWidget : HomeWidgetProvider() {
             renderPlaceholder(context, views, R.string.lh_widget_wait_data)
             return
         }
-        val name = LhWidget.boundHabitName(context, appWidgetId)
+        val name = resolveBinding(context, appWidgetId)
         if (name == null) {
             renderPlaceholder(context, views, R.string.lh_widget_no_binding)
             return
@@ -77,7 +77,33 @@ class HabitCheckWidget : HomeWidgetProvider() {
         renderHabit(context, views, row, appWidgetId)
     }
 
-    /** 失效三态：只留标题＋居中占位文案，整卡可点（起 App 去处理）。 */
+    /**
+     * 本实例该显示哪个习惯：实例键 → （预选绑定兜底）→ 全局默认。
+     *
+     * **为什么要在这里认领预选绑定**（2026-10-18 真机报障「到桌面后打卡里面没有
+     * 打卡内容」根因）：先选后落的第④步「配置页无感回写」依赖系统在 pin 成功后
+     * 拉起 `android:configure` 那个 Activity。**MIUI 桌面实测不拉**——App 内选好
+     * 习惯、系统弹窗确认、桌面上出现小组件，但交接位里的目标没人认领 ⇒ 新实例
+     * 没有自己的绑定键 ⇒ 直接落「未选择内容，点此设置」，用户视角就是
+     * 「选了等于没选」。
+     *
+     * 实例自己认领是**幂等**的（交接位认一次就清，见
+     * [LhWidget.consumePendingBind]）：配置页跑了就是它先认、这里读到的已经是
+     * 本实例键；配置页没跑则由本函数补上。两条路都不会二次改写已有绑定。
+     *
+     * ⚠ 认领发生在**任何**该类型实例的 onUpdate 上（这是它能兜住 MIUI 的原因），
+     * 代价是「用户选了目标却在系统弹窗里取消」时，2 分钟内若另一枚**未绑定**的
+     * 打卡枚恰好刷新，会被认领走。交接位本身有 2 分钟 TTL 兜（
+     * `kWidgetBindPendingTtlMs`），且只有「一枚都没绑」的实例会走到这条路上，
+     * 故接受——比「选了永远不生效」好。
+     */
+    private fun resolveBinding(context: Context, appWidgetId: Int): String? {
+        LhWidget.boundHabitName(context, appWidgetId)?.let { return it }
+        if (!LhWidget.consumePendingBind(context, appWidgetId)) return null
+        return LhWidget.boundHabitName(context, appWidgetId)
+    }
+
+    /** 失效三态：只留标题＋居中占位文案，整卡可点（去设置页重选·不再去习惯页）。 */
     private fun renderPlaceholder(context: Context, views: RemoteViews, textRes: Int) {
         val text = context.getString(textRes)
         views.setViewVisibility(R.id.lh_wg_habit, View.GONE)
@@ -87,9 +113,12 @@ class HabitCheckWidget : HomeWidgetProvider() {
         views.setViewVisibility(R.id.lh_wg_ph, View.VISIBLE)
         views.setTextViewText(R.id.lh_wg_ph, text)
         views.setContentDescription(R.id.lh_wg_root, text)
+        // 2026-10-18 真机报障修：三态文案写着「点此设置」，点击却落到习惯页
+        // （`habit/check`）——用户原话「点击后直接打开习惯页面，没有设置的内容」。
+        // 重选入口在设置 › 桌面与快捷方式，故改走系统寻址段 `settings/desktop`。
         views.setOnClickPendingIntent(
             R.id.lh_wg_root,
-            LhWidget.clickIntent(context, LhWidget.SEG_HABIT_CHECK, REQ_ROOT),
+            LhWidget.clickIntent(context, LhWidget.SEG_SETTINGS_DESKTOP, REQ_ROOT),
         )
     }
 
