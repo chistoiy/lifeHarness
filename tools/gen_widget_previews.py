@@ -183,6 +183,40 @@ CARDS = {
     'habit': draw_habit,
 }
 
+# ── 批C · 1×1 模块瓦片 ─────────────────────────────────────────
+#
+# 1×1 瓦片在桌面上约 72×72dp（各桌面略有差异，取常见值）。缩略图必须**每枚不同**：
+# MIUI 只认 previewImage，缺图一律回落应用图标 ⇒ 17 枚长得一模一样（2026-10-15
+# 装机实锤）。故每枚按「模块色块 + 标签」画——色块与标签两项都不同，一眼可分。
+#
+# ⚠ 缩略图不画字形（字形由真实布局的 `ic_lh_*` 矢量图出）：这里只表达
+#   「这是哪一枚」——色块形状、颜色、标签。真实布局见 `res/layout/lh_tile.xml`。
+W11, H11 = 72, 72
+
+# 模块色块（与对应 `ic_lh_<id>.xml` 的底色同值；新增瓦片时在此登记一行）。
+TILE_COLORS = {
+    'todo': (99, 102, 241, 255),
+}
+
+
+def draw_tile(c, label, color):
+    img = canvas(W11, H11)
+    card(img, c, radius=20)
+    d = ImageDraw.Draw(img)
+    # 图标块：30dp 圆角方块（半径 6.25dp＝`ic_lh_*` 的 5/24 视口比）
+    ix, iy, isz = (W11 - 30) / 2, 8, 30
+    d.rounded_rectangle([dp(ix), dp(iy), dp(ix + isz), dp(iy + isz)],
+                        radius=dp(6.25), fill=color)
+    # 标签：10sp 单行居中（真实布局里 marginTop 2dp）
+    text(d, (W11 / 2, iy + isz + 4), label, 10, c['fg'], anchor='ma')
+    return img
+
+
+TILES = {
+    # id → (瓦片标签, 色块)。标签与 `strings.xml` 的 `lh_tile_label_<id>` 同字。
+    'todo': ('待办', TILE_COLORS['todo']),
+}
+
 
 def main():
     for theme, colors, sub in (('day', LIGHT, 'drawable-nodpi'),
@@ -193,6 +227,12 @@ def main():
             img = fn(colors)
             img = img.resize((img.width // SS, img.height // SS), Image.LANCZOS)
             p = os.path.join(out, 'lh_widget_%s_preview.png' % name)
+            img.save(p, 'PNG', optimize=True)
+            print('%-8s %-52s %s' % (theme, p, img.size))
+        for name, (label, color) in TILES.items():
+            img = draw_tile(colors, label, color)
+            img = img.resize((img.width // SS, img.height // SS), Image.LANCZOS)
+            p = os.path.join(out, 'lh_tile_%s_preview.png' % name)
             img.save(p, 'PNG', optimize=True)
             print('%-8s %-52s %s' % (theme, p, img.size))
 

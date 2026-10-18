@@ -11,6 +11,8 @@
 /// **只做预填，提交须 App 内确认**；删除类一律不进 URL。本模块只落地「写入类只预填」。
 library;
 
+import 'module_tiles.dart';
+
 /// 带参等级（C18）。
 enum LaunchArgGrade {
   /// 导航类：可直接执行。
@@ -85,6 +87,11 @@ const Set<String> kDesktopNamespaces = <String>{
   // 用（小组件「未选择/已失效」态的「点此设置」），不放任何用户动作，
   // 故本 ns 下只有 [kSystemLaunchPaths]，不进 [kLaunchPathWhitelist]。
   'settings',
+  // 小组件模块批C（2026-10-18）：**模块瓦片**专用 ns——1×1 导航型瓦片点一下
+  // 直达模块首页，段形如 `modules/todo`（段即 id，见 [kSystemLaunchPaths]）。
+  // 同样不进 [kLaunchPathWhitelist]：白名单每条都要能查回 [kDesktopActions]，
+  // 而瓦片不是「用户动作」，不该出现在设置页勾选/长按菜单/小组件目标三张清单里。
+  'modules',
 };
 
 /// 自有 scheme（V1.67）。原生侧常量 [`LH_SCHEME`]，禁用第二处字面量。
@@ -205,8 +212,18 @@ const Map<String, String> kLaunchPathWhitelist = <String, String>{
 /// 会让三张清单各多出一项既不能勾也不能铺的怪条目。
 ///
 /// 值＝路由 path；**id 即段本身**（含斜杠，天然不会与动作 id 撞车）。
-const Map<String, String> kSystemLaunchPaths = <String, String>{
+///
+/// 两族：
+/// - `settings/*`＝设置二级页（全屏栈 ⇒ `push`）；
+/// - `modules/*`＝**模块瓦片**（批C·2026-10-18）：一枚 1×1 小组件＝一个模块，
+///   点了直达该模块首页。壳内 tab 用 `go`、全屏栈页用 `push`，判定见
+///   [LaunchRoute.fullScreen] 的第三级（[kShellLaunchSegs]）。
+///
+/// 表体从 [kModuleTiles] 派生（模块目录唯一真源在 `module_tiles.dart`）——
+/// 禁在这里再抄一份模块中文名/路由，否则加模块必漂移。
+final Map<String, String> kSystemLaunchPaths = <String, String>{
   'settings/desktop': '/settings/desktop',
+  for (final t in kModuleTiles) t.seg: t.route,
 };
 
 /// 系统寻址段是否全屏栈路由：是——设置各二级页都注册在 `<模块>PageRoutes()` 里
@@ -323,9 +340,18 @@ class LaunchRoute {
 
   /// 目标是否全屏栈路由 ⇒ 消费端必须 `push`（见 [DesktopAction.fullScreen]）。
   ///
-  /// 系统寻址段（[kSystemLaunchPaths]）一律是设置二级页，同样全屏栈 ⇒ 也 push。
-  bool get fullScreen =>
-      desktopActionOf(action)?.fullScreen ?? isSystemLaunchPath(action);
+  /// **三级判定**（批C 立·规格 §4.2）：
+  /// 1. 用户动作 → 取动作表登记的 `fullScreen`；
+  /// 2. **模块瓦片且是壳内 tab** → `false`（`go`）——这一级不能省：现状是
+  ///    「系统寻址段一律 push」，直接用会把底栏页 push 成栈顶 ⇒ **底栏消失**
+  ///    （壳内 tab 的全部价值就是「等价点底栏」，push 之后返回语义也变了）；
+  /// 3. 其余系统寻址段（`settings/*`）→ `push`。
+  bool get fullScreen {
+    final a = desktopActionOf(action);
+    if (a != null) return a.fullScreen;
+    if (kShellLaunchSegs.contains(action)) return false;
+    return isSystemLaunchPath(action);
+  }
 
   /// 目标路由：动作 id 查表；系统寻址段查 [kSystemLaunchPaths]；都没有走兜底（B4）。
   String get route {

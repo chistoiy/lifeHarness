@@ -253,6 +253,22 @@
                 android:resource="@xml/lh_widget_habit_info" />
         </receiver>
 
+        <!-- 批C · 1×1 模块瓦片（2026-10-18）：一枚瓦片＝一个模块，点了直达模块首页。
+             ⚠ **一模块一条 receiver ＋ 一个 3 行子类**：同一个 class 写两条 receiver 会被
+               manifest 合并成一条（组件名相同）⇒ 17 枚只剩一枚（规格 §4.1）。
+             ⚠ 全部**零 configure**：MIUI 桌面不跑 android:configure，而瓦片无参数。 -->
+        <receiver
+            android:name=".TileTodo"
+            android:exported="true"
+            android:label="@string/lh_tile_todo_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_tile_todo_info" />
+        </receiver>
+
         <!-- 批3 · 待办勾圈的闭环执行器（**内部广播，不导出**）。
              ⚠ `exported=false` 是硬要求：它能被任意 app 用来改我们的待办库。
              勾圈的 PendingIntent 由本进程发出，同进程投递到未导出 receiver 不受此限。 -->

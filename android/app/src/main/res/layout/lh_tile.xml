@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  1×1 模块瓦片（批C · 2026-10-18）· 唯一布局，17 枚共用（只有图标与标签不同）。
+
+  结构＝图标（30dp）＋标签（10sp 单行），纵向居中。
+  ⚠ RemoteViews 白名单：禁裸 `<View>`（撑开器/分隔线一律用 ImageView 或空 LinearLayout）。
+  ⚠ 这里**不放任何数据控件**：瓦片零数据零刷新，Provider 只 setImageViewResource ＋
+    setTextViewText ＋ setOnClickPendingIntent 三件事。
+  ⚠ 标签用 `@color/lh_wg_fg`、底用 `@drawable/lh_tile_bg`（＝卡片底同色）——RemoteViews
+    不解析 `?attr/…` 主题属性，浅/深两档只能靠 `values/` 与 `values-night/` 两份色值。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lh_tile_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/lh_tile_bg"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="4dp">
+
+    <ImageView
+        android:id="@+id/lh_tile_icon"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:contentDescription="@null" />
+
+    <TextView
+        android:id="@+id/lh_tile_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/lh_wg_fg"
+        android:textSize="10sp" />
+</LinearLayout>

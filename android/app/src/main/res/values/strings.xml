@@ -59,6 +59,13 @@
     <string name="lh_widget_no_binding">未选择内容，点此设置</string>
     <string name="lh_widget_source_invalid">内容已失效，点此重新选择</string>
 
+    <!-- 批C · 1×1 模块瓦片（2026-10-18）：一枚瓦片＝一个模块，点了直达该模块首页。
+         名称带「模块 · 」前缀——选择器里与应用图标同名会分不清（规格 §10.2 待产品定，
+         暂按此口径；产品若改口只动这一处文案）。 -->
+    <string name="lh_tile_todo_name">模块 · 待办</string>
+    <string name="lh_tile_todo_desc">点一下直达待办</string>
+    <string name="lh_tile_label_todo">待办</string>
+
     <!-- 配置 Activity（F2-4） -->
     <string name="lh_widget_cfg_title">选择显示内容</string>
     <string name="lh_widget_cfg_title_of">配置：%1$s</string>    <string name="lh_widget_cfg_hint">与「设置 › 桌面与快捷方式」共用同一份偏好，改哪边都生效。</string>

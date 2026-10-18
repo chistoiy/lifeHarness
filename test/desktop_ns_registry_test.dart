@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/platform/desktop_actions.dart';
+import 'package:lifeharness/core/platform/module_tiles.dart';
 
 /// ns 常量表守护（冻结档 B17/C19 · `test/desktop_ns_registry_test.dart`）。
 ///
@@ -57,13 +58,25 @@ void main() {
     for (final e in kSystemLaunchPaths.entries) {
       expect(resolveLaunchPath(e.key), e.key, reason: '${e.key} 必须按段即 id 放行');
       expect(LaunchRoute(action: e.key).route, e.value);
-      expect(LaunchRoute(action: e.key).fullScreen, isTrue,
-          reason: '设置二级页是全屏栈路由，消费端必须 push');
       expect(desktopActionById.containsKey(e.key), isFalse,
           reason: '系统寻址段禁混进动作表（会污染三张用户可勾选清单）');
     }
     // 反例：表外同 ns 段一律 null（不能靠「ns 对」蹭过白名单）。
     expect(resolveLaunchPath('settings/ghost'), isNull);
+    expect(resolveLaunchPath('modules/ghost'), isNull);
+  });
+
+  test('系统寻址段的导航语义：设置二级页 push，壳内模块瓦片 go', () {
+    // 2026-10-18 批C：modules/* 分两族——壳内 tab 必须 go（push 会把底栏顶掉、
+    // 用户「回到底栏页」的返回语义也变了），全屏栈页必须 push（go 会换掉栈底壳页
+    // ⇒ 返回黑屏·V1.67 真机伤）。设置二级页仍是 push。
+    expect(LaunchRoute(action: 'settings/desktop').fullScreen, isTrue);
+    for (final e in kSystemLaunchPaths.entries) {
+      if (!e.key.startsWith('modules/')) continue;
+      expect(LaunchRoute(action: e.key).fullScreen,
+          !kShellLaunchSegs.contains(e.key),
+          reason: '${e.key} 的 go/push 与 kShellLaunchSegs 不一致');
+    }
   });
 
   test('nfc 不在动作表里（本模块只放行不解释，C36）', () {
