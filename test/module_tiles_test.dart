@@ -267,16 +267,25 @@ void main() {
           reason: '选择层只许列真能落桌面的模块');
     });
 
-    test('瓦片布局：吃满格子＋透明底（真机三修口径）', () {
-      // 2026-10-18 真机报障：①「高度宽度都不好」⇒ 图标改 match_parent+weight+fitCenter，
-      // 格子多大图标就多大；②「底部有黑色块」⇒ 去掉卡片底（深色档会压出暗块）。
+    test('瓦片布局：固定尺寸居中＋透明底＋白字带阴影（真机二修口径）', () {
+      // 2026-10-18 真机报障两轮：①「高度宽度都不好」⇒ 图标改固定 55dp 见方＋整列居中，
+      // 不用 layout_weight（撑满会随宿主高度走形）；②「底部有黑色块」⇒ 去掉卡片底；
+      // ③ 标签色不跟系统深色模式走（深色模式下白字压浅壁纸＝看不见）⇒ 固定白字＋深阴影。
       final xml = File('$resDir/layout/lh_tile.xml').readAsStringSync();
       final body = xml.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
       expect(body.contains('android:background'), isFalse,
           reason: '瓦片必须透明底——卡片底在 1×1 上就是那块黑底');
-      expect(body, contains('android:layout_weight="1"'));
+      expect(body, contains('android:gravity="center"'),
+          reason: '整列必须在宿主里居中，否则随宿主框走形');
+      expect(body.contains('android:layout_weight'), isFalse,
+          reason: '禁 weight：宿主高度由桌面给，weight 会把图标拉成非方形');
+      expect(body, contains('android:layout_width="55dp"'));
       expect(body, contains('android:scaleType="fitCenter"'));
       expect(body, contains('android:textSize="9sp"'));
+      expect(body, contains('android:shadowRadius="3"'),
+          reason: '标签必须有阴影，否则浅壁纸上看不见');
+      expect(body, contains('android:textColor="#FFFFFF"'),
+          reason: '标签色固定白，不跟 values-night 走');
       // RemoteViews 白名单：禁裸 <View>。
       expect(body.contains('<View'), isFalse);
       expect(File('$resDir/drawable/lh_tile_bg.xml').existsSync(), isFalse,
@@ -299,6 +308,8 @@ void main() {
         expect(xml, contains('android:targetCellWidth="1"'));
         expect(xml, contains('android:targetCellHeight="1"'));
         expect(xml, contains('android:minWidth="40dp"'));
+        // 1×1 是唯一形态：真机实测改可缩放后宿主框并不变大（MIUI 对 1×1 的固定缩放），
+        // 拉大只会得到一片空白 ⇒ 钉死 none。
         expect(xml, contains('android:resizeMode="none"'));
         expect(xml, contains('android:initialLayout="@layout/lh_tile"'),
             reason: '$id 应共用唯一瓦片布局');
