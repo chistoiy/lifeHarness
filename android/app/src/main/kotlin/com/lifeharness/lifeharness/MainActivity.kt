@@ -907,6 +907,12 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         /**
+         * 瓦片 pin 入参前缀（批C · `tile:<模块 id>`）。与 Dart `ModuleTile.pinId`
+         * 逐字一致（守护 `module_tiles_test` 交叉核对）。
+         */
+        const val TILE_PIN_PREFIX = "tile:"
+
+        /**
          * `lh/nfc` 通道名：NFC 设置页跳转（Dart→原生）＋ 贴卡事件投递（原生→Dart，
          * 由透明中转界面 [NfcRelayActivity] 使用）。**禁第二处字面量**。
          */
@@ -1161,14 +1167,35 @@ class MainActivity : FlutterActivity() {
     }
 
     /** id → provider 类（`pinWidgetById` 唯一表；与 Dart `pinDesktopWidget` 入参逐字一致）。 */
-    private fun widgetClassById(id: String?): Class<*>? = when (id) {
-        "overview" -> TodayOverviewWidget::class.java
-        "quick" -> QuickRecordWidget::class.java
-        "todo" -> TodoListWidget::class.java
-        "ledger" -> LedgerOverviewWidget::class.java
-        // 批A：绑定型小组件（一枚绑一个习惯）。pin 前 Dart 侧已写好预选绑定，
-        // 新实例创建时由 WidgetConfigActivity 认领（无感回写）。
-        "habit" -> HabitCheckWidget::class.java
+    private fun widgetClassById(id: String?): Class<*>? {
+        if (id == null) return null
+        // 批C：模块瓦片用 `tile:<模块 id>`（一枚瓦片就是一个模块，没有「先选后落」，
+        // 故与读数四枚/打卡枚同一个入口，不另开方法）。前缀与 Dart
+        // `ModuleTile.pinId` 逐字一致（守护 module_tiles_test 交叉核对）。
+        if (id.startsWith(TILE_PIN_PREFIX)) {
+            return moduleTileClass(id.removePrefix(TILE_PIN_PREFIX))
+        }
+        return when (id) {
+            "overview" -> TodayOverviewWidget::class.java
+            "quick" -> QuickRecordWidget::class.java
+            "todo" -> TodoListWidget::class.java
+            "ledger" -> LedgerOverviewWidget::class.java
+            // 批A：绑定型小组件（一枚绑一个习惯）。pin 前 Dart 侧已写好预选绑定，
+            // 新实例创建时由 WidgetConfigActivity 认领（无感回写）。
+            "habit" -> HabitCheckWidget::class.java
+            else -> null
+        }
+    }
+
+    /**
+     * 模块 id → 瓦片 provider 类（批C）。
+     *
+     * ⚠ 加一枚瓦片必须**两处同改**：这里加一行 ＋ Dart `kImplementedModuleTileIds`
+     * 加一个 id；漏了后者则设置页不列它（用户点不到），漏了前者则点了系统不出弹窗。
+     * 守护 `module_tiles_test` 双向核对（Dart 表 ↔ 本函数 ↔ Manifest ↔ info XML）。
+     */
+    private fun moduleTileClass(moduleId: String): Class<*>? = when (moduleId) {
+        "todo" -> TileTodo::class.java
         else -> null
     }
 

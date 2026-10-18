@@ -227,6 +227,62 @@ void main() {
       expect(implemented, contains('todo'));
     });
 
+    test('Dart 已实现表 ≡ 资源/receiver 实际存在的那批（双向）', () {
+      expect(kImplementedModuleTileIds.toList()..sort(), implemented,
+          reason: 'kImplementedModuleTileIds 与资源不符：漏登记 ⇒ 设置页不列它；'
+              '登记了没实现 ⇒ 点了系统不出弹窗');
+      expect(kImplementedModuleTiles.map((t) => t.id).toList(),
+          kModuleTiles.where((t) => kImplementedModuleTileIds.contains(t.id)).map((t) => t.id).toList());
+    });
+
+    test('pin 入参形态＝tile:<id>，且原生前缀分支认这个形态', () {
+      for (final t in kModuleTiles) {
+        expect(t.pinId, 'tile:${t.id}');
+      }
+      final main = File('$ktDir/MainActivity.kt').readAsStringSync();
+      expect(main, contains('const val TILE_PIN_PREFIX = "tile:"'));
+      expect(main, contains('id.startsWith(TILE_PIN_PREFIX)'));
+      // 原生 id → 类 的 when 分支必须覆盖已实现的每一枚（漏了 ⇒ 点了不出弹窗）。
+      final i = main.indexOf('private fun moduleTileClass(');
+      expect(i, greaterThan(-1), reason: '缺 moduleTileClass');
+      final block = main.substring(i, main.indexOf('\n    }', i));
+      for (final id in kImplementedModuleTileIds) {
+        expect(block, contains('"$id" -> ${classNameOf(id)}::class.java'),
+            reason: '原生 moduleTileClass 缺 $id 分支');
+      }
+    });
+
+    test('设置页有「模块瓦片」添加入口，走同一条 pin 通道', () {
+      final page = File(
+              'lib/features/settings/presentation/desktop_settings_page.dart')
+          .readAsStringSync();
+      expect(page, contains("ValueKey<String>('wg-pin-tile')"),
+          reason: '设置页没有 1×1 瓦片添加入口（产品 2026-10-18 报障）');
+      expect(page, contains('showModuleTilePicker(context)'));
+      expect(page, contains('pinDesktopWidget(tile.pinId)'),
+          reason: '必须走既有 pin 唯一入口，禁自拼平台调用');
+      final picker = File('lib/shared/widgets/module_tile_picker.dart')
+          .readAsStringSync();
+      expect(picker, contains('kImplementedModuleTiles'),
+          reason: '选择层只许列真能落桌面的模块');
+    });
+
+    test('瓦片布局：吃满格子＋透明底（真机三修口径）', () {
+      // 2026-10-18 真机报障：①「高度宽度都不好」⇒ 图标改 match_parent+weight+fitCenter，
+      // 格子多大图标就多大；②「底部有黑色块」⇒ 去掉卡片底（深色档会压出暗块）。
+      final xml = File('$resDir/layout/lh_tile.xml').readAsStringSync();
+      final body = xml.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+      expect(body.contains('android:background'), isFalse,
+          reason: '瓦片必须透明底——卡片底在 1×1 上就是那块黑底');
+      expect(body, contains('android:layout_weight="1"'));
+      expect(body, contains('android:scaleType="fitCenter"'));
+      expect(body, contains('android:textSize="9sp"'));
+      // RemoteViews 白名单：禁裸 <View>。
+      expect(body.contains('<View'), isFalse);
+      expect(File('$resDir/drawable/lh_tile_bg.xml').existsSync(), isFalse,
+          reason: '卡片底已弃用，留着就是死资源');
+    });
+
     test('每枚瓦片：零 configure、零刷新、1×1、有预览图、指同一布局', () {
       // ⚠ 扫 XML 前先剥注释：本仓纪律「源码扫描类测试先剥注释」，否则文档串自指
       // （注释里写着「不写 android:configure」会被当成写了）。

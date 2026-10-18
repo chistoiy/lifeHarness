@@ -200,15 +200,23 @@ TILE_COLORS = {
 
 
 def draw_tile(c, label, color):
+    """1×1 模块瓦片缩略图（真机三修后版：图标吃满格子、标签压底）。
+
+    真实布局＝`lh_tile.xml`（**透明底**，图标 match_parent+weight=1+fitCenter，
+    标签 9sp 压底）。缩略图这里仍画一层卡片底：小部件库的列表底不一定是浅色，
+    透明 PNG 在深/浅两种列表底上必有一边看不清标签；卡片只作缩略图衬底，
+    桌面上那枚瓦片本身是透明的。
+    """
     img = canvas(W11, H11)
     card(img, c, radius=20)
     d = ImageDraw.Draw(img)
-    # 图标块：30dp 圆角方块（半径 6.25dp＝`ic_lh_*` 的 5/24 视口比）
-    ix, iy, isz = (W11 - 30) / 2, 8, 30
+    # 图标块：约 54dp（＝真机 1×1 格子里 fitCenter 后的实际大小），顶部对齐
+    isz = 54
+    ix, iy = (W11 - isz) / 2, 3
     d.rounded_rectangle([dp(ix), dp(iy), dp(ix + isz), dp(iy + isz)],
-                        radius=dp(6.25), fill=color)
-    # 标签：10sp 单行居中（真实布局里 marginTop 2dp）
-    text(d, (W11 / 2, iy + isz + 4), label, 10, c['fg'], anchor='ma')
+                        radius=dp(11), fill=color)
+    # 标签：9sp 单行居中压底
+    text(d, (W11 / 2, H11 - 12), label, 9, c['fg'], anchor='ma')
     return img
 
 

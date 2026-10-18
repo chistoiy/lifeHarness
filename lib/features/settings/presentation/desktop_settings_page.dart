@@ -15,6 +15,8 @@ import '../../../shared/linkage/desktop_widget_mounts.dart'
     show buildSnapshot, desktopWidgetKickProvider;
 import '../../../shared/linkage/widget_bind_mounts.dart'
     show addHabitWidgetFromSettings, WidgetAddOutcome;
+import '../../../shared/widgets/module_tile_picker.dart'
+    show showModuleTilePicker;
 
 /// 「桌面与快捷方式」二级页（原型 `p-sub-desktop`，家＝壳 index.html；本屏 Flutter 侧）。
 ///
@@ -141,7 +143,24 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
     final flow = widget.addWidgetFlow ?? addHabitWidgetFromSettings;
     final out = await flow(context, prefs);
     if (!mounted || out == null) return;
-    await _showAddGuide(out.label);
+    await _showAddGuide(out.label, widgetName: '打卡-单习惯');
+  }
+
+  /// 「添加模块瓦片（1×1）」＝选模块 → 请系统 pin（批C · 2026-10-18 真机报障后补）。
+  ///
+  /// 与打卡枚的区别：瓦片**没有二级参数**（一枚就是一个模块），故没有「预选绑定」
+  /// 那一步，选完直接 pin。pin 入参＝`tile:<模块 id>`（原生 `widgetClassById` 的前缀分支）。
+  ///
+  /// 取消（返回 null）⇒ 什么都不落。系统吞掉 pin 时（MIUI 实测会）照样给手动引导——
+  /// 瓦片在小部件库里是独立条目，拖出来的就是所选模块，不用再选一次。
+  Future<void> _addModuleTile() async {
+    final tile = await showModuleTilePicker(context);
+    if (!mounted || tile == null) return;
+    final pinned = await pinDesktopWidget(tile.pinId);
+    debugPrint('[LhWidget] 瓦片 pin 请求被接受=$pinned（${tile.seg}）');
+    if (!mounted) return;
+    await _showAddGuide(tile.label,
+        widgetName: '模块 · ${tile.label}', pinned: pinned);
   }
 
   /// 「已选好 X，怎么把它放到桌面」的引导（底部弹层·三步）。
@@ -150,7 +169,11 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
   /// （MIUI 实测返回 true 但不出弹窗），而 App 没有任何 API 能把实例直接塞到桌面
   /// （`bindAppWidgetId` 要系统权限）。但**手动拖出来照样能用**——选好的目标已经落成
   /// 默认绑定，拖出的新实例直接显示它。所以这里只讲清「去哪儿拖」＋「已经记住了」。
-  Future<void> _showAddGuide(String label) async {
+  Future<void> _showAddGuide(
+    String label, {
+    String widgetName = '打卡-单习惯',
+    bool pinned = true,
+  }) async {
     final scheme = Theme.of(context).colorScheme;
     await showModalBottomSheet<void>(
       context: context,
@@ -169,8 +192,12 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                '如果系统没有弹出「添加到主屏幕」的确认框（部分桌面会静默忽略），'
-                '按下面三步手动添加——拖出来的就是「$label」，不用再选一次。',
+                pinned
+                    ? '系统已收到添加请求。如果没弹出「添加到主屏幕」的确认框'
+                        '（部分桌面会静默忽略），按下面三步手动添加——拖出来的就是'
+                        '「$widgetName」，不用再选一次。'
+                    : '这台桌面没有接受添加请求。按下面三步手动添加——拖出来的就是'
+                        '「$widgetName」，不用再选一次。',
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.6,
@@ -178,10 +205,10 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
                 ),
               ),
               const SizedBox(height: 14),
-              for (final (i, step) in const [
+              for (final (i, step) in [
                 (1, '长按桌面空白处，点「添加小工具」'),
                 (2, '在列表里找到「LifeHarness」'),
-                (3, '把「打卡-单习惯」拖到桌面'),
+                (3, '把「$widgetName」拖到桌面'),
               ])
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -849,11 +876,52 @@ class _DesktopSettingsPageState extends ConsumerState<DesktopSettingsPage> {
                   ],
                 ),
               ),
+              // 批C · 模块瓦片（1×1）：一枚瓦片＝一个模块，点一下直达该模块页。
+              // 与上面两类的区别＝**零数据零绑定**，所以既没有开关也没有预览读数，
+              // 只有「选哪个模块」一步（选择层见 shared/widgets/module_tile_picker）。
+              Divider(height: 1, color: scheme.outlineVariant),
+              SizedBox(
+                height: 48,
+                child: Row(
+                  children: [
+                    Icon(Icons.apps_outlined,
+                        size: 18, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('模块瓦片（1×1）',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text('每个模块一枚，点一下直达该模块页',
+                              style: TextStyle(
+                                  fontSize: 10.5, color: scheme.outline)),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      key: const ValueKey<String>('wg-pin-tile'),
+                      onPressed: _addModuleTile,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(0, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text('添加',
+                          style:
+                              TextStyle(fontSize: 11.5, color: scheme.primary)),
+                    ),
+                  ],
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 6, bottom: 4),
                 child: Text(
                   '小组件读数来自最近一次同步快照，可能略有延迟；开启「隐藏金额」时小组件金额位显示为 ••••。'
-                  '「打卡-单习惯」每枚绑一个习惯：点小组件即打卡，不用打开 App。',
+                  '「打卡-单习惯」每枚绑一个习惯：点小组件即打卡，不用打开 App。'
+                  '「模块瓦片」是导航型：不显示数据，点一下直接进对应模块页。',
                   style: TextStyle(fontSize: 10.5, height: 1.6, color: scheme.outline),
                 ),
               ),

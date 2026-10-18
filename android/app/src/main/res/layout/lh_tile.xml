@@ -1,36 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  1×1 模块瓦片（批C · 2026-10-18）· 唯一布局，17 枚共用（只有图标与标签不同）。
+  1×1 模块瓦片（批C · 2026-10-18 · 真机三修后版）· 唯一布局，17 枚共用。
 
-  结构＝图标（30dp）＋标签（10sp 单行），纵向居中。
-  ⚠ RemoteViews 白名单：禁裸 `<View>`（撑开器/分隔线一律用 ImageView 或空 LinearLayout）。
-  ⚠ 这里**不放任何数据控件**：瓦片零数据零刷新，Provider 只 setImageViewResource ＋
-    setTextViewText ＋ setOnClickPendingIntent 三件事。
-  ⚠ 标签用 `@color/lh_wg_fg`、底用 `@drawable/lh_tile_bg`（＝卡片底同色）——RemoteViews
-    不解析 `?attr/…` 主题属性，浅/深两档只能靠 `values/` 与 `values-night/` 两份色值。
+  **本次真机报障（2026-10-18）三改**：
+  ① 「高度、宽度都不好，尽可能与正常 app 的大小保持一致」⇒ 内容不再写死 30dp 图标，
+     改**吃满格子**：图标 `match_parent + weight=1 + fitCenter`，格子多大图标就多大
+     （桌面给 1×1 约 70dp 时，图标≈55dp，与 App 图标同级）；标签压在底部一行。
+  ② 「底部还有黑色块」⇒ 去掉根布局的卡片底（`lh_tile_bg`）。那一层圆角卡片是给
+     2×2/4×1 读数卡用的，1×1 套上去既不像 App 图标，深色档还会在底部压出一块暗色
+     （MIUI 另加一层 widget 阴影，叠起来就是用户看到的黑块）。瓦片现在**透明底**，
+     只有图标与标签本身。
+  ③ 仍**不放任何数据控件**：零数据零刷新，Provider 只 setImageViewResource ＋
+     setTextViewText ＋ setOnClickPendingIntent 三件事。
+
+  ⚠ RemoteViews 白名单：禁裸 `<View>`（撑开器/分隔线一律 ImageView 或空 LinearLayout）。
+  ⚠ RemoteViews 不解析 `?attr/…` 主题属性 ⇒ 标签色走 `@color/lh_wg_fg` 的浅/深两档。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/lh_tile_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/lh_tile_bg"
-    android:gravity="center"
+    android:gravity="center_horizontal"
     android:orientation="vertical"
-    android:padding="4dp">
+    android:padding="2dp">
 
     <ImageView
         android:id="@+id/lh_tile_icon"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:contentDescription="@null" />
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
 
     <TextView
         android:id="@+id/lh_tile_label"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="1dp"
         android:ellipsize="end"
+        android:gravity="center"
         android:maxLines="1"
         android:textColor="@color/lh_wg_fg"
-        android:textSize="10sp" />
+        android:textSize="9sp" />
 </LinearLayout>
