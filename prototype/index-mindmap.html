@@ -11,6 +11,8 @@
     2c 独立表 mindmaps/mindmap_nodes；2d 自动树布局＋**自由拖拽定位**（2026-10-12 产品改口：落库只存相对基线的 dx/dy 偏移，
     不存绝对坐标）＋手势三分＝拖节点／拖空白平移／双指缩放；「不做自由拖拽定位」旧口径作废。
     2e 首批＝建图＋编辑＋挂笔记，模板/导出/分享不做。
+  批P（2026-10-19）：连接器（挂接/摘除·成环置灰·右缘拖拽）＋ md 单层标题并入中心主题
+    ＋ 树内导航（收起整枝/展开全部）＋ 层级分级与聚焦降噪（L1/L3/L5）。
   校验：node tools/mm_check.js（结构断言）＋ CDP 真 390 视口截图矩阵。
 -->
 <html lang="zh-CN" class="" data-theme="minimal">
@@ -92,7 +94,32 @@ tailwind.config = {
     background:var(--mm-bg,var(--card));border:1.5px solid var(--card-bd);box-shadow:var(--card-sh);
     color:var(--mm-fg,inherit);font-size:var(--mm-fs,13px);font-weight:700;white-space:nowrap;max-width:300px;transition:box-shadow .16s,border-color .16s,transform .16s;
     user-select:none;-webkit-user-select:none}
-  .mm-node.root{border-color:var(--mm-branch);background:color-mix(in srgb,var(--accent) 9%,var(--card));font-weight:800;font-size:15px;padding:9px 14px}
+  .mm-node.root{border-color:var(--mm-branch);border-width:2px;background:color-mix(in srgb,var(--accent) 9%,var(--card));font-weight:800;font-size:15px;padding:9px 14px}
+  /* 批P L1 层级分级：根＝主色描边＋9% 淡底＋加粗（上一行）；二三级起描边降一档透明度。
+     先写 rgba 回落再写 color-mix（Chromium<111 不认 color-mix，无回落是整条失效而非退化）。 */
+  .mm-node.d2{border-color:rgba(203,213,225,.72);border-color:color-mix(in srgb,var(--card-bd) 72%,transparent)}
+  .mm-node.d3{border-color:rgba(203,213,225,.5);border-color:color-mix(in srgb,var(--card-bd) 52%,transparent)}
+  html.dark .mm-node.d2{border-color:rgba(51,65,85,.8);border-color:color-mix(in srgb,var(--card-bd) 80%,transparent)}
+  html.dark .mm-node.d3{border-color:rgba(51,65,85,.55);border-color:color-mix(in srgb,var(--card-bd) 55%,transparent)}
+  /* 批P L5 聚焦态：选中一枝时其余枝降到 40%，大图一眼读得出「我在哪一枝」 */
+  .mm-node.dim{opacity:.4}
+  /* 批P L3 连线不钻盒：连线层压到节点层之下，且节点盒一律不透明底（穿盒处不再像断线） */
+  #mmEdges{z-index:1}
+  #mmNodes{position:absolute;left:0;top:0;z-index:2}
+  #mmEdges .mm-edge-root{stroke:var(--mm-branch);stroke-width:calc(var(--mm-line-w,1.6px) + .9px);opacity:.92}
+  /* 批P P1 连接态：可选目标描边闪烁；成环目标置灰不可点；右缘连接点可拖 */
+  .mm-node.ctarget{border-color:var(--accent);animation:ctPulse 1.1s ease-in-out infinite}
+  @keyframes ctPulse{0%,100%{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 26%,transparent)}}
+  .mm-node.cblocked{opacity:.32;filter:grayscale(.6)}
+  .mm-node.hover{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent)}
+  .mm-node .mm-port{position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;
+    background:var(--accent);border:2.5px solid var(--card);box-shadow:0 1px 4px rgba(15,23,42,.28);touch-action:none;z-index:3}
+  #mmConnectBar{position:absolute;left:12px;right:12px;top:10px;z-index:22;display:flex;align-items:center;gap:9px;
+    padding:9px 12px;border-radius:13px;background:var(--card);border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);
+    box-shadow:0 8px 22px rgba(15,23,42,.16);font-size:11.5px;font-weight:800}
+  #mmConnectBar .cbar-t{flex:1;min-width:0;line-height:1.45}
+  #mmConnectBar button{font-size:11px;font-weight:800;padding:7px 11px;border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);min-height:34px}
+  html.dark #mmConnectBar button{color:var(--accent-l)}
   .mm-node.sel{border-color:var(--mm-branch);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent),var(--card-sh)}
   .mm-node:active{transform:scale(.97)}
   .mm-node.dragging{opacity:.85;box-shadow:0 10px 28px rgba(15,23,42,.22);transform:scale(1.02);z-index:5}
@@ -162,7 +189,12 @@ tailwind.config = {
 
   /* 节点长按操作单（画布内浮层，不走弹层） */
   #mmNodeMenu{position:absolute;z-index:40;width:216px;background:var(--card);border:1px solid var(--card-bd);
-    border-radius:16px;box-shadow:0 14px 40px rgba(15,23,42,.2);padding:6px;display:none}
+    border-radius:16px;box-shadow:0 14px 40px rgba(15,23,42,.2);padding:6px;display:none;
+    max-height:calc(100% - 24px);overflow-y:auto;scrollbar-width:none}
+  #mmNodeMenu::-webkit-scrollbar{display:none}
+  /* 批P：项数到 15，视图两枚并排省一行（命中区仍 44） */
+  #mmNodeMenu .nm-row{display:flex;gap:6px}
+  #mmNodeMenu .nm-row .nm{flex:1;justify-content:center;padding:10px 6px}
   #mmNodeMenu.open{display:block;animation:popIn .16s ease}
   @keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
   #mmNodeMenu .nm{display:flex;align-items:center;gap:9px;padding:10px 10px;border-radius:11px;font-size:12.5px;font-weight:700;min-height:44px;width:100%;text-align:left}
@@ -413,6 +445,11 @@ tailwind.config = {
     <!-- ================= P2 · mm-canvas 画布主屏（自动树布局 ＋ 平移/缩放） ================= -->
     <section id="mm-canvas" class="page" style="padding:0;overflow:hidden">
       <div id="mmCanvas">
+        <!-- 批P P1 连接态提示条：顶部常驻，点空白/取消退出 -->
+        <div id="mmConnectBar" class="hide">
+          <span class="cbar-t" id="mmConnectLbl">点一个目标节点完成连接</span>
+          <button onclick="mmCancelConnect()">取消</button>
+        </div>
         <div id="mmStage">
           <svg id="mmEdges" width="1400" height="900"></svg>
           <div id="mmNodes"></div>
@@ -452,9 +489,19 @@ tailwind.config = {
         <button class="nm" onclick="mmAddChild()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>添加子节点</button>
         <button class="nm" onclick="mmAddSibling()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="5" rx="1.5"/><rect x="14" y="4" width="7" height="5" rx="1.5"/><path d="M6.5 9v3.5h11V9"/></svg>添加同级节点</button>
         <button class="nm" onclick="mmAddRoot()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3.6"/><path d="M12 2.5v5.9M12 15.6v5.9M2.5 12h5.9M15.6 12h5.9"/></svg>添加根节点</button>
+        <div class="nm-div"></div>
+        <!-- 批P P1：挂接（根节点显示「并入…」）与摘除回根 -->
+        <button class="nm" id="mmNmConnect" onclick="mmStartConnect()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8.4 10.9 15.9 7M8.4 13.1 15.9 17"/></svg><span id="mmNmConnectLbl">连接到…</span></button>
+        <button class="nm" id="mmNmDetach" onclick="mmDetachNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 8.5 6 5M14.5 8.5 18 5M9.5 15.5 6 19M14.5 15.5 18 19"/><rect x="9" y="9" width="6" height="6" rx="1.6"/></svg>断开并移到根层级</button>
+        <div class="nm-div"></div>
         <button class="nm" onclick="mmBindNote()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/></svg>挂载笔记</button>
         <button class="nm" onclick="mmEditNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.5L19 9.5a2.1 2.1 0 0 0-3-3L5.5 17z"/><path d="M14.5 7.5l2 2"/></svg>编辑节点（标题＋备注）</button>
         <button class="nm" onclick="mmToggleFold()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.5 15.5 12 8 19.5"/></svg><span id="mmFoldLbl">折叠子节点</span></button>
+        <!-- 批P P3 树内导航：纯视图态，不入命令栈 -->
+        <div class="nm-row">
+          <button class="nm" onclick="mmCollapseBranch()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M4 12h7M4 18h4"/><path d="M16 10.5 19 13.5 16 16.5"/></svg>收起整枝</button>
+          <button class="nm" onclick="mmExpandAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M4 12h7M4 18h4"/><path d="M19 10.5 16 13.5 19 16.5"/></svg>展开全部</button>
+        </div>
         <button class="nm" onclick="mmResetPos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg>归位到自动布局</button>
         <div class="nm-div"></div>
         <!-- 批2 F4-2 节点复制/剪切/粘贴（与命令栈同批，含子级） -->
@@ -584,14 +631,23 @@ tailwind.config = {
       <div id="mmMdList"></div>
       <div id="mmMdPreview" class="hide" style="margin-top:12px">
         <div class="sectitle">解析预览</div>
+        <!-- 批P P2：单层标题（多为全 H1）的判定结论，结论先行 -->
+        <div id="mmMdHint" class="hide" style="font-size:11px;font-weight:800;color:var(--accent);margin:0 2px 7px"></div>
         <div class="card">
           <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-            <span class="chip">标题层级 4 级</span>
-            <span class="chip gray">缩进 3 级</span>
-            <span class="chip gray">空行分段 5 段</span>
+            <span class="chip" id="mmMdChipH">标题层级 4 级</span>
+            <span class="chip gray" id="mmMdChipLv">缩进 3 级</span>
+            <span class="chip gray" id="mmMdChipBlank">空行分段 5 段</span>
             <span class="chip ok" id="mmMdCount">共 12 个节点</span>
           </div>
           <div id="mmMdTree" style="margin-top:10px"></div>
+        </div>
+        <div id="mmMdStructWrap" class="hide">
+          <div class="sectitle" style="margin:12px 2px 6px">结构</div>
+          <div class="seg">
+            <button id="mmMdStructCenter" class="on" onclick="mmPickMdStruct('center')">并入中心主题</button>
+            <button id="mmMdStructMulti" onclick="mmPickMdStruct('multi')">保留为多根</button>
+          </div>
         </div>
       </div>
       <button class="btn-main grad hide" id="mmMdGo" style="margin-top:14px" onclick="mmMdImport()">转成导图并进入画布</button>
@@ -973,8 +1029,11 @@ const NOTES=[
 const MD_NOTES=[
   {id:'m1',title:'深度工作方法论（md 笔记）',nodes:12,h:4,lv:3},
   {id:'m2',title:'《稀缺》读书笔记（md 笔记）',nodes:18,h:4,lv:4},
-  {id:'m3',title:'产品需求梳理（md 笔记）',nodes:9,h:3,lv:2}
+  {id:'m3',title:'产品需求梳理（md 笔记）',nodes:9,h:3,lv:2},
+  /* 批P P2 复现件：全文只有一层标题（全 H1）——旧口径会解析成 6 个孤立根 */
+  {id:'m4',title:'晨间流程清单（md 笔记）',nodes:7,h:1,lv:1}
 ];
+const MD_SINGLE_ITEMS=['起床后先喝水','十分钟拉伸','写当天三件事','不看手机半小时','深度段第一块','睡前复盘一页'];
 const INBOX=[
   {id:'i1',text:'试试把每天第一小时留给最难的那件事'},
   {id:'i2',text:'读《稀缺》第三章：带宽损耗'},
@@ -1209,11 +1268,15 @@ function renderCanvas(boxIn){
   const L=layout(boxIn);
   const host=$('#mmNodes');
   host.innerHTML='';
+  const DP=depths(), FOCUS=cur.sel?branchSet(cur.sel):null, BLOCK=connect.from?blockSet(connect.from):null;
   cur.nodes.forEach(n=>{
     const w=L.box[n.id]||60;
     const multiline=String(n.t||'').indexOf('\n')>=0;
     const el=document.createElement('div');
-    el.className='mm-node'+(n.init?' root':'')+(cur.sel===n.id?' sel':'')+(multiline?' wrap':'');
+    const dp=DP[n.id]||0;
+    el.className='mm-node'+(n.init?' root':'')+' d'+Math.min(dp,3)+(cur.sel===n.id?' sel':'')+(multiline?' wrap':'')
+      +(FOCUS&&!FOCUS.has(n.id)?' dim':'')
+      +(connect.from&&connect.from!==n.id?(BLOCK.has(n.id)?' cblocked':' ctarget'):'');
     el.style.left=n.x+'px'; el.style.top=n.y+'px';
     el.style.width=(multiline?'176px':w+'px');
     el.style.justifyContent=n.init?'center':'flex-start';
@@ -1225,8 +1288,11 @@ function renderCanvas(boxIn){
       (n.ref?'<span class="mm-bind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h5"/></svg></span>':'')+
       '<span class="mm-txt">'+esc(n.t)+'</span>'+
       (n.tags&&n.tags.length?'<span class="mm-tags">'+n.tags.map(t=>'<span class="mm-tag">'+esc(t)+'</span>').join('')+'</span>':'')+
-      ((TREE[n.id]&&TREE[n.id].length)?'<span class="mm-fold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>':'');
-    el.addEventListener('click',()=>mmSelect(n.id));
+      ((TREE[n.id]&&TREE[n.id].length)?'<span class="mm-fold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>':'')+(cur.sel===n.id&&!connect.from?'<span class="mm-port" aria-label="拖到目标节点完成连接"></span>':'');
+    el.addEventListener('click',()=>{
+      if(connect.from){ if(connect.from!==n.id)mmConnectTo(connect.from,n.id,connect.mode); else mmCancelConnect(); return; }
+      mmSelect(n.id);
+    });
     /* H4 裁定：单击＝选中、双击＝进笔记。仅「已挂笔记」的节点双击才进笔记，
        未挂载的节点双击仍归为选中（不产生空跳转）。 */
     el.addEventListener('dblclick',ev=>{ ev.preventDefault(); mmOpenNote(n); });
@@ -1237,6 +1303,7 @@ function renderCanvas(boxIn){
       tb.addEventListener('click',ev=>{ ev.stopPropagation(); mmToggleTask(n); });
     }
     bindNodeDrag(el,n);
+    bindPort(el,n);
     host.appendChild(el);
   });
   /* 第二趟：用真实 DOM 宽度修正宽度后重排一次（图标/箭头的实际占宽只有 DOM 知道） */
@@ -1258,23 +1325,27 @@ function drawEdges(L){
   const W=id=>box[id]||60;
   const radial=VIEW.struct==='radial';
   const horiz=!radial&&(VIEW.dir==='both'||VIEW.ratio==='landscape');
-  const parts=[];
+  const parts=[], roots=[];
+  const top=childSetNow();
   Object.keys(TREE).forEach(pid=>{
+    const isTop=!top.has(pid);            /* 主干＝从根出发的边（批P L1：加粗提亮） */
     (TREE[pid]||[]).forEach(kid=>{
       if(cur.folded[kid])return;
       const p=byId(pid), c=byId(kid);
       if(!p||!c)return;
       const ph=nodeH(p), ch=nodeH(c);
+      let d='';
       if(radial||horiz){
         const x1=p.x+W(pid)/2, y1=p.y+ph/2, x2=c.x+W(kid)/2, y2=c.y+ch/2;
-        parts.push('M'+x1+' '+y1+'L'+x2+' '+y2);
+        d='M'+x1+' '+y1+'L'+x2+' '+y2;
       } else {
         const px=p.x+10, py=p.y+ph, cx=c.x, cy=c.y+ch/2, vx=c.x-9;
-        parts.push('M'+px+' '+py+'V'+(cy-7)+'Q'+px+' '+cy+' '+(px+9)+' '+cy+'H'+(vx+3));
+        d='M'+px+' '+py+'V'+(cy-7)+'Q'+px+' '+cy+' '+(px+9)+' '+cy+'H'+(vx+3);
       }
+      (isTop?roots:parts).push(d);
     });
   });
-  svg.innerHTML=parts.length?'<path d="'+parts.join(' ')+'"/>':'';
+  svg.innerHTML=(parts.length?'<path d="'+parts.join(' ')+'"/>':'')+(roots.length?'<path class="mm-edge-root" d="'+roots.join(' ')+'"/>':'');
 }
 /* ---- 自由拖拽定位节点（2d 裁定 2026-10-12 产品改口：产品要自由拖拽定位）----
    口径：拖节点＝写该节点的 dx/dy（相对自动布局基线的偏移）；
@@ -1284,6 +1355,7 @@ function bindNodeDrag(el,n){
   let sx=0,sy=0,ox=0,oy=0,moved=false,dragging=false,pre=null;
   el.addEventListener('pointerdown',ev=>{
     if(ev.button!==0)return;
+    if(connect.from)return;        /* 批P：连接态下点节点＝选目标，不启动拖拽 */
     ev.stopPropagation();          /* 关键：点在节点上不让画布平移分支接手 */
     sx=ev.clientX; sy=ev.clientY; ox=n.dx||0; oy=n.dy||0; moved=false; pre=null;
     /* setPointerCapture 在真机保证「指针滑出节点仍继续拖」，但它会改派事件到捕获元素，
@@ -1360,7 +1432,7 @@ function applyTransform(){
     if(pts.size<2)pinch0=null;
     if(pts.size===0)panning=false;
     /* 点空白（未发生平移）＝取消选中（对齐常见画布手感；此前点空白不取消） */
-    if(wasSingle&&!panMoved){ cur.sel=null; mmSelect(null); }
+    if(wasSingle&&!panMoved){ if(connect.from){ mmCancelConnect(); } else { cur.sel=null; mmSelect(null); } }
     downPt=null;
   };
   cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',ev=>{ pts.delete(ev.pointerId); if(pts.size<2)pinch0=null; if(pts.size===0)panning=false; downPt=null; });
@@ -1411,6 +1483,10 @@ function openNodeMenuAt(node,cx,cy){
   m.style.left=Math.max(10,Math.min(vp.width-w-10,cx-vp.left-w/2))+'px';
   m.style.top =Math.max(10,Math.min(vp.height-h-10,cy-vp.top+14))+'px';
   $('#mmFoldLbl').textContent=cur.folded[node.id]?'展开子节点':'折叠子节点';
+  /* 批P：根节点没有父可挂，动作语义变「并入…」（整枝成为别人的子级） */
+  const top=isRoot(node.id);
+  const lbl=$('#mmNmConnectLbl'); if(lbl)lbl.textContent=top?'并入…':'连接到…';
+  const det=$('#mmNmDetach'); if(det)det.style.display=top?'none':'';
 }
 function closeNodeMenu(){ $('#mmNodeMenu').classList.remove('open'); }
 function mmNodeMenu(which){
@@ -1419,10 +1495,145 @@ function mmNodeMenu(which){
 }
 
 /* ==========================================================================
+   批P · 连接器（挂接/摘除）＋ 树内导航
+   —— 数据侧零新列：连接＝改 parent_id（本原型即 TREE 父子表），摘除＝从父的子表
+      摘掉、自然回根层级。成环在入口处杜绝（自己的整枝置灰不可点），不给事后报错。
+   ========================================================================== */
+function depths(){
+  const dp={};
+  const walk=(id,d)=>{ if(dp[id]!==undefined)return; dp[id]=d; (TREE[id]||[]).forEach(k=>walk(k,d+1)); };
+  rootIds().forEach(r=>walk(r,0));
+  cur.nodes.forEach(n=>{ if(dp[n.id]===undefined)dp[n.id]=0; });
+  return dp;
+}
+/* 一枝＝自己＋全部祖先＋全部后代（L5 聚焦态用） */
+function branchSet(id){
+  const out=new Set([id]);
+  let p=parentOf(id); while(p){ out.add(p); p=parentOf(p); }
+  (function down(i){ (TREE[i]||[]).forEach(k=>{ if(out.has(k))return; out.add(k); down(k); }); })(id);
+  return out;
+}
+/* to 是否落在 from 的子树里（是则挂接会成环） */
+function subtreeHas(from,to){
+  if(from===to)return true;
+  let hit=false;
+  (function w(i){ if(hit)return; (TREE[i]||[]).forEach(k=>{ if(k===to){hit=true;return;} w(k); }); })(from);
+  return hit;
+}
+function blockSet(id){ const s=new Set(); (function w(i){ if(s.has(i))return; s.add(i); (TREE[i]||[]).forEach(w); })(id); return s; }
+function mmStartConnect(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id){ toast('先选中一个节点'); return; }
+  connect={from:id,mode:isRoot(id)?'merge':'attach'};
+  renderCanvas();
+  mmRenderConnectBar('tap');
+  mmMakeRoomForBar();
+}
+/* 顶部提示条会盖住最上面那枚节点（多半就是根）：进场时整体下移让开，别让可点目标被遮 */
+function mmMakeRoomForBar(){
+  const bar=$('#mmConnectBar'); if(!bar||bar.classList.contains('hide'))return;
+  const br=bar.getBoundingClientRect();      /* 屏坐标比屏坐标，别拿视口高当阈值 */
+  let minTop=Infinity;
+  $$('#mmNodes .mm-node').forEach(e=>{ const r=e.getBoundingClientRect(); if(r.top<minTop)minTop=r.top; });
+  if(minTop<Infinity&&minTop<br.bottom+10){ cur.ty+=br.bottom+10-minTop; applyTransform(); }
+}
+function mmRenderConnectBar(kind){
+  const bar=$('#mmConnectBar'); if(!bar)return;
+  bar.classList.remove('hide');
+  const n=byId(connect.from);
+  $('#mmConnectLbl').textContent = kind==='drag'
+    ? '拖到目标节点松手即挂接 · 松在空白处取消'
+    : (connect.mode==='merge'
+        ? '点一个目标节点，把「'+(n?n.t:'')+'」整枝并入它下面'
+        : '点一个目标节点，把「'+(n?n.t:'')+'」挂到它下面');
+}
+function mmCancelConnect(silent){
+  if(!connect.from)return;
+  connect={from:null,mode:'attach'};
+  const bar=$('#mmConnectBar'); if(bar)bar.classList.add('hide');
+  renderCanvas();
+  if(!silent)toast('已取消连接');
+}
+/* 落库：摘旧父 · 挂新父 · 目标折叠态自动展开（否则「连了什么也看不见」）· 滚到落位 */
+function mmConnectTo(from,to,mode){
+  if(!from||!to)return;
+  if(from===to){ toast('不能连到节点自己'); return; }
+  if(subtreeHas(from,to)){ toast('不能挂到自己的子节点下（会成环）'); return; }
+  const fn=byId(from), tn=byId(to); if(!fn||!tn)return;
+  mmPushHistory((mode==='merge'?'并入':'连接到')+'「'+tn.t+'」');
+  const old=parentOf(from);
+  if(old){ TREE[old]=(TREE[old]||[]).filter(k=>k!==from); if(!TREE[old].length)delete TREE[old]; }
+  (TREE[to]=TREE[to]||[]).push(from);
+  delete cur.folded[to];
+  connect={from:null,mode:'attach'};
+  const bar=$('#mmConnectBar'); if(bar)bar.classList.add('hide');
+  cur.sel=from; renderCanvas(); $('#mmToolbar').classList.remove('hide');
+  mmCenterOn(to);
+  toast(mode==='merge'?'已把「'+fn.t+'」整枝并入「'+tn.t+'」':'已把「'+fn.t+'」连接到「'+tn.t+'」');
+}
+/* 摘除：只摘父子关系，节点与它自己的子级都保留 */
+function mmDetachNode(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id)return;
+  const p=parentOf(id);
+  if(!p){ toast('该节点已在根层级'); return; }
+  const n=byId(id);
+  mmPushHistory('断开到根层级');
+  TREE[p]=(TREE[p]||[]).filter(k=>k!==id); if(!TREE[p].length)delete TREE[p];
+  renderCanvas();
+  toast('已断开「'+(n?n.t:'')+'」· 现为根层级');
+}
+/* 树内导航（纯视图态，不入命令栈） */
+function mmCollapseBranch(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id){ toast('先选中一个节点'); return; }
+  const keep=branchSet(id);                 /* 祖先链＋自己＋后代都要留可见，否则根一折＝整屏空 */
+  Object.keys(TREE).forEach(p=>{ if(!keep.has(p))cur.folded[p]=true; });
+  keep.forEach(k=>{ delete cur.folded[k]; });
+  renderCanvas(); toast('已收起其余枝，只留当前枝');
+}
+function mmExpandAll(){
+  closeNodeMenu();
+  cur.folded={}; renderCanvas(); toast('已展开全部节点');
+}
+/* 右缘连接点：拖到目标节点松手＝同「连接到…」（原型必做；实现侧可后置） */
+function bindPort(el,n){
+  const p=el.querySelector('.mm-port'); if(!p)return;
+  p.addEventListener('pointerdown',ev=>{
+    if(ev.button!==0)return;
+    ev.stopPropagation(); ev.preventDefault();
+    portDrag={from:n.id};
+    try{p.setPointerCapture(ev.pointerId);}catch(e){}
+    mmRenderConnectBar('drag');
+  });
+  p.addEventListener('pointermove',ev=>{
+    if(!portDrag)return;
+    const hit=document.elementFromPoint(ev.clientX,ev.clientY);
+    const box=hit&&hit.closest?hit.closest('.mm-node'):null;
+    $$('#mmNodes .mm-node').forEach(e=>e.classList.remove('hover'));
+    if(box&&box.getAttribute('data-id')!==n.id)box.classList.add('hover');
+  });
+  p.addEventListener('pointerup',ev=>{
+    if(!portDrag)return;
+    const hit=document.elementFromPoint(ev.clientX,ev.clientY);
+    const box=hit&&hit.closest?hit.closest('.mm-node'):null;
+    const to=box?box.getAttribute('data-id'):null;
+    portDrag=null;
+    $$('#mmNodes .mm-node').forEach(e=>e.classList.remove('hover'));
+    const bar=$('#mmConnectBar'); if(bar)bar.classList.add('hide');
+    if(to)mmConnectTo(n.id,to,'attach'); else renderCanvas();
+  });
+}
+
+/* ==========================================================================
    节点增删改（首批：建图 + 编辑）
    ========================================================================== */
 let pendingParent=null, editingNode=null, renameTarget=null;
 let nodeMode='child', mapMenuTarget=null, confirmCb=null;
+/* 批P：连接态（from＝起点节点，mode＝attach 挂接 / merge 整枝并入）＋右缘连接点拖拽态 */
+let connect={from:null,mode:'attach'}, portDrag=null;
+/* 批P P2：md 单层标题的处置（center 并入中心主题 / multi 保留多根） */
+let mdStruct='center';
 /* 批5 节点扩展：任务勾选（联动待办）与图片挂载在「编辑节点」弹层内编辑 */
 let nodeTaskOn=false, nodeImgOn=false;
 function mmNewMap(){ pendingParent=null; $('#mmNewName').value=''; mmPickSrc('blank',$('#mmSrcBlank')); openSheet('sheetMm-new'); }
@@ -1696,41 +1907,88 @@ function mmRenderMdList(){
 function mmPickMd(id){
   mdPick=id; mmRenderMdList();
   const m=MD_NOTES.find(x=>x.id===id);
+  const single=(m.h===1);                 /* 批P P2：全文仅一层标题 */
   $('#mmMdCount').textContent='共 '+m.nodes+' 个节点';
-  $('#mmMdTree').innerHTML=
-    '<div style="font-size:11.5px;font-weight:800">'+m.title.replace('（md 笔记）','')+'</div>'+
-    '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">要事优先的时间块</div>'+
-    '<div style="font-size:11px;opacity:.6;margin-left:12px">早上重仓 · 深度段 90~180 分钟</div>'+
-    '<div style="font-size:11px;opacity:.6;margin-left:12px">社交互动 · 浅任务合并段</div>'+
-    '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">减少切换成本</div>'+
-    '<div style="font-size:11px;opacity:.6;margin-left:12px">批处理 · 一次沟通一件事</div>'+
-    '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">每周复盘时段去向</div>'+
-    '<div style="font-size:11px;opacity:.6;margin-left:12px">哪些时段被会议吃掉了</div>';
+  $('#mmMdChipH').textContent='标题层级 '+m.h+' 级';
+  $('#mmMdChipLv').textContent='缩进 '+m.lv+' 级';
+  $('#mmMdChipBlank').textContent=single?('单层标题 '+MD_SINGLE_ITEMS.length+' 枚'):'空行分段 5 段';
+  if(single){
+    $('#mmMdTree').innerHTML=MD_SINGLE_ITEMS.map(s=>'<div style="font-size:11px;opacity:.6;margin-left:12px">'+s+'</div>').join('');
+    $('#mmMdStructWrap').classList.remove('hide');
+    mmPickMdStruct(mdStruct);
+  } else {
+    $('#mmMdTree').innerHTML=
+      '<div style="font-size:11.5px;font-weight:800">'+m.title.replace('（md 笔记）','')+'</div>'+
+      '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">要事优先的时间块</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">早上重仓 · 深度段 90~180 分钟</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">社交互动 · 浅任务合并段</div>'+
+      '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">减少切换成本</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">批处理 · 一次沟通一件事</div>'+
+      '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">每周复盘时段去向</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">哪些时段被会议吃掉了</div>';
+    $('#mmMdStructWrap').classList.add('hide');
+    $('#mmMdHint').classList.add('hide');
+  }
   $('#mmMdPreview').classList.remove('hide'); $('#mmMdGo').classList.remove('hide');
   $('#mmMdCancel').textContent='取消';
 }
-function mmMdReset(){ mdPick=null; $('#mmMdPreview').classList.add('hide'); $('#mmMdGo').classList.add('hide'); $('#mmMdCancel').textContent='关闭'; }
+/* 批P P2：结构口径二选一（默认并入中心主题；并列清单的意图不强并） */
+function mmPickMdStruct(k){
+  mdStruct=k;
+  const c=$('#mmMdStructCenter'), mm=$('#mmMdStructMulti');
+  if(c)c.classList.toggle('on',k==='center');
+  if(mm)mm.classList.toggle('on',k==='multi');
+  const hint=$('#mmMdHint'); if(!hint)return;
+  hint.classList.remove('hide');
+  hint.textContent = k==='center'
+    ? '已按单层标题并入中心主题（'+MD_SINGLE_ITEMS.length+' 项）'
+    : '保留为 '+MD_SINGLE_ITEMS.length+' 个并列根，可在画布手动挂接';
+}
+function mmMdReset(){
+  mdPick=null; mdStruct='center';
+  $('#mmMdPreview').classList.add('hide'); $('#mmMdGo').classList.add('hide');
+  $('#mmMdStructWrap').classList.add('hide'); $('#mmMdHint').classList.add('hide');
+  $('#mmMdCancel').textContent='关闭';
+}
 function mmMdImport(){
   if(!mdPick){ toast('先选一篇 md 笔记'); return; }
   const m=MD_NOTES.find(x=>x.id===mdPick);
-  const seed=['要事优先的时间块','减少切换成本','每周复盘时段去向'];
-  const leaf=['早上重仓 · 深度段 90~180 分钟','社交互动 · 浅任务合并段','批处理 · 一次沟通一件事','哪些时段被会议吃掉了','空出来才算真自由'];
+  const single=(m.h===1);
   const name=m.title.replace('（md 笔记）','');
-  const nodes=[{id:'r',t:name,init:true,x:0,y:0}];
-  const tree={r:[]};
-  seed.forEach((s,i)=>{const id='s'+i;nodes.push({id,t:s,x:0,y:0});tree.r.push(id);
-    if(i===0){['早上重仓 · 深度段 90~180 分钟','社交互动 · 浅任务合并段'].forEach((l,j)=>{const k=id+'_'+j;nodes.push({id:k,t:l,x:0,y:0});tree[id]=tree[id]||[];tree[id].push(k);});}
-  });
-  ['哪些时段被会议吃掉了','空出来才算真自由'].forEach((l,i)=>{const id='x'+i;nodes.push({id,t:l,x:0,y:0});tree['s2']=tree['s2']||[];tree['s2'].push(id);});
-  nodes.forEach((n,i)=>{if(n.init)return;n.ref=(i%4===1)?'n2':null;});
+  let nodes=[], tree={}, hint='', outN=m.nodes;
+  if(single){
+    /* 批P P2：单层标题（全 H1）默认并进中心主题——中心主题＝图名，其余全部挂在它下 */
+    if(mdStruct==='center'){
+      nodes=[{id:'r',t:name,init:true,x:0,y:0}]; tree={r:[]};
+      MD_SINGLE_ITEMS.forEach((s,i)=>{ const id='h'+i; nodes.push({id,t:s,x:0,y:0}); tree.r.push(id); });
+      outN=MD_SINGLE_ITEMS.length+1;
+      hint='已按单层标题并入中心主题（'+MD_SINGLE_ITEMS.length+' 项），可在画布继续编辑';
+    } else {
+      nodes=MD_SINGLE_ITEMS.map((s,i)=>({id:'h'+i,t:s,x:0,y:0}));
+      outN=MD_SINGLE_ITEMS.length;
+      hint='单层标题保留为 '+MD_SINGLE_ITEMS.length+' 个并列根，可在画布手动挂接';
+    }
+  } else {
+    const seed=['要事优先的时间块','减少切换成本','每周复盘时段去向'];
+    const leaf=['早上重仓 · 深度段 90~180 分钟','社交互动 · 浅任务合并段','批处理 · 一次沟通一件事','哪些时段被会议吃掉了','空出来才算真自由'];
+    nodes=[{id:'r',t:name,init:true,x:0,y:0}];
+    tree={r:[]};
+    seed.forEach((s,i)=>{const id='s'+i;nodes.push({id,t:s,x:0,y:0});tree.r.push(id);
+      if(i===0){['早上重仓 · 深度段 90~180 分钟','社交互动 · 浅任务合并段'].forEach((l,j)=>{const k=id+'_'+j;nodes.push({id:k,t:l,x:0,y:0});tree[id]=tree[id]||[];tree[id].push(k);});}
+    });
+    ['哪些时段被会议吃掉了','空出来才算真自由'].forEach((l,i)=>{const id='x'+i;nodes.push({id,t:l,x:0,y:0});tree['s2']=tree['s2']||[];tree['s2'].push(id);});
+    nodes.forEach((n,i)=>{if(n.init)return;n.ref=(i%4===1)?'n2':null;});
+    hint='已按标题层级解析为 '+m.nodes+' 个节点，可在画布继续编辑';
+  }
   cur={id:'g'+Date.now(),nodes,sel:null,folded:{},scale:1,tx:0,ty:0,style:Object.assign({},DEFAULT_STYLE)};
   Object.keys(TREE).forEach(k=>delete TREE[k]);
   Object.keys(tree).forEach(k=>TREE[k]=tree[k]);
-  MAPS.unshift({id:cur.id,name,nodes:m.nodes,binds:2,src:'md',at:'刚刚'});
-  TITLES['mm-canvas']=[name,m.nodes+' 个节点 · 由 md 笔记解析'];
+  MAPS.unshift({id:cur.id,name,nodes:outN,binds:2,src:'md',at:'刚刚'});
+  TITLES['mm-canvas']=[name,outN+' 个节点 · 由 md 笔记解析'];
+  const modeTxt=(mdStruct==='center')?'并入中心主题':'保留多根';
   mmMdReset(); closeSheet('sheetMm-fromMd'); stack.length=0; setPage('mm-canvas');
-  showSrcTip('md 笔记',name,'已按标题层级解析为 '+m.nodes+' 个节点，可在画布继续编辑');
-  toast('已转成导图 · 原 md 笔记未改动');
+  showSrcTip('md 笔记',name,hint);
+  toast(single?('已转成导图 · 单层标题按「'+modeTxt+'」处理'):'已转成导图 · 原 md 笔记未改动');
 }
 function showSrcTip(chip,name,hint){
   $('#mmSrcChip').textContent=chip; $('#mmSrcName').textContent=name; $('#mmSrcHint').textContent=hint;

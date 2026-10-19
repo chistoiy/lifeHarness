@@ -1,6 +1,6 @@
 {
  "file": "index-mindmap.html",
- "total": 133903,
+ "total": 147636,
  "cut": 0,
  "screens": [
   {
@@ -16,8 +16,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 6628,
-   "hash": "cca7e9f1"
+   "size": 8333,
+   "hash": "c2782af8"
   },
   {
    "id": "sheetMm-new",
@@ -48,8 +48,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1548,
-   "hash": "b186bc05"
+   "size": 2146,
+   "hash": "a430f242"
   },
   {
    "id": "sheetMm-fromInbox",
