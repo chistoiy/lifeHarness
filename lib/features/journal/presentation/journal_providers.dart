@@ -187,5 +187,19 @@ final journalInsProvider =
 final journalLayoutProvider = Provider<String>(
     (ref) => ref.watch(settingsControllerProvider).journalLayout);
 
+/// 日记改版批2d（2026-10-19）：筛选时间段（8 档预设键 或 `custom`）。
+/// 档位表与判据在 `domain/diary_filter_kit.dart`（`kDiaryRanges` / `diaryInRange`）。
+final journalRangeProvider = Provider<String>(
+    (ref) => ref.watch(settingsControllerProvider).journalRange);
+
+/// 日记改版批2d：自定义起止（`YYYY-MM-DD`；空串＝该端不设限＝开区间）。
+///
+/// 合成一条 record 而不是两个 provider：这两键**永远一起用**（判区间要同时看两端），
+/// 拆开只会让每个调用方各 watch 两次、漏一处就出「只按起始日筛」的偏。
+final journalSpanProvider = Provider<({String from, String to})>((ref) {
+  final s = ref.watch(settingsControllerProvider);
+  return (from: s.journalFrom, to: s.journalTo);
+});
+
 /// 记录页四段 tab（diary/note/book/media）。
 final recordTabProvider = StateProvider<String>((ref) => 'diary');

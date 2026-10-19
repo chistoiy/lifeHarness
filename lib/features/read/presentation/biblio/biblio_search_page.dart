@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/grad_fab.dart';
 import '../../../../shared/widgets/load_error_state.dart' show LoadErrorBanner;
 import '../../data/isbn_enrich.dart';
 import '../shelf/book_form_page.dart';
@@ -243,15 +244,17 @@ class _BiblioSearchPageState extends ConsumerState<BiblioSearchPage> {
             }),
             const SizedBox(height: 10),
           ],
-          FloatingActionButton(
+          // 日记批2d：原生 FAB 的 M3 方块底（这里还叠了实心 `tokens.accent`）
+          // 换成 `GradFab` 圆球。`heroTag` 一并去掉——GradFab 不是 Hero。
+          GradFab(
             key: const ValueKey('bsr-fab'),
-            heroTag: 'bsr-fab',
-            onPressed: () => setState(() => _menu = !_menu),
-            backgroundColor: tokens.accent,
-            child: Icon(
+            tooltip: _menu ? '收起' : '添加图书',
+            icon: Icon(
               _menu ? BsIcons.close : BsIcons.add,
               color: Colors.white,
+              size: 26,
             ),
+            onTap: () => setState(() => _menu = !_menu),
           ),
         ],
       ),

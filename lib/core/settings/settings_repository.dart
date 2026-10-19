@@ -87,6 +87,10 @@ class SettingsRepository {
   static const _kJournalIns = 'lh.journal_ins';
   /// 日记改版批1a：三档视图（track/list/ins）。与旧 `_kJournalIns` 并存，见 [UserSettings.journalLayout]。
   static const _kJournalLayout = 'lh.journal_layout';
+  /// 日记改版批2d：筛选时间段（8 档预设键 或 `custom`）与自定义起止（`YYYY-MM-DD`）。
+  static const _kJournalRange = 'lh.journal_range';
+  static const _kJournalFrom = 'lh.journal_from';
+  static const _kJournalTo = 'lh.journal_to';
 
   /// 时间模块批1（2026-10-13）·C2/B9：时间页月历展开态（true=展开·默认）。
   /// 首次进模块默认展开；用户手动切换后持久化（跨会话记住）；与视图档解耦。
@@ -123,6 +127,9 @@ class SettingsRepository {
         _prefs.getString(_kJournalFilter) == null &&
         _prefs.getBool(_kJournalIns) == null &&
         _prefs.getString(_kJournalLayout) == null &&
+        _prefs.getString(_kJournalRange) == null &&
+        _prefs.getString(_kJournalFrom) == null &&
+        _prefs.getString(_kJournalTo) == null &&
         _prefs.getBool(_kCalMonthExpanded) == null) {
       return UserSettings.defaults;
     }
@@ -152,6 +159,9 @@ class SettingsRepository {
       'journalFilter': ?_prefs.getString(_kJournalFilter),
       'journalIns': ?_prefs.getBool(_kJournalIns),
       'journalLayout': ?_prefs.getString(_kJournalLayout),
+      'journalRange': ?_prefs.getString(_kJournalRange),
+      'journalFrom': ?_prefs.getString(_kJournalFrom),
+      'journalTo': ?_prefs.getString(_kJournalTo),
       'calMonthExpanded': ?_prefs.getBool(_kCalMonthExpanded),
     });
   }
@@ -183,6 +193,9 @@ class SettingsRepository {
     await _prefs.setString(_kJournalFilter, m['journalFilter']! as String);
     await _prefs.setBool(_kJournalIns, m['journalIns']! as bool);
     await _prefs.setString(_kJournalLayout, m['journalLayout']! as String);
+    await _prefs.setString(_kJournalRange, m['journalRange']! as String);
+    await _prefs.setString(_kJournalFrom, m['journalFrom']! as String);
+    await _prefs.setString(_kJournalTo, m['journalTo']! as String);
     await _prefs.setBool(_kCalMonthExpanded, m['calMonthExpanded']! as bool);
   }
 

@@ -72,7 +72,17 @@ void main() {
     await pumpSleep(tester);
 
     expect(find.byKey(const ValueKey('hsl-fab')), findsOneWidget);
-    expect(find.text('记一晚'), findsOneWidget);
+    // 日记批2d：FAB 由 `FloatingActionButton.extended`（带 label）换成
+    // `GradFab` 圆球，「记一晚」下沉到 tooltip——断言跟着走 `byTooltip`。
+    // 必须**限定在 FAB 之内**：顶栏那枚 `IconButton`（key=kAdd）的 tooltip 也叫
+    // 「记一晚」，全局找会命中两个。
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('hsl-fab')),
+        matching: find.byTooltip('记一晚'),
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining('喝水'), findsNothing,
         reason: '「记一笔→喝水/睡眠」二选一已整件摘除，本屏只出睡眠');
     expect(find.text('记一笔'), findsNothing);

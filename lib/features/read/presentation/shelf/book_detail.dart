@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/ai/ai_review.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/grad_fab.dart';
 import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
 import '../../domain/book_toc.dart';
@@ -86,11 +87,13 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
 
     return Scaffold(
       // 真机验收轮1：详情页右下「＋记摘录」FAB（原型 FAB_CFG p-bookDetail 5898）。
-      floatingActionButton: FloatingActionButton(
+      // 日记批2d：原生 `FloatingActionButton` 的 M3 方块底换成 `GradFab` 圆球，
+      // 与书架页的 `GradShelfFab` 同一档观感（原来两页两个样式）。
+      floatingActionButton: GradFab(
         key: const ValueKey('bd-quote-fab'),
         tooltip: '记摘录',
-        onPressed: () => showQuoteSheet(context, ref, bookId: b.id),
-        child: const Icon(BsIcons.add, size: 20),
+        icon: Icon(BsIcons.add, color: Colors.white, size: 24),
+        onTap: () => showQuoteSheet(context, ref, bookId: b.id),
       ),
       body: Column(
         children: [

@@ -46,20 +46,34 @@ class GradFab extends StatelessWidget {
       child: SizedBox(
         width: size,
         height: size,
+        // **绝不用 `Material(elevation:)` 画这层阴影**（日记批2d · 真机报障）。
+        // `elevation > 0` 时 Material 走 `PhysicalShape` 的 `Canvas.drawShadow`，
+        // 圆角/圆形路径在部分 Android GPU（Skia fast-shadow 近似）上会退化成
+        // **一块方形阴影**——真机观感就是「右下角加号球底下有个正方形底纹」。
+        // 源码侧此处一直是圆（`CircleBorder` + `BoxShape.circle`），所以肉眼看代码
+        // 找不到「方」从哪来；方的是**阴影**，不是球。阴影统一由下方 `Ink` 的
+        // 圆形 `boxShadow` 负责：那走普通 canvas 圆绘制，跨平台只有一种结果。
+        // 回归保护：`test/fab_shadow_guard_test.dart`。
         child: Material(
-          shape: const CircleBorder(),
-          elevation: 6,
-          shadowColor: Colors.black26,
-          color: Colors.transparent,
+          type: MaterialType.transparency,
           child: Ink(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: tokens.gradient,
+              // 原型 `shadow-xl shadow-indigo-500/40`：两层——近距实影给轮廓、
+              // 远距柔光给浮起感。去掉 Material 自带的 elevation 后只留一层会显平，
+              // 这一对是替代品，不是装饰。
               boxShadow: [
                 BoxShadow(
-                  color: tokens.accent.withValues(alpha: .35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
+                  color: tokens.accent.withValues(alpha: .38),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: tokens.accent.withValues(alpha: .20),
+                  blurRadius: 26,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),

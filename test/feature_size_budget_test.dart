@@ -35,7 +35,11 @@ void main() {
     // 三刀拆 part 的机械开销合计＝三个新 part 件 header/治理注释＋两枚扩展包裹＋
     // 根库 part 指令＋10 处 setState ignore，净 +36 行（无功能代码增减）。
     // read 三件 size_budget 登记项已删（登记清零）·此后只许减。
-    'read': 49020,
+    // 49020→49026（日记改版批2d · 2026-10-19）：真机报「右下角加号带方形底纹」。
+    // `book_detail` 的原生 `FloatingActionButton`（M3 默认 16px 圆角方块底 +
+    // `primaryContainer` 实心）换 `GradFab` 圆球＋import 与口径注释，净 +6 行。
+    // 无功能分支增减，属观感统一。按实测登，此后只许减。
+    'read': 49026,
     // ledger 18045→18132（小组件批A·工单 §7.1 记一笔弹窗·2026-10-18）：记账页加
     // dialogMode 外壳（_dialogShell／_leave／参数与文档注释）净 +87 行——同一份表单
     // 换容器、无第二套 UI；属产品拍板需求增长，按实测登，此后只许减。
@@ -53,7 +57,10 @@ void main() {
     // 1079→1097（同批·真机二次报障 2026-10-18）：选择器加 `onlyTab`（只开一个分区·
     // 收起 tab 行）——打卡枚误绑书目的根因修，净 +18 行；按实测登，此后只许减。
     'widget': 1097,
-    'health': 12862,
+    // 12862→12866（日记改版批2d · 2026-10-19）：同批 FAB 统一。
+    // `health_sleep` 的 `FloatingActionButton.extended`（实心主色胶囊）换 `GradFab`
+    // 圆球（「记一晚」下沉 tooltip），净 +4 行。按实测登，此后只许减。
+    'health': 12866,
     // settings 12516→12648（批A 收口轮 2026-10-18 同步·非本刀净增）：两笔产品令
     // 功能增长未同步登记——NFC 批1b（`b4e98058`·管理屏入口 +49）与批A 配置页刀
     // （`ed834d9f`·设置页「添加小组件」＋打卡枚行 +93）；按实测登，此后只许减。
@@ -122,9 +129,18 @@ void main() {
     // `diary_filter_sheet.dart` 379（两段横排胶囊＋标签段折叠＋实时计数/重置/完成），
     // 合计 478；`journal_page` 958→887（-71，删旧竖排弹层 65 行、`shown` 改读 `diaryHit`）。
     // 净值 +407。按实测登，此后只许减。
-    // ⚠ 登记值取**闸自己的读数**（`readAsLinesSync().length`＝14713），
-    // 与 `wc -l`/python 逐行计数（14711）差 2：行尾/末行口径不同，别拿外部工具的数回填。
-    'journal': 14713,
+    // 14713→15205（日记改版批2d · 2026-10-19）：**真功能补齐**，不是搬迁壳。
+    // 产品真机报「筛选里面的时间没有按原型实现」——核实为**整段缺失**：实现侧筛选
+    // 只有标记/标签两维，原型 `DIARY_RANGES` 8 档预设与 `#dfCustom` 自定义起止
+    // 从未落地。拆解＝`diary_filter_kit` +180（8 档表/`diaryInRange` 三类判据/
+    // `dfRangeName` 兜名/`dfRangeValid`/`dfCountLabel`）、`diary_filter_sheet` +379
+    // （时间段段：胶囊行＋起止行＋小注，计数文案改 `renderDfCount` 口径）、
+    // `journal_page` +13（`shown` 先过时间段）、`journal_providers` +16（两条读侧
+    // provider）、`grad_fab`/`diary_fan_fab` +12（FAB 阴影改圆形 boxShadow）。
+    // 净值 +492。按实测登，此后只许减。
+    // ⚠ 登记值取**闸自己的读数**（`readAsLinesSync().length`）。本批用 python 逐行
+    // 数得 15208，闸报 15205（差 3）：行尾/末行口径不同，别拿外部工具的数回填。
+    'journal': 15205,
     // habit 12141→12150（同轮同步）：NFC 批3（`52bb9e1e`）贴卡触发链落 habit 侧
     // 反馈 +9；按实测登，此后只许减。
     // 12150→12165（小组件批A·真机三报 2026-10-18）：「带数值的打卡只显示一个打卡、
@@ -140,7 +156,10 @@ void main() {
     // 12288→12280（同批收口）：压缩详情页包层注释与 onTap 折行后回落 8 行，顺手收紧。
     'habit': 12280,
     'care': 10909,
-    'mindmap': 6540,
+    // 6540→6545（日记改版批2d · 2026-10-19）：同批 FAB 统一。
+    // `mindmap_list` 的原生 `FloatingActionButton` 换 `GradFab` 圆球，净 +5 行。
+    // 按实测登，此后只许减。
+    'mindmap': 6545,
     'calendar': 5874,
     'items': 4248,
     'days': 3492,

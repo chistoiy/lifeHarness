@@ -366,8 +366,17 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
     // 批2c：标签清单**全量**——原 `.take(4)` 等于把第 5 个以后的标签藏了，
     // 与「超一行折叠、点开看全量」直接冲突。排序只为让折叠次序稳定。
     final tags = <String>{for (final e in entries) ...e.tags}.toList()..sort();
-    return showDiaryFilterSheet(context,
-        cur: ref.read(journalFilterProvider), tags: tags, entries: entries);
+    // 批2d：时间段与起止一并带进弹层——弹层里改的是 settings，关掉再开要能回显。
+    final span = ref.read(journalSpanProvider);
+    return showDiaryFilterSheet(
+      context,
+      cur: ref.read(journalFilterProvider),
+      range: ref.read(journalRangeProvider),
+      from: span.from,
+      to: span.to,
+      tags: tags,
+      entries: entries,
+    );
   }
 
   /// §4c-2：FAB 长按扇形里的「设置」入口（三档视图；FAB 开关已随本令下线，弹层里没有）。
@@ -433,6 +442,10 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
     final entriesAsync = ref.watch(journalsProvider);
     final streak = ref.watch(journalStreakProvider).valueOrNull ?? 0;
     final filter = ref.watch(journalFilterProvider);
+    // 批2d：时间段（8 档预设或自定义）与自定义起止。三维条件里它是**前提**——
+    // 顺序照原型 `dwHit`：先 `dwInRange` 再判标签/标记。
+    final range = ref.watch(journalRangeProvider);
+    final span = ref.watch(journalSpanProvider);
     // 日记改版批1a：视图三档（track/list/ins）。原布尔 `journalIns` 已由 settings 层单向映射到三档，
     // 这里只读三档；`insMode` 仍从它派生，好让既有「列表/INS 两态」代码与断言继续成立。
     final layout = ref.watch(journalLayoutProvider);
@@ -451,7 +464,13 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
 
     // 批2c：改读 domain 的 `diaryHit`（弹层实时计数读的是同一个函数）。
     // 两处各写一份筛选式，出过「弹层说筛出 3 篇、关掉弹层只剩 1 篇」的偏。
-    final shown = entries.where((e) => diaryHit(e, effFilter)).toList();
+    // 批2d：再加时间段前置条件（`diaryInRange`）——弹层的 `_count()` 用的也是这两行，
+    // 改判据必须两处一起改，否则又是同一个「说 3 篇只剩 1 篇」的偏。
+    final shown = entries
+        .where((e) =>
+            diaryInRange(e, range: range, from: span.from, to: span.to) &&
+            diaryHit(e, effFilter))
+        .toList();
 
     // 日期轨道（批1a）：按生效筛选后的 [shown] 折日期块，筛选变了块也跟着变（不放 entries，
     // 否则「筛出 1 篇」时左栏仍显示全部日期——那与筛选语义直接冲突）。

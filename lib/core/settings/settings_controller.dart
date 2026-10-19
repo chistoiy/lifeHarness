@@ -219,6 +219,49 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 日记改版批2d（2026-10-19）：筛选时间段（8 档预设 或 `custom`）。
+  ///
+  /// 与 `setJournalLayout` 的「静默忽略」不同：时间段有天然默认值 `all`，
+  /// 脏键**回落**而不是不写——否则深链带了脏参数会把用户卡在上次的时间段上。
+  /// 切档**不动**起止两键（原型 `dfFrom/dfTo` 常驻，切回自定义还能拿回区间）。
+  Future<void> setJournalRange(String v) async {
+    final r = UserSettings.kJournalRanges.contains(v) ? v : 'all';
+    if (r == state.journalRange) return;
+    state = state.copyWith(journalRange: r);
+    await _persist();
+  }
+
+  /// 应用自定义起止：**一次写三键**（`custom` + from + to），只落一次盘。
+  ///
+  /// 非法区间直接不写（两端全空＝还没选；`from > to`＝空集）。判据与
+  /// `dfRangeValid` 同式，此处内联是为了不让 core 反向依赖 feature。
+  Future<void> setJournalCustom(String from, String to) async {
+    final bad = (from.isEmpty && to.isEmpty) ||
+        (from.isNotEmpty && to.isNotEmpty && from.compareTo(to) > 0);
+    if (bad) return;
+    if (state.journalRange == 'custom' &&
+        from == state.journalFrom &&
+        to == state.journalTo) {
+      return;
+    }
+    state = state.copyWith(
+        journalRange: 'custom', journalFrom: from, journalTo: to);
+    await _persist();
+  }
+
+  /// 筛选项**三维全清**（标记回全部 / 时间段回全部 / 起止清空），只落一次盘。
+  ///
+  /// 单独一个方法而不是让 UI 连调三个 setter：连调会触发三次 `_persist()`，
+  /// 且中间态（已清标记、未清时间段）会让列表闪一下再变。
+  Future<void> resetJournalFilter() async {
+    state = state.copyWith(
+        journalFilter: 'all',
+        journalRange: 'all',
+        journalFrom: '',
+        journalTo: '');
+    await _persist();
+  }
+
   /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认）。
   /// 用户手动切换时由时间页写入；切视图档不改它。
   Future<void> setCalMonthExpanded(bool on) async {

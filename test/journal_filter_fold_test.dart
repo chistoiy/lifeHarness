@@ -219,15 +219,16 @@ void main() {
       final names = await seedTags(10);
       await openFilterSheet(tester);
 
-      expect(countText(tester), '筛出 10 篇');
+      // 批2d：计数文案改原型 `renderDfCount` 口径（「共 N 篇日记」/「当前筛选：A · B，共 N 篇」）
+      expect(countText(tester), '共 10 篇日记');
       await tester.tap(find.byKey(ValueKey('df-tag-${names.first}')));
       await tester.pumpAndSettle();
-      expect(countText(tester), '筛出 1 篇');
+      expect(countText(tester), '当前筛选：#${names.first}，共 1 篇');
       // 弹层没关，且选中态回显（再点一次＝取消，回全部）
       expect(find.byKey(const ValueKey('df-sheet')), findsOneWidget);
       await tester.tap(find.byKey(ValueKey('df-tag-${names.first}')));
       await tester.pumpAndSettle();
-      expect(countText(tester), '筛出 10 篇');
+      expect(countText(tester), '共 10 篇日记');
     });
 
     testWidgets('W7 重置：标记回全部、标签清空、计数回满', (tester) async {
@@ -240,7 +241,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('df-reset')));
       await tester.pumpAndSettle();
-      expect(countText(tester), '筛出 10 篇');
+      expect(countText(tester), '共 10 篇日记');
     });
 
     testWidgets('W8 池为空：给一行提示，不渲染空段也不出按钮', (tester) async {
@@ -254,7 +255,7 @@ void main() {
 
       expect(find.textContaining('还没有标签'), findsOneWidget);
       expect(find.byKey(const ValueKey('df-more')), findsNothing);
-      expect(find.text('筛出 1 篇'), findsOneWidget);
+      expect(find.text('共 1 篇日记'), findsOneWidget);
     });
   });
 }

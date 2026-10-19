@@ -141,6 +141,9 @@ class UserSettings {
     this.journalFilter = 'all',
     this.journalLayout = 'list',
     this.journalIns = false,
+    this.journalRange = 'all',
+    this.journalFrom = '',
+    this.journalTo = '',
     this.calMonthExpanded = true,
   });
 
@@ -235,6 +238,24 @@ class UserSettings {
   /// `true → ins`（老用户开着 INS 的不能被重置回列表），读写出货一律不再碰旧位。
   final String journalLayout;
 
+  /// 日记改版批2d（2026-10-19）：筛选的时间段键（8 档预设 或 `custom`）。
+  ///
+  /// 键集与展示名在 `features/journal/domain/diary_filter_kit.dart`；
+  /// core 层只认「合法键」，不去 import feature（分层红线：core 不得依赖 feature）。
+  final String journalRange;
+
+  /// 自定义起止（`YYYY-MM-DD`；空串＝该端不设限＝开区间）。
+  ///
+  /// 与 [journalRange] 分开存、且切到预设档时**不清**这两个值：用户切回「自定义」
+  /// 还能拿回上次选的区间（原型 `dfFrom/dfTo` 本来就是常驻的）。
+  final String journalFrom;
+  final String journalTo;
+
+  /// 时间段合法键（8 档预设 ＋ `custom`）。脏值在 [fromMap] 收敛到 `all`。
+  static const List<String> kJournalRanges = [
+    'all', '7d', '30d', '90d', 'year', 'month', '1y', '2y', 'custom',
+  ];
+
   /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认；false=收起为周行）。
   /// 首次进模块默认展开；用户手动切换后写盘（跨会话记住）；切视图档不改它。
   final bool calMonthExpanded;
@@ -289,6 +310,9 @@ class UserSettings {
     String? journalFilter,
     String? journalLayout,
     bool? journalIns,
+    String? journalRange,
+    String? journalFrom,
+    String? journalTo,
     bool? calMonthExpanded,
   }) =>
       UserSettings(
@@ -317,6 +341,9 @@ class UserSettings {
         journalFilter: journalFilter ?? this.journalFilter,
         journalLayout: journalLayout ?? this.journalLayout,
         journalIns: journalIns ?? this.journalIns,
+        journalRange: journalRange ?? this.journalRange,
+        journalFrom: journalFrom ?? this.journalFrom,
+        journalTo: journalTo ?? this.journalTo,
         calMonthExpanded: calMonthExpanded ?? this.calMonthExpanded,
       );
 
@@ -346,6 +373,9 @@ class UserSettings {
         'journalFilter': journalFilter,
         'journalLayout': journalLayout,
         'journalIns': journalIns,
+        'journalRange': journalRange,
+        'journalFrom': journalFrom,
+        'journalTo': journalTo,
         'calMonthExpanded': calMonthExpanded,
       };
 
@@ -397,6 +427,14 @@ class UserSettings {
         /* 三档收敛：合法值直取；脏值/缺键时看旧布尔位（true＝老 INS 用户，别把他拽回列表）。 */
         journalLayout: _journalLayoutOf(m),
         journalIns: m['journalIns'] as bool? ?? false,
+        /* 时间段：脏键回落 'all'（不设限＝最不容易误伤）；起止只校验「是不是字符串」，
+           格式合法性归应用侧（dfRangeValid）——core 层不引 feature 的判据。 */
+        journalRange: (m['journalRange'] is String &&
+                kJournalRanges.contains(m['journalRange']))
+            ? m['journalRange']! as String
+            : 'all',
+        journalFrom: m['journalFrom'] is String ? m['journalFrom']! as String : '',
+        journalTo: m['journalTo'] is String ? m['journalTo']! as String : '',
         calMonthExpanded: m['calMonthExpanded'] as bool? ?? true,
       );
 

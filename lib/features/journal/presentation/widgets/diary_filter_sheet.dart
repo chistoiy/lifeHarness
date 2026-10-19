@@ -6,20 +6,28 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/diary_filter_kit.dart';
 import '../../domain/journal_entry.dart';
 
-/// 日记筛选弹层（批2c 重做）。
+/// 日记筛选弹层（批2c 重做 · 批2d 补时间段）。
 ///
 /// 原实现是一列 `ListTile`（每项 48px 独占一行），标签还硬编码只取前 4 条；
 /// 原型早已改成「标记／标签两段 32px 胶囊横排 + 标签超一行折叠」，
 /// 本文件把这一面补上，弹层高度从「6 项吃掉 288px」收到两组各一行。
 ///
+/// 批2d（2026-10-19）再补第三段「时间段」——**此前根本没实现**，
+/// 筛选只有标记与标签两维，原型里 8 档预设 + 自定义起止的能力在实现侧整段缺失。
 /// 三条口径来自产品令，别顺手改：
 /// ① **不超一行时不出「展开全部」按钮、也不裁剪**（按钮本身不占位、不多占一行）；
 /// ② 展开状态在切筛选项后**保持**（用户展开过就该一直展开）——故选中只改本地态
 ///    与 settings，不弹关弹层；
 /// ③ 选中即生效（列表在弹层后面实时跟着变），底部给实时计数与重置。
+///
+/// 时间段与标记/标签是**正交的三维**：`diaryInRange` 先过，再 `diaryHit` 判后两维
+/// （顺序照原型 `dwHit`：时间段是硬的前提，不满足连标签都不用看）。
 Future<void> showDiaryFilterSheet(
   BuildContext context, {
   required String cur,
+  required String range,
+  required String from,
+  required String to,
   required List<String> tags,
   required List<JournalEntry> entries,
 }) {
@@ -27,18 +35,31 @@ Future<void> showDiaryFilterSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (_) => _DiaryFilterSheet(cur: cur, tags: tags, entries: entries),
+    builder: (_) => _DiaryFilterSheet(
+      cur: cur,
+      range: range,
+      from: from,
+      to: to,
+      tags: tags,
+      entries: entries,
+    ),
   );
 }
 
 class _DiaryFilterSheet extends ConsumerStatefulWidget {
   const _DiaryFilterSheet({
     required this.cur,
+    required this.range,
+    required this.from,
+    required this.to,
     required this.tags,
     required this.entries,
   });
 
   final String cur;
+  final String range;
+  final String from;
+  final String to;
   final List<String> tags;
   final List<JournalEntry> entries;
 
@@ -48,14 +69,72 @@ class _DiaryFilterSheet extends ConsumerStatefulWidget {
 
 class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
   late String _cur = widget.cur;
+  late String _range = widget.range;
+  late String _from = widget.from;
+  late String _to = widget.to;
 
   /// 标签段是否展开。默认折叠一行；切筛选项**不重置**（口径②）。
   bool _tagOpen = false;
+
+  /// 当前三项条件下的篇数——底部计数与小注共用一个值，避免两处各算一遍再错开。
+  int _count() => widget.entries
+      .where((e) =>
+          diaryInRange(e, range: _range, from: _from, to: _to) &&
+          diaryHit(e, _cur))
+      .length;
 
   /// 选中即生效：写 settings（冷启动恢复）+ 本地态（弹层不关，好看实时计数）。
   void _pick(String key) {
     setState(() => _cur = key);
     ref.read(settingsControllerProvider.notifier).setJournalFilter(key);
+  }
+
+  Future<void> _pickRange(String k) async {
+    setState(() => _range = k);
+    await ref.read(settingsControllerProvider.notifier).setJournalRange(k);
+  }
+
+  /// 选一端日期。**只改本地态不落盘**——落盘发生在点「应用」时
+  /// （原型 `dfCustomSet` 也只重渲染，`dfCustomApply` 才切档）。
+  Future<void> _pickDate(bool isFrom) async {
+    final cur = DateTime.tryParse(isFrom ? _from : _to);
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: cur ?? now,
+      firstDate: DateTime(now.year - 30, 1, 1),
+      // 不能选未来：日记是「已经发生过的事」，允许选明天会让「近 7 天」筛出空集。
+      lastDate: DateTime(now.year, now.month, now.day),
+      helpText: isFrom ? '选择起始日期' : '选择结束日期',
+      cancelText: '取消',
+      confirmText: '确定',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (isFrom) {
+        _from = dfIsoDate(picked);
+      } else {
+        _to = dfIsoDate(picked);
+      }
+    });
+  }
+
+  void _applyCustom() {
+    if (!dfRangeValid(from: _from, to: _to)) return;
+    setState(() => _range = kDiaryRangeCustom);
+    ref.read(settingsControllerProvider.notifier).setJournalCustom(_from, _to);
+  }
+
+  /// 重置＝**三维全清**（标记回全部、时间段回全部、起止清空）。
+  /// 只清标记不清时间段的话，用户点「重置」后仍看着被时间筛过的列表，会以为重置坏了。
+  void _reset() {
+    setState(() {
+      _cur = 'all';
+      _range = 'all';
+      _from = '';
+      _to = '';
+    });
+    ref.read(settingsControllerProvider.notifier).resetJournalFilter();
   }
 
   /// 量一段文字在胶囊字号下的宽——只用于折行估算，故与渲染同字体同字号。
@@ -79,7 +158,7 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final tags = widget.tags;
-    final count = widget.entries.where((e) => diaryHit(e, _cur)).length;
+    final count = _count();
 
     return Container(
       key: const ValueKey('df-sheet'),
@@ -151,6 +230,19 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
                       )
                     else
                       _tagSection(tags, scheme),
+                    _groupTitle('时间段', scheme),
+                    _rangeSection(scheme),
+                    const SizedBox(height: 10),
+                    _customRow(scheme),
+                    const SizedBox(height: 6),
+                    Text(
+                      _rangeNote(count),
+                      key: const ValueKey('df-range-note'),
+                      style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: scheme.onSurfaceVariant.withValues(alpha: .9)),
+                    ),
                   ],
                 ),
               ),
@@ -162,7 +254,13 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    '筛出 $count 篇',
+                    dfCountLabel(
+                      n: count,
+                      mark: _cur,
+                      range: _range,
+                      from: _from,
+                      to: _to,
+                    ),
                     key: const ValueKey('df-count'),
                     style: TextStyle(
                         fontSize: 12, color: scheme.onSurfaceVariant),
@@ -258,6 +356,182 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
     );
   }
 
+  /// 时间段段（原型 `#dfRange`）：8 档预设胶囊单段折行 ＋ 行尾「自定义」。
+  ///
+  /// 「自定义」胶囊的常驻条件是**选过起止**（`_from`/`_to` 任一非空），不是
+  /// 「当前在 custom 档」——原型 `renderDiaryRange` 每次重建 innerHTML 只铺 8 档，
+  /// 一旦切回预设档那枚胶囊就再也不出现，用户上次选的区间成了点不到的死数据。
+  Widget _rangeSection(ColorScheme scheme) {
+    final hasCustom =
+        _range == kDiaryRangeCustom || _from.isNotEmpty || _to.isNotEmpty;
+    return Wrap(
+      spacing: kDfChipGap,
+      runSpacing: kDfChipGap,
+      children: [
+        // 顺序即 [kDiaryRanges] 字面序：`全部` 在最前（默认最常用），其余跨度递增。
+        for (final r in kDiaryRanges)
+          _pill(
+            key: 'df-range-${r.k}',
+            label: r.n,
+            on: _range == r.k,
+            onTap: () => _pickRange(r.k),
+          ),
+        if (hasCustom)
+          _pill(
+            key: 'df-range-custom',
+            label: '自定义',
+            on: _range == kDiaryRangeCustom,
+            onTap: () => _pickRange(kDiaryRangeCustom),
+          ),
+      ],
+    );
+  }
+
+  /// 段尾小注（原型 `#dfRangeNote`）：说清「这一档现在意味着什么」。
+  ///
+  /// 文案用的 N 与底部计数**同源**（都是 [count]）。原型这里用的是 `dwShown()`
+  /// 全条件计数，文案却写「该时间段内共 N 篇」——照抄会让「选了 7 天 + 待办」
+  /// 时小注说 3 篇、看着像时间段只筛出 3 篇。同源至少不会自相矛盾。
+  String _rangeNote(int count) {
+    if (_range == kDiaryRangeCustom) {
+      return (_from.isNotEmpty || _to.isNotEmpty)
+          ? '自定义区间内共 $count 篇'
+          : '选好起止日期后点「应用」';
+    }
+    return _range == 'all' ? '默认显示全部日记' : '该时间段内共 $count 篇';
+  }
+
+  /// 时间段胶囊（原型 `.df-pill`）：**纯文字无图标**，高 34 / 内边距 14 / 全圆角。
+  Widget _pill({
+    required String key,
+    required String label,
+    required bool on,
+    required VoidCallback onTap,
+  }) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      key: ValueKey(key),
+      onTap: onTap,
+      child: Container(
+        height: kDfPillH,
+        padding: const EdgeInsets.symmetric(horizontal: kDfPillPadX),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(kDfPillH / 2),
+          color: on ? tokens.accent.withValues(alpha: .06) : Colors.transparent,
+          border: Border.all(
+            color: on
+                ? tokens.accent
+                : scheme.onSurfaceVariant.withValues(alpha: .45),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+            color: on ? tokens.accent : scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 自定义起止行（原型 `#dfCustom`）：起 — 止 [应用]。
+  ///
+  /// **常驻显示**（原型 `renderDfCustom()` 无条件渲染这一行），只有处于 `custom` 档
+  /// 才整体高亮成实线主色描边（`.df-custom-on`）——用户不必先点「自定义」胶囊
+  /// 才能选日期，那是两步操作换一步。日期用系统日期选择器（原型是原生 `type=date`）。
+  Widget _customRow(ColorScheme scheme) {
+    final tokens = context.tokens;
+    final on = _range == kDiaryRangeCustom;
+    return Row(
+      children: [
+        Expanded(child: _dateField(true, on, scheme, tokens)),
+        const SizedBox(width: 8),
+        Text('—',
+            style: TextStyle(
+                fontSize: 12,
+                color: scheme.onSurfaceVariant.withValues(alpha: .9))),
+        const SizedBox(width: 8),
+        Expanded(child: _dateField(false, on, scheme, tokens)),
+        const SizedBox(width: 8),
+        _applyBtn(dfRangeValid(from: _from, to: _to), tokens, scheme),
+      ],
+    );
+  }
+
+  /// 一端日期输入的外壳：未选时显示占位名（「起始日期」/「结束日期」）。
+  Widget _dateField(
+      bool isFrom, bool on, ColorScheme scheme, ThemeTokens tokens) {
+    final v = isFrom ? _from : _to;
+    return GestureDetector(
+      key: ValueKey(isFrom ? 'df-from' : 'df-to'),
+      onTap: () => _pickDate(isFrom),
+      child: Container(
+        height: kDfPillH,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.centerLeft,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: on ? tokens.accent.withValues(alpha: .06) : Colors.transparent,
+          border: Border.all(
+            color: on
+                ? tokens.accent
+                : scheme.onSurfaceVariant.withValues(alpha: .35),
+          ),
+        ),
+        child: Text(
+          v.isEmpty ? (isFrom ? '起始日期' : '结束日期') : v,
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          style: TextStyle(
+            fontSize: 12,
+            color: v.isEmpty
+                ? scheme.onSurfaceVariant.withValues(alpha: .7)
+                : (on ? tokens.accent : scheme.onSurfaceVariant),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 「应用」：非法区间（两端全空 / `from > to`）时置灰且不响应点击。
+  ///
+  /// 置灰而不是隐藏：按钮消失会让行内布局每次选日期都跳一下，
+  /// 而且用户不知道「还差什么才能生效」。
+  Widget _applyBtn(bool ok, ThemeTokens tokens, ColorScheme scheme) {
+    return GestureDetector(
+      key: const ValueKey('df-apply'),
+      onTap: ok ? _applyCustom : null,
+      child: Container(
+        height: kDfPillH,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: ok ? tokens.accent.withValues(alpha: .10) : Colors.transparent,
+          border: Border.all(
+            color: ok
+                ? tokens.accent
+                : scheme.onSurfaceVariant.withValues(alpha: .25),
+          ),
+        ),
+        child: Text(
+          '应用',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: ok
+                ? tokens.accent
+                : scheme.onSurfaceVariant.withValues(alpha: .45),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 一枚胶囊：高 32 / 圆角 16 / 14px 线性图标 + 文字；选中＝主色描边 + 6% 淡底 + 加粗。
   ///
   /// 底色走 `--accent` 派生淡档（`tokens.accent` 按 alpha 叠），**不写死色值**——
@@ -340,7 +614,7 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
 
   Widget _resetBtn(ColorScheme scheme) => GestureDetector(
         key: const ValueKey('df-reset'),
-        onTap: () => _pick('all'),
+        onTap: _reset,
         child: Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 16),

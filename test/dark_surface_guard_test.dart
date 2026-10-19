@@ -47,12 +47,22 @@ const _baseline = <String, int>{
     // 登记≠放行：本批两屏的深色观感随其真机复验轮走查（复测包尚未出）。
     'lib/features/media/presentation/media_notes_page.dart': 1,
     'lib/features/media/presentation/media_note_edit_sheet.dart': 1,
+    // 批2d（2026-10-19）：`mindmap_list` 的 FAB 由原生 `FloatingActionButton`
+    // （M3 16px 圆角方块底）换成 `GradFab` 圆球，图标吃 `Colors.white` ——
+    // 命中是**渐变球上的白前景**，与 `days_page`/`goals_page` 的 FAB 同一形态，
+    // 非不透明近白底面缺陷。本闸按行匹配 `color: Colors.white`、不区分前景与底面，
+    // 故按现状登记（登记≠放行：深色观感仍随真机门走查）。
+    'lib/features/mindmap/presentation/mindmap_list_page.dart': 1,
     // 健康批2 工作台：6 处命中全是 hero 渐变卡上的前景字（white/white70 读数与小标签），
     // 底面走主题渐变随深浅自动跟随——与 media_card 同一形态的深色实态，非白底面缺陷。
     'lib/features/health/presentation/health_home_page.dart': 6,
     // 批3：健康目标页 hero＝accent 渐变上的白读数/白副注四处（`Colors.white`/`white70` 是**字色**不是底面），
     // 与工作台 hero 同族同形——深色下仍是渐变底上的白字，非不透明近白底面缺陷；深色观感随 6092 真机门逐屏走查。
     'lib/features/health/presentation/health_goals_page.dart': 4,
+    // 批2d（2026-10-19）：`health_sleep` 的 `FloatingActionButton.extended`
+    // （实心主色胶囊）换 `GradFab` 圆球，图标吃 `Colors.white` —— 同 `mindmap_list`
+    // 与 `days_page` 的白前景形态，非底面缺陷。
+    'lib/features/health/presentation/health_sleep_page.dart': 1,
     'lib/features/ledger/presentation/ledger_page.dart': 13,
     'lib/features/care/presentation/baby_view.dart': 9,
     // 9→8 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）：本批 F2-6 把顶栏
@@ -101,7 +111,10 @@ const _baseline = <String, int>{
     'lib/features/read/presentation/read_tab.dart': 4,
     // 4→2 棘轮收紧＋拆出件登记（高保真批6b·刀3）：2 处随 _localEpubStrip/_cacheRow
     // 整组迁入同库 part book_detail_cards.dart（机械搬迁·字面原值·文件总量不变）。
-    'lib/features/read/presentation/shelf/book_detail.dart': 2,
+    // 2→3（日记改版批2d · 2026-10-19）：详情页右下「＋记摘录」由原生
+    // `FloatingActionButton` 换 `GradFab`，多出的一处＝`Icon(color: Colors.white)`
+    // 的白前景（渐变球之上），与新增的两处同形态。
+    'lib/features/read/presentation/shelf/book_detail.dart': 3,
     // 高保真批6b·刀3 自 book_detail 迁入 2 处（原值）：紧凑条/缓存行内近白字面随组
     // 搬迁，非新面。登记≠放行：深色观感仍随该模块既有真机门走查。
     'lib/features/read/presentation/shelf/book_detail_cards.dart': 2,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
@@ -45,12 +46,15 @@ class HealthSleepPage extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      // 日记批2d：原 `FloatingActionButton.extended` 在 M3 下是**实心主色胶囊**
+      // （不是透明底），与其余页面渐变圆球是两套观感。全仓 FAB 统一走 `GradFab`
+      // （原型所有页面共用一套 `#fab` 配置：56px 圆球 + grad 渐变 + 白图标）。
+      // 「记一晚」下沉到 tooltip：圆球放不下文字，且本屏只有睡眠一个入口。
+      floatingActionButton: GradFab(
         key: const ValueKey('hsl-fab'),
-        // 本屏只有睡眠一件事：FAB 直达睡眠录入，不再让用户在「喝水／睡眠」里二选一。
-        onPressed: () => showHealthSleepSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('记一晚'),
+        tooltip: '记一晚',
+        icon: const Icon(Icons.add, color: Colors.white, size: 26),
+        onTap: () => showHealthSleepSheet(context),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 84),

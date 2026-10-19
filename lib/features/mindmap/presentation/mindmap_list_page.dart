@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../data/mindmap_dao.dart';
@@ -384,10 +385,14 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      // 日记批2d：原生 `FloatingActionButton` 在 M3 下是 16px 圆角**方块底**
+      // ＋ `primaryContainer` 实心底色（用户报障「加号带一块正方形底纹」即此）。
+      // 统一走 `GradFab` 圆球。
+      floatingActionButton: GradFab(
         key: const ValueKey('mm-new-fab'),
-        onPressed: _newMapFlow,
-        child: const Icon(Icons.add),
+        tooltip: '新建导图',
+        icon: const Icon(Icons.add, color: Colors.white, size: 26),
+        onTap: () => _newMapFlow(),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))

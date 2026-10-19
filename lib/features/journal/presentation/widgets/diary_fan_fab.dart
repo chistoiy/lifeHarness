@@ -327,15 +327,25 @@ class _FanItemBody extends StatelessWidget {
     final tokens = context.tokens;
     return Tooltip(
       message: label,
-      child: Material(
-        color: tokens.card,
-        shape: CircleBorder(side: BorderSide(color: tokens.cardBorder)),
-        elevation: 4,
-        shadowColor: const Color(0x290F172A),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Center(child: Icon(icon, size: 19, color: tokens.ink)),
+      child: DecoratedBox(
+        // 同 `GradFab`：**不用 `Material(elevation:)`**——它走 `PhysicalShape` 的
+        // `Canvas.drawShadow`，圆路径在部分 Android GPU 上画出来是方形阴影块。
+        // 这里本来就是 44px 小圆钮，方影在深底上尤其显眼（像贴了个方块）。
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: tokens.card,
+          border: Border.all(color: tokens.cardBorder),
+          boxShadow: const [
+            BoxShadow(color: Color(0x290F172A), blurRadius: 10, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Center(child: Icon(icon, size: 19, color: tokens.ink)),
+          ),
         ),
       ),
     );
