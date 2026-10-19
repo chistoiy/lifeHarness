@@ -83,6 +83,9 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
     await tester.pumpAndSettle();
+    // 批P：节点菜单加到 12 项，600 高的测试视口里末项在折叠线外 ⇒ 先滚进来。
+    await tester.ensureVisible(find.byKey(const ValueKey('mm-menu-edit')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('mm-menu-edit')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -116,6 +119,9 @@ void main() {
     await tapAt(tester, c - const Offset(0, 30));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.pumpAndSettle();
+    // 批P：节点菜单加到 12 项，600 高的测试视口里末项在折叠线外 ⇒ 先滚进来。
+    await tester.ensureVisible(find.byKey(const ValueKey('mm-menu-del')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('mm-menu-del')));
     await tester.pumpAndSettle();

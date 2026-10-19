@@ -188,8 +188,17 @@ void main() {
     'care': 10909,
     // 6540→6545（日记改版批2d · 2026-10-19）：同批 FAB 统一。
     // `mindmap_list` 的原生 `FloatingActionButton` 换 `GradFab` 圆球，净 +5 行。
-    // 按实测登，此后只许减。
-    'mindmap': 6545,
+    // 6545→7336（思维导图批P 实现批 · 2026-10-19）：连接器＋md 单层并入＋树内
+    // 导航＋层级分级。**非功能新增，是「树关系此前无入口」的补账**：
+    // 域层 `mindmap_tree.dart`（纯函数成环判定/深度/一枝集，新建件）＋
+    // `mindmap_connect_ops.dart`（挂接/摘除/折叠/提示条，按批5 口径抽 part
+    // 而非塞主文件）＋ painter 三组接线＋ `showMmMenu` 的并排一行。按实测登，
+    // 此后只许减。
+    // 7336→7369（思维导图批P 实现批收口 · 2026-10-19）：**纯拆 part 的机械净增
+    // +33，零功能改动**——「布局家族」三方法原样搬进新 part
+    // `mindmap_canvas_layout.dart`（extension 包裹＋3 处 setState 的 ignore），
+    // 为把主文件从 1208 压回 1200 红线内（size_budget 闸）。块内逐字未改。
+    'mindmap': 7369,
     'calendar': 5874,
     'items': 4248,
     'days': 3492,

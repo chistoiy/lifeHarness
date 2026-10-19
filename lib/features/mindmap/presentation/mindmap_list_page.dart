@@ -108,18 +108,29 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
       final src = await mmNoteContentOf(noteId);
       if (!mounted) return;
       final parsed = parseMdOutline(src ?? '');
-      final flat = flattenMdTree(parsed.roots);
+      final roots = parsed.roots;
       // 解析失败降级＝零节点不建图，给人话提示（尼尔森 9）。
-      if (flat.isEmpty) {
+      if (flattenMdTree(roots).isEmpty) {
         _toast('这篇笔记没解析出大纲内容');
         return;
       }
-      final ok = await showMmFromMdPreview(context, flat,
-          truncated: parsed.truncated);
-      if (!ok) return;
+      final pick = await showMmFromMdPreview(
+        context,
+        flattenMdTree(roots),
+        truncated: parsed.truncated,
+        singleLevel: parsed.singleLevel,
+      );
+      if (pick == null || !mounted) return;
+      // 批P P2：并列清单默认并到中心主题下，消「全孤立」；选「保留多根」
+      // 则照原样多根各自成树（在画布手动挂接）。
+      final useRoots = parsed.singleLevel && pick == 'center'
+          ? mmMdJoinUnderCenter(
+              roots,
+              hit.isEmpty ? '中心主题' : hit.first.title)
+          : roots;
       final mapId = await _dao.createMap(
           name.isEmpty ? (hit.isNotEmpty ? hit.first.title : '未命名导图') : name);
-      await _insertParsed(mapId, flat);
+      await _insertParsed(mapId, flattenMdTree(useRoots));
       ref.read(mindmapTickProvider.notifier).state++;
       await _reload();
       if (mounted) context.push('/mindmap/canvas?id=$mapId');

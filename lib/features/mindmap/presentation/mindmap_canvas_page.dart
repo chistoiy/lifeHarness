@@ -19,6 +19,7 @@ import '../domain/mindmap_node_meta.dart';
 import '../domain/mindmap_style.dart';
 import '../domain/mindmap_undo.dart';
 import '../domain/mindmap_viewport.dart';
+import '../domain/mindmap_tree.dart';
 import 'mindmap_export_actions.dart';
 import 'mindmap_layout_sheet.dart';
 import 'mindmap_node_sheet.dart';
@@ -29,6 +30,13 @@ import 'mindmap_style_sheet.dart';
 /// 节点操作面（长按菜单 / 读屏语义 / 按钮构件 / **批5 三段接线**）。
 /// part 件＝同库私有可见，见该文件头段注（抽出动机＝画布页体量守 1200 线）。
 part 'mindmap_canvas_ops.dart';
+
+/// 连接器操作面（批P：挂接/摘除 · 连接态 · 树内导航）。
+part 'mindmap_connect_ops.dart';
+
+/// 画布绘制面接线（批P 抽出：绘制层那一棵子树＋painter 构造）。
+part 'mindmap_canvas_paint.dart';
+part 'mindmap_canvas_layout.dart';
 
 /// 画布主屏（原型 mm-canvas · push 路由 `/mindmap/canvas?id=`）。
 ///
@@ -75,7 +83,8 @@ class MindmapCanvasPage extends ConsumerStatefulWidget {
   ConsumerState<MindmapCanvasPage> createState() => _MindmapCanvasPageState();
 }
 
-class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
+class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
+    with SingleTickerProviderStateMixin {
   late final MindmapDao _dao =
       widget.dao ?? MindmapDao(AppDatabase.instance.db);
   Database? get _mmDb => widget.db;
@@ -104,6 +113,36 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   Size _viewport = Size.zero;
 
   int? _selectedId;
+
+  // ── 批P 连接态 ──
+  /// 连接起点（null＝不在连接态）。在连接态里：点目标＝挂接、点自己/空白＝取消、
+  /// 点节点不排拖拽（否则「想去点目标」变成「把起点拖走」）。
+  int? _connectFrom;
+
+  /// 「整枝并入」语义位：起点本身是根时它没有父可挂，动作＝成为别人的子级。
+  bool _connectMerge = false;
+
+  /// 批P L5：聚焦态保留集（自己＋祖先＋后代）。空集＝不聚焦＝默认态零视觉变化。
+  /// 建成 getter 而非 build 局部量：绘制 part 每帧构造 painter 时直接读。
+  Set<int> get _focusIds =>
+      _selectedId == null ? const <int>{} : mmBranchOf(_nodes, _selectedId!);
+
+  /// 批P P1：连接态置灰集（起点的整棵子树——挂进去就成环）。
+  Set<int> get _connectBlockedIds => _connectFrom == null
+      ? const <int>{}
+      : mmSubtreeOf(_nodes, _connectFrom!);
+
+  /// 批P P1：连接态可点目标（可见集减掉置灰集）。**入口置灰**，不做「点了再报错」。
+  Set<int> get _connectTargetIds => _connectFrom == null
+      ? const <int>{}
+      : _visibleIds().difference(_connectBlockedIds);
+
+  /// 目标节点的呼吸相位（0~1）。**只驱动 painter 的双环**，不参与任何判定；
+  /// 用 [AnimatedBuilder] 只重建 CustomPaint 那一层（整页 setState 每帧太重）。
+  late final AnimationController _connectPulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
 
   // ── 手势仲裁状态 ──
   final Map<int, Offset> _pointers = {};
@@ -344,6 +383,13 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
       _mode = _MmGestureMode.pending;
       _downGlobal = e.position;
       final local = _localOf(e.position);
+      // 批P 连接态：点节点＝选目标。**不排拖拽也不排长按**（否则「想去点目标」
+      // 变成「把起点拖走」/「弹自己的菜单」）；平移仍可（_panStart 照常记）。
+      if (_connectFrom != null) {
+        _dragNodeId = null;
+        _panStart = _pan;
+        return;
+      }
       // 批5：按下落在勾选框上＝**不排拖拽也不排长按**（原型对 `.mm-task`
       // 在 pointerdown 就 stopPropagation 同款）。否则一勾就变成拖节点。
       if (_hitTaskBox(_toCanvas(local)) != null) {
@@ -518,8 +564,22 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
 
   /// 单击（<4dp）：命中节点＝选中（双击间隔内同节点且已挂笔记＝进笔记）；
   // 命中空白＝取消选中（B5），工具条随选中态显隐。入参＝画布局部坐标。
-  void _handleTap(Offset local) {
+  ///
+  /// 批P：连接态下这一支**整体改语义**——点目标＝挂接、点自己/空白＝取消，
+  /// 且不参与双击进笔记（连接态里双击＝两次点目标，别混）。
+  Future<void> _handleTap(Offset local) async {
     final canvas = _toCanvas(local);
+    final from = _connectFrom;
+    if (from != null) {
+      final target = _hitNode(canvas);
+      if (target == null || target.id == from) {
+        _cancelConnect();
+        return;
+      }
+      final src = _byId(from);
+      if (src != null) await _connectTo(src, target);
+      return;
+    }
     // 批5：**勾选框先判**——它在节点盒最左 15px 内，与节点命中区重叠；
     // 不先判就会「点勾选框＝选中节点」，勾选永远点不中。
     final taskNode = _hitTaskBox(canvas);
@@ -864,63 +924,6 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     await store.save(widget.mapId, next);
   }
 
-  // ==================== 布局家族（批4 F4-8） ====================
-
-  /// 打开布局弹层（原型 `mmOpenLayout`：画布高频直达，缩放条上布局钮）。
-  /// 点预设**即时生效并入撤销栈一步**（原型 `mmApplyPreset` 走
-  /// `mmPushHistory('切换布局')`，同款语义）——关闭弹层不回滚。
-  Future<void> _openLayout() async {
-    final store = MmLayoutStore(ref.read(sharedPreferencesProvider));
-    await showMmLayoutSheet(
-      context,
-      initial: _view,
-      onChanged: (next) => _applyPreset(store, next),
-    );
-  }
-
-  /// 应用一份布局预设：重算基线 → fit 全图可见 → 落 prefs → 入撤销栈。
-  ///
-  /// **不清 `dx/dy`**（批4 验收项③）：切布局只重算基线，用户拖过的节点仍在
-  /// 相对原位——否则「换个布局看看」会把用户摆好的位置全丢掉。
-  Future<void> _applyPreset(
-      MmLayoutStore store, MmLayoutPreset next) async {
-    final before = _preset;
-    if (before == next) return;
-    setState(() => _preset = next);
-    _relayout();
-    _fit();
-    _undo.push(MmCommand(
-      label: '切换布局',
-      redo: (_) async {
-        await store.save(widget.mapId, next);
-        if (!mounted) return;
-        setState(() => _preset = next);
-        _relayout();
-        _fit();
-      },
-      undo: (_) async {
-        if (before == null) {
-          await store.reset(widget.mapId);
-        } else {
-          await store.save(widget.mapId, before);
-        }
-        if (!mounted) return;
-        setState(() => _preset = before);
-        _relayout();
-        _fit();
-      },
-    ));
-    await store.save(widget.mapId, next);
-    if (mounted) _toast('布局＝${_presetLabel(next)}');
-  }
-
-  String _presetLabel(MmLayoutPreset p) {
-    for (final c in mmLayoutCards) {
-      if (c.preset == p) return c.title;
-    }
-    return p.key;
-  }
-
   // ==================== build ====================
 
   @override
@@ -937,6 +940,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     }
     final selected = _selectedId == null ? null : _byId(_selectedId!);
     final visIds = _visibleIds();
+    // 批P 三个输入集（聚焦/连接目标/置灰）是状态派生量，改成 State 上的 getter
+    // ——绘制 part 直接吃，build 里不再各留一份。
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -1017,61 +1022,18 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                         onPointerMove: _onPointerMove,
                         onPointerUp: _onPointerUp,
                         onPointerCancel: _onPointerCancel,
-                        child: RepaintBoundary(
-                          child: CustomPaint(
-                            key: const ValueKey('mm-canvas-paint'),
-                            painter: MmCanvasPainter(
-                              nodes: painterNodes,
-                              layout: _layout,
-                              scale: _scale,
-                              pan: _pan,
-                              selectedId: _selectedId,
-                              nodeTitles: {
-                                for (final n in _nodes)
-                                  if (n.id != null) n.id!: _displayTitle(n),
-                              },
-                              mountedIds: {
-                                for (final n in _nodes)
-                                  if (n.noteId != null) n.id!,
-                              },
-                              dxs: {
-                                for (final n in _nodes)
-                                  if (n.id != null) n.id!: _dxOf(n),
-                              },
-                              dys: {
-                                for (final n in _nodes)
-                                  if (n.id != null) n.id!: _dyOf(n),
-                              },
-                              style: _paintStyle,
-                              // 批5 三段：id 集与占位宽由本层算好传下去
-                              // （painter 不回头判节点字段，两层各判一次必走偏）。
-                              taskIds: {
-                                for (final n in _nodes)
-                                  if (n.id != null && n.isTask) n.id!
-                              },
-                              doneTaskIds: {
-                                for (final n in _nodes)
-                                  if (n.id != null && n.isTask && n.taskDone) n.id!
-                              },
-                              imageIds: {
-                                for (final n in _nodes)
-                                  if (n.id != null && n.hasImage) n.id!
-                              },
-                              extraWidths: {
-                                for (final n in _nodes)
-                                  if (n.id != null) n.id!: _extraWidthOf(n)
-                              },
-                              tagsOf: {
-                                for (final n in _nodes)
-                                  if (n.id != null && n.tags.isNotEmpty)
-                                    n.id!: n.tags
-                              },
-                            ),
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
+                        child: _canvasPaintLayer(painterNodes),
                       ),
                     ),
+                    // 批P：连接态提示条（顶部）。条会盖住最顶那枚节点（多半是根，
+                    // 而根正是合法目标）⇒ _makeRoomForConnectBar 已把画布下移。
+                    if (_connectFrom != null)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        top: 12,
+                        child: _connectBar(context),
+                      ),
                     // 读屏语义层（§4.7）：Canvas 节点对读屏不可见 ⇒ 叠透明 Semantics。
                     for (final id in visIds)
                       _buildSemantics(context, id),
@@ -1132,10 +1094,13 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
             ),
           ),
           // 悬浮工具条（贴画布底部、不占壳底栏——本模块不进 ShellRoute 底栏）。
+          // 批P §5 第 1 条：原 `SafeArea(top:false)`＋底部 10dp 只到手势条上沿，
+          // Android 手势导航下按钮仍贴死屏幕最底。bottom 抬到 18dp＋安全区
+          // ⇒ 与原型 `bottom:82`（≈41dp）对齐，热区不再正对手势条。
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1178,6 +1143,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   void dispose() {
     _longPressTimer?.cancel();
     _saveDebounce?.cancel();
+    _connectPulse.dispose();
     // PopScope flush（B4）：退出前把未落库偏移写库（不依赖 context，dispose 安全）。
     _commitLiveOffsets(immediate: true);
     super.dispose();

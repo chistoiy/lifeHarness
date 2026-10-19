@@ -20,36 +20,62 @@ part of 'mindmap_canvas_page.dart';
 extension _MmCanvasOps on _MindmapCanvasPageState {
 
   Future<void> _showNodeMenu(MindmapNode n) async {
-    final key = await showMmMenu(context, [
-      (key: 'child', icon: Icons.account_tree_outlined, label: '添加子节点', enabled: true),
-      (key: 'sibling', icon: Icons.linear_scale, label: '添加同级节点', enabled: true),
-      (key: 'edit', icon: Icons.edit_outlined, label: '编辑节点', enabled: true),
-      (
-        key: 'bind',
-        icon: Icons.link_outlined,
-        label: n.noteId == null ? '挂载笔记' : '更换挂载笔记',
-        enabled: true
-      ),
-      (
-        key: 'fold',
-        icon: n.folded ? Icons.unfold_more : Icons.unfold_less,
-        label: n.folded ? '展开子节点' : '折叠子节点',
-        enabled: true
-      ),
-      (
-        key: 'reset',
-        icon: Icons.center_focus_strong_outlined,
-        label: '归位到自动布局',
-        enabled: n.hasOffset || _liveDx.containsKey(n.id) || _liveDy.containsKey(n.id)
-      ),
-      (key: 'del', icon: Icons.delete_outlined, label: '删除节点', enabled: true),
-    ]);
+    // 批P：连接/摘除两项紧随「加子节点/加同级」（原型同序）；摘除只对
+    // 非根节点有意义（根节点没有父，置它就是空操作，直接 disable 并给理由）。
+    final key = await showMmMenu(
+      context,
+      [
+        (key: 'child', icon: Icons.account_tree_outlined, label: '添加子节点', enabled: true),
+        (key: 'sibling', icon: Icons.linear_scale, label: '添加同级节点', enabled: true),
+        (
+          key: 'connect',
+          icon: Icons.account_tree_outlined,
+          label: n.parentId == null ? '并入到…' : '连接到…',
+          enabled: true
+        ),
+        (
+          key: 'detach',
+          icon: Icons.call_split,
+          label: '断开并移到根层级',
+          enabled: n.parentId != null
+        ),
+        (key: 'edit', icon: Icons.edit_outlined, label: '编辑节点', enabled: true),
+        (
+          key: 'bind',
+          icon: Icons.link_outlined,
+          label: n.noteId == null ? '挂载笔记' : '更换挂载笔记',
+          enabled: true
+        ),
+        (
+          key: 'fold',
+          icon: n.folded ? Icons.unfold_more : Icons.unfold_less,
+          label: n.folded ? '展开子节点' : '折叠子节点',
+          enabled: true
+        ),
+        (
+          key: 'reset',
+          icon: Icons.center_focus_strong_outlined,
+          label: '归位到自动布局',
+          enabled: n.hasOffset || _liveDx.containsKey(n.id) || _liveDy.containsKey(n.id)
+        ),
+        (key: 'del', icon: Icons.delete_outlined, label: '删除节点', enabled: true),
+      ],
+      // 树内导航是纯视图态、两枚互斥，并排一行（原型 `.nm-row`）。
+      row: [
+        (key: 'collapse', icon: Icons.compress, label: '收起整枝', enabled: true),
+        (key: 'expand', icon: Icons.expand, label: '展开全部', enabled: true),
+      ],
+    );
     if (key == null || !mounted) return;
     switch (key) {
       case 'child':
         await _addChild(n.id);
       case 'sibling':
         await _addSibling(n);
+      case 'connect':
+        _startConnect(n);
+      case 'detach':
+        await _detachNode(n);
       case 'edit':
         await _editNode(n);
       case 'bind':
@@ -58,6 +84,10 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
         await _toggleFold(n);
       case 'reset':
         await _resetOffset(n);
+      case 'collapse':
+        await _collapseBranch(n);
+      case 'expand':
+        await _expandAll();
       case 'del':
         await _deleteNode(n);
     }

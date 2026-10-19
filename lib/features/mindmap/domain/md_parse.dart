@@ -16,10 +16,36 @@ class MmMdNode {
 }
 
 class MmMdParseResult {
-  const MmMdParseResult({required this.roots, required this.truncated});
+  const MmMdParseResult({
+    required this.roots,
+    required this.truncated,
+    this.singleLevel = false,
+  });
 
   final List<MmMdNode> roots;
   final bool truncated;
+
+  /// 全文只有**一层标题**（多为全 H1）：多枚并列根、且谁都没有子级。
+  ///
+  /// 批P P2 的判定位：这种文档按标题通道解析必然得到 N 个孤立根（用户报障
+  /// 「md 生成的导图节点全孤立」）。判定放在解析层、处置放在建图层——
+  /// 导出/HTML 走同一条通道时口径一致，不会两处各判一次。
+  final bool singleLevel;
+}
+
+/// 单层标题判定（所有通道共用一份）：多枚根且全部没有子级。
+bool mmIsSingleLevel(List<MmMdNode> roots) =>
+    roots.length > 1 && roots.every((r) => r.children.isEmpty);
+
+/// 单层标题并入中心主题：中心主题作唯一根，原并列项全部挂其下。
+///
+/// 返回新列表（不改入参）；[centerTitle] 为空回落「中心主题」。
+List<MmMdNode> mmMdJoinUnderCenter(
+    List<MmMdNode> roots, String centerTitle) {
+  final center =
+      MmMdNode(centerTitle.trim().isEmpty ? '中心主题' : centerTitle.trim());
+  center.children.addAll(roots);
+  return <MmMdNode>[center];
 }
 
 /// 节点硬上限（B2；达上限后解析停、`truncated`＝true）。
@@ -85,7 +111,8 @@ MmMdParseResult parseMdOutline(String src) {
           (m.group(2) ?? '').trim());
       if (node == null) break; // 截断即停
     }
-    return MmMdParseResult(roots: roots, truncated: truncated);
+    return MmMdParseResult(
+        roots: roots, truncated: truncated, singleLevel: mmIsSingleLevel(roots));
   }
 
   if (hasIndent) {
@@ -106,7 +133,8 @@ MmMdParseResult parseMdOutline(String src) {
           m?.group(2) ?? line);
       if (node == null) break;
     }
-    return MmMdParseResult(roots: roots, truncated: truncated);
+    return MmMdParseResult(
+        roots: roots, truncated: truncated, singleLevel: mmIsSingleLevel(roots));
   }
 
   // ── 空行通道：空行分段，每段一个节点（段内多行以空格合并为一条标题），平铺根层。
@@ -128,7 +156,8 @@ MmMdParseResult parseMdOutline(String src) {
     seg.add(line);
   }
   flush();
-  return MmMdParseResult(roots: roots, truncated: truncated);
+  return MmMdParseResult(
+      roots: roots, truncated: truncated, singleLevel: mmIsSingleLevel(roots));
 }
 
 /// 把解析树转成「父 id → 子标题列表」可直接建节点的扁平序（先序遍历）。

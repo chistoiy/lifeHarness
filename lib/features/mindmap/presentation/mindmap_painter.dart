@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../domain/mindmap_layout.dart';
 import '../domain/mindmap_models.dart';
 import '../domain/mindmap_style.dart';
+import '../domain/mindmap_tree.dart' show mmTierOf;
 
 /// 画布绘制器（批1 画布与批2 PNG 导出共用一份——导出即所见）。
 ///
@@ -33,6 +34,11 @@ class MmCanvasPainter extends CustomPainter {
     this.imageIds = const <int>{},
     this.extraWidths = const <int, double>{},
     this.tagsOf = const <int, List<String>>{},
+    this.depths = const <int, int>{},
+    this.focusIds = const <int>{},
+    this.connectTargetIds = const <int>{},
+    this.connectBlockedIds = const <int>{},
+    this.connectPulse = 0,
   });
 
   final List<MindmapNode> nodes;
@@ -59,6 +65,21 @@ class MmCanvasPainter extends CustomPainter {
   /// 传进来；painter 自己再猜一遍宽度＝标题压到 chip 上的经典洞）。
   final Map<int, double> extraWidths;
   final Map<int, List<String>> tagsOf;
+
+  /// 批P L1：id → 深度（根＝0）。绘制按层分级：根＝主色描边＋淡底＋加粗，
+  /// 二三级起描边降一档透明度。**由画布页算好传进来**（与连接态/聚焦态同一份
+  /// 判定，painter 不自己再走一遍树）。
+  final Map<int, int> depths;
+
+  /// 批P L5：聚焦态保留集（自己＋祖先＋后代）。**空集＝不聚焦**（默认态零变化）。
+  final Set<int> focusIds;
+
+  /// 批P P1 连接态：可点目标（描边闪烁）与成环目标（置灰）。
+  final Set<int> connectTargetIds;
+  final Set<int> connectBlockedIds;
+
+  /// 连接态呼吸值 0~1（页面侧 AnimationController 驱动；静态时 0）。
+  final double connectPulse;
 
   /// 勾选框边长（原型 `.mm-task` 15px）。
   static const double taskBox = 15;
@@ -112,7 +133,11 @@ class MmCanvasPainter extends CustomPainter {
     //   横向布局＝连线斜穿＋折点越界出悬空 V）。
     // 父子连线只在**两端都可见**时画（裁剪口径：视口外节点不进 draw 列表，
     // 单端可见的边也一并省略——树布局下行相邻，端点成对裁剪足够）。
-    final path = Path();
+    // 批P L1/L3：主干（从根出发的边）单独一条 path——主色、加粗，与细枝分开画；
+    // 两条 path 都画在节点之下，节点盒不透明底把穿盒处盖住（连线不再像断线）。
+    final childPath = Path();
+    final rootPath = Path();
+    var hasRootEdge = false;
     for (final route in mmEdgeRoutes(
       nodes: nodes,
       edgeKind: l.edgeKind,
@@ -120,39 +145,60 @@ class MmCanvasPainter extends CustomPainter {
       rectOf: _nodeRect,
     )) {
       final pts = route.points;
-      path.moveTo(pts.first.dx, pts.first.dy);
+      final p = route.fromRoot ? rootPath : childPath;
+      if (route.fromRoot) hasRootEdge = true;
+      p.moveTo(pts.first.dx, pts.first.dy);
       if (pts.length == 2) {
-        path.lineTo(pts.last.dx, pts.last.dy);
+        p.lineTo(pts.last.dx, pts.last.dy);
       } else {
         // 阶梯贝塞尔的控制点镜像（批2 口径：两端切线全水平）。
-        path.cubicTo(pts[1].dx, pts[1].dy, pts[2].dx, pts[2].dy,
+        p.cubicTo(pts[1].dx, pts[1].dy, pts[2].dx, pts[2].dy,
             pts[3].dx, pts[3].dy);
       }
     }
     canvas.drawPath(
-        path,
+        childPath,
         Paint()
           ..color = edge
           ..style = PaintingStyle.stroke
           ..strokeWidth = style.lineW);
+    if (hasRootEdge) {
+      canvas.drawPath(
+          rootPath,
+          Paint()
+            ..color = accent
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = style.lineW + 0.9 * scale.clamp(.8, 1.4)
+            ..strokeCap = StrokeCap.round);
+    }
 
-    // ── 节点。
-    for (final n in nodes) {
+    // ── 节点（批P：按「置灰 / 降噪 / 正常」三组画，见下方分组）。
+    void paintNode(MindmapNode n) {
       final r = _nodeRect(n);
       final sel = n.id == selectedId;
-      final paint = Paint()..color = nodeBg;
+      final tier = mmTierOf(depths[n.id] ?? 0);
+      // 批P L1 层级分级：根＝主色描边 2px＋9% 淡底＋加粗；二三级起描边降一档透明度。
+      // 淡底用 alphaBlend 预先合成到节点底色上（Canvas 直接画半透明会透出连线）。
+      final fill = tier == 0
+          ? Color.alphaBlend(accent.withValues(alpha: .09), nodeBg)
+          : nodeBg;
+      final baseBorder = switch (tier) {
+        0 => accent,
+        2 => nodeBorder.withValues(alpha: nodeBorder.a * .72),
+        3 => nodeBorder.withValues(alpha: nodeBorder.a * .52),
+        _ => nodeBorder,
+      };
+      final bw = sel ? 1.6 : (tier == 0 ? 2.0 : 0.8);
+      final radius = Radius.circular((10 * scale.clamp(0.6, 1.4)).toDouble());
       canvas.drawRRect(
-          RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0),
-              Radius.circular((10 * scale.clamp(0.6, 1.4)).toDouble())),
-          paint);
+          RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0), radius),
+          Paint()..color = fill);
       canvas.drawRRect(
-          RRect.fromRectAndRadius(
-              r.inflate(sel ? 2 : 0),
-              Radius.circular((10 * scale.clamp(0.6, 1.4)).toDouble())),
+          RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0), radius),
           Paint()
-            ..color = sel ? accent : nodeBorder
+            ..color = sel ? accent : baseBorder
             ..style = PaintingStyle.stroke
-            ..strokeWidth = sel ? 1.6 : 0.8);
+            ..strokeWidth = bw);
       if (sel) {
         canvas.drawRRect(
             RRect.fromRectAndRadius(
@@ -177,7 +223,7 @@ class MmCanvasPainter extends CustomPainter {
           text: nodeTitles[n.id] ?? n.title,
           style: TextStyle(
               fontSize: style.fontSize * scale.clamp(0.5, 1.6),
-              fontWeight: FontWeight.w600,
+              fontWeight: tier == 0 ? FontWeight.w800 : FontWeight.w600,
               color: nodeText),
         ),
         textDirection: TextDirection.ltr,
@@ -262,7 +308,66 @@ class MmCanvasPainter extends CustomPainter {
         canvas.drawCircle(
             Offset(r.right - 4, r.top + 4), 3.4, Paint()..color = accent);
       }
+      // 批P P1：可点目标描边（呼吸值由页面 AnimationController 驱动）；
+      // 成环目标不画环——它整枚被置灰，画环反而像「可以点」。
+      if (connectTargetIds.contains(n.id)) {
+        final ring = 0.30 + 0.34 * connectPulse;
+        final inflate = 3 * scale.clamp(.8, 1.4);
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(
+                r.inflate(inflate),
+                Radius.circular(12 * scale.clamp(.8, 1.4))),
+            Paint()
+              ..color = accent.withValues(alpha: ring)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2);
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(
+                r.inflate(inflate + 2),
+                Radius.circular(13 * scale.clamp(.8, 1.4))),
+            Paint()
+              ..color = accent.withValues(alpha: ring * .45)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.4);
+      }
     }
+
+    // 三组画序：置灰组 → 降噪组 → 正常/聚焦组。
+    // 每组最多一层 saveLayer，**不做逐节点 saveLayer**（大图聚焦态下那是上百层）。
+    final blockedNodes = <MindmapNode>[];
+    final dimNodes = <MindmapNode>[];
+    final hotNodes = <MindmapNode>[];
+    for (final n in nodes) {
+      final id = n.id;
+      if (id != null && connectBlockedIds.contains(id)) {
+        blockedNodes.add(n);
+      } else if (id != null && focusIds.isNotEmpty && !focusIds.contains(id)) {
+        dimNodes.add(n);
+      } else {
+        hotNodes.add(n);
+      }
+    }
+
+    void paintGroup(List<MindmapNode> group, double alpha) {
+      if (group.isEmpty) return;
+      if (alpha >= 1) {
+        for (final n in group) {
+          paintNode(n);
+        }
+        return;
+      }
+      canvas.saveLayer(
+          Offset.zero & size,
+          Paint()..color = Color.fromRGBO(255, 255, 255, alpha));
+      for (final n in group) {
+        paintNode(n);
+      }
+      canvas.restore();
+    }
+
+    paintGroup(blockedNodes, .32);
+    paintGroup(dimNodes, .4);
+    paintGroup(hotNodes, 1);
   }
 
   @override
@@ -283,7 +388,13 @@ class MmCanvasPainter extends CustomPainter {
       !setEquals(old.doneTaskIds, doneTaskIds) ||
       !setEquals(old.imageIds, imageIds) ||
       !mapEquals(old.extraWidths, extraWidths) ||
-      !mapEquals(old.tagsOf, tagsOf);
+      !mapEquals(old.tagsOf, tagsOf) ||
+      // 批P：层级/聚焦/连接态漏比＝改状态后画布不重画（与 dx/dy 漏比同族坑）。
+      !mapEquals(old.depths, depths) ||
+      !setEquals(old.focusIds, focusIds) ||
+      !setEquals(old.connectTargetIds, connectTargetIds) ||
+      !setEquals(old.connectBlockedIds, connectBlockedIds) ||
+      old.connectPulse != connectPulse;
 }
 
 /// 一条连线的路由点列（[MmEdgeRoutes] 的元素）。
@@ -293,10 +404,14 @@ class MmCanvasPainter extends CustomPainter {
 /// 是为了让**画法分派本身可被常驻用例直接断言**（批4 变异刀3 钉位：
 /// 横向树/放射必须走两点直线，套阶梯公式＝斜穿节点）。
 class MmEdgeRoute {
-  const MmEdgeRoute({required this.childId, required this.points});
+  const MmEdgeRoute(
+      {required this.childId, required this.points, this.fromRoot = false});
 
   final int childId;
   final List<Offset> points;
+
+  /// 批P L1：这条边是否从根出发（主干）。主干单独一条 path，主色＋加粗。
+  final bool fromRoot;
 
   bool get isStraight => points.length == 2;
 }
@@ -321,6 +436,8 @@ List<MmEdgeRoute> mmEdgeRoutes({
     final parent = byId[p]!;
     final a = rectOf(parent);
     final b = rectOf(n);
+    // 批P L1：父是根（自己没有父）⇒ 这条是主干，画的时候主色加粗。
+    final top = parent.parentId == null || !byId.containsKey(parent.parentId!);
     if (edgeKind == MmEdgeKind.stair) {
       final childLeft = (assignedSides[n.id!] ?? 'r') == 'l';
       final ox = childLeft ? a.left : a.right;
@@ -328,6 +445,7 @@ List<MmEdgeRoute> mmEdgeRoutes({
       final midX = (ox + ix) / 2;
       out.add(MmEdgeRoute(
         childId: n.id!,
+        fromRoot: top,
         points: [
           Offset(ox, a.center.dy),
           Offset(midX, a.center.dy),
@@ -337,7 +455,7 @@ List<MmEdgeRoute> mmEdgeRoutes({
       ));
     } else {
       out.add(MmEdgeRoute(
-          childId: n.id!, points: [a.center, b.center]));
+          childId: n.id!, fromRoot: top, points: [a.center, b.center]));
     }
   }
   return out;

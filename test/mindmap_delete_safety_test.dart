@@ -47,6 +47,9 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
     await tester.pumpAndSettle();
+    // 批P：节点菜单加到 12 项，600 高的测试视口里末项在折叠线外 ⇒ 先滚进来。
+    await tester.ensureVisible(find.byKey(const ValueKey('mm-menu-del')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('mm-menu-del')));
     await tester.pumpAndSettle();
     // 确认文案含总数与子级数（根+子+孙＝3 个节点、含 2 个子节点）。
@@ -65,6 +68,9 @@ void main() {
         findsOneWidget);
     // 确认＝根及全部后代移除。
     await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.pumpAndSettle();
+    // 批P：节点菜单加到 12 项，600 高的测试视口里末项在折叠线外 ⇒ 先滚进来。
+    await tester.ensureVisible(find.byKey(const ValueKey('mm-menu-del')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('mm-menu-del')));
     await tester.pumpAndSettle();
@@ -94,6 +100,9 @@ void main() {
     await tapRoot(tester);
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.pumpAndSettle();
+    // 批P：节点菜单加到 12 项，600 高的测试视口里末项在折叠线外 ⇒ 先滚进来。
+    await tester.ensureVisible(find.byKey(const ValueKey('mm-menu-del')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('mm-menu-del')));
     await tester.pumpAndSettle();
