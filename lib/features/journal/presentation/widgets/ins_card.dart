@@ -133,16 +133,38 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                           size: 14, color: Colors.white),
                     )
                   else
-                    IconButton(
-                        // UI/UX批：裸 SnackBar → AppToast 统一口径。
-                        onPressed: () =>
-                            AppToast.show(context, '分享日记卡片 · 规划 V1.x'),
-                        icon: const Icon(Icons.ios_share, size: 16)),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                            // UI/UX批：裸 SnackBar → AppToast 统一口径。
+                            onPressed: () =>
+                                AppToast.show(context, '分享日记卡片 · 规划 V1.x'),
+                            icon: const Icon(Icons.ios_share, size: 16)),
+                        // 原型卡头右侧是**两枚**钮（⤴ 分享 / ⋯ 更多）。旧实现只有分享，
+                        // 真机上右上一个孤零零的图标，与原型对不上。
+                        // 文案不写「V1.x 规划」——U5 禁词闸明确不许把路线图版本号露给用户。
+                        IconButton(
+                            key: ValueKey('ins-more-${entry.id}'),
+                            onPressed: () =>
+                                AppToast.show(context, '更多操作 · 暂未开放'),
+                            icon: const Icon(Icons.more_horiz, size: 18)),
+                      ],
+                    ),
                 ],
               ),
             ),
+            // 批2e 按原型 `insCardHtml` 调序：**图在文上**（原型卡头之后立刻是 `.ins-imgs`）。
+            // 原实现正文在前、图在后，同一张卡在两种顺序下重心完全不同（原型是「图卡」）。
+            if (imgs.isNotEmpty)
+              Padding(
+                // 原型 `.ins-imgs{padding:0 6px}`：图片几乎通栏，只留 6 的内缩。
+                padding: const EdgeInsets.fromLTRB(6, 2, 6, 2),
+                child: _InsImageGrid(entryId: entry.id, paths: imgs),
+              ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+              // 原型正文 `px-4 py-2`。
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
               child: Text(
                 entry.content.isEmpty && imgs.isEmpty
                     ? '（今天还没写正文）'
@@ -152,12 +174,6 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                 style: TextStyle(fontSize: 13, height: 1.75),
               ),
             ),
-            // 批2a：2×2 图片网格（>4 张末格 +N 角标 · 点图看大图）
-            if (imgs.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 2, 14, 4),
-                child: _InsImageGrid(entryId: entry.id, paths: imgs),
-              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
@@ -290,7 +306,8 @@ class _InsImageGrid extends StatelessWidget {
       key: ValueKey('ins-img-$entryId-$idx'),
       onTap: () => showImageLightbox(context, path),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        // 原型 `.ins-img{border-radius:14px}`（旧实现 10，四角明显更方）。
+        borderRadius: BorderRadius.circular(14),
         child: AspectRatio(
           aspectRatio: 1,
           child: Stack(

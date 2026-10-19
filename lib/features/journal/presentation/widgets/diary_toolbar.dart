@@ -160,7 +160,9 @@ class _DiaryToolbarState extends State<DiaryToolbar> {
                 _btn(
                     'voice',
                     Opacity(opacity: .45, child: Icon(Icons.mic_none, size: 17, color: fg)),
-                    '语音 · V1.x',
+                    // 不写「· V1.x」：U5 禁词闸不许把版本占位露给用户；
+                    // 未开放这件事由 45% 透明 + 点击提示表达。
+                    '语音',
                     widget.onVoice),
                 const Spacer(),
                 _btn('more', Icon(Icons.more_vert, size: 17, color: fg), '更多排版',

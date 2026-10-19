@@ -28,7 +28,6 @@ Future<void> _pumpWall(
         child: JournalWall(
           month: month ?? DateTime(2026, 10),
           byDayFirst: byDay,
-          moodColorOf: (_) => const Color(0xFF6366F1),
           onTapDay: onTap ?? (_) {},
         ),
       ),
@@ -56,29 +55,32 @@ void main() {
       expect(find.byKey(const ValueKey('wall-day-32')), findsNothing);
     });
 
-    testWidgets('V3 写过但无图＝实心，没写＝不实心', (tester) async {
-      await _pumpWall(tester, {5: _e(5)});
-      Color? fillOf(String k) {
+    testWidgets('V3 写过＝淡底，没写＝无底色（原型：空白格不留边框）', (tester) async {
+      await _pumpWall(tester, {5: _e(5, mood: 2)});
+      BoxDecoration? decoOf(String k) {
         final c = tester.widget<Container>(
           find.descendant(
             of: find.byKey(ValueKey(k)),
             matching: find.byType(Container),
           ),
         );
-        return (c.decoration as BoxDecoration?)?.color;
+        return c.decoration as BoxDecoration?;
       }
 
-      expect(fillOf('wall-day-5'), isNotNull, reason: '写过那天要实心');
-      expect(fillOf('wall-day-6'), isNull, reason: '没写那天不能实心');
+      expect(decoOf('wall-day-5')?.color, isNotNull, reason: '写过那天要有底色');
+      expect(decoOf('wall-day-6')?.color, isNull, reason: '没写那天不能有底色');
+      // 批2e 硬口径：空白格**不许有边框**——31 个描边方块是原实现的头号噪点源。
+      expect(decoOf('wall-day-6')?.border, isNull, reason: '空白格不许描边');
     });
 
-    testWidgets('V4 有图日多一枚右上角标（且与实心不互斥）', (tester) async {
+    testWidgets('V4 有图日多一枚右上小方块（且与淡底不互斥）', (tester) async {
       await _pumpWall(tester, {
         5: _e(5),
         6: _e(6, img: true),
       });
-      final badge = find.byIcon(Icons.image_outlined);
+      final badge = find.byKey(const ValueKey('wall-img-dot-6'));
       expect(badge, findsOneWidget, reason: '只有有图那格出角标');
+      expect(find.byKey(const ValueKey('wall-img-dot-5')), findsNothing);
       // 用「角标中心落在 6 号格矩形内」判定，别用距离阈值——格子只有 34×34、
       // 七等分后宽度约 34，任何像素阈值都很容易被分辨率改动弄红。
       final cell = tester.getRect(find.byKey(const ValueKey('wall-day-6')));
@@ -105,14 +107,15 @@ void main() {
       expect(find.byKey(const ValueKey('wall-day-29')), findsNothing);
     });
 
-    testWidgets('V7 图例文案在位（不给说明用户猜不出实心含义）', (tester) async {
+    testWidgets('V7 图例文案在位（说明的是底色深浅，不是「实心」）', (tester) async {
       await _pumpWall(tester, {5: _e(5)});
-      expect(find.textContaining('实心＝当天写过'), findsOneWidget);
+      expect(find.textContaining('底色越深'), findsOneWidget);
     });
 
-    testWidgets('V8 标题显示年月（翻月后要知道自己在看哪个月）', (tester) async {
+    testWidgets('V8 标题显示年月 + 「· 图墙」后缀（三档切换时要能认出这块是日历）',
+        (tester) async {
       await _pumpWall(tester, const {}, month: DateTime(2026, 10));
-      expect(find.text('2026年10月'), findsOneWidget);
+      expect(find.text('2026年10月 · 图墙'), findsOneWidget);
     });
 
     testWidgets('V9 不给 onMonthStep 时不出翻月钮（1a 旧调用点零改动）', (tester) async {
@@ -142,6 +145,26 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('wall-next')));
       await tester.pumpAndSettle();
       expect(steps, [-1, 1]);
+    });
+
+    testWidgets('V11 点过的格子留一圈光晕，且不改底色（原型 dw-wall-on 不是填色）',
+        (tester) async {
+      await _pumpWall(tester, {5: _e(5, mood: 3)});
+      BoxDecoration decoOf(String k) => tester
+          .widget<Container>(find.descendant(
+            of: find.byKey(ValueKey(k)),
+            matching: find.byType(Container),
+          ))
+          .decoration as BoxDecoration;
+
+      final before = decoOf('wall-day-5');
+      expect(before.boxShadow, isNull, reason: '没点之前不该有光晕');
+      await tester.tap(find.byKey(const ValueKey('wall-day-5')));
+      await tester.pumpAndSettle();
+      final after = decoOf('wall-day-5');
+      expect(after.boxShadow, isNotNull, reason: '点过之后要留光晕');
+      // 光晕不能顺手把底色也改掉——填色会和「有日记」的淡底撞车
+      expect(after.color, before.color);
     });
   });
 }

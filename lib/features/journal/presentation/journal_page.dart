@@ -554,29 +554,21 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
           // 批1a（工单 §2 硬口径 8）：彩色心情卡**只属于列表档**；轨道档同一位置换「月历图墙」，
           // INS 档整块不出（原卡内含渐变+30 色条，塞进 INS 显得很吵）。
           if (layout == kJournalLayoutTrack) {
-            return card(
-              context,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: JournalWall(
-                  month: now,
-                  byDayFirst: byDayFirst,
-                  moodColorOf: (e) => (e.mood == null)
-                      ? null
-                      : tokens.accent,
-                  onTapDay: (day) {
-                    final list = byDayAll[day];
-                    if (list == null || list.isEmpty) {
-                      context.push('/journal/edit',
-                          extra: DiaryEditArg(
-                              day: DateTime(now.year, now.month, day)));
-                    } else {
-                      openDiaryPickSheet(
-                          context, '${now.month}月$day日的日记', list);
-                    }
-                  },
-                ),
-              ),
+            // 批2e：图墙自带卡片底（说明行在卡片外），不再外套 `card()`。
+            return JournalWall(
+              month: now,
+              byDayFirst: byDayFirst,
+              onTapDay: (day) {
+                final list = byDayAll[day];
+                if (list == null || list.isEmpty) {
+                  context.push('/journal/edit',
+                      extra: DiaryEditArg(
+                          day: DateTime(now.year, now.month, day)));
+                } else {
+                  openDiaryPickSheet(
+                      context, '${now.month}月$day日的日记', list);
+                }
+              },
             );
           }
           if (insMode) return const SizedBox.shrink();
@@ -725,7 +717,12 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
                       children: [
                         Row(
                           children: [
-                            Text('${e.day.year}-${_two(e.day.month)}-${_two(e.day.day)}',
+                            // 批2e：原型列表卡日期是 `10-17`（不带年）。本年省略年份，
+                            // 跨年才补全 `YYYY-MM-DD`——否则去年同月的卡片与今年长得一样。
+                            Text(
+                                e.day.year == DateTime.now().year
+                                    ? '${_two(e.day.month)}-${_two(e.day.day)}'
+                                    : '${e.day.year}-${_two(e.day.month)}-${_two(e.day.day)}',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w800, fontSize: 14)),
                             const SizedBox(width: 6),

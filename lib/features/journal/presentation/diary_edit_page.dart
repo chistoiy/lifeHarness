@@ -916,7 +916,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     onQuote: () => _richToggle(Attribute.blockQuote),
                     onGallery: () => _richImage(direct: ImageSource.gallery),
                     onCamera: () => _richImage(direct: ImageSource.camera),
-                    onVoice: () => _soon('语音 · V1.x'),
+                    onVoice: () => _soon('语音输入'),
                     onMmCard: _insertMmCard,
                   ),
                   Expanded(

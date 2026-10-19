@@ -159,6 +159,37 @@ void main() {
       expect(find.byKey(const ValueKey('dset-ins')), findsOneWidget);
     });
 
+    testWidgets('F7b 设置弹层＝「展示方式」小标题 + 选中卡主色实底 + 右上 ✓',
+        (tester) async {
+      await pumpPage(tester);
+      await openFan(tester);
+      await tester.tap(find.byKey(const ValueKey('diary-fan-设置')));
+      await tester.pumpAndSettle();
+
+      // 原型 `.row-title`：缺了它三张卡就是三块不知所以的方块。
+      expect(find.text('展示方式'), findsOneWidget);
+
+      BoxDecoration decoOf(String k) => tester
+          .widget<Container>(find.descendant(
+            of: find.byKey(ValueKey('dset-$k')),
+            matching: find.byType(Container),
+          ))
+          .decoration as BoxDecoration;
+
+      final cur = decoOf('list');
+      // 选中卡＝主色**实底**（原型 `.ds-lay-on{background:var(--accent)}`），
+      // 不是「淡底＋描边」——描边版在三张卡里分不出当前档。
+      expect(cur.color, isNotNull);
+      expect(cur.color!.a, 1.0, reason: '选中卡必须是实底（淡底 a<1）');
+      expect(cur.border, isNull, reason: '选中卡不再靠描边');
+      // 未选卡＝中性淡底、无描边
+      expect(decoOf('track').color, isNotNull);
+      expect(decoOf('track').border, isNull);
+      expect(decoOf('track').color!.a, lessThan(1.0));
+      // 对勾是第二重信号（主题色偏浅时只靠底色对比度不够）
+      expect(find.text('✓'), findsOneWidget);
+    });
+
     testWidgets('F8 点「筛选」＝开筛选弹层，且筛完真的过滤', (tester) async {
       await jrepo.save(JournalEntry(
           day: DateTime.now(),

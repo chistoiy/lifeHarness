@@ -85,11 +85,8 @@ const _baseline = <String, int>{
     //    品牌渐变底）。同属「前景白、底面走主题」一族。
     'lib/features/journal/presentation/diary_edit_foot.dart': 1,
     'lib/features/journal/presentation/widgets/ins_card.dart': 7,
-    // 日记改版批1a 新增（2026-10-19）：月历图墙 1 处＝实心格上的日号白字
-    //（角标那枚 white 走 Icon.color 槽位，未入闸面，故不计）。
-    // 底面是主题色实心块（`fill.withValues(alpha:.85)`），不是白底；与上面 journal_page 6 处、
-    // ins_card 7 处同一形态（前景白字压在色块上）。登记≠放行：图墙深色观感仍走真机门。
-    'lib/features/journal/presentation/widgets/journal_wall.dart': 1,
+    // 日记改版批2e（2026-10-19）：图墙格由「高饱和实心＋白字」改**淡底＋深字**（原型口径），
+    // 本文件近白字面随之归零——死登记已按闸要求删除，之后不许再加回来。
     // NFC 卡片模块存量归位（日记改版批1a · 2026-10-19 跑出本红）：nfc_page 卡片名/描述 2 处白字，
     // 压在色块卡面上（前景白字，非白底）。该文件本批一行未动，是 NFC 批2/批3 带进来的存量，
     // 登记值此前漏登——按现状登记，之后只许减。

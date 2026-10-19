@@ -28,11 +28,38 @@ const Map<String, String> kJournalLayoutLabels = {
 };
 
 /// 档位图标（设置弹层三宫格：图标在上、名称在下）。
+///
+/// 批2e 按原型 `DIARY_LAYOUT_ICO` 换：轨道＝左侧短竖列＋右侧长行（时间轴列表）、
+/// 列表＝三行横线（末行更短）、INS＝四宫格。原来轨道用 `view_timeline_outlined`、
+/// 列表用 `view_agenda_outlined`，在 18px 上看起来像「文档/便签」，与原型不是一个语义。
 IconData journalLayoutIcon(String k) => switch (k) {
-      kJournalLayoutTrack => Icons.view_timeline_outlined,
+      kJournalLayoutTrack => Icons.format_list_bulleted,
       kJournalLayoutIns => Icons.grid_view,
-      _ => Icons.view_agenda_outlined,
+      _ => Icons.subject,
     };
+
+/// 心情强度色阶（原型 `DR_SCALE` 口径）：`step` 0＝最浅、1＝最深。
+///
+/// 为什么不照抄原型的 `#e3e5fb…#8a90e8`：那 5 阶是**靛紫一族**写死的，换到翠绿/琥珀/蓝
+/// 主题上会变成「别家的紫」，与全仓「新增淡底一律走主色淡化档」的铁律冲突。
+/// 这里改成**主色与卡片底混**派生——4 主题 × 明暗自动跟随。
+/// 深色档不能往白里混（会糊成一片亮块），改往 `card` 混并整体加厚一档。
+Color journalAccentStep(ThemeTokens t, double step) {
+  final dark = ThemeData.estimateBrightnessForColor(t.page) == Brightness.dark;
+  final s = step.clamp(0.0, 1.0);
+  return Color.lerp(
+      t.card, t.accent, (dark ? .20 : .12) + (dark ? .50 : .58) * s)!;
+}
+
+/// 心情值 → 强度档（0＝最正向/最浅 … 1＝最负面/最深）；未记录给 null。
+///
+/// 口径来源＝图墙说明文案「底色越深，当日情绪越低落」。原型 `dwRenderWall` 的
+/// `DR_SCALE[min(4,mood)]` 取的是「越负面越浅」，与它自己的文案正好相反——
+/// 两者冲突时以**用户看得见的那句文案**为准（文案是承诺，取色是实现细节）。
+double? journalMoodDepth(int? mood) {
+  if (mood == null || mood < 1 || mood > kJournalMoods.length) return null;
+  return (mood - 1) / (kJournalMoods.length - 1);
+}
 
 /// 日期轨道左栏的日期块数据（同日多篇只出一次，见工单 §2 硬口径 1）。
 class TrackDayBlock {

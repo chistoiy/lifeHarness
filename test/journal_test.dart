@@ -786,6 +786,14 @@ void main() {
       expect(find.byKey(ValueKey('ins-img-${e.id}-1')), findsOneWidget);
       expect(find.textContaining(a), findsNothing); // 卡面不露路径
 
+      // 批2e：原型 `insCardHtml` 是**图在文上**（卡头→图片→正文）。
+      // 顺序反了整张卡的重心就变了：原型是「图卡」，实现成了「文字卡带附图」。
+      final imgTop = tester.getRect(find.byKey(ValueKey('ins-img-${e.id}-0'))).top;
+      final bodyTop = tester.getRect(find.textContaining('看图')).top;
+      expect(imgTop, lessThan(bodyTop), reason: '图片必须排在正文之上');
+      // 原型卡头右侧两枚钮（⤴ 分享 / ⋯ 更多）
+      expect(find.byKey(ValueKey('ins-more-${e.id}')), findsOneWidget);
+
       // 点缩略图 → 全屏黑底大图（再点任意处关）
       await tester.tap(find.byKey(ValueKey('ins-img-${e.id}-0')));
       await settle5(tester);

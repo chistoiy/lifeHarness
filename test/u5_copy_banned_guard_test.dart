@@ -90,7 +90,6 @@ void main() {
       'features/items/data/items_repository.dart': 3,
       'features/items/presentation/item_detail_page.dart': 4,
       'features/items/presentation/item_edit_page.dart': 3,
-      'features/journal/presentation/diary_edit_page.dart': 1,
       'features/read/presentation/biblio/book_info_page.dart': 1,
       // 高保真批6c·刀1（2026-10-16）：「联动 L5」文案随书摘表单群拆 part 迁入同库件，登记随迁。
       'features/read/presentation/read_sheets_b3_quote.dart': 1,
@@ -106,7 +105,6 @@ void main() {
     'V1x': {
       'features/care/presentation/babies_page.dart': 1,
       'features/care/presentation/care_stats_page.dart': 1,
-      'features/journal/presentation/diary_edit_page.dart': 2,
       'features/journal/presentation/widgets/ins_card.dart': 2,
       'features/journal/presentation/widgets/note_sheets.dart': 1,
       'features/ledger/presentation/ledger_pick_sheets.dart': 1,

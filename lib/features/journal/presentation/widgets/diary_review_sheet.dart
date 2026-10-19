@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/journal_entry.dart';
 import '../diary_edit_page.dart';
 import '../journal_providers.dart';
+import 'journal_layout_kit.dart';
 
 /// M1批2c · 回顾底部弹层（原型 sheetDiaryReview）：
 /// 月份切换 ‹ YYYY年M月 › + 心情趋势柱状（CustomPaint·高度=心情1~7）
@@ -124,11 +125,9 @@ class _DiaryReview extends ConsumerStatefulWidget {
 }
 
 class _DiaryReviewState extends ConsumerState<_DiaryReview> {
-  static const _palette = [
-    Color(0xFF6366F1), Color(0xFF2DD4BF), Color(0xFFF59E0B),
-    Color(0xFFFB7185), Color(0xFF8B5CF6), Color(0xFF0EA5E9), Color(0xFFF43F5E),
-  ];
-
+  // 批2e：原 `_palette` 七档彩虹（靛/青/琥珀/玫红/紫/天蓝/红）已删。
+  // 原型治理件原话：「原 7 档彩虹色＝五颜六色，改为同色系深浅表达情绪强度」——
+  // 现在统一走 `journalAccentStep`（主色与卡片底混合），四主题自动跟随。
   late DateTime _m = widget.month;
 
   /// UI/UX批：月份偏移有界（对齐原型 drMonth：当月 0、最早往前 11 个月）。
@@ -240,13 +239,15 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
                     height: 56,
                     child: CustomPaint(
                         size: const Size(double.infinity, 56),
-                        painter: _TrendPainter(month: _m, byDay: byDay)),
+                        painter: _TrendPainter(
+                            month: _m, byDay: byDay, tokens: tokens)),
                   ),
                 ),
               ),
               const SizedBox(height: 8),
               // 原型：图例靠右下角（`justify-end`），且**只三档**（低落/一般/愉悦）——
               // 治理件明确删掉了原来那一排 7 枚连续表情。
+              // 色点取**同系色阶**（浅→深＝情绪低→高），不再是一档一个彩虹色。
               Align(
                 alignment: Alignment.centerRight,
                 child: Row(
@@ -254,16 +255,17 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     for (final (i, name) in const [
-                      (0, '低落'),
-                      (3, '一般'),
-                      (6, '愉悦'),
+                      (0.0, '低落'),
+                      (0.5, '一般'),
+                      (1.0, '愉悦'),
                     ]) ...[
                       if (i > 0) const SizedBox(width: 10),
                       Container(
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                              color: _palette[i], shape: BoxShape.circle)),
+                              color: journalAccentStep(tokens, i),
+                              shape: BoxShape.circle)),
                       const SizedBox(width: 3),
                       Text(name,
                           style: TextStyle(
@@ -303,11 +305,21 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
                       },
                       child: Text(w,
                           style: TextStyle(
-                              fontWeight: FontWeight.w800,
+                              // 原型：字号 11/13/15/18/20，≥18 才加到 w600，其余 w500
+                              //（旧实现一律 w800 + 最大 22px，满屏都在喊，等于没有主次）。
+                              fontWeight: _fs(freq) >= 18
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
                               fontSize: _fs(freq),
                               height: 1.3,
-                              color: Color.lerp(scheme.onSurface,
-                                  tokens.accent, _fs(freq) / 24))),
+                              // 词色只用**同系中到深**三档（原型 `DR_SCALE[2..4]`），
+                              // 不掺正文色——掺了以后高频词与低频词就只差在字号。
+                              color: journalAccentStep(
+                                  tokens,
+                                  .5 +
+                                      .5 *
+                                          ((_fs(freq) - 13) / 7)
+                                              .clamp(0.0, 1.0)))),
                     ),
                 ],
                 // 空月份兜底
@@ -532,22 +544,22 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
     return [for (final x in list.take(12)) (x.key, x.value)];
   }
 
+  /// 词云字级（原型 `sz=[0,0,11,13,15,18,20]` 的可见段）：
+  /// 低频 13、常规 15、高频 18、最高频 20。11px 档原型自己就隐藏了，这里从 13 起。
   static double _fs(int freq) =>
-      freq >= 8 ? 22 : freq >= 5 ? 17 : freq >= 3 ? 14 : 11.5;
+      freq >= 8 ? 20 : freq >= 5 ? 18 : freq >= 3 ? 15 : 13;
 }
 
 /// 心情趋势柱：当月每天一根，高度=心情 1~7（无记录=12% 淡条）。
 /// UI/流畅批：逐日 map 由 build 侧建一次传入（绘制与点按命中共用）。
 class _TrendPainter extends CustomPainter {
-  _TrendPainter({required this.month, required this.byDay});
+  _TrendPainter({required this.month, required this.byDay, required this.tokens});
 
   final DateTime month;
   final Map<int, JournalEntry> byDay;
 
-  static const _palette = [
-    Color(0xFF6366F1), Color(0xFF2DD4BF), Color(0xFFF59E0B),
-    Color(0xFFFB7185), Color(0xFF8B5CF6), Color(0xFF0EA5E9), Color(0xFFF43F5E),
-  ];
+  /// 取色令牌：柱色由 `journalAccentStep` 派生（同系深浅），必须拿到当前主题。
+  final ThemeTokens tokens;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -560,10 +572,13 @@ class _TrendPainter extends CustomPainter {
       final h = mood == null
           ? size.height * 0.12
           : size.height * (0.3 + mood / kJournalMoods.length * 0.7);
+      final depth = journalMoodDepth(mood);
       final paint = Paint()
-        ..color = mood == null
-            ? const Color(0x1F000000)
-            : _palette[(mood - 1) % _palette.length];
+        ..color = depth == null
+            // 无记录＝中性淡条（原型 rgba(120,110,90,.12)）：它是「空位」不是「低落」，
+            // 不能落到色阶最浅那一档，否则与「开心」同色。
+            ? tokens.text2.withValues(alpha: .18)
+            : journalAccentStep(tokens, depth);
       final r = RRect.fromRectAndCorners(
         Rect.fromLTWH((d - 1) * slot + (slot - w) / 2, size.height - h, w, h),
         topLeft: const Radius.circular(3),
@@ -575,7 +590,10 @@ class _TrendPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_TrendPainter old) =>
-      old.month != month || !identical(old.byDay, byDay);
+      old.month != month ||
+      !identical(old.byDay, byDay) ||
+      old.tokens.accent != tokens.accent ||
+      old.tokens.card != tokens.card;
 }
 
 extension on String {
