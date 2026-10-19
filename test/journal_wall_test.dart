@@ -109,5 +109,39 @@ void main() {
       await _pumpWall(tester, {5: _e(5)});
       expect(find.textContaining('实心＝当天写过'), findsOneWidget);
     });
+
+    testWidgets('V8 标题显示年月（翻月后要知道自己在看哪个月）', (tester) async {
+      await _pumpWall(tester, const {}, month: DateTime(2026, 10));
+      expect(find.text('2026年10月'), findsOneWidget);
+    });
+
+    testWidgets('V9 不给 onMonthStep 时不出翻月钮（1a 旧调用点零改动）', (tester) async {
+      await _pumpWall(tester, const {});
+      expect(find.byKey(const ValueKey('wall-prev')), findsNothing);
+      expect(find.byKey(const ValueKey('wall-next')), findsNothing);
+    });
+
+    testWidgets('V10 给了 onMonthStep：上一月可点、下一月可点（非本月时）', (tester) async {
+      final steps = <int>[];
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: JournalWall(
+              // 用「上个月」当月面：下一月应当可点（还没回到本月）
+              month: DateTime(2026, 9),
+              byDayFirst: const {},
+              onTapDay: (_) {},
+              onMonthStep: steps.add,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('wall-prev')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('wall-next')));
+      await tester.pumpAndSettle();
+      expect(steps, [-1, 1]);
+    });
   });
 }

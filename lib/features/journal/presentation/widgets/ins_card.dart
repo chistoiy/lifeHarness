@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/weather/weather.dart';
 import '../../domain/journal_entry.dart';
 import '../journal_providers.dart';
+import 'journal_layout_kit.dart';
 import '../../../../shared/widgets/image_attach.dart';
 import '../../../../shared/widgets/ui_kit.dart' show AppToast;
 
@@ -169,7 +170,7 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                         entry.liked ? Icons.favorite : Icons.favorite_border,
                         size: 19,
                         color: entry.liked
-                            ? const Color(0xFFE11D48)
+                            ? kJournalLiked
                             : null),
                   ),
                   IconButton(
@@ -178,7 +179,7 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                     icon: Icon(entry.starred ? Icons.star : Icons.star_border,
                         size: 19,
                         color: entry.starred
-                            ? const Color(0xFFF59E0B)
+                            ? kJournalStarred
                             : null),
                   ),
                   IconButton(

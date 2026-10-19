@@ -322,6 +322,22 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
   bool _selMode = false;
   final Set<int> _sel = {};
 
+  /// 图墙查看月份的偏移（0＝本月，负数＝往前翻）。批1c：翻月是**纯视图态**，
+  /// 不落 settings——用户翻到 3 月看两眼再回来，下次进来还是该看本月。
+  int _wallMonthOff = 0;
+
+  /// 图墙当前查看月（按偏移算出来，避免各处自己 `DateTime(now.year, now.month+k)` 算错）。
+  DateTime wallMonthOf(DateTime now) =>
+      DateTime(now.year, now.month + _wallMonthOff);
+
+  /// 翻月：`-1` 上一月 / `+1` 下一月，范围 `[本月-24, 本月]`（不只是当月，未来没有日记）。
+  void wallStep(BuildContext context, int delta) {
+    final next = _wallMonthOff + delta;
+    if (next > 0) return; // 不能翻到未来
+    if (next < -kWallMaxMonthBack) return; // 下界与原型一致
+    setState(() => _wallMonthOff = next);
+  }
+
   void _enterSel(int id) => setState(() {
         _selMode = true;
         _sel.add(id);
@@ -422,6 +438,14 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
       byDayAll.putIfAbsent(e.day.day, () => []).add(e);
       byDayFirst.putIfAbsent(e.day.day, () => e);
     }
+
+    // 批1c：图墙可翻月，故另建「年→月→日→全篇」的全量索引（不按月裁）。
+    // 为什么不复用 byDayAll：它只装本月；翻到 3 月时直接用它，整屏都是空格。
+    final wallDayAll = <int, Map<int, Map<int, List<JournalEntry>>>>{};
+    for (final e in entries) {
+      wallDayAll.putIfAbsent(e.day.year, () => {}).putIfAbsent(
+          e.day.month, () => {}).putIfAbsent(e.day.day, () => []).add(e);
+    }
     // 那年今日：原 FutureBuilder 在 build 里现建 future，每次 setState 重查 DB；
     // 改 provider 缓存（随列表失效刷新），此处只读值。
     final onThisDay = ref.watch(onThisDayProvider).valueOrNull;
@@ -463,7 +487,8 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
               // 轨道档整棵换掉列表树：条目按「日期块」分行，套不进「一篇一 item」的索引算式——
               // 硬塞会让 i-6 索引错位。两棵树共用同一 ScrollPad，切档滚动位置仍回到原位。
               child: layout == kJournalLayoutTrack
-                  ? trackScroll(context, ref, now, trackBlocks, byDayAll)
+                  ? trackScroll(context, ref, now, trackBlocks,
+                      wallAllEntries: entries, wallDayAll: wallDayAll)
                   : ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       itemCount: shown.isEmpty ? 8 : 7 + shown.length,

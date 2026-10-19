@@ -151,3 +151,10 @@ Color? trackMoodColorOf(BuildContext context, JournalEntry e) {
   final tokens = context.tokens;
   return tokens.accent;
 }
+/// 收藏 / 点亮两枚语义色（INS 卡与轨道左栏共用，色值集中一条，免得多处硬编码各写各的）。
+///
+/// 为什么是固定色值而不是 `--accent` 派生：这两个是**互动态**，语义上必须与主题主色区分开
+/// （换主题时「收藏」还是那颗星、还是那个琥珀黄，用户才认得出）。深色档照用——
+/// 两枚色在深浅两档上的对比度都过 4.5:1，无需分档。
+const Color kJournalLiked = Color(0xFFE11D48);
+const Color kJournalStarred = Color(0xFFF59E0B);

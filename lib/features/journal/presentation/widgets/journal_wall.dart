@@ -4,10 +4,13 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/journal_entry.dart';
 import 'journal_layout_kit.dart';
 
-/// 日记改版批1a · 月历图墙（7 列格，只为「哪天写过」服务）。
+/// 日记改版批1a · 月历图墙（7 列格，只为「哪天写过」服务）；批1c 起支持**翻月**。
 ///
 /// 三态次序**不可对调**（工单 §2 硬口径 3）：无日记＝虚线空环 ＞ 有日记无图＝心情色实心 ＞ 有日记有图＝实心＋右上角标。
 /// 图墙**不做图片浏览、不做点击进图**——点格只做一件事：看当天（当天多篇给选择弹层）。
+///
+/// 翻月口径（原型 `dwMonthStep`）：只往**过去**翻，范围 `[本月-24, 本月]`；不给未来月——
+/// 未来的日子不可能有日记，翻过去只会看到一整屏空格，白费一次点击。
 class JournalWall extends StatelessWidget {
   const JournalWall({
     super.key,
@@ -15,15 +18,23 @@ class JournalWall extends StatelessWidget {
     required this.byDayFirst,
     required this.onTapDay,
     this.moodColorOf,
+    this.onMonthStep,
+    this.minMonthOffset = -kWallMaxMonthBack,
   });
 
-  /// 展示的月份（本批固定当月；翻月属 1c）。
+  /// 展示的月份。
   final DateTime month;
 
   /// 当日首篇（同日多篇取最新一篇来判「有没有图」，与列表卡头同源）。
   final Map<int, JournalEntry> byDayFirst;
   final void Function(int day) onTapDay;
   final Color? Function(JournalEntry e)? moodColorOf;
+
+  /// 翻月回调：`-1` 上一月、`+1` 下一月。为 null 时不显示翻月钮（1a 旧调用点保持原样）。
+  final void Function(int delta)? onMonthStep;
+
+  /// 允许往前翻的最多个月数（负数）。默认 −24 与原型一致。
+  final int minMonthOffset;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +47,38 @@ class JournalWall extends StatelessWidget {
       key: const ValueKey('diary-wall'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 月份标题 + 翻月钮（批1c）。原型 `dwRenderWall` 同构：标题吃满左边、两枚钮在右。
+        // 「下一月」在当月置灰：不能翻到未来（见类注释）。
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${month.year}年${month.month}月',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (onMonthStep != null) ...[
+                _WallNavBtn(
+                  key: const ValueKey('wall-prev'),
+                  icon: Icons.chevron_left,
+                  label: '上一月',
+                  onTap: () => onMonthStep!(-1),
+                ),
+                _WallNavBtn(
+                  key: const ValueKey('wall-next'),
+                  icon: Icons.chevron_right,
+                  label: '下一月',
+                  // 只在「还没到本月」时可点：未来月份不可能有日记，翻过去只会看到一屏空格。
+                  enabled: !_isThisMonth(month),
+                  onTap: () => onMonthStep!(1),
+                ),
+              ],
+            ],
+          ),
+        ),
         // 星期表头（周一开头，与日期块「周一」同源）
         Row(
           children: [
@@ -149,6 +192,54 @@ class _WallCell extends StatelessWidget {
                 child: Icon(Icons.image_outlined, size: 9, color: Colors.white),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 当前是否为「本月」（决定「下一月」是否可点）。
+bool _isThisMonth(DateTime m) {
+  final now = DateTime.now();
+  return m.year == now.year && m.month == now.month;
+}
+
+/// 图墙最多往前翻几个月（原型 `dwMonthStep` 的 `-24` 下界）。
+const int kWallMaxMonthBack = 24;
+
+/// 翻月钮：24×24 触摸面，图标 18（48dp 触控是列表级规范，图墙标题行放不下）。
+class _WallNavBtn extends StatelessWidget {
+  const _WallNavBtn({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: InkResponse(
+        onTap: enabled ? onTap : null,
+        radius: 18,
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: Icon(
+            icon,
+            size: 18,
+            color: scheme.onSurfaceVariant.withValues(alpha: enabled ? .9 : .3),
+          ),
         ),
       ),
     );

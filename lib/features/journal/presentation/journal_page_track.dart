@@ -14,65 +14,108 @@ import 'widgets/journal_layout_kit.dart';
 import 'widgets/journal_track_view.dart';
 import 'widgets/journal_wall.dart';
 extension JournalTrackUI on DiaryTabState {
-  /// 轨道档滚动树：顶部月历图墙 + 日期块列表（批1a）。
+  /// 轨道档滚动树：顶部月历图墙 + 日期块列表（批1a），**日期块吸顶**（批1b）。
   ///
-  /// 图墙与日期块放在**同一条滚动**里（不是钉住的头）：图墙是「导航用」的，滚下去看内容时它该走开；
-  /// 1b 要做的是把**日期块**吸附在顶部，那才需要 `SliverPersistentHeader`。
+  /// 图墙与日期块同处一条滚动：图墙是「导航用」的，滚下去看内容时它该走开。
+  /// 批1b 只把**日期块**钉住——用 `CustomScrollView` + 每个日期块的 `SliverPersistentHeader(pinned)`。
+  /// 1a 用 `ListView` 无法挂 pinned 头（`ListView` 的 children 只能是 box）。
   Widget trackScroll(
     BuildContext context,
     WidgetRef ref,
     DateTime now,
-    List<TrackDayBlock> blocks,
-    Map<int, List<JournalEntry>> byDayAll,
-  ) {
+    List<TrackDayBlock> blocks, {
+    /// 未过滤的全部条目（图墙要跨月看，不能用「当月过滤后」的 blocks）。
+    required List<JournalEntry> wallAllEntries,
+    /// 年 → 月 → 日 → 该日全部篇（点格时给选择弹层用）。
+    required Map<int, Map<int, Map<int, List<JournalEntry>>>> wallDayAll,
+  }) {
     final tokens = context.tokens;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-      children: [
-        card(
-          context,
+    const padH = 16.0;
+    return CustomScrollView(
+      slivers: [
+        // 顶部：图墙 + 工具栏（随滚走开，不钉）
+        SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: JournalWall(
-              month: now,
-              byDayFirst: {
-                for (final b in blocks) b.day.day: b.entries.first,
-              },
-              moodColorOf: (e) =>
-                  (e.mood == null) ? null : tokens.accent,
-              onTapDay: (day) {
-                final list = byDayAll[day];
-                if (list == null || list.isEmpty) {
-                  context.push('/journal/edit',
-                      extra:
-                          DiaryEditArg(day: DateTime(now.year, now.month, day)));
-                } else {
-                  openDiaryPickSheet(context, '${now.month}月$day日的日记', list);
-                }
-              },
+            padding: const EdgeInsets.fromLTRB(padH, 8, padH, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Builder(builder: (context) {
+                  // 图墙看的是**查看月**（可翻月），不是固定本月；日历块列表仍按筛选后的全部条目。
+                  final viewed = wallMonthOf(now);
+                  // 按查看月重算当日首篇：翻到 3 月时 blocks 里全是本月的，直接用会整屏空格。
+                  final byDayViewed = <int, JournalEntry>{};
+                  for (final e in wallAllEntries) {
+                    if (e.day.year == viewed.year && e.day.month == viewed.month) {
+                      byDayViewed.putIfAbsent(e.day.day, () => e);
+                    }
+                  }
+                  return card(
+                    context,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: JournalWall(
+                        month: viewed,
+                        byDayFirst: byDayViewed,
+                        moodColorOf: (e) =>
+                            (e.mood == null) ? null : tokens.accent,
+                        onMonthStep: (d) => wallStep(context, d),
+                        onTapDay: (day) {
+                          final list = wallDayAll[viewed.year]?[viewed.month]?[day];
+                          if (list == null || list.isEmpty) {
+                            context.push('/journal/edit',
+                                extra: DiaryEditArg(
+                                    day: DateTime(viewed.year, viewed.month, day)));
+                          } else {
+                            openDiaryPickSheet(
+                                context,
+                                '${viewed.month}月$day日的日记',
+                                list);
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 12),
+                trackToolbar(context, ref),
+                const SizedBox(height: 4),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        trackToolbar(context, ref),
         if (blocks.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 30),
-            child: Center(
-              child: Text(
-                '这个筛选下还没有日记',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: padH),
+              child: Center(
+                child: Text(
+                  '这个筛选下还没有日记',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ),
             ),
           )
         else
-          JournalTrackView(
-            blocks: blocks,
-            onOpenEntry: (e) => context
-                .push('/journal/edit', extra: DiaryEditArg(entryId: e.id)),
+          // 日期块逐块拍平**铺到顶层 slivers**（每块＝pinned 日期头 + 该天条目）。
+          // 不能塞进 SliverList：pinned 头是 sliver，而 SliverList 的 itemBuilder 只收 box
+          // （本批实伤：会抛 RenderRepaintBoundary expected RenderBox）。
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: padH),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                for (final b in blocks)
+                  ...trackBlockSlivers(
+                    block: b,
+                    onOpenEntry: (e) => context.push('/journal/edit',
+                        extra: DiaryEditArg(entryId: e.id)),
+                  ),
+              ],
+            ),
           ),
+        const SliverToBoxAdapter(child: SizedBox(height: 96)),
       ],
     );
   }
