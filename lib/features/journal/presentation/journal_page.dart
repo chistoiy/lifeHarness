@@ -772,7 +772,7 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
                                           .onSurfaceVariant)),
                             ],
                             const Spacer(),
-                            // 批1a：列表档补收藏/点亮标识——否则筛出「⭐ 收藏」后
+                            // 批1a：列表档补收藏/点亮标识——否则筛出「★ 点亮」后
                             // 一整屏都是同样的卡，看不出哪篇被收藏（轨道/INS 档早已有图标）。
                             if (e.starred) ...[
                               Icon(Icons.star,
@@ -914,21 +914,23 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
   /// V1.29轮9g：筛选=底部浮层选择（全部/☐待办/标签·当前项✓）。
   Future<void> diaryFilterSheet(
       BuildContext context, WidgetRef ref, String cur, List<String> tags) async {
-    // 批1a：⭐ 收藏 / ❤ 点亮是**视图出口**，不是标签——放在「待办」后面固定位置，
+    // 批1a：♥ 收藏 / ★ 点亮是**视图出口**，不是标签——放在「待办」后面固定位置，
     // 与标签段之间靠文案区分（标签项自带 #，这两项不带）。
-    final opts = ['全部', '☐ 待办', '⭐ 收藏', '❤ 点亮', ...tags];
+    // 字形取符号级 ♥/★（U+2665/U+2605），与原型 DIARY_FILTERS 逐字一致；
+    // 禁用 ❤/⭐ 等 emoji 字形（emoji_triage 档③ 红灯，实现自造原型没有的表情）。
+    final opts = ['全部', '☐ 待办', '♥ 收藏', '★ 点亮', ...tags];
     String valOf(String o) => switch (o) {
           '全部' => 'all',
           '☐ 待办' => 'todo',
-          '⭐ 收藏' => 'starred',
-          '❤ 点亮' => 'liked',
+          '♥ 收藏' => 'starred',
+          '★ 点亮' => 'liked',
           _ => o,
         };
     String labelOf(String v) => switch (v) {
           'all' => '全部',
           'todo' => '☐ 待办',
-          'starred' => '⭐ 收藏',
-          'liked' => '❤ 点亮',
+          'starred' => '♥ 收藏',
+          'liked' => '★ 点亮',
           _ => v,
         };
     final pick = await showModalBottomSheet<String>(
