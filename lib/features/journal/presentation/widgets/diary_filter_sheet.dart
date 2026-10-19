@@ -356,17 +356,12 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
     );
   }
 
-  /// 时间段段（原型 `#dfRange`）：8 档预设胶囊**单行横滑** ＋ 行尾「自定义」。
+  /// 时间段段（原型 `#dfRange`）：8 档预设胶囊**折行** ＋ 行尾「自定义」。
   ///
-  /// 口径来自原型的设计注释原文（`index-journal.html:1164`）：「② 时间段改为**紧凑单行**
-  /// ＋自定义起止日期」——但原型自己的实现是 `flex flex-wrap`，400px 框架下实测折成
-  /// **2 排**（4+4，76px），注释与实现又是一处自相矛盾。按**注释/产品口径**落成单行：
-  /// 9 枚胶囊在 360dp 内容宽里绝不可能并排装下，单行的唯一实现是横滑（原型面板本来
-  /// 就挂 `no-scrollbar`，即「横滑不带滚动条」是这套的口径）。
-  ///
-  /// 代价是右半截档位看不见 ⇒ 右缘加一道渐隐（`ShaderMask` 只做蒙版、不写死色值），
-  /// 提示「后面还有，可以继续滑」。**不要改回 `Wrap`**：一旦改回就是 2~3 排，
-  /// 正是真机 6195 上被产品点名的「时间选择做成多行」。
+  /// 排布口径＝**照原型的渲染结果**（`flex flex-wrap`）：400dp 等效宽下实测 2 排（4+4，76px）。
+  /// 原型设计注释里那句「紧凑单行」与它自己的实现矛盾，且 6196 那版按「单行横滑」落地后
+  /// 真机实测出两个新问题：① 首屏看不到最常用的「全部」（滚动位置不在 0）；
+  /// ② 右半截档位默认不可见，等于藏了功能。产品 2026-10-19 令「按原型设计对齐」⇒ 回折行。
   ///
   /// 「自定义」胶囊的常驻条件是**选过起止**（`_from`/`_to` 任一非空），不是
   /// 「当前在 custom 档」——原型 `renderDiaryRange` 每次重建 innerHTML 只铺 8 档，
@@ -374,48 +369,26 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
   Widget _rangeSection(ColorScheme scheme) {
     final hasCustom =
         _range == kDiaryRangeCustom || _from.isNotEmpty || _to.isNotEmpty;
-    final pills = <Widget>[
-      // 顺序即 [kDiaryRanges] 字面序：`全部` 在最前（默认最常用），其余跨度递增。
-      for (final r in kDiaryRanges)
-        _pill(
-          key: 'df-range-${r.k}',
-          label: r.n,
-          on: _range == r.k,
-          onTap: () => _pickRange(r.k),
-        ),
-      if (hasCustom)
-        _pill(
-          key: 'df-range-custom',
-          label: '自定义',
-          on: _range == kDiaryRangeCustom,
-          onTap: () => _pickRange(kDiaryRangeCustom),
-        ),
-    ];
-    return SizedBox(
-      height: kDfPillH,
-      child: ShaderMask(
-        // dstIn 只看蒙版 alpha：左 88% 全保留，最右 12% 淡到透明。
-        shaderCallback: (r) => const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Colors.black, Colors.black, Colors.transparent],
-          stops: [0, .88, 1],
-        ).createShader(r),
-        blendMode: BlendMode.dstIn,
-        child: SingleChildScrollView(
-          key: const ValueKey('df-range-scroll'),
-          scrollDirection: Axis.horizontal,
-          // 胶囊自带内边距，行内只留间距；纵向不需要滚动。
-          child: Row(
-            children: [
-              for (var i = 0; i < pills.length; i++) ...[
-                if (i > 0) const SizedBox(width: kDfChipGap),
-                pills[i],
-              ],
-            ],
+    return Wrap(
+      spacing: kDfChipGap,
+      runSpacing: kDfChipGap,
+      children: [
+        // 顺序即 [kDiaryRanges] 字面序：`全部` 在最前（默认最常用），其余跨度递增。
+        for (final r in kDiaryRanges)
+          _pill(
+            key: 'df-range-${r.k}',
+            label: r.n,
+            on: _range == r.k,
+            onTap: () => _pickRange(r.k),
           ),
-        ),
-      ),
+        if (hasCustom)
+          _pill(
+            key: 'df-range-custom',
+            label: '自定义',
+            on: _range == kDiaryRangeCustom,
+            onTap: () => _pickRange(kDiaryRangeCustom),
+          ),
+      ],
     );
   }
 
@@ -435,13 +408,14 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
 
   /// 时间段胶囊（原型 `.df-pill`）：**纯文字无图标**，高 34 / 内边距 14 / 全圆角。
   ///
-  /// ⚠ **不许加 `alignment:`**：`Container(alignment:)` 会包一层 `Align`，而
-  /// `Align` 在**有限**宽度约束下会撑满父级——它外面是 `Wrap`（`maxWidth` 有限），
-  /// 于是每枚胶囊都被撑成整行宽（360dp），8 枚就摊成 8 行、弹层被顶到 670dp。
-  /// 真机 6195 上「时间段变成一列」就是这个原因，不是设计口径。
-  /// 复现/守护＝`diary_filter_rows_test.dart`（断言 400dp 下 ≤2 行且单枚宽 <200）。
-  /// 文字要居中不必靠 `alignment`：Container 只剩一个 Text 子级，内容盒＝文字宽，
-  /// 居中与左对齐渲染结果相同。
+  /// ⚠ 两个坑，改之前先读：
+  /// ① **不许在 `Container` 上写 `alignment:`**：它会包一层 `Align`，而 `Align` 在
+  ///    **有限**宽度约束下撑满父级——它外面是 `Wrap`（`maxWidth` 有限），于是每枚胶囊
+  ///    都被撑成整行宽（360dp），8 枚摊成 8 行。真机 6195 上「时间段变成一列」就是它。
+  /// ② **但也不能不居中**：`Container(height: 34)` 没有 alignment 时子级按 padding
+  ///    **顶对齐**，字形贴在上边缘（真机 6196 上被产品点名「文字上下不居中」就是它）。
+  /// 正解＝`Center(widthFactor: 1)`：宽度按内容收缩（不吃满行）、高度撑满并垂直居中。
+  /// 守护＝`diary_filter_rows_test.dart` K1（排数/单枚宽）＋ K6（量字形盒高度，不是渲染盒）。
   Widget _pill({
     required String key,
     required String label,
@@ -465,12 +439,15 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
                 : scheme.onSurfaceVariant.withValues(alpha: .45),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: on ? FontWeight.w600 : FontWeight.w500,
-            color: on ? tokens.accent : scheme.onSurfaceVariant,
+        child: Center(
+          widthFactor: 1, // 只收缩宽度；高度撑满 34 并垂直居中
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+              color: on ? tokens.accent : scheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),
@@ -501,69 +478,88 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
     );
   }
 
-  /// 一端日期输入的外壳：未选时显示占位名（「起始日期」/「结束日期」）。
+  /// 一端日期输入的外壳（原型 `.df-custom-in`）：**虚线**描边 ＋「年 / 月 / 日」占位
+  /// ＋ 右侧日历图标；进入 `custom` 档时变实线主色 ＋ 6% 淡底 ＋ 主色字（`.df-custom-on`）。
+  ///
+  /// 原型用的是原生 `<input type="date">`，浏览器自己给了「年/月/日」占位与日历图标；
+  /// Flutter 没有等价控件，得把这两样显式画出来，否则就成了「起始日期」四个字——
+  /// 真机 6196 截图里就是这个偏差。虚线用 [DashRRectPainter] 自绘（原型是
+  /// `border:1px dashed rgba(148,163,184,.55)`）。
   Widget _dateField(
       bool isFrom, bool on, ColorScheme scheme, ThemeTokens tokens) {
     final v = isFrom ? _from : _to;
+    final filled = v.isNotEmpty;
+    final fg = on ? tokens.accent : scheme.onSurfaceVariant;
     return GestureDetector(
       key: ValueKey(isFrom ? 'df-from' : 'df-to'),
       onTap: () => _pickDate(isFrom),
-      child: Container(
-        height: kDfPillH,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.centerLeft,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: on ? tokens.accent.withValues(alpha: .06) : Colors.transparent,
-          border: Border.all(
-            color: on
-                ? tokens.accent
-                : scheme.onSurfaceVariant.withValues(alpha: .35),
+      child: CustomPaint(
+        // 常驻键：断言「未进 custom 档时是虚线框」靠它（进档后 painter 为 null，键仍在）。
+        key: ValueKey(isFrom ? 'df-from-dash' : 'df-to-dash'),
+        painter: on
+            ? null
+            : DashRRectPainter(
+                color: scheme.onSurfaceVariant.withValues(alpha: .55)),
+        child: Container(
+          height: kDfPillH,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: on ? tokens.accent.withValues(alpha: .06) : Colors.transparent,
+            border: on ? Border.all(color: tokens.accent) : null,
           ),
-        ),
-        child: Text(
-          v.isEmpty ? (isFrom ? '起始日期' : '结束日期') : v,
-          maxLines: 1,
-          overflow: TextOverflow.clip,
-          style: TextStyle(
-            fontSize: 12,
-            color: v.isEmpty
-                ? scheme.onSurfaceVariant.withValues(alpha: .7)
-                : (on ? tokens.accent : scheme.onSurfaceVariant),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  filled ? v : '年 / 月 / 日',
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: filled ? fg : fg.withValues(alpha: .62),
+                  ),
+                ),
+              ),
+              Icon(Icons.calendar_today_outlined,
+                  size: 14, color: fg.withValues(alpha: .75)),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// 「应用」：非法区间（两端全空 / `from > to`）时置灰且不响应点击。
+  /// 「应用」（原型 `.df-custom-go`）：**实心主色底 + 白字**，不可用时整枚降到 45% 透明。
   ///
-  /// 置灰而不是隐藏：按钮消失会让行内布局每次选日期都跳一下，
-  /// 而且用户不知道「还差什么才能生效」。
+  /// 原型是 `background:var(--accent);opacity:.45;pointer-events:none`——
+  /// 不是我们原先那版「描边 + 主色字」。降透明而不是隐藏：按钮消失会让行内布局
+  /// 每次选日期都跳一下，用户也不知道「还差什么才能生效」。
   Widget _applyBtn(bool ok, ThemeTokens tokens, ColorScheme scheme) {
-    return GestureDetector(
-      key: const ValueKey('df-apply'),
-      onTap: ok ? _applyCustom : null,
-      child: Container(
-        height: kDfPillH,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: ok ? tokens.accent.withValues(alpha: .10) : Colors.transparent,
-          border: Border.all(
-            color: ok
-                ? tokens.accent
-                : scheme.onSurfaceVariant.withValues(alpha: .25),
+    return Opacity(
+      opacity: ok ? 1 : .45,
+      child: GestureDetector(
+        key: const ValueKey('df-apply'),
+        onTap: ok ? _applyCustom : null,
+        child: Container(
+          height: kDfPillH,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: tokens.accent,
           ),
-        ),
-        child: Text(
-          '应用',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: ok
-                ? tokens.accent
-                : scheme.onSurfaceVariant.withValues(alpha: .45),
+          // 文字取 `onPrimary`（主色之上的前景），不写死白色——
+          // 写死不跟主题与深浅走，且会撞深色观感棘轮闸。
+          child: Center(
+            widthFactor: 1, // 同上：只收缩宽度，高度撑满并垂直居中
+            child: Text(
+              '应用',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: scheme.onPrimary,
+              ),
+            ),
           ),
         ),
       ),
@@ -690,4 +686,54 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
                   color: scheme.onPrimary)),
         ),
       );
+}
+
+/// 虚线圆角描边（原型 `.df-custom-in` 的 `border:1px dashed rgba(148,163,184,.55)`）。
+///
+/// Flutter 没有 dashed border：`_moreBtn` 当年退让成「低透明实线」，因为那只是弱提示；
+/// 但筛选的起止日期框里，虚线是原型用来表达「**还没填**」的语义（填了/进 custom 档就转实线
+/// 主色），退让会把这个状态抹掉，所以这里自绘。
+///
+/// 只描边不参与布局：由 `CustomPaint(painter:)` 画在子级背后，笔画落在内缩 0.5px 处，
+/// 避免被父级裁掉半条。
+class DashRRectPainter extends CustomPainter {
+  const DashRRectPainter({
+    required this.color,
+    this.radius = 10,
+    this.dash = 4,
+    this.gap = 3,
+  });
+
+  final Color color;
+  final double radius;
+  final double dash;
+  final double gap;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(.5, .5, size.width - 1, size.height - 1),
+      Radius.circular(radius),
+    );
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (final metric in (Path()..addRRect(rrect)).computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        final end = d + dash > metric.length ? metric.length : d + dash;
+        canvas.drawPath(metric.extractPath(d, end), paint);
+        d = end + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(DashRRectPainter old) =>
+      old.color != color ||
+      old.radius != radius ||
+      old.dash != dash ||
+      old.gap != gap;
 }
