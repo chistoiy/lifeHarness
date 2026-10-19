@@ -5,9 +5,12 @@ import '../../domain/tag.dart';
 
 /// 标签胶囊（批2b · 原型 `.dtag`）。
 ///
-/// 颜色只走语义色名 → 主题令牌（4 主题 × 明暗自动跟随），**禁写死色值**；
 /// 色名按标签在池内的次序轮转（[tagToneAt]），保证同一标签在筛选段与编辑页
-/// 拿到同一个色。
+/// 拿到同一个色。**accent/accentLight 两档走主题令牌**（4 主题 × 明暗自动跟随）；
+/// 余四档取语义色常量——原型 `--ok/--warn/--danger/--info` 在 Flutter 侧无对应
+/// 令牌（`assets/themes/*.json` 只有 accent/g1~g3/text1/2/ink），若改用
+/// `ColorScheme` 派生则六色全塌成同一色相、色点失去区分意义。四色与
+/// `calendar`/`care` 在用值同源，已登记 `color_ratchet_baseline.json`（4 处）。
 Color tagToneColor(String tone, ThemeTokens tokens) => switch (tone) {
       'emerald' => const Color(0xFF10B981),
       'amber' => const Color(0xFFF59E0B),

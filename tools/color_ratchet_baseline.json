@@ -53,6 +53,7 @@
  "lib/features/journal/presentation/widgets/md_view.dart": 1,
  "lib/features/journal/presentation/widgets/note_sheet_lang.dart": 1,
  "lib/features/journal/presentation/widgets/note_sheets.dart": 16,
+ "lib/features/journal/presentation/widgets/tag_chip.dart": 4,
  "lib/features/ledger/presentation/ledger_account_detail_page.dart": 2,
  "lib/features/ledger/presentation/ledger_add_page.dart": 2,
  "lib/features/ledger/presentation/ledger_assets_page.dart": 5,

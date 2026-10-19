@@ -250,8 +250,12 @@ class _TagEditSheetState extends ConsumerState<_TagEditSheet> {
                     key: const ValueKey('tg-edit-delete'),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(44),
-                      side: const BorderSide(color: Color(0xFFFB7185)),
-                      foregroundColor: const Color(0xFFE11D48),
+                      side: BorderSide(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withValues(alpha: .45)),
+                      foregroundColor: Theme.of(context).colorScheme.error,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
