@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/media_mounts.dart';
 import '../../../shared/linkage/read_mounts.dart';
 import '../../../shared/weather/weather.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
+import '../domain/diary_filter_kit.dart';
 import '../domain/journal_entry.dart';
 import '../../read/domain/book_quote.dart';
 import '../../read/presentation/read_providers.dart'
@@ -21,6 +21,7 @@ import 'note_edit_page.dart';
 import 'note_search.dart';
 import 'note_tab.dart';
 import 'widgets/diary_fan_fab.dart';
+import 'widgets/diary_filter_sheet.dart';
 import 'widgets/diary_review_sheet.dart';
 import '../../../shared/widgets/image_attach.dart' show showImageLightbox;
 import '../../../shared/widgets/scroll_pad.dart';
@@ -360,13 +361,13 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
   /// 顶行三枚图标已整行移除，筛选／设置只剩扇形这一条路，故两者做成**公开方法**
   /// 供外层 `JournalPage` 经 `GlobalKey` 调用（`ref`/`context` 都长在本 State 上）。
   Future<void> openFilter() {
-    final tags = <String>{
-      for (final e in (ref.read(journalsProvider).valueOrNull ??
-          const <JournalEntry>[]))
-        ...e.tags,
-    }.take(4).map((t) => '#$t').toList();
-    return diaryFilterSheet(
-        context, ref, ref.read(journalFilterProvider), tags);
+    final entries =
+        ref.read(journalsProvider).valueOrNull ?? const <JournalEntry>[];
+    // 批2c：标签清单**全量**——原 `.take(4)` 等于把第 5 个以后的标签藏了，
+    // 与「超一行折叠、点开看全量」直接冲突。排序只为让折叠次序稳定。
+    final tags = <String>{for (final e in entries) ...e.tags}.toList()..sort();
+    return showDiaryFilterSheet(context,
+        cur: ref.read(journalFilterProvider), tags: tags, entries: entries);
   }
 
   /// §4c-2：FAB 长按扇形里的「设置」入口（三档视图；FAB 开关已随本令下线，弹层里没有）。
@@ -448,15 +449,9 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
         ? filter
         : 'all';
 
-    final shown = switch (effFilter) {
-      'all' => entries,
-      'todo' => entries.where((e) => e.todoLines().isNotEmpty).toList(),
-      'starred' => entries.where((e) => e.starred).toList(),
-      'liked' => entries.where((e) => e.liked).toList(),
-      _ => entries
-          .where((e) => e.tags.any((t) => t == effFilter || '#$t' == effFilter))
-          .toList(),
-    };
+    // 批2c：改读 domain 的 `diaryHit`（弹层实时计数读的是同一个函数）。
+    // 两处各写一份筛选式，出过「弹层说筛出 3 篇、关掉弹层只剩 1 篇」的偏。
+    final shown = entries.where((e) => diaryHit(e, effFilter)).toList();
 
     // 日期轨道（批1a）：按生效筛选后的 [shown] 折日期块，筛选变了块也跟着变（不放 entries，
     // 否则「筛出 1 篇」时左栏仍显示全部日期——那与筛选语义直接冲突）。
@@ -873,72 +868,6 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
     if (counts.isEmpty) return '本月还没有心情记录';
     final top = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
     return '本月心情以 ${moodEmoji(top)} ${moodLabel(top)} 居多';
-  }
-
-  /// V1.29轮9g：筛选=底部浮层选择（全部/☐待办/标签·当前项✓）。
-  Future<void> diaryFilterSheet(
-      BuildContext context, WidgetRef ref, String cur, List<String> tags) async {
-    // 批1a：♥ 收藏 / ★ 点亮是**视图出口**，不是标签——放在「待办」后面固定位置，
-    // 与标签段之间靠文案区分（标签项自带 #，这两项不带）。
-    // 字形取符号级 ♥/★（U+2665/U+2605），与原型 DIARY_FILTERS 逐字一致；
-    // 禁用 ❤/⭐ 等 emoji 字形（emoji_triage 档③ 红灯，实现自造原型没有的表情）。
-    final opts = ['全部', '☐ 待办', '♥ 收藏', '★ 点亮', ...tags];
-    String valOf(String o) => switch (o) {
-          '全部' => 'all',
-          '☐ 待办' => 'todo',
-          '♥ 收藏' => 'starred',
-          '★ 点亮' => 'liked',
-          _ => o,
-        };
-    String labelOf(String v) => switch (v) {
-          'all' => '全部',
-          'todo' => '☐ 待办',
-          'starred' => '♥ 收藏',
-          'liked' => '★ 点亮',
-          _ => v,
-        };
-    final pick = await showModalBottomSheet<String>(
-      context: context,
-      builder: (bc) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Row(
-                children: [
-                  Text('筛选',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-                ],
-              ),
-            ),
-            for (final o in opts)
-              ListTile(
-                key: ValueKey('df-opt-$o'),
-                title: Row(
-                  children: [
-                    Text(o,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: valOf(o) == cur
-                                ? bc.tokens.accent
-                                : null)),
-                    if (valOf(o) == cur) ...[
-                      const Spacer(),
-                      Icon(Icons.check, size: 18, color: bc.tokens.accent),
-                    ],
-                  ],
-                ),
-                onTap: () => Navigator.of(bc).pop(o),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (pick == null) return;
-    // #27：筛选写 settings（持久化）。
-    ref.read(settingsControllerProvider.notifier).setJournalFilter(valOf(pick));
-    if (context.mounted) AppToast.show(context, '筛选：${labelOf(pick)}');
   }
 
   Widget card(BuildContext context, {required Widget child}) {

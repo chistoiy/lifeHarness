@@ -104,21 +104,24 @@ class _DiaryToolbarState extends State<DiaryToolbar> {
   }
 
   Widget _bubble(String tip, String key) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    // 反色气泡＝`inverseSurface` / `onInverseSurface`（浅档深底白字、深档白底深字）。
+    // 原先写死 `#0F172A` / `#E2E8F0` / `Colors.white` 三枚字面量，四主题 × 明暗下
+    // 不跟令牌走，还撞色值棘轮闸——反色语义本来就有现成令牌。
+    final scheme = Theme.of(context).colorScheme;
     return Positioned(
       bottom: 34,
       child: Container(
         key: ValueKey(key),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: dark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A),
+          color: scheme.inverseSurface,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(tip,
             style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: dark ? const Color(0xFF0F172A) : Colors.white)),
+                color: scheme.onInverseSurface)),
       ),
     );
   }

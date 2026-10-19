@@ -175,8 +175,8 @@ void main() {
       await openFan(tester);
       await tester.tap(find.byKey(const ValueKey('diary-fan-筛选')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('df-opt-☐ 待办')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('df-opt-☐ 待办')));
+      expect(find.byKey(const ValueKey('df-mark-todo')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('df-mark-todo')));
       await settle5(tester);
 
       expect(find.textContaining('买猫粮'), findsOneWidget);

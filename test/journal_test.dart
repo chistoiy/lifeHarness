@@ -396,18 +396,21 @@ void main() {
 
       await tapFan(tester, '筛选');
       expect(find.text('筛选'), findsOneWidget);
-      expect(find.byKey(const ValueKey('df-opt-全部')), findsOneWidget);
-      expect(find.byKey(const ValueKey('df-opt-☐ 待办')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('df-opt-☐ 待办')));
+      // 批2c：横排胶囊取代了原 48px 竖排 ListTile，键从 `df-opt-<文案>` 改为按筛选值取
+      expect(find.byKey(const ValueKey('df-mark-all')), findsOneWidget);
+      expect(find.byKey(const ValueKey('df-mark-todo')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('df-mark-todo')));
       await settle5(tester);
       // 仅含 ☐ 待办行的那篇可见
       expect(find.textContaining('买猫粮'), findsOneWidget);
       expect(find.textContaining('普通一天'), findsNothing);
-      // 再开浮层：当前项✓ + 可回全部
-      await tapFan(tester, '筛选');
-      await tester.tap(find.byKey(const ValueKey('df-opt-全部')));
+      // 批2c：选中**不关弹层**（要看实时计数），故直接再点「全部」回全量
+      expect(find.byKey(const ValueKey('df-count')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('df-mark-all')));
       await settle5(tester);
       expect(find.textContaining('普通一天'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('df-done')));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('INS 卡片流切换键：点 ❤️ 落库 liked', (tester) async {
