@@ -232,6 +232,19 @@ tailwind.config = {
   .df-chip.df-on,html.dark .df-chip.df-on{border-color:var(--accent);color:var(--accent);background:var(--accent-06);font-weight:600}
   html.dark .df-chip.df-on{background:var(--accent-12)}
   .df-chip.df-on svg{opacity:1}
+  /* 批2c（2026-10-19 产品令「标签超过一行就折叠成一行，点开展开全部」）：
+     标签池会越用越长，横排折行能把筛选弹层顶到两屏高。故标签段默认**只显示第一行**
+     （容器定高一行 + overflow:hidden），末尾一枚「展开全部 (N)」；展开后自然折行、按钮变「收起」。
+     max-height 不用——折叠态必须严格一行，中间值会露出半截胶囊像渲染坏了。 */
+  .df-tags{display:flex;flex-wrap:wrap;gap:8px}
+  .df-tags{position:relative}
+  .df-tags.df-fold{height:32px;overflow:hidden;flex-wrap:nowrap;align-items:center}
+  .df-more{height:32px;padding:0 12px;border-radius:16px;display:inline-flex;align-items:center;gap:5px;flex:none;
+    font-size:12px;font-weight:600;border:1px dashed rgba(148,163,184,.6);color:#64748B;background:transparent;transition:all .15s}
+  html.dark .df-more{border-color:rgba(255,255,255,.22);color:rgba(255,255,255,.62)}
+  .df-more:active{transform:scale(.96)}
+  .df-more svg{flex:none;transition:transform .18s}
+  .df-more.df-more-on svg{transform:rotate(180deg)}
   /* 自定义起止时间段：「三四年以前」这类任意跨度，8 档预设覆盖不到 ⇒ 补一对起止选择器。
      形态＝两枚日期框 + 短横 + 「应用」，整行等宽（flex:1），日期框用原生 date input 的只留文字的窄样式。 */
   .df-custom{display:flex;align-items:center;gap:8px}
@@ -1181,12 +1194,9 @@ tailwind.config = {
       <div class="row-title mt-3">展示方式</div>
       <!-- 批1c（2026-10-19 产品令）：三档改**横向排列**（三宫格等分·选中描边＋淡底） -->
       <div id="dsLayoutList" class="mt-2 grid grid-cols-3 gap-2"></div>
-      <div class="row-title mt-4">添加按钮</div>
-      <div class="mt-2 flex items-center justify-between rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60">
-        <div class="min-w-0"><div class="text-[13px] font-bold">显示右下角添加日记按钮</div>
-          <div class="text-[10px] text-slate-400 mt-0.5">关闭后改用本页右上角设置里进入</div></div>
-        <button id="dsFabSwitch" role="switch" aria-checked="true" onclick="diaryToggleFab()" class="ds-switch shrink-0 ml-3"><span></span></button>
-      </div>
+      <!-- 2026-10-19 产品令：「移除设置里的是否显示添加日记按钮」——该开关整块撤掉。
+           FAB 恒显示（摘要里「关掉后从别处进」的补偿说法一并失效：现在只有这一个写日记入口，不存在关掉的场景）。
+           代码侧 `dsShowFab` 恒真、`diaryToggleFab` 保留为空操作兼容位（历史调用点/旧断言不清）。 -->
     </div>
   </div>
   <!-- ===== 批2b 标签弹层（2026-10-19）· 选择/新建/管理三合一 =====
@@ -4282,6 +4292,8 @@ function dwShown(){return D.diary.map((_,i)=>i).filter(dwHit)}
    ⚠ 2026-10-19 修订：`label` 只放**纯文字**——原来把 `♥ 收藏` 整串当标签渲染，行首已经有一枚线性图标，
    文字前又多出一个 `♥`／`★`／`☐`／`#`，同一个符号出现两遍（产品实测指出）。`k` 仍带符号，
    因为它是筛选值、`D.diary[].tags` 与既有 `dwHit` 判定都按带符号串比对，不动数据层。 */
+/* 批2c：标签段是否展开（默认折叠一行；切一次筛选不重置——用户展开后就该一直展开） */
+let dfTagOpen=false;
 const DF_GROUPS=[
   {t:'标记', items:[
     {k:'全部',  label:'全部', ico:'<circle cx="12" cy="12" r="8"/>'},
@@ -4317,20 +4329,58 @@ function renderDiaryFilterSheet(){const m=$('#dfGroups');if(!m)return;
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${it.ico}</svg>
         <span>${it.label}</span></button>`}).join('')+`</div>`).join('')
     +renderDfTags();
-  renderDiaryRange();syncDiaryFilterBtn();}
+  renderDiaryRange();syncDiaryFilterBtn();
+  /* 批2c：标签段量一次「是否超一行」（必须在 innerHTML 落地之后，否则量到 0） */
+  try{renderDfTagsMoreInit()}catch(e){} }
 /* 批2b：筛选第二段＝标签池横排多选（AND）。池为空时给一行提示，不渲染空段。 */
 function renderDfTags(){
   const pool=diagPool();
   if(!pool.length)return `<div class="df-group-t">标签</div><div class="dr-note">还没有标签 · 在「我的 · 标签管理」或日记编辑页的「＋ 标签」新建</div>`;
   const poolNames=pool.map(t=>t.n);
   const TAG_ICO='<path d="M4 11.2V5.5A1.5 1.5 0 0 1 5.5 4h5.7c.4 0 .8.2 1.1.4l7.3 7.3a1.5 1.5 0 0 1 0 2.1l-5.7 5.7a1.5 1.5 0 0 1-2.1 0L4.4 12.3a1.5 1.5 0 0 1-.4-1.1Z"/><circle cx="8.3" cy="8.3" r="1.2"/>';
-  return '<div class="df-group-t">标签</div>'+
-    `<div class="flex flex-wrap gap-2 mb-1">`+
-    pool.map(t=>{
+  /* 批2c（2026-10-19 产品令）：标签超出一行即折叠，点「展开全部」再看全量。
+     判定「是否真的超一行」＝在折叠态下量容器 `scrollHeight > clientHeight`（.df-fold 定高一行、内容 nowrap），
+     量完再按结果决定要不要挂 `.df-fold` 与那枚按钮——不能用「标签数 > 4」这类硬编码去猜行宽。
+     ⚠ 先渲染展开态再收：顺序反了（先藏后量）量到的永远是 0。 */
+  const chips=pool.map(t=>{
       const on=diaryTags.indexOf(t.n)>=0;
       return `<button class="df-chip ${on?'df-on':''}" data-tag="${t.n}" aria-pressed="${on}" onclick="diaryTagToggle('${t.n}')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${TAG_ICO}</svg>
-        <span>${t.n}</span></button>`}).join('')+`</div>`;
+        <span>${t.n}</span></button>`}).join('');
+  const MORE_ICO='<path d="M6 9l6 6 6-6"/>';
+  const btn=over=>`<button class="df-more ${over?'df-more-on':''}" id="dfTagMore" aria-expanded="${over?'true':'false'}" onclick="dfTagMoreToggle()">
+      <span>${over?'收起':'展开全部 ('+pool.length+')'}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${MORE_ICO}</svg></button>`;
+  return '<div class="df-group-t">标签</div>'+
+    `<div class="df-tags mb-1${dfTagOpen?'':' df-fold'}" id="dfTagWrap">${chips}${dfTagOpen?btn(true):btn(false)}</div>`;
+}
+/* 标签段展开/收起。折叠态只在「真超一行」时显示按钮（超一行判定在 renderDfTagsMoreInit 里量）。 */
+function dfTagMoreToggle(){dfTagOpen=!dfTagOpen;renderDiaryFilterSheet();}
+/* 渲染后量一次：折叠态下内容被裁 ⇒ 露出「展开全部」；不超一行则按钮与裁剪一起撤掉（不占位、不多一行）。 */
+function renderDfTagsMoreInit(){
+  const w=$('#dfTagWrap');if(!w)return;
+  const m=$('#dfTagMore');
+  /* 展开态：按钮恒显（「收起」），不做超行判定。折叠态才量有没有溢出。 */
+  if(dfTagOpen){if(m)m.style.display='';w.classList.remove('df-fold');return}
+  /* ⚠ 量之前必须**同步**确认折叠类在位：DOM 里已按 `dfTagOpen` 挂好，但若哪条路径漏挂，
+     不裁一次量出来的 scrollHeight==clientHeight ⇒ 永远判「不超一行」，折叠整体失效（P1 实锤）。 */
+  /* ⚠ 测「有没有第二行」不能靠容器自身：`.df-fold` 是 nowrap + overflow:hidden，被裁掉的那几枚
+     **在布局阶段就被排除**，实测 openSheet 刚渲染完 sh=ch=32 恒不超；而让它们换行只能先解折叠，
+     解折叠后容器高度立刻变成两行（第二行 top=40）——判据又没了。
+     正解＝**容器宽度**判据：把胶囊逐个累加「宽 + 间距」，首个装不下而折行的位置就是第二行；
+     没有第二行 ⇒ 不折叠、不出按钮。这样不依赖任何「先裁再量」的时序，一行代码也不会误判。 */
+  let maxW=0;for(const c of w.children){if(c.id==='dfTagMore')continue;maxW=Math.max(maxW,c.offsetWidth);}
+  let run=0,lines=1;
+  for(const c of w.children){
+    if(c.id==='dfTagMore')continue;
+    const cw=c.offsetWidth;
+    if(run>0&&(run+8+cw)>maxW){lines++;run=cw;}
+    else{run=run>0?run+8+cw:cw;}
+    if(lines>1)break;
+  }
+  const over=lines>1;
+  if(m)m.style.display=over?'':'none';
+  if(over)w.classList.add('df-fold');else w.classList.remove('df-fold');
 }
 /* 口径 1「所有标签统一在【标签管理页】维护」：本页两处弹层只做**选择**，维护（新建/改名/合并/删除）
    一律指到标签管理页。日记专版是本专版的独立文档，故走真实跳转（同 `navTo('p-noteEdit')` 的既有先例）。 */
@@ -4652,11 +4702,12 @@ function diaryLayout(k){dlLayout=k;
 const DIARY_LAYOUT_LBL={track:'日期轨道',list:'列表',ins:'INS 卡片流'};
 const DS_KEY_FAB='lh.diary.showFab';
 /* 开关读取：缺省 true（默认打开） */
-function dsShowFab(){try{const v=localStorage.getItem(DS_KEY_FAB);return v===null?true:v==='1'}catch(e){return true}}
-function dsSetShowFab(on){try{localStorage.setItem(DS_KEY_FAB,on?'1':'0')}catch(e){}
-  const sw=$('#dsFabSwitch');if(sw)sw.setAttribute('aria-checked',on?'true':'false');
-  syncDiaryFab();toast(on?'已显示右下角添加日记按钮':'已隐藏右下角添加日记按钮');}
-function diaryToggleFab(){dsSetShowFab(!dsShowFab())}
+/* 2026-10-19 产品令：开关已从设置弹层移除 ⇒ `dsShowFab()` **恒真**，FAB 永远显示。
+   保留函数名与 `diaryToggleFab` 空操作位：历史断言/旧深链可能还会调到，删掉会整页抛 ReferenceError。
+   旧 localStorage 键 `lh.diary.showFab` 不再读取（残留值一律无视），也不再写。 */
+function dsShowFab(){return true}
+function dsSetShowFab(){/* 开关已撤，空操作兼容位 */}
+function diaryToggleFab(){/* 开关已撤，空操作兼容位 */}
 /* 日记页 FAB 开关生效：renderFab 里对 p-diaryHome 特判（见 FAB_CFG 段 syncDiaryFab 调用） */
 function syncDiaryFab(){if(curPage==='p-diaryHome')renderFab()}
 /* 批1c：三档横向排列＝三宫格（图标在上·名称在下·选中＝accent 描边＋淡底＋右上 ✓） */
@@ -4670,7 +4721,7 @@ function renderDiarySetSheet(){const m=$('#dsLayoutList');if(!m)return;
       class="relative flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-[11px] font-bold transition ${on?'ds-lay-on':'bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'}">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${DIARY_LAYOUT_ICO[k]}</svg>${DIARY_LAYOUT_LBL[k]}
       ${on?`<span class="absolute top-1 right-1.5 text-[10px]">✓</span>`:''}</button>`}).join('');
-  const sw=$('#dsFabSwitch');if(sw)sw.setAttribute('aria-checked',dsShowFab()?'true':'false');}
+}
 function diarySetLayout(k){diaryLayout(k);renderDiarySetSheet();}
 /* 日记改版批1：轨道档滚动时同步日期块吸顶（列表/INS 档不动） */
 (function(){const sc=()=>$('#p-diaryHome');let t=0;

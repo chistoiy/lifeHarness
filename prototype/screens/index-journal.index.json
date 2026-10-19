@@ -1,6 +1,6 @@
 {
  "file": "index-journal.html",
- "total": 384868,
+ "total": 387436,
  "cut": 0,
  "screens": [
   {
@@ -72,8 +72,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1011,
-   "hash": "b85c58df"
+   "size": 719,
+   "hash": "99699a69"
   },
   {
    "id": "sheetDiaryTag",
