@@ -1195,8 +1195,9 @@ tailwind.config = {
       <!-- 批1c（2026-10-19 产品令）：三档改**横向排列**（三宫格等分·选中描边＋淡底） -->
       <div id="dsLayoutList" class="mt-2 grid grid-cols-3 gap-2"></div>
       <!-- 2026-10-19 产品令：「移除设置里的是否显示添加日记按钮」——该开关整块撤掉。
-           FAB 恒显示（摘要里「关掉后从别处进」的补偿说法一并失效：现在只有这一个写日记入口，不存在关掉的场景）。
-           代码侧 `dsShowFab` 恒真、`diaryToggleFab` 保留为空操作兼容位（历史调用点/旧断言不清）。 -->
+           产品二次确认口径：**设置整个并进了右下角新建日记按钮（长按展开扇形：筛选／设置）**，
+           故 FAB 更不能被隐藏——它是写日记的唯一入口，也是设置/筛选的挂点；
+           「关掉后从别处进」的补偿说法彻底作废。代码侧 `dsShowFab` 恒真、`diaryToggleFab` 为空操作兼容位。 -->
     </div>
   </div>
   <!-- ===== 批2b 标签弹层（2026-10-19）· 选择/新建/管理三合一 =====
@@ -1577,8 +1578,9 @@ function goBack(){
 }
 function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; fabFanClose(); $('#fabMenu').classList.add('hidden'); hideTodoFabMenu(); hideNoteFabMenu(); }
 function renderFab(){const w=$('#fabWrap'),f=$('#fab'),c=FAB_CFG[curPage];
- /* 批1b：日记页右下角添加钮受设置开关控制（默认开）；关掉即整钮（含呼吸环）收起 */
- if(curPage==='p-diaryHome'&&!dsShowFab()){w.classList.add('hidden');w.classList.remove('flex');fabFanClose();return}
+ /* 2026-10-19 产品令（二次）：「设置整合到新建日记按钮里面了，就不能再隐藏新建日记按钮」——
+     日记页 FAB 上那层开关判断**整条删掉**（原 `!dsShowFab()` 就收起整钮含呼吸环）。功能已下线而非隐藏：
+     FAB 是日记页唯一的新建入口，扇形里又挂着筛选/设置，允许关掉会出现「设置也没了」的死角。 */
  if(curPage!=='p-todo')hideTodoFabMenu();
  if(!c){w.classList.add('hidden');w.classList.remove('flex');fabFanClose();return}
  /* 日记页：单击=新建日记（批1c）；其余页沿用 FAB_CFG 的 ico/行为 */
@@ -4702,9 +4704,11 @@ function diaryLayout(k){dlLayout=k;
 const DIARY_LAYOUT_LBL={track:'日期轨道',list:'列表',ins:'INS 卡片流'};
 const DS_KEY_FAB='lh.diary.showFab';
 /* 开关读取：缺省 true（默认打开） */
-/* 2026-10-19 产品令：开关已从设置弹层移除 ⇒ `dsShowFab()` **恒真**，FAB 永远显示。
-   保留函数名与 `diaryToggleFab` 空操作位：历史断言/旧深链可能还会调到，删掉会整页抛 ReferenceError。
-   旧 localStorage 键 `lh.diary.showFab` 不再读取（残留值一律无视），也不再写。 */
+/* 2026-10-19 产品令（二次确认）：「设置整合到新建日记按钮里面了」⇒ 该开关**功能下线**：
+   日记页 FAB 上是「单击新建 / 长按扇形（筛选·设置）」，FAB 本身是唯一新建入口，不能被隐藏。
+   故 `dsShowFab()` 恒真（`renderFab` 也不再拿它做判断）、`diaryToggleFab` 保留为空操作兼容位
+   （历史断言/旧深链可能还会调到，删掉会整页抛 ReferenceError）；旧键 `lh.diary.showFab`
+   不读不写，残留值一律无视。 */
 function dsShowFab(){return true}
 function dsSetShowFab(){/* 开关已撤，空操作兼容位 */}
 function diaryToggleFab(){/* 开关已撤，空操作兼容位 */}
