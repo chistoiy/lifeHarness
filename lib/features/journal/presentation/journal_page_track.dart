@@ -8,7 +8,6 @@ import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/journal_entry.dart';
 import 'diary_edit_page.dart' show DiaryEditArg;
 import 'journal_page.dart' show DiaryTabState;
-import 'journal_providers.dart';
 import 'widgets/diary_review_sheet.dart' show openDiaryPickSheet;
 import 'widgets/journal_layout_kit.dart';
 import 'widgets/journal_track_view.dart';
@@ -77,9 +76,7 @@ extension JournalTrackUI on DiaryTabState {
                     ),
                   );
                 }),
-                const SizedBox(height: 12),
-                trackToolbar(context, ref),
-                const SizedBox(height: 4),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -116,29 +113,6 @@ extension JournalTrackUI on DiaryTabState {
             ),
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 96)),
-      ],
-    );
-  }
-
-  /// 轨道档工具栏：与列表档同一组（筛选 + 设置）。图墙自带月份，故这里不再出档位名。
-  Widget trackToolbar(BuildContext context, WidgetRef ref) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        IconButton(
-          key: const ValueKey('diary-filter'),
-          tooltip: '筛选',
-          onPressed: () => diaryFilterSheet(
-              context, ref, ref.read(journalFilterProvider), const <String>[]),
-          icon: const Icon(Icons.filter_alt_outlined, size: 22),
-        ),
-        IconButton(
-          key: const ValueKey('diary-set'),
-          tooltip: '视图设置',
-          onPressed: () =>
-              showSetSheet(context, ref, ref.read(journalLayoutProvider)),
-          icon: const Icon(Icons.tune, size: 22),
-        ),
       ],
     );
   }

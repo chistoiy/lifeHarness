@@ -17,6 +17,7 @@ class GradFab extends StatelessWidget {
     super.key,
     required this.icon,
     required this.onTap,
+    this.onLongPress,
     this.tooltip,
     this.rotation = 0,
     this.size = 56,
@@ -24,6 +25,13 @@ class GradFab extends StatelessWidget {
 
   final Widget icon;
   final VoidCallback? onTap;
+
+  /// 长按（批1c：日记页长按展开筛选／设置扇形）。
+  ///
+  /// 不传＝零行为变化（InkWell 只在非 null 时注册长按识别器）。
+  /// 注意 InkWell **长按触发后不再补发 onTap**，所以「展开后再点一次收起」由调用方
+  /// 在 onLongPress 之后自行处理态（见 `journal_page.dart` 的 `_DiaryFanFab`）。
+  final VoidCallback? onLongPress;
   final String? tooltip;
 
   /// 菜单展开时传 45°（原型 fabTap 的旋转过渡）。
@@ -58,6 +66,7 @@ class GradFab extends StatelessWidget {
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: onTap,
+              onLongPress: onLongPress,
               child: Center(child: icon),
             ),
           ),

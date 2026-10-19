@@ -20,6 +20,7 @@ import 'journal_providers.dart';
 import 'note_edit_page.dart';
 import 'note_search.dart';
 import 'note_tab.dart';
+import 'widgets/diary_fan_fab.dart';
 import 'widgets/diary_review_sheet.dart';
 import '../../../shared/widgets/image_attach.dart' show showImageLightbox;
 import '../../../shared/widgets/scroll_pad.dart';
@@ -132,6 +133,9 @@ class JournalPage extends ConsumerStatefulWidget {
 }
 
 class JournalPageState extends ConsumerState<JournalPage> {
+  /// 日记段的状态外呼口（§4c-2：FAB 长按扇形里的筛选／设置两枚要调它）。
+  final GlobalKey<DiaryTabState> _diaryKey = GlobalKey<DiaryTabState>();
+
   /// 本帧生效的深链段：provider 落定前先按它渲染，避免「先闪日记再切段」。
   String? _linkTab;
 
@@ -263,22 +267,40 @@ class JournalPageState extends ConsumerState<JournalPage> {
       ),
       // 三态 FAB 共用同一枚白色 ＋：字面量在文件里只出现一次（本批加影音游分支时
       // 曾被各分支各抄一遍，深色观感棘轮按处数记账，收成一处才是真减少）。
+      //
+      // 日记段（§4c-2 产品令）：单击＝新建、**长按＝扇形（筛选／设置）**，
+      // 且日记主页顶行那三枚图标已整行移除——FAB 是这三件事的唯一入口。
       floatingActionButton: tab == 'note'
           ? const _NoteFab()
-          : GradFab(
-              tooltip: switch (tab) {
-                'book' => '新增摘录',
-                'media' => '新条目',
-                _ => '写今天的日记',
-              },
-              icon: const Icon(Icons.add, color: Colors.white, size: 26),
-              onTap: switch (tab) {
-                'book' => () => readTabFabTap(context, ref),
-                'media' => () => mediaTabFabTap(context, ref),
-                _ => () => context.push('/journal/edit',
-                    extra: const DiaryEditArg()),
-              },
-            ),
+          : tab == 'diary'
+              ? DiaryFanFab(
+                  // 测试与深链探针都按此 key 定位球体；丢了它整套扇形回归会「找不到元素」。
+                  key: const ValueKey('diary-fan-fab'),
+                  onNewDiary: () => context.push('/journal/edit',
+                      extra: const DiaryEditArg()),
+                  onFilter: () {
+                    final st = _diaryKey.currentState;
+                    if (st != null) st.openFilter();
+                  },
+                  onSettings: () {
+                    final st = _diaryKey.currentState;
+                    if (st != null) st.openSettings();
+                  },
+                )
+              : GradFab(
+                  tooltip: switch (tab) {
+                    'book' => '新增摘录',
+                    'media' => '新条目',
+                    _ => '写今天的日记',
+                  },
+                  icon: const Icon(Icons.add, color: Colors.white, size: 26),
+                  onTap: switch (tab) {
+                    'book' => () => readTabFabTap(context, ref),
+                    'media' => () => mediaTabFabTap(context, ref),
+                    _ => () => context.push('/journal/edit',
+                        extra: const DiaryEditArg()),
+                  },
+                ),
       // 批6①（工单 §2 · 2026-10-12）：四段（日记/笔记/阅读/影音游）切换＝180ms
       // 淡入＋微上移（〇B 微动档 120~180ms·easeOut；原 `switch(tab)` 是硬切）。
       // 每段带 key：阅读/影音游两个工作台若返回同型 widget，无 key 时 AnimatedSwitcher
@@ -297,8 +319,9 @@ class JournalPageState extends ConsumerState<JournalPage> {
           ),
         ),
         child: switch (tab) {
-          'diary' => const KeyedSubtree(
-              key: ValueKey('rec-body-diary'), child: DiaryTab()),
+          'diary' => KeyedSubtree(
+              key: const ValueKey('rec-body-diary'),
+              child: DiaryTab(key: _diaryKey)),
           'note' =>
             const KeyedSubtree(key: ValueKey('rec-body-note'), child: NoteTab()),
           'book' => KeyedSubtree(
@@ -331,6 +354,24 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
   /// 图墙当前查看月（按偏移算出来，避免各处自己 `DateTime(now.year, now.month+k)` 算错）。
   DateTime wallMonthOf(DateTime now) =>
       DateTime(now.year, now.month + _wallMonthOff);
+
+  /// §4c-2：FAB 长按扇形里的「筛选」入口。
+  ///
+  /// 顶行三枚图标已整行移除，筛选／设置只剩扇形这一条路，故两者做成**公开方法**
+  /// 供外层 `JournalPage` 经 `GlobalKey` 调用（`ref`/`context` 都长在本 State 上）。
+  Future<void> openFilter() {
+    final tags = <String>{
+      for (final e in (ref.read(journalsProvider).valueOrNull ??
+          const <JournalEntry>[]))
+        ...e.tags,
+    }.take(4).map((t) => '#$t').toList();
+    return diaryFilterSheet(
+        context, ref, ref.read(journalFilterProvider), tags);
+  }
+
+  /// §4c-2：FAB 长按扇形里的「设置」入口（三档视图；FAB 开关已随本令下线，弹层里没有）。
+  Future<void> openSettings() =>
+      showSetSheet(context, ref, ref.read(journalLayoutProvider));
 
   /// 翻月：`-1` 上一月 / `+1` 下一月，范围 `[本月-24, 本月]`（不只是当月，未来没有日记）。
   void wallStep(BuildContext context, int delta) {
@@ -397,10 +438,8 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
     final insMode = layout == kJournalLayoutIns;
     final entries = entriesAsync.valueOrNull ?? const <JournalEntry>[];
 
-    final tags = <String>{
-      for (final e in entries) ...e.tags,
-    }.take(4).map((t) => '#$t').toList();
-
+    // §4c-2：原顶行三枚图标（含筛选钮）已移除，`tags` 在 build 里不再用——
+    // 筛选弹层的标签清单改由 `openFilter()` 现算（见本类同名方法），避免两处各拼一份。
     // #27：持久化的筛选键若指向已不存在的标签（改名/删除后冷启动）回落 'all'。
     final rawTags = <String>{for (final e in entries) ...e.tags};
     // 批1a：新增两个固定键 starred（收藏）/ liked（点亮），与 todo 同族——不吃标签白名单。
@@ -428,7 +467,8 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
         : const <TrackDayBlock>[];
 
     final now = DateTime.now();
-    final today = entries.where((e) => JournalEntry.sameDay(e.day, now)).firstOrNull;
+    // §4b-4：`today`（当日最新一篇）原为「写今天的日记」入口卡的副标题服务
+    //（「今日已写 N 字」）；入口卡整行移除后它已无消费者，一并删掉。
     final monthEntries =
         entries.where((e) => e.day.year == now.year && e.day.month == now.month).toList();
 
@@ -611,93 +651,15 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
         );
         }
         if (i == 1) return const SizedBox(height: 12);
-        if (i == 2) {
-          return card(
-            context,
-            // 写今天的日记（原型入口卡）
-          child: InkWell(
-            borderRadius: BorderRadius.circular(tokens.cardRadius),
-            onTap: () => context.push('/journal/edit', extra: const DiaryEditArg()),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: tokens.accent.withValues(alpha: .1),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: const Text('✍️', style: TextStyle(fontSize: 18)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('写今天的日记',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                        Text(
-                          today == null
-                              ? '开始今天的记录 · 输入 ☐ 可插入待办'
-                              : '今日已写 ${today.plainBody.length} 字 · 继续编辑',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color:
-                                  Theme.of(context).colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Text('›', style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
-          ),
-        );
-        }
+        // §4b-4ï¼äº§åä»¤ï¼ï¼ãåä»å¤©çæ¥è®°ãå¥å£å¡
+        // æ´è¡ç§»é¤ï¼å³ä¸è§ FAB å·²è¦çåä¸å¥å£ï¼åå¥å£åä½ï¼ã
+        // ç©ºä½ä¿çï¼ä¸æ¹ç¯å¡ç i-6 ç´¢å¼ä¸å¾åã
+        if (i == 2) return const SizedBox.shrink();
         if (i == 3) return const SizedBox(height: 12);
-        if (i == 4) {
-          // 批1a：三档视图收进「设置」等宽胶囊（原单枚切换钮是三态互转的伪操作——两态之间来回点
-          // 永远到不了第三档）；`diary-view` 这一枚保留为「快速切 INS／列表」的熟路快捷键，
-          // 三档全集在设置弹层里。既有断言（点一枚能进 INS）因此继续成立。
-          return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            if (layout != kJournalLayoutTrack)
-              IconButton(
-                key: const ValueKey('diary-view'),
-                tooltip: insMode ? '切换到列表' : '切换到 INS 卡片流',
-                onPressed: () => ref
-                    .read(settingsControllerProvider.notifier)
-                    .setJournalLayout(
-                        insMode ? kJournalLayoutList : kJournalLayoutIns),
-                icon: Icon(insMode ? Icons.menu : Icons.grid_view, size: 22),
-              ),
-            IconButton(
-              key: const ValueKey('diary-set'),
-              tooltip: '视图设置',
-              onPressed: () => showSetSheet(context, ref, layout),
-              icon: const Icon(Icons.tune, size: 22),
-            ),
-            IconButton(
-              key: const ValueKey('diary-filter'),
-              tooltip: '筛选',
-              onPressed: () => diaryFilterSheet(context, ref, filter, tags),
-              icon: Icon(
-                filter == 'all'
-                    ? Icons.filter_alt_outlined
-                    : Icons.filter_alt,
-                size: 22,
-                color: filter == 'all'
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
-                    : tokens.accent,
-              ),
-            ),
-          ],
-        );
-        }
+        // §4c-2产品令：顶行三枚图标（切换档／设置／筛选）整行移除，
+        // 入口只留右下角 FAB（单击新建／长按扇形）。
+        // 空位保留：下方篇卡的 i-6 索引不得变。
+        if (i == 4) return const SizedBox.shrink();
         if (i == 5) return const SizedBox(height: 2);
         if (shown.isEmpty) {
           if (i == 6) {

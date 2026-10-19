@@ -74,6 +74,11 @@ class _GatedJournalRepo extends JournalRepository {
   }
 }
 
+/// 回顾弹层月份标签。原型 `.dr-month` 是 `YYYY-MM`（如 `2026-10`），
+/// 不是中文 `YYYY年M月` —— 2026-10-19 治理批对齐时改的，别改回中文，否则与原型不符。
+String _ml(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}';
+
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -114,8 +119,37 @@ void main() {
           noteDaoProvider.overrideWithValue(NoteDao(db)),
           if (wx != null) weatherServiceProvider.overrideWithValue(wx),
         ],
-        child: MaterialApp(home: home),
+        // **必须关动画**：日记页 FAB 有「呼吸环」无限循环动画（原型 `#fabHalo`
+        // 4s 一来回），`pumpAndSettle` 会一直等不到静止而超时。`disableAnimations`
+        // 就是原型 `prefers-reduced-motion` 的 Flutter 对应物，组件里已有停环分支。
+        child: MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: home,
+          ),
+        ),
       );
+
+  /// §4c-2 之后：顶行的档位/设置/筛选三枚图标**已整行移除**，三者只剩
+  /// 「FAB 长按扇形」一条路。测试统一走这里，别再去点顶行。
+  Future<void> openDiaryFan(WidgetTester tester) async {
+    await tester.longPress(find.byKey(const ValueKey('diary-fan-fab')));
+    await tester.pumpAndSettle();
+  }
+
+  /// 长按展开扇形后点其中一枚（`label` ∈ {筛选, 设置}）。
+  Future<void> tapFan(WidgetTester tester, String label) async {
+    await openDiaryFan(tester);
+    await tester.tap(find.byKey(ValueKey('diary-fan-$label')));
+    await tester.pumpAndSettle();
+  }
+
+  /// 经扇形切到指定视图档（替代原 `diary-view` 一键切换）。
+  Future<void> switchLayout(WidgetTester tester, String k) async {
+    await tapFan(tester, '设置');
+    await tester.tap(find.byKey(ValueKey('dset-$k')));
+    await tester.pumpAndSettle();
+  }
 
   group('JournalRepository（M0 业务③）', () {
     test('V1.28 一天多篇：save 无 id=新增一篇；带 id=更新该篇', () async {
@@ -315,7 +349,8 @@ void main() {
       expect(find.text('记录 · 日记'), findsOneWidget);
       expect(find.text('📔 日记'), findsNothing); // 段切换行已移除
       expect(find.byKey(const ValueKey('rec-switch')), findsOneWidget);
-      expect(find.text('写今天的日记'), findsOneWidget);
+      // §4b-4（产品令）：「写今天的日记」入口卡已整行移除（FAB 覆盖同一入口）
+      expect(find.text('写今天的日记'), findsNothing);
       expect(find.textContaining('已记录 1 篇'), findsOneWidget);
       expect(find.textContaining('连续记录 1 天'), findsOneWidget);
       expect(find.textContaining('今天跑了 5 公里'), findsOneWidget);
@@ -353,16 +388,13 @@ void main() {
       await tester.pumpWidget(scope(const JournalPage()));
       await tester.pumpAndSettle();
 
-      // 行内顺序：切换钮在左、筛选钮在右
-      final vx = tester.getRect(find.byKey(const ValueKey('diary-view'))).center.dx;
-      final fx = tester
-          .getRect(find.byKey(const ValueKey('diary-filter')))
-          .center
-          .dx;
-      expect(fx, greaterThan(vx));
+      // §4c-2：顶行三枚图标已整行移除，筛选只剩 FAB 长按扇形一条路——
+      // 这里改为「断言顶行确实没了 + 扇形里能开到筛选」。
+      expect(find.byKey(const ValueKey('diary-view')), findsNothing);
+      expect(find.byKey(const ValueKey('diary-set')), findsNothing);
+      expect(find.byKey(const ValueKey('diary-filter')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('diary-filter')));
-      await tester.pumpAndSettle();
+      await tapFan(tester, '筛选');
       expect(find.text('筛选'), findsOneWidget);
       expect(find.byKey(const ValueKey('df-opt-全部')), findsOneWidget);
       expect(find.byKey(const ValueKey('df-opt-☐ 待办')), findsOneWidget);
@@ -372,8 +404,7 @@ void main() {
       expect(find.textContaining('买猫粮'), findsOneWidget);
       expect(find.textContaining('普通一天'), findsNothing);
       // 再开浮层：当前项✓ + 可回全部
-      await tester.tap(find.byKey(const ValueKey('diary-filter')));
-      await tester.pumpAndSettle();
+      await tapFan(tester, '筛选');
       await tester.tap(find.byKey(const ValueKey('df-opt-全部')));
       await settle5(tester);
       expect(find.textContaining('普通一天'), findsOneWidget);
@@ -388,7 +419,7 @@ void main() {
       await tester.pumpWidget(scope(const JournalPage()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('diary-view')));
+      await switchLayout(tester, 'ins');
       await tester.pumpAndSettle();
       // 演示残留批：INS 卡头改读昵称 helper（未设置回落「本地用户」，原硬编 CHIST）。
       expect(find.text('本地用户 · ${_two(DateTime.now().month)}-${_two(DateTime.now().day)}'),
@@ -734,7 +765,7 @@ void main() {
       await useSurface(tester);
       await tester.pumpWidget(scope(const JournalPage()));
       await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('diary-view'))); // 切 INS
+      await switchLayout(tester, 'ins'); // 切 INS
       await settle5(tester);
 
       expect(find.byKey(ValueKey('ins-img-${e.id}-0')), findsOneWidget);
@@ -876,7 +907,7 @@ void main() {
       await useSurface(tester);
       await tester.pumpWidget(scope(const JournalPage()));
       await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('diary-view')));
+      await switchLayout(tester, 'ins');
       await settle5(tester);
 
       await tester.longPress(find.text('本地用户 · ${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}'));
@@ -919,25 +950,74 @@ void main() {
       await tester.tap(find.text('📊 回顾'));
       await settle5(tester);
       expect(find.text('回顾'), findsOneWidget);
-      expect(find.text('${now.year}年${now.month}月'), findsOneWidget);
+      expect(find.text(_ml(now)), findsOneWidget);
       expect(find.byKey(const ValueKey('dr-trend')), findsOneWidget);
       expect(find.byKey(const ValueKey('dr-legend')), findsOneWidget);
       expect(find.textContaining('本月记录 3 篇'), findsOneWidget);
       // 词云：中文 2-gram 高频词（跑步=3 次 → 中号字）
       expect(find.text('跑步'), findsOneWidget);
       // 去年本月卡（弹层与背后列表各一份预览 → findsWidgets）
-      expect(find.text('去年${now.month}月 · 共 1 篇'), findsOneWidget);
+      expect(find.text('那年今日'), findsOneWidget);
+      expect(find.text('1 年前 · ${now.month.toString().padLeft(2, '0')}-05'), findsOneWidget);
       expect(find.textContaining('一年前的今天'), findsWidgets);
 
       // 切到上月再回来：月标签联动、空月摘要兜底
       await tester.tap(find.byKey(const ValueKey('dr-prev')));
       await settle5(tester);
       final prev = DateTime(now.year, now.month - 1);
-      expect(find.text('${prev.year}年${prev.month}月'), findsOneWidget);
+      expect(find.text(_ml(prev)), findsOneWidget);
       expect(find.textContaining('本月还没有记录'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('dr-next')));
       await settle5(tester);
-      expect(find.text('${now.year}年${now.month}月'), findsOneWidget);
+      expect(find.text(_ml(now)), findsOneWidget);
+    });
+
+    testWidgets('2c-2 治理批口径：卡片去边框 / 图例只三档 / 词云标题 / 趋势高 56',
+        (tester) async {
+      final now = DateTime.now();
+      await jrepo.save(JournalEntry(
+          day: DateTime(now.year, now.month, 3),
+          mood: 4,
+          content: '骑车去湖边',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const JournalPage()));
+      await settle5(tester);
+      await tester.tap(find.text('📊 回顾'));
+      await settle5(tester);
+
+      // ① 原型文案「词云 · 本月高频」（原实现写的是「高频词云」）
+      expect(find.text('词云 · 本月高频'), findsOneWidget);
+      expect(find.text('高频词云'), findsNothing);
+
+      // ② 心情图例只三档（原型治理件明确删掉那一排 7 枚连续表情）
+      final legend = find.byKey(const ValueKey('dr-legend'));
+      expect(legend, findsOneWidget);
+      expect(
+          find.descendant(of: legend, matching: find.byType(Text)),
+          findsNWidgets(3),
+          reason: '图例应只低落/一般/愉悦三档，多出来说明又退回 7 枚全列');
+
+      // ③ 趋势图高 56（原型 h-14）；原实现 96 太高
+      expect(tester.getSize(find.byKey(const ValueKey('dr-trend'))).height, 56);
+
+      // ④ 卡片去边框：原实现 `Border.all(cardBorder)` 是治理件点名要删的。
+      //    直接扫渲染层 DecoratedBox 的 BoxDecoration 里有没有 border。
+      final cards = tester
+          .widgetList<Container>(find.byType(Container))
+          .where((c) => c.decoration is BoxDecoration)
+          .map((c) => c.decoration as BoxDecoration)
+          .where((d) => d.borderRadius == BorderRadius.circular(16));
+      expect(cards, isNotEmpty, reason: '没找到卡片，断言失效');
+      for (final d in cards) {
+        expect(d.border, isNull, reason: '治理批要求卡片无边框（改极淡阴影浮起）');
+      }
+
+      // ⑤ 月份标签是 YYYY-MM 而不是中文年月
+      expect(find.text(_ml(now)), findsOneWidget);
+      expect(find.text('${now.year}年${now.month}月'), findsNothing);
+      await drainLogTimer(tester);
     });
   });
 
@@ -1385,7 +1465,14 @@ void main() {
           readRepositoryProvider.overrideWithValue(ReadRepository(db)),
           noteDaoProvider.overrideWithValue(NoteDao(db)),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        // 同 `scope()`：关动画，否则呼吸环的无限循环让 `settle5` 永远等不到静止。
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
       ));
       router.go('/journal');
       await tester.pump();
@@ -1435,12 +1522,13 @@ void main() {
       await settle5(tester);
       await tester.tap(find.byKey(const ValueKey('dr-next')));
       await settle5(tester);
-      expect(find.text('${now.year}年${now.month}月'), findsOneWidget,
+      expect(find.text(_ml(now)), findsOneWidget,
           reason: '当月=上界，再点不得越界');
-      // disabled IconButton 仍有 RenderBox（hitTestable 不为空），断言 onPressed 已置空
+      // disabled 钮仍有 RenderBox（hitTestable 不为空），断言 onTap 已置空。
+      // 2026-10-19 治理对齐：月份钮从 `IconButton`（48×48）换成原型 `.dr-navbtn`
+      // 的 `InkResponse`（32×32 圆角 10），这里同步断言载体。
       expect(
-          tester.widget<IconButton>(find.byKey(const ValueKey('dr-next')))
-              .onPressed,
+          tester.widget<InkResponse>(find.byKey(const ValueKey('dr-next'))).onTap,
           isNull,
           reason: '上界处禁用›（对齐原型 drMonth off≤0）');
       await drainLogTimer(tester);

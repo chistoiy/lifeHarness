@@ -63,8 +63,15 @@ void main() {
     await bus.dispose();
   });
 
+  /// 关动画：日记页 FAB 的呼吸环是无限循环动画，`pumpAndSettle` 会等不到静止。
   Widget wrap(Widget home) => UncontrolledProviderScope(
-      container: container, child: MaterialApp(home: home));
+      container: container,
+      child: MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: home,
+        ),
+      ));
 
   /// 只挂 journal 域壳路由：验查询参 → 构造参数这一段接线。
   Future<GoRouter> pumpRouter(WidgetTester tester, String url) async {
@@ -87,7 +94,9 @@ void main() {
           'book',
           reason: '路由未把查询参交给页面，宫格点了仍停默认段');
       expect(find.text('记录 · 阅读'), findsOneWidget);
-      expect(find.byKey(const ValueKey('diary-view')), findsNothing,
+      // §4c-2 后顶行三枚图标已整行移除，改用日记段 FAB 作「日记段是否构建」的探针
+      // （日记段未构建 ⇒ 树上不会有这枚钮；其 key 仅在日记段 FAB 出现）。
+      expect(find.byKey(const ValueKey('diary-fan-fab')), findsNothing,
           reason: '仍画日记段 = 深链没生效');
 
       // ③ 微任务落定后 provider 与视图同源：再推两帧不得回弹。
