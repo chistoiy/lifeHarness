@@ -17,6 +17,7 @@ import 'schema/media.dart' as md;
 import 'schema/mindmap.dart' as mm;
 import 'schema/nfc.dart' as nf;
 import 'schema/read.dart' as r;
+import 'schema/tag.dart' as tg;
 import 'schema/xray.dart' as x;
 class DbSchema {
   const DbSchema._();
@@ -74,7 +75,11 @@ class DbSchema {
   // 49：NFC 卡片批1b（2026-10-17）——migrations[48]（48→49）给 nfc_cards 加三列
   // （desc_text/color/target_sub，纯 ALTER 加列零搬数据）；基础 DDL 同步升为 v49
   // 全量口径（三列追加在列尾），mig[47] 改用 v48 老口径语句表防直升撞列。
-  static const int version = 49;
+  // 50：日记改版批2b（2026-10-19）——migrations[49]（49→50）建 `tags` / `tag_links`
+  // 两表（标签池全局唯一 + 按 id 关联；新表只建零搬数据；历史 `journal_entries.tags`
+  // 的名字由 `TagDao.seedFromJournalTags` 懒导入，不在 SQL 里解析 JSON）。
+  // 同 v49 教训：版本常量与 migrations 最高键必须同批同步。
+  static const int version = 50;
  
 
   
@@ -365,6 +370,8 @@ class DbSchema {
     // V1.68 NFC 卡片批1：nfc_cards 一张表；批1b 起基础 DDL 走 v49 全量口径
     // （含 desc_text/color/target_sub 三列），mig[47] 走 v48 老口径（见 schema/nfc.dart 段注）。
     ...nf.nfcSchemaStatements,
+    // 批2b 标签体系：tags / tag_links 两表（与 mig[49] 同源一份语句表，见 schema/tag.dart）。
+    ...tg.tagSchemaStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart
@@ -468,6 +475,8 @@ class DbSchema {
   static const String tXrayMention = x.tXrayMention;  // G5: xray.dart
   static const String tXrayUserdict = x.tXrayUserdict;  // G5: xray.dart
   static const List<String> xraySchemaStatements = x.xraySchemaStatements;  // G5: xray.dart
+  static const String tTags = tg.tTags;  // 批2b: tag.dart
+  static const String tTagLinks = tg.tTagLinks;  // 批2b: tag.dart
   static final Map<int, List<String>> migrations = {
     // V1.58 小工具整模块下架（产品负责人 2026-09-30 拍板「模块价值太低」）：
     // v29→v30 删除 kit_* 四表。索引随表自动删除，无需单独 DROP；
@@ -493,5 +502,6 @@ class DbSchema {
     ...md.mig,
     ...mm.mig,
     ...nf.mig,
+    ...tg.mig,
   };
 }

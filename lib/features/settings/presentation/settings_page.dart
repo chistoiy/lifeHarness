@@ -118,6 +118,18 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '',
                     divider: hairline,
                     onTap: () => context.push('/categories')),
+                // 批2b 标签管理（原型我的页「记录」组，紧邻分类管理）：
+                // 池全局唯一，日记/笔记页只做选择，增删改只在这一页。
+                _EntryRow(
+                    key: const ValueKey('entry-tags'),
+                    iconWidget: const Icon(Icons.sell_outlined,
+                        size: 18, color: Color(0xFF0EA5E9)),
+                    bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
+                    title: '标签管理',
+                    sub: '日记 / 笔记 / 时间 / 公共 · 按场景分区',
+                    trailing: '',
+                    divider: hairline,
+                    onTap: () => context.push('/tags')),
                 // 记录管理（原型 p-profile 在组卡内）：2026-10-11 批A 由独立单行卡收回组卡。
                 _EntryRow(
                     key: const ValueKey('entry-recmg'),

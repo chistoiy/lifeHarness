@@ -6,14 +6,39 @@ import '../data/diary_template_dao.dart';
 import '../data/journal_dao.dart';
 import '../data/note_dao.dart';
 import '../data/note_folder_dao.dart';
+import '../data/tag_dao.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import '../domain/journal_repository.dart';
 import '../domain/note.dart';
 import '../domain/note_folder.dart';
+import '../domain/tag.dart';
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository(JournalDao(AppDatabase.instance.db));
+});
+
+/// 标签池 DAO（批2b · 池全局唯一，写操作全在这里）。
+final tagDaoProvider =
+    Provider<TagDao>((ref) => TagDao(AppDatabase.instance.db));
+
+/// 标签池（含全仓引用计数）。
+///
+/// 读前先跑一次历史标签懒导入：老库升级到 v50 后 `journal_entries.tags` 里的
+/// 名字要靠它进池（幂等，判据见 `TagDao.seedFromJournalTags`）。
+/// 放在 provider 而不是迁移 SQL 里：迁移只支持纯语句，解析 JSON 得靠 Dart。
+final tagPoolProvider = FutureProvider<List<Tag>>((ref) async {
+  final dao = ref.watch(tagDaoProvider);
+  await dao.seedFromJournalTags();
+  return dao.list();
+});
+
+/// 日记侧可用标签（口径③：只列 scopes 含 diary 的）。
+///
+/// 与 [tagPoolProvider] 分开是给编辑页/筛选用的——它们不该看见只属笔记/时间的标签。
+final diaryTagPoolProvider = FutureProvider<List<Tag>>((ref) async {
+  final all = await ref.watch(tagPoolProvider.future);
+  return [for (final t in all) if (t.appliesTo('diary')) t];
 });
 
 /// 日记模板（V1.28 真结构：diary_templates + template_sections）。

@@ -65,7 +65,9 @@ void main() {
     // 之后只许减。
     // dashboard_page 已还债：1204→1200 落到默认 1200 面（时间模块 B10 5700dff9 删旧 events
     // 系接线），按口径「拆完删项」**删除登记**（阅读模块批2 · 2026-10-14 跑出 stale 提醒）。
-    'features/settings/presentation/settings_page.dart': 1608,
+    // 1608→1620（批2b·2026-10-19）：我的页「记录」组加「标签管理」入口行（净 +12）。
+    // 同存量越线一并只许减；真还债＝拆 part（另批）。
+    'features/settings/presentation/settings_page.dart': 1620,
     // 高保真批6b·刀1（2026-10-16）归还批2 登记的 read_sheets_b2 体积债：
     // _BookForm/_BookFormState 整组迁入同库 part read_sheets_b2_form.dart（小件群落扩展），
     // 主文件 1806→716，按口径删登记项还默认面。

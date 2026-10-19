@@ -173,6 +173,9 @@ const Map<String, ({String label, String module})> dbTableLabels = {
   'journal_sections': (label: '日记分节', module: '日记'),
   'diary_templates': (label: '日记模板', module: '日记'),
   'template_sections': (label: '模板分节', module: '日记'),
+  // 批2b 标签体系：池本体 + 按 id 关联（日记/笔记/时间共用一份池）。
+  'tags': (label: '标签池', module: '日记'),
+  'tag_links': (label: '标签引用', module: '日记'),
   // —— 笔记 ——
   'notes': (label: '笔记', module: '笔记'),
   'note_snapshots': (label: '版本快照', module: '笔记'),

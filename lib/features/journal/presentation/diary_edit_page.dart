@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/ai/ai_review.dart';
@@ -15,8 +16,11 @@ import '../../../shared/weather/weather_visual.dart';
 import '../domain/diary_edit_kit.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
+import '../domain/tag.dart';
 import 'journal_providers.dart';
+import 'tag_pick_sheet.dart';
 import 'widgets/diary_mood_rail.dart';
+import 'widgets/diary_tag_row.dart';
 import 'widgets/diary_toolbar.dart';
 import 'widgets/diary_tpl_create_sheet.dart';
 import 'widgets/mm_card_block.dart';
@@ -75,6 +79,12 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   double? _wxMin;
   bool _wxManual = false;
 
+  /// 批2b：本篇标签（池内名字，不带 `#`）。
+  ///
+  /// 与「正文 #词」是**两个来源**：保存时合并去重（见 `JournalRepository.save`）。
+  /// 正文删词不再自动删标签——标签行可见可删，用户有显式出口。
+  List<String> _tags = const [];
+
   @override
   void initState() {
     super.initState();
@@ -104,6 +114,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       _wxMax = e?.tempMax;
       _wxMin = e?.tempMin;
       _wxManual = e?.weatherManual ?? false;
+      _tags = [...?e?.tags];
       if (defs != null) {
         _applySections(
             defs.$2, bodies: e!.sections.map((s) => s.body).toList());
@@ -613,6 +624,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       id: _existing?.id,
       day: _day,
       mood: _mood,
+      // 批2b：标签行显式选择（保存时与正文 #词合并去重）
+      tags: _tags,
       // 批2b：自由书写=富文本 Delta JSON（kind=rich·图片为内嵌 embed）；
       // 结构化篇 content 由仓储按分节渲染快照，kind 回落 ''。
       content: secs.isEmpty ? _richJson : '',
@@ -657,6 +670,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   /// 返回钮与系统返回仍走退出路径。[keepPage] 时也不弹节数 toast（由调用方出一句「手记已保存」）。
   bool get _hasInput =>
       _mood != null ||
+      _tags.isNotEmpty ||
       _secCtrls.any((c) => c.text.trim().isNotEmpty) ||
       (_richCtl?.document.toPlainText().trim().isNotEmpty ?? false);
 
@@ -831,6 +845,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     // B10（2026-10-13 裁决）：events 并入块表退役——今日概览改读当日时间块单源。
     final dayBlocks = ref.watch(dayBlocksProvider(_day)).valueOrNull ??
         const <TimeBlock>[];
+    // 批2b：日记侧可用标签（池里 scopes 含 diary 的那些）。
+    final tagPool = ref.watch(diaryTagPoolProvider).valueOrNull ?? const <Tag>[];
 
     return PopScope(
       // 修复批（评估件 #3）：退出拦截 flush 尾稿（对齐笔记编辑页批3 同款）。
@@ -880,6 +896,30 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
             moreOpen: _moodMoreOpen,
             onToggleMore: () => setState(() => _moodMoreOpen = !_moodMoreOpen),
             onMood: _pickMood,
+          ),
+          // 批2b：标签行（心情轨之下、正文之上，原型 `#diaryTagRow` 同位）
+          DiaryTagRow(
+            tags: _tags,
+            pool: tagPool,
+            onRemove: (n) => setState(() {
+              _tags = [for (final t in _tags) if (t != n) t];
+              _dirty = true;
+            }),
+            onAdd: () => showDiaryTagSheet(
+              context: context,
+              ref: ref,
+              selected: _tags,
+              onChanged: (v) => setState(() {
+                _tags = v;
+                _dirty = true;
+              }),
+              // 「管理 ›」：池的唯一维护入口。先收起弹层再进管理屏
+              // （弹层是 root navigator 上的 ModalRoute，不先收会叠在页面上）。
+              onManage: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                context.push('/tags');
+              },
+            ),
           ),
           Expanded(
             child: _secCtrls.isEmpty

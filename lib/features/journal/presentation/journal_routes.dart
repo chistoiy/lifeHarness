@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'diary_edit_page.dart';
 import 'journal_page.dart';
 import 'note_edit_page.dart';
+import 'tag_add_page.dart';
+import 'tag_manage_page.dart';
 
 
 /// 底部导航壳内路由（原 ShellRoute 登记 · 治理G6 下沉）
@@ -44,5 +46,8 @@ List<GoRoute> journalPageRoutes() => [
               }
               return NoteEditPage(noteId: x as int?);
             },
-          )
+          ),
+        // 批2b 标签管理（原型 p-sub-tags / p-sub-tagAdd）：全屏栈页，我的页「记录」组入口。
+        GoRoute(path: '/tags', builder: (_, _) => const TagManagePage()),
+        GoRoute(path: '/tags/add', builder: (_, _) => const TagAddPage()),
 ];

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/logging/app_log.dart';
 import '../data/journal_dao.dart';
+import '../data/tag_dao.dart';
 import '../domain/journal_entry.dart';
 
 /// 日记仓库：一天多篇（V1.28）、每篇各带心情、结构化分节、连续记录、月度统计、那年今日。
@@ -66,19 +67,28 @@ class JournalRepository {
         '日 ${e.day.toString().substring(0, 10)} · 结构化=${e.structured}');
     final content = e.structured ? JournalEntry.renderSections(e.sections) : e.content;
     final base = e.copyWith(content: content);
-    // 语义断链批（2026-10-12）·标签减法：tags 唯一来源＝正文 #词（评估件 §三）。
-    // 旧实现只并入不剔除，正文删掉 #词后 tags 残留＝死标签筛出空结果；
-    // 现按「仍在正文中的旧标签（保序）＋新出现的 #词」重建。
-    final nowTags = base.hashTags().toSet();
-    final kept = e.tags.where(nowTags.contains).toList();
-    final added = nowTags.where((t) => !e.tags.contains(t)).toList();
-    final tags = [...kept, ...added];
+    // 批2b（2026-10-19）标签口径改「双源合并」：显式选择的标签（编辑页标签行）
+    // ∪ 正文里的 #词。
+    //
+    // 与旧口径的差别只有一条：**正文删掉 #词不再自动删标签**。旧实现把「正文 #词」
+    // 当唯一来源（删词即删标签），是因为当时没有打标签的入口、死标签只能靠这条
+    // 减法兜住；现在标签是一等公民（编辑页标签行可见、可 ✕），删词仍留标签是
+    // 用户看得见的选择，不是隐形残留。反过来「正文写了 #新词」仍自动并入，
+    // 保留手写标签的老习惯。
+    final tags = <String>[];
+    for (final raw in [...e.tags, ...base.hashTags()]) {
+      final n = tagNameNormalize(raw);
+      if (n.isNotEmpty && !tags.contains(n)) tags.add(n);
+    }
+    final tagDao = TagDao(dao.db);
     if (e.id == null) {
       final fresh = base.copyWith(tags: tags, createdAt: now, updatedAt: now);
       final id = await dao.insert(fresh);
       if (base.structured) {
         await dao.replaceSections(id, base.sections, now.millisecondsSinceEpoch);
       }
+      // 真源写关联表（顺带把行内快照对齐）；池里没有的名字就地补建。
+      await tagDao.setItemTags('diary', id, tags);
       return fresh.copyWith(id: id);
     }
     await dao.updateById(e.id!, {
@@ -94,6 +104,7 @@ class JournalRepository {
       'weather_manual': e.weatherManual ? 1 : 0,
       'updated_at': now.millisecondsSinceEpoch,
     });
+    await tagDao.setItemTags('diary', e.id!, tags);
     await dao.replaceSections(
         e.id!, base.structured ? base.sections : const [], now.millisecondsSinceEpoch);
     return (await dao.byId(e.id!))!.copyWith(sections: base.sections);

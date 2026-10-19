@@ -18,6 +18,7 @@ import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/journal/data/diary_template_dao.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
+import 'package:lifeharness/features/journal/data/tag_dao.dart';
 import 'package:lifeharness/features/journal/domain/diary_template.dart';
 import 'package:lifeharness/features/journal/domain/journal_entry.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
@@ -1670,16 +1671,23 @@ void main() {
       expect(re.content, contains('☑ 谢天')); // 渲染快照同步
     });
 
-    test('S4 标签减法：正文删掉 #词后 tags 同步剔除（不再残留死标签）', () async {
+    test('S4 标签双源（批2b 改口径）：正文 #词并入；显式标签不因删词消失；移除才删', () async {
       final e = await jrepo.save(JournalEntry(
           day: DateTime.now(),
           content: '#晨跑 #复盘 今天跑了一圈',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
       expect(e.tags, containsAll(['晨跑', '复盘']));
-      // 改稿删掉 #晨跑 → tags 只剩 复盘
+      // 改稿删掉 #晨跑，但标签行仍带着它 ⇒ **保留**。
+      // 旧口径（正文 #词为唯一来源）会把标签一起删；批2b 起标签是一等公民
+      // （编辑页标签行可见可 ✕），删词留标签是用户看得见的选择，不是隐形残留。
       final e2 = await jrepo.save(e.copyWith(content: '今天跑了 #复盘 记录'));
-      expect(e2.tags, ['复盘']);
+      expect(e2.tags, containsAll(['晨跑', '复盘']));
+      // 显式移除（标签行 ✕）：不传晨跑且正文也无该词 ⇒ 关联与快照都不再出现
+      final e3 = await jrepo.save(e2.copyWith(
+          content: '今天跑了 #复盘 记录', tags: const ['复盘']));
+      expect(e3.tags, ['复盘']);
+      expect(await TagDao(db).namesOf('diary', e.id!), ['复盘']);
     });
 
     test('S5 INS 布局/筛选持久化：settings 往返（冷启动恢复上次态）', () async {

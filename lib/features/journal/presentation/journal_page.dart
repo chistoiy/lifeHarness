@@ -12,6 +12,7 @@ import '../../../shared/weather/weather.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/diary_filter_kit.dart';
 import '../domain/journal_entry.dart';
+import '../domain/tag.dart';
 import '../../read/domain/book_quote.dart';
 import '../../read/presentation/read_providers.dart'
     show readRepositoryProvider, readTickProvider;
@@ -365,7 +366,13 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
         ref.read(journalsProvider).valueOrNull ?? const <JournalEntry>[];
     // 批2c：标签清单**全量**——原 `.take(4)` 等于把第 5 个以后的标签藏了，
     // 与「超一行折叠、点开看全量」直接冲突。排序只为让折叠次序稳定。
-    final tags = <String>{for (final e in entries) ...e.tags}.toList()..sort();
+    // 批2b：以池为准（未使用的标签也要能筛，筛出 0 篇是合法结果）。
+    final pool = ref.read(diaryTagPoolProvider).valueOrNull ?? const <Tag>[];
+    final tags = <String>{
+      for (final t in pool) t.name,
+      for (final e in entries) ...e.tags,
+    }.toList()
+      ..sort();
     // 批2d：时间段与起止一并带进弹层——弹层里改的是 settings，关掉再开要能回显。
     final span = ref.read(journalSpanProvider);
     return showDiaryFilterSheet(
@@ -455,7 +462,14 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
     // §4c-2：原顶行三枚图标（含筛选钮）已移除，`tags` 在 build 里不再用——
     // 筛选弹层的标签清单改由 `openFilter()` 现算（见本类同名方法），避免两处各拼一份。
     // #27：持久化的筛选键若指向已不存在的标签（改名/删除后冷启动）回落 'all'。
-    final rawTags = <String>{for (final e in entries) ...e.tags};
+    // 批2b：标签清单＝池（scopes 含 diary）∪ 篇内残留名字。
+    // 只用篇内名字会出现「池里有、但还没人用」的标签在筛选里选不到；
+    // 只用池会出现「标签已删、篇内快照未同步」的键被静默吞掉（后者兜底可见）。
+    final poolTags = ref.watch(diaryTagPoolProvider).valueOrNull ?? const <Tag>[];
+    final rawTags = <String>{
+      for (final t in poolTags) t.name,
+      for (final e in entries) ...e.tags,
+    };
     // 批1a：新增两个固定键 starred（收藏）/ liked（点亮），与 todo 同族——不吃标签白名单。
     const fixedKeys = {'all', 'todo', 'starred', 'liked'};
     final effFilter = (fixedKeys.contains(filter) || rawTags.contains(filter))
