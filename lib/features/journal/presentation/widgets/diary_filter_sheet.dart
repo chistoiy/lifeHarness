@@ -22,13 +22,17 @@ import '../../domain/journal_entry.dart';
 ///
 /// 时间段与标记/标签是**正交的三维**：`diaryInRange` 先过，再 `diaryHit` 判后两维
 /// （顺序照原型 `dwHit`：时间段是硬的前提，不满足连标签都不用看）。
+///
+/// 收尾批（2026-10-19）：标签从**单选**改成**多选 AND**（对齐原型 `diaryTags`）。
+/// [picked] 是已选标签，[options] 是可选标签池；两者分开传——池里没选中的也要画出来。
 Future<void> showDiaryFilterSheet(
   BuildContext context, {
   required String cur,
+  required List<String> picked,
+  required List<String> options,
   required String range,
   required String from,
   required String to,
-  required List<String> tags,
   required List<JournalEntry> entries,
 }) {
   return showModalBottomSheet<void>(
@@ -37,10 +41,11 @@ Future<void> showDiaryFilterSheet(
     isScrollControlled: true,
     builder: (_) => _DiaryFilterSheet(
       cur: cur,
+      picked: picked,
+      options: options,
       range: range,
       from: from,
       to: to,
-      tags: tags,
       entries: entries,
     ),
   );
@@ -49,18 +54,20 @@ Future<void> showDiaryFilterSheet(
 class _DiaryFilterSheet extends ConsumerStatefulWidget {
   const _DiaryFilterSheet({
     required this.cur,
+    required this.picked,
+    required this.options,
     required this.range,
     required this.from,
     required this.to,
-    required this.tags,
     required this.entries,
   });
 
   final String cur;
+  final List<String> picked;
+  final List<String> options;
   final String range;
   final String from;
   final String to;
-  final List<String> tags;
   final List<JournalEntry> entries;
 
   @override
@@ -69,6 +76,10 @@ class _DiaryFilterSheet extends ConsumerStatefulWidget {
 
 class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
   late String _cur = widget.cur;
+
+  /// 已选标签（多选·AND）。用可变 List 而不是 Set：选中次序＝点击次序，
+  /// 底部计数按这个次序拼 `#a #b`，与原型 `diaryTags.push` 一致。
+  late final List<String> _picked = [...widget.picked];
   late String _range = widget.range;
   late String _from = widget.from;
   late String _to = widget.to;
@@ -80,13 +91,30 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
   int _count() => widget.entries
       .where((e) =>
           diaryInRange(e, range: _range, from: _from, to: _to) &&
-          diaryHit(e, _cur))
+          diaryHit(e, _cur, tags: _picked))
       .length;
 
   /// 选中即生效：写 settings（冷启动恢复）+ 本地态（弹层不关，好看实时计数）。
+  ///
+  /// 旧单值兼容：若标签是**旧键**读出来的（新键还空），先把它固化进新键——
+  /// 否则这次写标记会覆盖旧值，用户上次的标签筛选就凭空丢了。
   void _pick(String key) {
     setState(() => _cur = key);
-    ref.read(settingsControllerProvider.notifier).setJournalFilter(key);
+    final c = ref.read(settingsControllerProvider.notifier);
+    if (_picked.isNotEmpty &&
+        ref.read(settingsControllerProvider).journalTags.isEmpty) {
+      c.setJournalTags(_picked);
+    }
+    c.setJournalFilter(key);
+  }
+
+  /// 点一枚标签胶囊：已选则取消、未选则追加（原型 `diaryTagToggle`）。
+  /// 多选＝AND：选两枚即「两枚都命中」的篇。
+  void _toggleTag(String t) {
+    setState(() {
+      _picked.contains(t) ? _picked.remove(t) : _picked.add(t);
+    });
+    ref.read(settingsControllerProvider.notifier).setJournalTags(_picked);
   }
 
   Future<void> _pickRange(String k) async {
@@ -125,11 +153,12 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
     ref.read(settingsControllerProvider.notifier).setJournalCustom(_from, _to);
   }
 
-  /// 重置＝**三维全清**（标记回全部、时间段回全部、起止清空）。
+  /// 重置＝**四维全清**（标记回全部、标签清空、时间段回全部、起止清空）。
   /// 只清标记不清时间段的话，用户点「重置」后仍看着被时间筛过的列表，会以为重置坏了。
   void _reset() {
     setState(() {
       _cur = 'all';
+      _picked.clear();
       _range = 'all';
       _from = '';
       _to = '';
@@ -157,7 +186,7 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final tags = widget.tags;
+    final tags = widget.options;
     final count = _count();
 
     return Container(
@@ -257,6 +286,7 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
                     dfCountLabel(
                       n: count,
                       mark: _cur,
+                      tags: _picked,
                       range: _range,
                       from: _from,
                       to: _to,
@@ -300,12 +330,15 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
   ///
   /// 折叠**不靠「先裁再量」**（原型三次实错的坑，见 `diary_filter_kit` 文件头）：
   /// 先按容器宽度算行数，再决定挂不挂裁剪与按钮。
+  ///
+  /// 收尾批：每枚胶囊是**独立开关**（多选 AND），选中态看 [_picked]；
+  /// 宽度估算的粗体也跟着选中态走（选中加粗会变宽，按粗体量才不会漏判折行）。
   Widget _tagSection(List<String> tags, ColorScheme scheme) {
     return LayoutBuilder(
       builder: (c, cons) {
         final widths = [
           for (final t in tags)
-            dfChipWidth(_textW(t, bold: _cur == t)),
+            dfChipWidth(_textW(t, bold: _picked.contains(t))),
         ];
         final over = dfTagsOverflow(widths, cons.maxWidth);
         final chips = [
@@ -314,8 +347,8 @@ class _DiaryFilterSheetState extends ConsumerState<_DiaryFilterSheet> {
               key: 'df-tag-$t',
               label: t,
               icon: Icons.sell_outlined,
-              on: _cur == t,
-              onTap: () => _pick(_cur == t ? 'all' : t),
+              on: _picked.contains(t),
+              onTap: () => _toggleTag(t),
             ),
         ];
         // 口径①：一行以内——原样铺开，按钮不出现（也就不会多占一行）。

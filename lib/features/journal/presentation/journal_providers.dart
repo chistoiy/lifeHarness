@@ -204,6 +204,14 @@ final onThisDayProvider = FutureProvider<JournalEntry?>((ref) {
 /// （原两 StateProvider 纯内存态，冷启动复位）。
 final journalFilterProvider = Provider<String>(
     (ref) => ref.watch(settingsControllerProvider).journalFilter);
+
+/// 日记改版收尾批（2026-10-19）：筛选**标签多选**（AND 语义）。
+///
+/// 与 [journalFilterProvider]（标记单选）正交并存——两条都命中才算筛出。
+/// 旧版本把标签名存在 `journalFilter` 单值里，读侧由 `dfTagsOf` 做只读兼容，
+/// 所以这里**只读新键**，不做迁移写盘。
+final journalTagsProvider = Provider<List<String>>(
+    (ref) => ref.watch(settingsControllerProvider).journalTags);
 final journalInsProvider =
     Provider<bool>((ref) => ref.watch(settingsControllerProvider).journalIns);
 

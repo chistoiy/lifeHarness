@@ -194,13 +194,51 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
-  /// 语义断链批 #27（2026-10-12）·记录页日记段持久化：筛选键（'all'|'todo'|标签名，
-  /// 空值收敛 'all'）与 INS 布局开关。同值不写盘。
+  /// 语义断链批 #27（2026-10-12）·记录页日记段持久化：筛选键与 INS 布局开关。同值不写盘。
+  ///
+  /// 日记改版收尾批（2026-10-19）：本键**语义收窄为「标记」**（all/todo/starred/liked）——
+  /// 标签筛选拆到 [setJournalTags] / [toggleJournalTag] 的多值键。白名单内联在此
+  /// （core 不得 import feature 的 `kDfMarkKeys`）；白名单外的值一律回落 `all`，
+  /// 免得旧标签值继续占着标记位把列表筛空。
   Future<void> setJournalFilter(String v) async {
-    final f = v.trim().isEmpty ? 'all' : v.trim();
+    final raw = v.trim();
+    const marks = {'all', 'todo', 'starred', 'liked'};
+    final f = marks.contains(raw) ? raw : 'all';
     if (f == state.journalFilter) return;
     state = state.copyWith(journalFilter: f);
     await _persist();
+  }
+
+  /// 日记改版收尾批（2026-10-19）·筛选标签**多选**（AND 语义，见 `diaryHit`）。
+  ///
+  /// 一次写全量而不是「加一枚/减一枚两个方法」：调用方（筛选弹层）本来就持有
+  /// 完整的选中集合，逐枚增删会触发多次 `_persist()`，且中间态会让列表闪一下。
+  /// 去空、去重、截断到 [UserSettings.kJournalTagMax]——与 `decodeJournalTags` 同口径。
+  Future<void> setJournalTags(List<String> tags) async {
+    final next = <String>[];
+    for (final t in tags) {
+      final v = t.trim();
+      if (v.isEmpty || next.contains(v)) continue;
+      next.add(v);
+      if (next.length >= UserSettings.kJournalTagMax) break;
+    }
+    if (next.length == state.journalTags.length &&
+        next.every(state.journalTags.contains)) {
+      return;
+    }
+    state = state.copyWith(journalTags: next);
+    await _persist();
+  }
+
+  /// 点一枚标签胶囊：已选则取消、未选则追加（对齐原型 `diaryTagToggle`）。
+  Future<void> toggleJournalTag(String name) {
+    final t = name.trim();
+    if (t.isEmpty) return Future<void>.value();
+    final cur = state.journalTags;
+    final next = cur.contains(t)
+        ? [for (final x in cur) if (x != t) x]
+        : [...cur, t];
+    return setJournalTags(next);
   }
 
   Future<void> setJournalIns(bool on) async {
@@ -249,13 +287,14 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
-  /// 筛选项**三维全清**（标记回全部 / 时间段回全部 / 起止清空），只落一次盘。
+  /// 筛选项**四维全清**（标记回全部 / 标签清空 / 时间段回全部 / 起止清空），只落一次盘。
   ///
-  /// 单独一个方法而不是让 UI 连调三个 setter：连调会触发三次 `_persist()`，
+  /// 单独一个方法而不是让 UI 连调多个 setter：连调会触发多次 `_persist()`，
   /// 且中间态（已清标记、未清时间段）会让列表闪一下再变。
   Future<void> resetJournalFilter() async {
     state = state.copyWith(
         journalFilter: 'all',
+        journalTags: const [],
         journalRange: 'all',
         journalFrom: '',
         journalTo: '');

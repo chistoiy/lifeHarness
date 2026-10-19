@@ -368,20 +368,26 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
     // 与「超一行折叠、点开看全量」直接冲突。排序只为让折叠次序稳定。
     // 批2b：以池为准（未使用的标签也要能筛，筛出 0 篇是合法结果）。
     final pool = ref.read(diaryTagPoolProvider).valueOrNull ?? const <Tag>[];
-    final tags = <String>{
+    final options = <String>{
       for (final t in pool) t.name,
       for (final e in entries) ...e.tags,
     }.toList()
       ..sort();
     // 批2d：时间段与起止一并带进弹层——弹层里改的是 settings，关掉再开要能回显。
     final span = ref.read(journalSpanProvider);
+    // 收尾批：标记与标签分两条键读，收敛口径与 build 一致（否则「弹层显示的和列表不一样」）。
+    final raw = ref.read(journalFilterProvider);
+    final picked = dfTagsOf(raw, ref.read(journalTagsProvider))
+        .where(options.contains)
+        .toList();
     return showDiaryFilterSheet(
       context,
-      cur: ref.read(journalFilterProvider),
+      cur: dfMarkOf(raw),
+      picked: picked,
+      options: options,
       range: ref.read(journalRangeProvider),
       from: span.from,
       to: span.to,
-      tags: tags,
       entries: entries,
     );
   }
@@ -449,6 +455,8 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
     final entriesAsync = ref.watch(journalsProvider);
     final streak = ref.watch(journalStreakProvider).valueOrNull ?? 0;
     final filter = ref.watch(journalFilterProvider);
+    // 收尾批（2026-10-19）：筛选拆成「标记单选 + 标签多选（AND）」两条键。
+    final savedTags = ref.watch(journalTagsProvider);
     // 批2d：时间段（8 档预设或自定义）与自定义起止。三维条件里它是**前提**——
     // 顺序照原型 `dwHit`：先 `dwInRange` 再判标签/标记。
     final range = ref.watch(journalRangeProvider);
@@ -471,19 +479,22 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
       for (final e in entries) ...e.tags,
     };
     // 批1a：新增两个固定键 starred（收藏）/ liked（点亮），与 todo 同族——不吃标签白名单。
-    const fixedKeys = {'all', 'todo', 'starred', 'liked'};
-    final effFilter = (fixedKeys.contains(filter) || rawTags.contains(filter))
-        ? filter
-        : 'all';
+    // 收尾批：`journalFilter` 只认标记键（旧标签值经 `dfMarkOf` 回落 all）；
+    // 标签走 `dfTagsOf`（新键优先、旧单值只读兼容），再按当前标签集校验——
+    // 标签被改名/删除后不能让脏键把列表筛成空。
+    final effFilter = dfMarkOf(filter);
+    final effTags =
+        dfTagsOf(filter, savedTags).where(rawTags.contains).toList();
 
     // 批2c：改读 domain 的 `diaryHit`（弹层实时计数读的是同一个函数）。
     // 两处各写一份筛选式，出过「弹层说筛出 3 篇、关掉弹层只剩 1 篇」的偏。
     // 批2d：再加时间段前置条件（`diaryInRange`）——弹层的 `_count()` 用的也是这两行，
     // 改判据必须两处一起改，否则又是同一个「说 3 篇只剩 1 篇」的偏。
+    // 收尾批：标签多选走 `tags:` 具名参数（AND），与标记正交叠加。
     final shown = entries
         .where((e) =>
             diaryInRange(e, range: range, from: span.from, to: span.to) &&
-            diaryHit(e, effFilter))
+            diaryHit(e, effFilter, tags: effTags))
         .toList();
 
     // 日期轨道（批1a）：按生效筛选后的 [shown] 折日期块，筛选变了块也跟着变（不放 entries，

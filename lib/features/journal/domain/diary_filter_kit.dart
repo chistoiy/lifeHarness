@@ -102,13 +102,44 @@ String dfMoreLabel({required bool open, required int total}) =>
 /// **注意**：本函数只判「标记／标签」。时间段是**另一条正交条件**，
 /// 由 [diaryInRange] 单独判、调用方先过它（对齐原型 `dwHit` 的第一行 `dwInRange`）。
 /// 两者别合并进一个 `switch`——时间段有 `custom` 这种要带两个额外参数的形态。
-bool diaryHit(JournalEntry e, String key) => switch (key) {
-      'all' => true,
-      'todo' => e.todoLines().isNotEmpty,
-      'starred' => e.starred,
-      'liked' => e.liked,
-      _ => e.tags.any((t) => t == key || '#$t' == key),
-    };
+///
+/// 日记改版收尾批（2026-10-19）：[tags] 是**多选标签**，语义为 **AND**——
+/// 选中的每一枚都必须在篇内（原型 `diaryTags.every(t => d.tags.indexOf(t) >= 0)`）。
+/// 标签与标记**正交叠加**：原型批2b-2 修过一次「先判 `全部` 就 return true」把标签短路掉
+/// 的偏（选标签后仍显示全部），这里两条都过才命中。
+bool diaryHit(JournalEntry e, String mark, {List<String> tags = const []}) {
+  for (final t in tags) {
+    // 历史键可能带 `#`：剥掉再比，否则「筛 #复盘」恒 0 篇（原型同一个坑）。
+    final name = t.startsWith('#') ? t.substring(1) : t;
+    if (name.isEmpty) continue;
+    if (!e.tags.any((x) => x == name)) return false;
+  }
+  return switch (mark) {
+    'all' => true,
+    'todo' => e.todoLines().isNotEmpty,
+    'starred' => e.starred,
+    'liked' => e.liked,
+    _ => e.tags.any((t) => t == mark || '#$t' == mark),
+  };
+}
+
+/// 把持久化的筛选键收敛为**标记键**（非固定键一律 `all`）。
+///
+/// 收尾批之前 `journalFilter` 是「标记 或 标签名」的单值；拆出多值键后
+/// 旧值仍可能落在 prefs 里，页面与弹层都经这里收敛，避免旧标签值占着标记位。
+String dfMarkOf(String filter) => kDfMarkKeys.contains(filter) ? filter : 'all';
+
+/// 解析生效的标签多选集合（含**旧单值只读兼容**）。
+///
+/// 规则：新键 [tags] 非空就用它；为空时若 [filter] 是标签名（历史单值），
+/// 把它当成唯一选中标签。**只读映射、不写盘**——用户下次在弹层里点标签
+/// 就会写新键，迁移自然完成（同 `journalIns` → `journalLayout` 的先例）。
+List<String> dfTagsOf(String filter, List<String> tags) {
+  if (tags.isNotEmpty) return tags;
+  final f = filter.trim();
+  if (f.isEmpty || kDfMarkKeys.contains(f)) return const [];
+  return [f.startsWith('#') ? f.substring(1) : f];
+}
 
 // ---------------------------------------------------------------------------
 // 时间段（批2d · 对齐原型 `DIARY_RANGES` / `dwInRange` / `dfRangeName`）
@@ -254,17 +285,26 @@ bool diaryInRange(
 /// [mark] 是单选筛选键：命中 [kDfMarkKeys] 的走中文名，其余**当标签**输出 `#名字`
 /// （原型 `diaryTags.map(t=>'#'+t)` 同一形态）。这个分流不能省——`dfMarkLabel`
 /// 对未知键回「全部」，直接套会把「筛的是 #复盘」显示成「当前筛选：全部」。
+///
+/// [tags] 是多选标签（AND）：原型 `renderDfCount` 把它们拼成 `#a #b`（空格分隔），
+/// 排在同一条筛选名里、位于标记与时间段之间。
 String dfCountLabel({
   required int n,
   String mark = 'all',
+  List<String> tags = const [],
   String range = 'all',
   String from = '',
   String to = '',
 }) {
   final parts = <String>[];
-  if (mark != 'all') {
-    parts.add(kDfMarkKeys.contains(mark) ? dfMarkLabel(mark) : '#$mark');
-  }
+  // 原型顺序：标记 → 标签 → 时间段，三段是并列关系（都要说出来）。
+  final markIsTag = mark != 'all' && !kDfMarkKeys.contains(mark);
+  if (mark != 'all' && !markIsTag) parts.add(dfMarkLabel(mark));
+  // 标签行：多选拼成 `#a #b`（原型空格连排）；旧单值键（mark 带标签名）走兜底。
+  final tagLine = tags.isNotEmpty
+      ? tags.map((t) => '#${t.startsWith('#') ? t.substring(1) : t}').join(' ')
+      : (markIsTag ? '#$mark' : '');
+  if (tagLine.isNotEmpty) parts.add(tagLine);
   if (range != 'all') parts.add(dfRangeName(range, from: from, to: to));
   if (parts.isEmpty) return '共 $n 篇日记';
   return '当前筛选：${parts.join(' · ')}，共 $n 篇';

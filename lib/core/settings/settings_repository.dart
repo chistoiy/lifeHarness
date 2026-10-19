@@ -84,6 +84,9 @@ class SettingsRepository {
 
   /// 语义断链批 #27（2026-10-12）·记录页日记段持久化：筛选键 / INS 布局。
   static const _kJournalFilter = 'lh.journal_filter';
+  /// 日记改版收尾批（2026-10-19）：筛选标签**多选**（`\u0001` 分隔）。
+  /// 与 `_kJournalFilter`（标记单选）正交并存，见 [UserSettings.journalTags]。
+  static const _kJournalTags = 'lh.journal_tags';
   static const _kJournalIns = 'lh.journal_ins';
   /// 日记改版批1a：三档视图（track/list/ins）。与旧 `_kJournalIns` 并存，见 [UserSettings.journalLayout]。
   static const _kJournalLayout = 'lh.journal_layout';
@@ -125,6 +128,7 @@ class SettingsRepository {
         _prefs.getString(_kMyLayout) == null &&
         _prefs.getString(_kJournalDefTpl) == null &&
         _prefs.getString(_kJournalFilter) == null &&
+        _prefs.getString(_kJournalTags) == null &&
         _prefs.getBool(_kJournalIns) == null &&
         _prefs.getString(_kJournalLayout) == null &&
         _prefs.getString(_kJournalRange) == null &&
@@ -157,6 +161,7 @@ class SettingsRepository {
       'myLayout': ?_prefs.getString(_kMyLayout),
       'journalDefaultTpl': ?_prefs.getString(_kJournalDefTpl),
       'journalFilter': ?_prefs.getString(_kJournalFilter),
+      'journalTags': ?_prefs.getString(_kJournalTags),
       'journalIns': ?_prefs.getBool(_kJournalIns),
       'journalLayout': ?_prefs.getString(_kJournalLayout),
       'journalRange': ?_prefs.getString(_kJournalRange),
@@ -191,6 +196,7 @@ class SettingsRepository {
     await _prefs.setString(_kMyLayout, m['myLayout']! as String);
     await _prefs.setString(_kJournalDefTpl, m['journalDefaultTpl']! as String);
     await _prefs.setString(_kJournalFilter, m['journalFilter']! as String);
+    await _prefs.setString(_kJournalTags, m['journalTags']! as String);
     await _prefs.setBool(_kJournalIns, m['journalIns']! as bool);
     await _prefs.setString(_kJournalLayout, m['journalLayout']! as String);
     await _prefs.setString(_kJournalRange, m['journalRange']! as String);

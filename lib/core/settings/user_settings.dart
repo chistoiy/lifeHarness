@@ -139,6 +139,7 @@ class UserSettings {
     this.myLayout = 'hero',
     this.journalDefaultTpl = '纯文本',
     this.journalFilter = 'all',
+    this.journalTags = const [],
     this.journalLayout = 'list',
     this.journalIns = false,
     this.journalRange = 'all',
@@ -227,7 +228,20 @@ class UserSettings {
 
   /// 语义断链批 #27（2026-10-12）·记录页日记段持久化（笔记批5③ 同族）：
   /// 筛选键（'all'|'todo'|标签名）。标签被改删后由 UI 侧按当前标签集校验回落 'all'。
+  ///
+  /// 日记改版收尾批（2026-10-19）：**语义收窄为「标记」单选键**（all/todo/starred/liked），
+  /// 标签筛选拆到 [journalTags] 多值。旧版本可能在这键里存标签名——读侧做**只读兼容**
+  /// （见 `dfTagsOf`），不在 core 层迁移（core 不得依赖 feature 的标签池判据）。
   final String journalFilter;
+
+  /// 日记改版收尾批（2026-10-19）·筛选标签**多选**（选中多个＝AND，对齐原型 `diaryTags`）。
+  ///
+  /// 与 [journalFilter]（标记）**正交并存**：原型 `dwHit` 是「标签 every 命中」＋「标记命中」
+  /// 两条都过才算命中，选标签不会顶掉标记。
+  ///
+  /// 落盘用 `\u0001` 分隔（标签名由用户输入，可能含逗号/空格，逗号分隔会静默拆错）；
+  /// 脏值在 [fromMap] 收敛：去空、去重、上限 32 枚（防手改 prefs 塞爆）。
+  final List<String> journalTags;
 
   /// #27：INS 卡片流布局（false=列表·默认）。**旧值位**，新数据只写 [journalLayout]。
   /// 保留它是为了让 `v0.2.x` 的备份包 / 老 prefs 还能反序列化（见 [journalLayout] 收敛）。
@@ -255,6 +269,27 @@ class UserSettings {
   static const List<String> kJournalRanges = [
     'all', '7d', '30d', '90d', 'year', 'month', '1y', '2y', 'custom',
   ];
+
+  /// 筛选标签多值的落盘分隔符。**不用逗号**：标签名由用户输入，
+  /// 含逗号时逗号分隔会静默把一枚标签拆成两枚（与小组件草稿同一口径）。
+  static const String _kJournalTagSep = '\u0001';
+
+  /// 筛选标签多值的上限。超过即丢弃尾部——手改 prefs 塞几千条会让
+  /// 筛选弹层每帧都算一遍宽度，属于「脏数据不该拖垮界面」的兜底。
+  static const int kJournalTagMax = 32;
+
+  /// 解析落盘的标签串：去空、去重（保序）、截断到 [kJournalTagMax]。
+  static List<String> decodeJournalTags(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    final out = <String>[];
+    for (final part in raw.split(_kJournalTagSep)) {
+      final t = part.trim();
+      if (t.isEmpty || out.contains(t)) continue;
+      out.add(t);
+      if (out.length >= kJournalTagMax) break;
+    }
+    return out;
+  }
 
   /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认；false=收起为周行）。
   /// 首次进模块默认展开；用户手动切换后写盘（跨会话记住）；切视图档不改它。
@@ -308,6 +343,7 @@ class UserSettings {
     String? myLayout,
     String? journalDefaultTpl,
     String? journalFilter,
+    List<String>? journalTags,
     String? journalLayout,
     bool? journalIns,
     String? journalRange,
@@ -339,6 +375,7 @@ class UserSettings {
         myLayout: myLayout ?? this.myLayout,
         journalDefaultTpl: journalDefaultTpl ?? this.journalDefaultTpl,
         journalFilter: journalFilter ?? this.journalFilter,
+        journalTags: journalTags ?? this.journalTags,
         journalLayout: journalLayout ?? this.journalLayout,
         journalIns: journalIns ?? this.journalIns,
         journalRange: journalRange ?? this.journalRange,
@@ -371,6 +408,7 @@ class UserSettings {
         'myLayout': myLayout,
         'journalDefaultTpl': journalDefaultTpl,
         'journalFilter': journalFilter,
+        'journalTags': journalTags.join(_kJournalTagSep),
         'journalLayout': journalLayout,
         'journalIns': journalIns,
         'journalRange': journalRange,
@@ -420,10 +458,12 @@ class UserSettings {
                 ? m['journalDefaultTpl'] as String
                 : '纯文本',
         // #27：空串/脏值回落 'all'（标签名不在此校验，UI 侧按当前标签集回落）。
+        // 收尾批：本键语义已收窄为「标记」，标签名不再写这里；历史值由 `dfTagsOf` 只读兼容。
         journalFilter: (m['journalFilter'] as String?) is String &&
                 (m['journalFilter'] as String).isNotEmpty
             ? m['journalFilter'] as String
             : 'all',
+        journalTags: decodeJournalTags(m['journalTags'] as String?),
         /* 三档收敛：合法值直取；脏值/缺键时看旧布尔位（true＝老 INS 用户，别把他拽回列表）。 */
         journalLayout: _journalLayoutOf(m),
         journalIns: m['journalIns'] as bool? ?? false,
