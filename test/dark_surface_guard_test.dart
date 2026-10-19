@@ -64,6 +64,15 @@ const _baseline = <String, int>{
     // 影音游批2：记录页三态 FAB 收成一枚（该文件近白字面 7→6，登记值按实测收紧）。
     'lib/features/journal/presentation/journal_page.dart': 6,
     'lib/features/journal/presentation/widgets/ins_card.dart': 7,
+    // 日记改版批1a 新增（2026-10-19）：月历图墙 1 处＝实心格上的日号白字
+    //（角标那枚 white 走 Icon.color 槽位，未入闸面，故不计）。
+    // 底面是主题色实心块（`fill.withValues(alpha:.85)`），不是白底；与上面 journal_page 6 处、
+    // ins_card 7 处同一形态（前景白字压在色块上）。登记≠放行：图墙深色观感仍走真机门。
+    'lib/features/journal/presentation/widgets/journal_wall.dart': 1,
+    // NFC 卡片模块存量归位（日记改版批1a · 2026-10-19 跑出本红）：nfc_page 卡片名/描述 2 处白字，
+    // 压在色块卡面上（前景白字，非白底）。该文件本批一行未动，是 NFC 批2/批3 带进来的存量，
+    // 登记值此前漏登——按现状登记，之后只许减。
+    'lib/features/nfc/presentation/nfc_page.dart': 2,
     'lib/features/ledger/presentation/ledger_assets_page.dart': 6,
     'lib/features/care/presentation/vaccine_page.dart': 5,
     'lib/features/days/presentation/day_detail_page.dart': 5,

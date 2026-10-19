@@ -139,6 +139,7 @@ class UserSettings {
     this.myLayout = 'hero',
     this.journalDefaultTpl = '纯文本',
     this.journalFilter = 'all',
+    this.journalLayout = 'list',
     this.journalIns = false,
     this.calMonthExpanded = true,
   });
@@ -225,8 +226,14 @@ class UserSettings {
   /// 筛选键（'all'|'todo'|标签名）。标签被改删后由 UI 侧按当前标签集校验回落 'all'。
   final String journalFilter;
 
-  /// #27：INS 卡片流布局（false=列表·默认）。
+  /// #27：INS 卡片流布局（false=列表·默认）。**旧值位**，新数据只写 [journalLayout]。
+  /// 保留它是为了让 `v0.2.x` 的备份包 / 老 prefs 还能反序列化（见 [journalLayout] 收敛）。
   final bool journalIns;
+
+  /// 日记页视图三档（日记改版批1a · 2026-10-19）：`track` 日期轨道 / `list` 列表 / `ins` 卡片流。
+  /// 默认 `list`（产品口径「默认使用列表展示」）。旧布尔 `journalIns` 在 [fromMap] 里**单向映射**：
+  /// `true → ins`（老用户开着 INS 的不能被重置回列表），读写出货一律不再碰旧位。
+  final String journalLayout;
 
   /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认；false=收起为周行）。
   /// 首次进模块默认展开；用户手动切换后写盘（跨会话记住）；切视图档不改它。
@@ -280,6 +287,7 @@ class UserSettings {
     String? myLayout,
     String? journalDefaultTpl,
     String? journalFilter,
+    String? journalLayout,
     bool? journalIns,
     bool? calMonthExpanded,
   }) =>
@@ -307,6 +315,7 @@ class UserSettings {
         myLayout: myLayout ?? this.myLayout,
         journalDefaultTpl: journalDefaultTpl ?? this.journalDefaultTpl,
         journalFilter: journalFilter ?? this.journalFilter,
+        journalLayout: journalLayout ?? this.journalLayout,
         journalIns: journalIns ?? this.journalIns,
         calMonthExpanded: calMonthExpanded ?? this.calMonthExpanded,
       );
@@ -335,6 +344,7 @@ class UserSettings {
         'myLayout': myLayout,
         'journalDefaultTpl': journalDefaultTpl,
         'journalFilter': journalFilter,
+        'journalLayout': journalLayout,
         'journalIns': journalIns,
         'calMonthExpanded': calMonthExpanded,
       };
@@ -384,9 +394,23 @@ class UserSettings {
                 (m['journalFilter'] as String).isNotEmpty
             ? m['journalFilter'] as String
             : 'all',
+        /* 三档收敛：合法值直取；脏值/缺键时看旧布尔位（true＝老 INS 用户，别把他拽回列表）。 */
+        journalLayout: _journalLayoutOf(m),
         journalIns: m['journalIns'] as bool? ?? false,
         calMonthExpanded: m['calMonthExpanded'] as bool? ?? true,
       );
+
+  /// 视图三档合法值（顺序＝设置弹层里的排列顺序；`track` 排首位但不是默认）。
+  static const List<String> kJournalLayouts = ['track', 'list', 'ins'];
+
+  /// 三档收敛（单向兼容旧布尔位）：合法值 > 旧 `journalIns` > 默认 `list`。
+  static String _journalLayoutOf(Map<String, Object?> m) {
+    final v = m['journalLayout'];
+    if (v is String && kJournalLayouts.contains(v)) return v;
+    final old = m['journalIns'];
+    if (old is bool && old) return 'ins';
+    return 'list';
+  }
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。
   static List<String> _sanitizeHomeOrder(String? raw) {

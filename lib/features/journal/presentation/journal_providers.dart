@@ -182,5 +182,10 @@ final journalFilterProvider = Provider<String>(
 final journalInsProvider =
     Provider<bool>((ref) => ref.watch(settingsControllerProvider).journalIns);
 
+/// 日记页视图三档（日记改版批1a）：`track` / `list` / `ins`，默认 `list`。
+/// 旧 [journalInsProvider] 保留给「关闭 INS 就回列表」的旧调用点；新代码一律读这条。
+final journalLayoutProvider = Provider<String>(
+    (ref) => ref.watch(settingsControllerProvider).journalLayout);
+
 /// 记录页四段 tab（diary/note/book/media）。
 final recordTabProvider = StateProvider<String>((ref) => 'diary');

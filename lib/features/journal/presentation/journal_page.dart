@@ -24,6 +24,9 @@ import 'widgets/diary_review_sheet.dart';
 import '../../../shared/widgets/image_attach.dart' show showImageLightbox;
 import '../../../shared/widgets/scroll_pad.dart';
 import 'widgets/ins_card.dart';
+import 'journal_page_track.dart';
+import 'widgets/journal_layout_kit.dart';
+import 'widgets/journal_wall.dart';
 import 'widgets/note_tree_drawer.dart'
     show noteImportLocalAction, noteExportLocalAction, noteOpenHistoryAction;
 
@@ -123,10 +126,10 @@ class JournalPage extends ConsumerStatefulWidget {
   static bool isRecordTab(String? t) => kRecordLabels.containsKey(t);
 
   @override
-  ConsumerState<JournalPage> createState() => _JournalPageState();
+  ConsumerState<JournalPage> createState() => JournalPageState();
 }
 
-class _JournalPageState extends ConsumerState<JournalPage> {
+class JournalPageState extends ConsumerState<JournalPage> {
   /// 本帧生效的深链段：provider 落定前先按它渲染，避免「先闪日记再切段」。
   String? _linkTab;
 
@@ -293,7 +296,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
         ),
         child: switch (tab) {
           'diary' => const KeyedSubtree(
-              key: ValueKey('rec-body-diary'), child: _DiaryTab()),
+              key: ValueKey('rec-body-diary'), child: DiaryTab()),
           'note' =>
             const KeyedSubtree(key: ValueKey('rec-body-note'), child: NoteTab()),
           'book' => KeyedSubtree(
@@ -308,14 +311,14 @@ class _JournalPageState extends ConsumerState<JournalPage> {
 
 /// 日记 tab：心情月历卡 · 写今天入口 · 筛选 · 列表/INS 双布局 · 那年今日。
 /// 轮13：长按条目/卡片进入批量选中（底部 已选N篇+删除+关闭 · 返回先退多选）。
-class _DiaryTab extends ConsumerStatefulWidget {
-  const _DiaryTab();
+class DiaryTab extends ConsumerStatefulWidget {
+  const DiaryTab({super.key});
 
   @override
-  ConsumerState<_DiaryTab> createState() => _DiaryTabState();
+  ConsumerState<DiaryTab> createState() => DiaryTabState();
 }
 
-class _DiaryTabState extends ConsumerState<_DiaryTab> {
+class DiaryTabState extends ConsumerState<DiaryTab> {
   bool _selMode = false;
   final Set<int> _sel = {};
 
@@ -370,7 +373,10 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
     final entriesAsync = ref.watch(journalsProvider);
     final streak = ref.watch(journalStreakProvider).valueOrNull ?? 0;
     final filter = ref.watch(journalFilterProvider);
-    final insMode = ref.watch(journalInsProvider);
+    // 日记改版批1a：视图三档（track/list/ins）。原布尔 `journalIns` 已由 settings 层单向映射到三档，
+    // 这里只读三档；`insMode` 仍从它派生，好让既有「列表/INS 两态」代码与断言继续成立。
+    final layout = ref.watch(journalLayoutProvider);
+    final insMode = layout == kJournalLayoutIns;
     final entries = entriesAsync.valueOrNull ?? const <JournalEntry>[];
 
     final tags = <String>{
@@ -379,17 +385,29 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
 
     // #27：持久化的筛选键若指向已不存在的标签（改名/删除后冷启动）回落 'all'。
     final rawTags = <String>{for (final e in entries) ...e.tags};
-    final effFilter = (filter == 'all' || filter == 'todo' || rawTags.contains(filter))
+    // 批1a：新增两个固定键 starred（收藏）/ liked（点亮），与 todo 同族——不吃标签白名单。
+    const fixedKeys = {'all', 'todo', 'starred', 'liked'};
+    final effFilter = (fixedKeys.contains(filter) || rawTags.contains(filter))
         ? filter
         : 'all';
 
     final shown = switch (effFilter) {
       'all' => entries,
       'todo' => entries.where((e) => e.todoLines().isNotEmpty).toList(),
+      'starred' => entries.where((e) => e.starred).toList(),
+      'liked' => entries.where((e) => e.liked).toList(),
       _ => entries
           .where((e) => e.tags.any((t) => t == effFilter || '#$t' == effFilter))
           .toList(),
     };
+
+    // 日期轨道（批1a）：按生效筛选后的 [shown] 折日期块，筛选变了块也跟着变（不放 entries，
+    // 否则「筛出 1 篇」时左栏仍显示全部日期——那与筛选语义直接冲突）。
+    final trackBlocks = layout == kJournalLayoutTrack
+        ? buildTrackBlocks(shown,
+            moodColorOf: (e) =>
+                (e.mood == null) ? null : tokens.accent)
+        : const <TrackDayBlock>[];
 
     final now = DateTime.now();
     final today = entries.where((e) => JournalEntry.sameDay(e.day, now)).firstOrNull;
@@ -442,12 +460,45 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
               // UI/流畅批（2026-10-12）：列表改懒构建（原 `ListView(children: […])` 全量
               // 建卡片·每卡含 Image，同笔记批1 定式；零视觉：padding 与间距不变）。
               // item 序：0 月历卡 / 1,3,5 间隙 / 2 入口卡 / 4 切换行 / 6.. 篇卡（空态占 6）/ 尾=那年今日。
-              child: ListView.builder(
+              // 轨道档整棵换掉列表树：条目按「日期块」分行，套不进「一篇一 item」的索引算式——
+              // 硬塞会让 i-6 索引错位。两棵树共用同一 ScrollPad，切档滚动位置仍回到原位。
+              child: layout == kJournalLayoutTrack
+                  ? trackScroll(context, ref, now, trackBlocks, byDayAll)
+                  : ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       itemCount: shown.isEmpty ? 8 : 7 + shown.length,
       itemBuilder: (context, i) {
         final n = shown.length;
         if (i == 0) {
+          // 批1a（工单 §2 硬口径 8）：彩色心情卡**只属于列表档**；轨道档同一位置换「月历图墙」，
+          // INS 档整块不出（原卡内含渐变+30 色条，塞进 INS 显得很吵）。
+          if (layout == kJournalLayoutTrack) {
+            return card(
+              context,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: JournalWall(
+                  month: now,
+                  byDayFirst: byDayFirst,
+                  moodColorOf: (e) => (e.mood == null)
+                      ? null
+                      : tokens.accent,
+                  onTapDay: (day) {
+                    final list = byDayAll[day];
+                    if (list == null || list.isEmpty) {
+                      context.push('/journal/edit',
+                          extra: DiaryEditArg(
+                              day: DateTime(now.year, now.month, day)));
+                    } else {
+                      openDiaryPickSheet(
+                          context, '${now.month}月$day日的日记', list);
+                    }
+                  },
+                ),
+              ),
+            );
+          }
+          if (insMode) return const SizedBox.shrink();
           return Container(
             // 渐变心情月历卡（原型 moodCard：标题+回顾钮+30 色条+脚注）
           padding: const EdgeInsets.all(16),
@@ -534,7 +585,7 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
         }
         if (i == 1) return const SizedBox(height: 12);
         if (i == 2) {
-          return _card(
+          return card(
             context,
             // 写今天的日记（原型入口卡）
           child: InkWell(
@@ -581,23 +632,32 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
         }
         if (i == 3) return const SizedBox(height: 12);
         if (i == 4) {
-          // V1.29轮9g：本行=列表⇄INS 切换钮 + 筛选钮（右）·筛选点击弹底部浮层 全部/☐待办/标签
+          // 批1a：三档视图收进「设置」等宽胶囊（原单枚切换钮是三态互转的伪操作——两态之间来回点
+          // 永远到不了第三档）；`diary-view` 这一枚保留为「快速切 INS／列表」的熟路快捷键，
+          // 三档全集在设置弹层里。既有断言（点一枚能进 INS）因此继续成立。
           return Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            if (layout != kJournalLayoutTrack)
+              IconButton(
+                key: const ValueKey('diary-view'),
+                tooltip: insMode ? '切换到列表' : '切换到 INS 卡片流',
+                onPressed: () => ref
+                    .read(settingsControllerProvider.notifier)
+                    .setJournalLayout(
+                        insMode ? kJournalLayoutList : kJournalLayoutIns),
+                icon: Icon(insMode ? Icons.menu : Icons.grid_view, size: 22),
+              ),
             IconButton(
-              key: const ValueKey('diary-view'),
-              tooltip: insMode ? '切换到列表' : '切换到 INS 卡片流',
-              // #27：布局写 settings（持久化，冷启动恢复）。
-              onPressed: () => ref
-                  .read(settingsControllerProvider.notifier)
-                  .setJournalIns(!insMode),
-              icon: Icon(insMode ? Icons.menu : Icons.grid_view, size: 22),
+              key: const ValueKey('diary-set'),
+              tooltip: '视图设置',
+              onPressed: () => showSetSheet(context, ref, layout),
+              icon: const Icon(Icons.tune, size: 22),
             ),
             IconButton(
               key: const ValueKey('diary-filter'),
               tooltip: '筛选',
-              onPressed: () => _diaryFilterSheet(context, ref, filter, tags),
+              onPressed: () => diaryFilterSheet(context, ref, filter, tags),
               icon: Icon(
                 filter == 'all'
                     ? Icons.filter_alt_outlined
@@ -618,7 +678,7 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
               padding: const EdgeInsets.symmetric(vertical: 30),
               child: Center(
                 child: Text(
-                  entries.isEmpty ? '还没有日记 · 点上方「写今天的日记」开始' : '该筛选下暂无日记',
+                  entries.isEmpty ? '还没有日记 · 点右下角 ＋ 开始' : '该筛选下暂无日记',
                   style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -629,6 +689,8 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
           return tailItem(); // 空列表时尾卡仍兜底（无数据自然 shrink）
         }
         if (i >= 6 + n) return tailItem();
+        // 轨道档：条目区整段由 JournalTrackView 自己排（它按「日期块」而不是「篇」分行），
+        // 这里只占一个位置，把余下空间让给它——见下方 `if (layout == track)` 的包装。
         final e = shown[i - 6];
         if (insMode) {
           return InsDiaryCard(
@@ -642,7 +704,7 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
         }
         return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _card(
+              child: card(
                 context,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(tokens.cardRadius),
@@ -685,6 +747,18 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
                                           .onSurfaceVariant)),
                             ],
                             const Spacer(),
+                            // 批1a：列表档补收藏/点亮标识——否则筛出「⭐ 收藏」后
+                            // 一整屏都是同样的卡，看不出哪篇被收藏（轨道/INS 档早已有图标）。
+                            if (e.starred) ...[
+                              Icon(Icons.star,
+                                  size: 13, color: tokens.accent),
+                              const SizedBox(width: 3),
+                            ],
+                            if (e.liked) ...[
+                              Icon(Icons.favorite,
+                                  size: 13, color: tokens.accent),
+                              const SizedBox(width: 3),
+                            ],
                             if (moodEmoji(e.mood) != null) ...[
                               Text(moodEmoji(e.mood)!,
                                   style: const TextStyle(fontSize: 18)),
@@ -813,17 +887,23 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
   }
 
   /// V1.29轮9g：筛选=底部浮层选择（全部/☐待办/标签·当前项✓）。
-  Future<void> _diaryFilterSheet(
+  Future<void> diaryFilterSheet(
       BuildContext context, WidgetRef ref, String cur, List<String> tags) async {
-    final opts = ['全部', '☐ 待办', ...tags];
+    // 批1a：⭐ 收藏 / ❤ 点亮是**视图出口**，不是标签——放在「待办」后面固定位置，
+    // 与标签段之间靠文案区分（标签项自带 #，这两项不带）。
+    final opts = ['全部', '☐ 待办', '⭐ 收藏', '❤ 点亮', ...tags];
     String valOf(String o) => switch (o) {
           '全部' => 'all',
           '☐ 待办' => 'todo',
+          '⭐ 收藏' => 'starred',
+          '❤ 点亮' => 'liked',
           _ => o,
         };
     String labelOf(String v) => switch (v) {
           'all' => '全部',
           'todo' => '☐ 待办',
+          'starred' => '⭐ 收藏',
+          'liked' => '❤ 点亮',
           _ => v,
         };
     final pick = await showModalBottomSheet<String>(
@@ -870,7 +950,7 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
     if (context.mounted) AppToast.show(context, '筛选：${labelOf(pick)}');
   }
 
-  Widget _card(BuildContext context, {required Widget child}) {
+  Widget card(BuildContext context, {required Widget child}) {
     final tokens = context.tokens;
     return Container(
       decoration: BoxDecoration(

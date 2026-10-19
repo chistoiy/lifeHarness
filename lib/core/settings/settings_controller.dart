@@ -209,6 +209,16 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 日记改版批1a（2026-10-19）：视图三档写入（track/list/ins）。
+  /// 非法值**静默忽略**（不写不落盘）——与 `myLayout`/`journalDefaultTpl` 的收敛口径一致，
+  /// 免得脏深链参数把用户视图打到一个不存在的档。
+  Future<void> setJournalLayout(String v) async {
+    if (!UserSettings.kJournalLayouts.contains(v)) return;
+    if (v == state.journalLayout) return;
+    state = state.copyWith(journalLayout: v);
+    await _persist();
+  }
+
   /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认）。
   /// 用户手动切换时由时间页写入；切视图档不改它。
   Future<void> setCalMonthExpanded(bool on) async {

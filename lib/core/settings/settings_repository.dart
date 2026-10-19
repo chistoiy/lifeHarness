@@ -85,6 +85,8 @@ class SettingsRepository {
   /// 语义断链批 #27（2026-10-12）·记录页日记段持久化：筛选键 / INS 布局。
   static const _kJournalFilter = 'lh.journal_filter';
   static const _kJournalIns = 'lh.journal_ins';
+  /// 日记改版批1a：三档视图（track/list/ins）。与旧 `_kJournalIns` 并存，见 [UserSettings.journalLayout]。
+  static const _kJournalLayout = 'lh.journal_layout';
 
   /// 时间模块批1（2026-10-13）·C2/B9：时间页月历展开态（true=展开·默认）。
   /// 首次进模块默认展开；用户手动切换后持久化（跨会话记住）；与视图档解耦。
@@ -120,6 +122,7 @@ class SettingsRepository {
         _prefs.getString(_kJournalDefTpl) == null &&
         _prefs.getString(_kJournalFilter) == null &&
         _prefs.getBool(_kJournalIns) == null &&
+        _prefs.getString(_kJournalLayout) == null &&
         _prefs.getBool(_kCalMonthExpanded) == null) {
       return UserSettings.defaults;
     }
@@ -148,6 +151,7 @@ class SettingsRepository {
       'journalDefaultTpl': ?_prefs.getString(_kJournalDefTpl),
       'journalFilter': ?_prefs.getString(_kJournalFilter),
       'journalIns': ?_prefs.getBool(_kJournalIns),
+      'journalLayout': ?_prefs.getString(_kJournalLayout),
       'calMonthExpanded': ?_prefs.getBool(_kCalMonthExpanded),
     });
   }
@@ -178,6 +182,7 @@ class SettingsRepository {
     await _prefs.setString(_kJournalDefTpl, m['journalDefaultTpl']! as String);
     await _prefs.setString(_kJournalFilter, m['journalFilter']! as String);
     await _prefs.setBool(_kJournalIns, m['journalIns']! as bool);
+    await _prefs.setString(_kJournalLayout, m['journalLayout']! as String);
     await _prefs.setBool(_kCalMonthExpanded, m['calMonthExpanded']! as bool);
   }
 
