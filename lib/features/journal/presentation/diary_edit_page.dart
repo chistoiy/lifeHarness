@@ -615,6 +615,9 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   Future<JournalEntry> _persist({bool notify = true}) async {
     final repo = ref.read(journalRepositoryProvider);
+    // 批2b 补（真机 6199 实测）：标签变了要让池重算——引用计数在 `tags` 池里，
+    // 池是常驻 FutureProvider，不失效就会出现「打完标签回管理页仍 0 条」。
+    final beforeTags = {...?_existing?.tags};
     final titles = _secTitles(); // 修复批 #1：标题一律带回落（模板/既有篇/占位）
     final secs = [
       for (var i = 0; i < _secCtrls.length; i++)
@@ -641,6 +644,10 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       updatedAt: DateTime.now(),
     ));
     _existing = saved;
+    if (beforeTags.length != saved.tags.length ||
+        !beforeTags.containsAll(saved.tags)) {
+      ref.invalidate(tagPoolProvider);
+    }
     if (notify) ref.invalidate(journalsProvider);
     return saved;
   }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
@@ -189,6 +191,28 @@ void main() {
           reason: '标签命中忽略作用域（只属笔记也要搜到）');
       expect(r.rows.map((x) => x.module), containsAll(['diary', 'note']));
       expect((await dao.search('')).rows, isEmpty);
+    });
+  });
+
+  group('T9 池缓存失效（真机 6199 实测回归）', () {
+    // 症状：给日记打上标签并保存后，回「标签管理」仍显示「0 条」。
+    // 病根＝`tagPoolProvider` 是常驻 FutureProvider，只有标签管理自己的增删改
+    // 会 invalidate；日记保存这条写路径没通知它，引用计数就吃旧缓存。
+    // 这是纯 UI 接线问题，DAO 层永远是对的 ⇒ 只能用源码守护钉住两处接线。
+    test('日记保存与进管理页都要 invalidate 池', () {
+      String code(String path) => File(path)
+          .readAsStringSync()
+          .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+          .replaceAll(RegExp(r'//.*'), '');
+      final edit = code('lib/features/journal/presentation/diary_edit_page.dart');
+      expect(edit.contains('ref.invalidate(tagPoolProvider)'), isTrue,
+          reason: '编辑页 _persist 保存后必须失效池，否则引用计数不更新');
+      final manage = code('lib/features/journal/presentation/tag_manage_page.dart');
+      expect(
+          manage.contains('initState') &&
+              manage.contains('ref.invalidate(tagPoolProvider)'),
+          isTrue,
+          reason: '管理页进页要刷新——计数会被日记/笔记/时间三个模块改写');
     });
   });
 }

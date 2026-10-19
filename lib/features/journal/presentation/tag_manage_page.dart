@@ -39,6 +39,15 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
   int _searchSeq = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // 进页即刷新池：引用计数会被**其他模块**（日记保存/笔记/时间块）改写，
+    // 而 `tagPoolProvider` 是常驻 FutureProvider（不 autoDispose）。真机实测
+    // （批2b 6199）：给日记打上标签后回本页仍显示「0 条」，就是吃了旧缓存。
+    Future.microtask(() => ref.invalidate(tagPoolProvider));
+  }
+
+  @override
   void dispose() {
     _qCtrl.dispose();
     super.dispose();
