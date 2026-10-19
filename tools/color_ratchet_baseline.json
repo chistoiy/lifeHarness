@@ -46,6 +46,7 @@
  "lib/features/journal/presentation/note_local_import.dart": 3,
  "lib/features/journal/presentation/note_paper.dart": 9,
  "lib/features/journal/presentation/note_tab.dart": 2,
+ "lib/features/journal/presentation/widgets/diary_fan_fab.dart": 1,
  "lib/features/journal/presentation/widgets/diary_review_sheet.dart": 21,
  "lib/features/journal/presentation/widgets/ins_card.dart": 3,
  "lib/features/journal/presentation/widgets/journal_layout_kit.dart": 2,

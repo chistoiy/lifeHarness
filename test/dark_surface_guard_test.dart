@@ -62,7 +62,18 @@ const _baseline = <String, int>{
     'lib/features/care/presentation/cycle_view.dart': 8,
     'lib/features/habit/presentation/habits_page.dart': 8,
     // 影音游批2：记录页三态 FAB 收成一枚（该文件近白字面 7→6，登记值按实测收紧）。
-    'lib/features/journal/presentation/journal_page.dart': 6,
+    // 6→5 棘轮收紧（日记改版批2 · 2026-10-19 跑出「变小」提醒）：批1c 接扇形 FAB 时删掉顶行
+    // 三枚图标与「写今天的日记」入口卡，白字面真减 1，按口径调小登记值。
+    'lib/features/journal/presentation/journal_page.dart': 5,
+    // 日记改版批2（2026-10-19）跑出本红两处「新面」，两条都是**存量漏登**、本批一行未动：
+    // ① `journal_page_card.dart` 1 处＝篇卡缩略图上的白字（批1 拆 part 时从 journal_page 搬出，
+    //    搬迁只搬了文件、没搬登记）；② `diary_fan_fab.dart` 1 处＝扇形 FAB 本体图标（§4c-2 同心
+    //    品牌渐变底上的前景白）。两者底面都是主题/渐变，不是白底 —— 与 journal_page 5 处同形态。
+    'lib/features/journal/presentation/journal_page_card.dart': 1,
+    'lib/features/journal/presentation/widgets/diary_fan_fab.dart': 1,
+    // ③ `diary_edit_foot.dart` 1 处＝保存钮上的白字（本批从页面搬到 part，形态未变：字压
+    //    品牌渐变底）。同属「前景白、底面走主题」一族。
+    'lib/features/journal/presentation/diary_edit_foot.dart': 1,
     'lib/features/journal/presentation/widgets/ins_card.dart': 7,
     // 日记改版批1a 新增（2026-10-19）：月历图墙 1 处＝实心格上的日号白字
     //（角标那枚 white 走 Icon.color 槽位，未入闸面，故不计）。
@@ -113,10 +124,8 @@ const _baseline = <String, int>{
     'lib/features/goals/presentation/goals_kit.dart': 2,
     'lib/features/habit/presentation/habit_aux_sheets.dart': 2,
     'lib/features/habit/presentation/habit_sheets.dart': 2,
-    // 2→1 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）：净减 1 发生在
-    // 时间模块 B10（5700dff9，2026-10-13 旧 events 表退役后日记摘要切块单源），
-    // 本批一行未动该文件——按口径调小登记值。
-    'lib/features/journal/presentation/diary_edit_page.dart': 1,
+    // diary_edit_page 的登记项**已删**（日记改版批2 · 2026-10-19）：该文件唯一那处白字面
+    // （保存钮文字）随底栏整段搬进 `diary_edit_foot.dart`，本文件归零 ⇒ 按口径删项（留空登记＝死登记）。
     'lib/features/ledger/presentation/ledger_recur_page.dart': 2,
     'lib/features/read/presentation/biblio/isbn_scan_page.dart': 2,
     'lib/features/read/presentation/shelf/shelf_long_press.dart': 2,

@@ -444,9 +444,12 @@ void main() {
       richCtl(tester).controller.replaceText(0, 0, '晨会定了排期\n☐ 整理评审纪要',
           const TextSelection.collapsed(offset: 15));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('jm-1'))); // 😌 平静
+      await tester.tap(find.byKey(const ValueKey('mood-main-2'))); // 😌 平静
       await tester.pump();
       await tester.tap(find.byKey(const ValueKey('diary-save')));
+      await tester.pumpAndSettle();
+      // 批2 §4d ⑤：保存钮不再点完就退（要先让用户看见「保存中…→已保存」）⇒ 补一次返回
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
       final e = await jrepo.byDay(DateTime.now());
@@ -462,25 +465,28 @@ void main() {
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
-    testWidgets('轮12-6/8 头部=仅居中日期（当年 MM-DD 周几 · 跨年显年月日）·无篇序/字数/搜索',
+    testWidgets('轮12-6/8 头部=日期+天气 chip（批2 起星期全称 · 跨年补年份）·无篇序/字数/搜索',
         (tester) async {
       final now = DateTime.now();
       await tester.pumpWidget(scope(const DiaryEditPage()));
       await settle5(tester);
-      const wds = ['一', '二', '三', '四', '五', '六', '日'];
+      // 批2 §6-2：星期由简称「周五」改全称「星期五」（产品令）
+      const wds = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
       expect(
           find.text(
-              '${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} 周${wds[now.weekday - 1]}'),
+              '${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${wds[now.weekday - 1]}'),
           findsOneWidget);
       expect(find.text('第 1 篇'), findsNothing);
       expect(find.textContaining(' 字'), findsNothing);
-      expect(find.textContaining('已自动保存'), findsNothing);
+      // 批2 §4d ⑤：底部常驻保存态提示（clean＝「草稿已自动保存」，不再是"无任何状态字样"）
+      expect(find.byKey(const ValueKey('diary-save-hint')), findsOneWidget);
+      expect(find.text('草稿已自动保存'), findsOneWidget);
       expect(find.text('写日记'), findsNothing);
       expect(find.byIcon(Icons.search), findsNothing);
 
       await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey(), day: DateTime(2025, 9, 19))));
       await settle5(tester);
-      expect(find.text('2025-09-19 周五'), findsOneWidget); // 跨年历史篇补年份
+      expect(find.text('2025-09-19 星期五'), findsOneWidget); // 跨年历史篇补年份
     });
 
     testWidgets('V1.28 打开既有篇=回填+浏览计数；新建篇=空白富文本', (tester) async {
@@ -512,7 +518,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('今日完成 1 · 未完成 1'), findsOneWidget);
 
-      await tester.tap(find.text('插入正文 ↑'));
+      await tester.tap(find.byKey(const ValueKey('diary-sum-insert')));
       await tester.pump();
       expect(richCtl(tester).controller.document.toPlainText(),
           contains('【今日概览 · 自动生成】'));
@@ -539,7 +545,7 @@ void main() {
       expect(find.byKey(const ValueKey('sec-0')), findsOneWidget);
       expect(find.byKey(const ValueKey('sec-2')), findsOneWidget);
       expect(find.textContaining('3 节 · 各节独立保存'), findsOneWidget);
-      expect(find.text('📋 模板：KPT 复盘 ▾'), findsOneWidget);
+      expect(find.text('模板：KPT 复盘'), findsOneWidget);
       expect(find.byKey(const ValueKey('diary-rich-editor')), findsNothing); // 结构化无富文本区
 
       await tester.enterText(
@@ -548,9 +554,10 @@ void main() {
               matching: find.byType(TextField)),
           '坚持了晨跑');
       await tester.tap(find.byKey(const ValueKey('diary-save')));
-      // 单帧即可：toast 1600ms 自动消失，pumpAndSettle 会推进过其生命周期。
-      await tester.pump();
-      expect(find.textContaining('KPT 复盘（3 节）'), findsOneWidget);
+      // 批2 §4d ⑤：保存留在页内，只给一句「手记已保存」（节数 toast 随退出路径走）
+      await tester.pumpAndSettle();
+      expect(find.text('手记已保存'), findsOneWidget);
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
       final day = await jrepo.listByDay(DateTime.now());
@@ -570,18 +577,18 @@ void main() {
           0, 0, '', const TextSelection(baseOffset: 0, extentOffset: 3));
       await tester.pump();
 
-      await tester.tap(find.byKey(const ValueKey('diary-bold')));
+      await tester.tap(find.byKey(const ValueKey('diary-tb-bold')));
       await tester.pump();
       expect(jsonEncode(ctl.document.toDelta().toJson()),
           contains('"bold":true'));
 
       ctl.replaceText(3, 0, '', const TextSelection.collapsed(offset: 3));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('diary-task')));
+      await tester.tap(find.byKey(const ValueKey('diary-tb-task')));
       await tester.pump();
       expect(jsonEncode(ctl.document.toDelta().toJson()),
           contains('"list":"unchecked"'));
-      await tester.tap(find.byKey(const ValueKey('diary-task')));
+      await tester.tap(find.byKey(const ValueKey('diary-tb-task')));
       await tester.pump();
       expect(jsonEncode(ctl.document.toDelta().toJson()),
           contains('"list":"checked"'));
@@ -640,7 +647,7 @@ void main() {
       ctl.replaceText(0, 0, '正文在前', const TextSelection.collapsed(offset: 4));
       await tester.pump();
 
-      await tester.tap(find.byKey(const ValueKey('diary-album')));
+      await tester.tap(find.byKey(const ValueKey('diary-tb-album')));
       await tester.pump();
       // 轮12-2：快捷栏钮直取来源，不再弹 相册/拍照 选择层
       expect(find.byKey(const ValueKey('img-gallery')), findsNothing);
@@ -656,6 +663,8 @@ void main() {
       expect(find.textContaining('![图片]'), findsNothing); // 无 MD 语法露出
 
       await tester.tap(find.byKey(const ValueKey('diary-save')));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute(); // 批2：保存在页内，退出另走返回
       await tester.pumpAndSettle();
       final e = await jrepo.byDay(DateTime.now());
       expect(e!.kind, 'rich');
@@ -698,6 +707,8 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const ValueKey('diary-save')));
       await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute(); // 批2：保存在页内，退出另走返回
+      await tester.pumpAndSettle();
       final e = await jrepo.byDay(DateTime.now());
       expect(e!.imagePaths, isEmpty);
       expect(Note.richToPlain(e.content), contains('正文在前'));
@@ -718,7 +729,7 @@ void main() {
 
       await tester.pumpWidget(scope(const DiaryEditPage()));
       await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('diary-cam')));
+      await tester.tap(find.byKey(const ValueKey('diary-tb-camera')));
       await tester.pump();
       expect(find.byKey(const ValueKey('img-gallery')), findsNothing); // 跳过弹层
       final ctl = tester

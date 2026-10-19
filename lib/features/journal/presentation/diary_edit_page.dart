@@ -9,20 +9,22 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/ai/ai_review.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../calendar/domain/time_block.dart';
-import '../../calendar/presentation/calendar_providers.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/weather/weather.dart';
 import '../../../shared/weather/weather_visual.dart';
+import '../domain/diary_edit_kit.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import 'journal_providers.dart';
+import 'widgets/diary_mood_rail.dart';
+import 'widgets/diary_toolbar.dart';
 import 'widgets/diary_tpl_create_sheet.dart';
 import 'widgets/mm_card_block.dart';
 import '../../../shared/widgets/image_attach.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
 
 part 'diary_edit_rich.dart';
+part 'diary_edit_foot.dart';
 
 /// 路由参数：day=新建当天的第 N+1 篇；entryId=编辑既有某一篇（V1.28 一天多篇）。
 class DiaryEditArg {
@@ -31,10 +33,11 @@ class DiaryEditArg {
   final int? entryId;
 }
 
-/// 日记编辑页（原型 p-diaryEdit · V1.29轮12/批2b）：
-/// 全屏沉浸头部=返回钮+居中日期（跨年显年月日）；自由书写=flutter_quill 富文本
+/// 日记编辑页（原型 p-diaryEdit · V1.29轮12/批2b · 日记改版批2 2026-10-19）：
+/// 头部=返回钮＋日期星期全称＋天气 chip＋删除；心情＝可横滚单选组（选中带小叉取消）；
+/// 工具栏＝三组 Top5＋⋮ 折叠＋长按 tooltip；自由书写=flutter_quill 富文本
 /// （B/列表/待办/引用直接施加格式·图片内嵌·kind=rich Delta JSON 落库）；
-/// 结构化模板分节仍纯文本；今日概览草稿默认折叠；☐ 待办同步（L3）；自动存草稿。
+/// 结构化模板分节仍纯文本；今日概览草稿（弱底隔离·插入/重新生成）；底栏＝模板等高＋保存三态。
 class DiaryEditPage extends ConsumerStatefulWidget {
   const DiaryEditPage({super.key, this.day, this.entryId});
 
@@ -46,8 +49,6 @@ class DiaryEditPage extends ConsumerStatefulWidget {
 }
 
 class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
-  static const _weekdays = ['一', '二', '三', '四', '五', '六', '日'];
-
   late final DateTime _day;
   int? _mood;
   JournalEntry? _existing;
@@ -247,6 +248,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _saveFlashTimer?.cancel();
     _richCtl?.removeListener(_onRichChanged);
     _richCtl?.dispose();
     _richFocus.dispose();
@@ -494,14 +496,9 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   bool get _isToday => JournalEntry.sameDay(_day, DateTime.now());
 
-  /// 轮12-8：头部=居中「MM-DD 周几」；跨年历史篇补显年份。
-  String get _headerDate {
-    final wd = _weekdays[_day.weekday - 1];
-    final ymd = '${_day.year}-${_two(_day.month)}-${_two(_day.day)}';
-    return _day.year == DateTime.now().year
-        ? '${_two(_day.month)}-${_two(_day.day)} 周$wd'
-        : '$ymd 周$wd';
-  }
+  /// 轮12-8 / 批2 §6-2：头部=「MM-DD 星期X」（跨年补年份补到日）。
+  /// 批2 产品令：星期由简称「周五」改**全称**——简称对不熟中文习惯的人可读性差。
+  String get _headerDate => diaryHeadDate(_day);
 
   /// 批2e：心情行右侧天气 chip（线性图标+「晴 20~30°」·手动态加后缀；
   /// 未设置且不可抓=以「天气」空壳入口保留可点性）。
@@ -545,6 +542,59 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   Future<void> _autoSave() async {
     if (!_dirty || !mounted) return;
     await _persist(notify: false);
+  }
+
+  /* ---------- 批2（§4d）· 心情组 / 保存三态 / 手动保存 ---------- */
+
+  /// 「更多」行展开态（纯视图态，不落库）。
+  bool _moodMoreOpen = false;
+
+  /// 额外两枚（😍/🤔）的页内提示：库内七档没有对应序号，点了只做视觉回显、**不冒充已记录**
+  /// （重开就没有了，比不显示更糟）。切到七档任一档即清空。
+  String? _moodExtra;
+
+  /// 存盘中的短窗口（原型 260ms），只驱动「保存中…」这一态。
+  bool _saveFlash = false;
+  Timer? _saveFlashTimer;
+
+  /// 保存态三态取当前值（渲染与提示文案单源，见 `diarySaveHint`/`diarySaveDimmed`）。
+  DiarySaveState get _saveStateOf => _saveFlash
+      ? DiarySaveState.saving
+      : (_dirty ? DiarySaveState.dirty : DiarySaveState.clean);
+
+  /// 点一枚心情：同值＝取消；七档之间互斥；额外两枚只改回显（不落库、不冒充已记录）。
+  void _pickMood(String emoji) {
+    final idx = diaryMoodIndex(emoji);
+    setState(() {
+      if (idx == null) {
+        // 「更多」行多出的两枚：只切换视觉回显，`_mood` 保持原值（库内没有它的序号）
+        _moodExtra = _moodExtra == emoji ? null : emoji;
+      } else {
+        _mood = moodToggled(_mood, emoji);
+        _moodExtra = null;
+      }
+      _dirty = true;
+    });
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 900), _autoSave);
+  }
+
+  /// 保存钮（§4d ⑤ 产品令）：**不再点完就跳走**——先「保存中…」，落库后回 clean＋toast，
+  /// 用户能看见「保存成功」。离开本页走返回钮/系统返回（同一条 `_saveAndExit` 出口）。
+  Future<void> _saveNow() async {
+    if (_saving) return;
+    setState(() => _saveFlash = true);
+    _saveFlashTimer?.cancel();
+    _saveFlashTimer = Timer(const Duration(milliseconds: 260), () {
+      if (mounted) setState(() => _saveFlash = false);
+    });
+    await _saveAndExit(manual: true, keepPage: true);
+    if (!mounted) return;
+    setState(() {
+      _saveFlash = false;
+      _dirty = false;
+    });
+    AppToast.show(context, '手记已保存', ms: 1400);
   }
 
   /// 当前富文本 Delta JSON（未初始化/空文档=空串）。
@@ -599,21 +649,23 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     return created;
   }
 
-  /// 保存钮（manual=true）与返回拦截共用出口：flush 防抖尾稿 → 落库 → ☐ 同步 → 退。
+  /// 保存与退出共用出口：flush 防抖尾稿 → 落库 → ☐ 同步。
   /// 修复批（评估件 #3 退出不保尾 + #5 防重入）：对齐笔记编辑页批3 同款；
   /// 空页点保存不落空篇（评估件 #6 同源）。
-  Future<void> _save() => _saveAndExit(manual: true);
-
+  ///
+  /// 批2（§4d ⑤）改口径：[keepPage]=true 时**只存不退**（保存钮走这条，用户要看得到"保存成功"），
+  /// 返回钮与系统返回仍走退出路径。[keepPage] 时也不弹节数 toast（由调用方出一句「手记已保存」）。
   bool get _hasInput =>
       _mood != null ||
       _secCtrls.any((c) => c.text.trim().isNotEmpty) ||
       (_richCtl?.document.toPlainText().trim().isNotEmpty ?? false);
 
-  Future<void> _saveAndExit({bool manual = false}) async {
+  Future<void> _saveAndExit({bool manual = false, bool keepPage = false}) async {
     if (_saving) return;
     _saving = true;
     try {
       if (manual && _existing?.id == null && !_dirty && !_hasInput) {
+        if (keepPage) return; // 空页点保存：留在页内，不建幽灵篇
         if (!mounted) return;
         Navigator.of(context).pop(); // 空页保存=直接退，不建幽灵篇
         return;
@@ -624,16 +676,17 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         final n = await _syncTodoLines(entry.todoLines());
         _dirty = false;
         if (!mounted) return;
-        if (manual) {
+        if (manual && !keepPage) {
           final head = entry.structured
               ? '日记已保存 · ${_tpl.name}（${entry.sections.length} 节）'
               : '日记已保存';
           AppToast.show(
               context, n > 0 ? '$head · ☐ 待办已同步（$n 条）' : head);
-        } else if (n > 0) {
+        } else if (!manual && n > 0) {
           AppToast.show(context, '已自动保存 · ☐ 待办已同步');
         }
       }
+      if (keepPage) return;
       if (!mounted) return;
       // canPop=false 只拦系统返回（maybePop）；页内 pop 为强退，不再回环。
       Navigator.of(context).pop();
@@ -788,11 +841,25 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         if (!didPop) _saveAndExit();
       },
       child: Scaffold(
-      // 轮12-6/8：头部仅返回钮 + 居中日期周几（无标题/篇序/字数/保存态/搜索）
+      // 批2 §6-2（产品令）：头部＝日期（星期全称）与天气 chip **同行**，中间留白；
+      // 心情与天气彻底分家（心情是内容标签、天气是头部元信息）。
       appBar: AppBar(
-        title: Text(_headerDate,
-            key: const ValueKey('diary-head-date'),
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+        leading: IconButton(
+          key: const ValueKey('diary-back'),
+          tooltip: '返回',
+          onPressed: _saveAndExit, // 与系统返回同一条出口：flush 尾稿再退
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+        ),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            Text(_headerDate,
+                key: const ValueKey('diary-head-date'),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+            const SizedBox(width: 6),
+            _wxChip(context), // 批2e 天气 chip：随头部走，不再挂在心情行右端
+          ],
+        ),
         // 轮13：既有篇可删（确认弹层）；新篇未落库不显示
         actions: [
           if (_existing?.id != null)
@@ -806,36 +873,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       ),
       body: Column(
         children: [
-          // 心情 7 表情（轮12-8：图标缩小）+ 批2e 右侧天气小 chip
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (var i = 0; i < kJournalMoods.length; i++)
-                        GestureDetector(
-                          key: ValueKey('jm-$i'),
-                          onTap: () => setState(() => _mood = i + 1),
-                          child: AnimatedScale(
-                            scale: _mood == i + 1 ? 1.2 : 1,
-                            duration: const Duration(milliseconds: 150),
-                            child: Opacity(
-                              opacity: _mood == null || _mood == i + 1 ? 1 : .45,
-                              child: Text(kJournalMoods[i].$1,
-                                  style: const TextStyle(fontSize: 17)),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _wxChip(context),
-              ],
-            ),
+          // 批2：心情＝可横滚单选组（选中淡底+放大+右上小叉），「更多」展开第二行
+          DiaryMoodRail(
+            mood: _mood,
+            extraHint: _moodExtra,
+            moreOpen: _moodMoreOpen,
+            onToggleMore: () => setState(() => _moodMoreOpen = !_moodMoreOpen),
+            onMood: _pickMood,
           ),
           Expanded(
             child: _secCtrls.isEmpty
@@ -864,37 +908,21 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
               ),
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
-                    child: Row(
-                      children: [
-                        // 轮12-9：快捷栏按钮直接施加富文本格式（非 MD 语法）
-                        _fmt('diary-bold', 'B', '加粗',
-                            () => _richToggle(Attribute.bold)),
-                        _fmt('diary-ul', '≡', '列表',
-                            () => _richListAs(Attribute.ul)),
-                        _fmt('diary-task', '☑', '待办勾选', _richTask),
-                        _fmtIcon('diary-cam', Icons.photo_camera_outlined, '拍照',
-                            () => _richImage(direct: ImageSource.camera)),
-                        _fmtIcon('diary-album', Icons.image_outlined, '相册',
-                            () => _richImage(direct: ImageSource.gallery)),
-                        _fmtIcon(
-                            'diary-mic',
-                            Icons.mic_none,
-                            '语音 V1.x',
-                            () => _soon('语音 · V1.x'),
-                            dim: true),
-                        _fmt('diary-quote', '❝', '引用',
-                            () => _richToggle(Attribute.blockQuote)),
-                        _fmtIcon('diary-mm-card', Icons.account_tree_outlined,
-                            '导图卡片', _insertMmCard),
-                      ],
-                    ),
+                  // 批2 §4d ②：工具栏＝三组＋组间细竖线，主栏 Top5＋⋮ 折叠，长按 400ms 出提示
+                  DiaryToolbar(
+                    onBold: () => _richToggle(Attribute.bold),
+                    onTask: _richTask,
+                    onUl: () => _richListAs(Attribute.ul),
+                    onQuote: () => _richToggle(Attribute.blockQuote),
+                    onGallery: () => _richImage(direct: ImageSource.gallery),
+                    onCamera: () => _richImage(direct: ImageSource.camera),
+                    onVoice: () => _soon('语音 · V1.x'),
+                    onMmCard: _insertMmCard,
                   ),
-                  const Divider(height: 1),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                      // 批2 §4d ③：输入区上下留白加大（原型 20/24）
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                       child: QuillEditor(
                         key: const ValueKey('diary-rich-editor'),
                         controller: _richCtl!,
@@ -903,6 +931,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                         config: QuillEditorConfig(
                           padding: EdgeInsets.zero,
                           expands: true,
+                          placeholder: '在这里写下今日的感受与故事…',
                           embedBuilders: const [
                             NoteImageEmbedBuilder(),
                             MmCardEmbedBuilder(),
@@ -916,8 +945,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Column(
             children: [
               if (_isToday) ...[
@@ -925,6 +954,26 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                 const SizedBox(height: 12),
               ],
               _tplRow(context, tokens, scheme),
+              // 批2 §4d ⑤：保存态三态提示（clean 灰 / dirty 品牌紫加粗 / saving）
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    diarySaveHint(_saveStateOf),
+                    key: const ValueKey('diary-save-hint'),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: _saveStateOf == DiarySaveState.dirty
+                          ? tokens.accent
+                          : scheme.onSurfaceVariant.withValues(alpha: .6),
+                      fontWeight: _saveStateOf == DiarySaveState.dirty
+                          ? FontWeight.w800
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -996,161 +1045,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     );
   }
 
-  /// 轮12-1：今日概览草稿卡=默认折叠，点标题行展开/收起。
-  Widget _summaryCard(BuildContext context, tokens, scheme,
-      List<Todo> todos, List<TimeBlock> blocks) {
-    return Container(
-      decoration: BoxDecoration(
-        color: tokens.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tokens.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            key: const ValueKey('diary-sum-head'),
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => setState(() => _sumOpen = !_sumOpen),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text('今日概览草稿（自动生成 · 联动 L2）',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: scheme.onSurfaceVariant)),
-                  ),
-                  Icon(_sumOpen ? Icons.expand_less : Icons.expand_more,
-                      size: 18, color: scheme.onSurfaceVariant),
-                ],
-              ),
-            ),
-          ),
-          if (_sumOpen)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _summaryLines(todos, blocks).join('\n'),
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.7,
-                        color: scheme.onSurfaceVariant),
-                  ),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          _insertAtCursor(_summaryText(todos, blocks));
-                          _richFocus.requestFocus();
-                        },
-                        child: const Text('插入正文 ↑',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.w800)),
-                      ),
-                      TextButton(
-                        key: const ValueKey('diary-ai-reflect'),
-                        onPressed: _genReflection,
-                        child: Text('AI 生成反思草稿',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: tokens.accent)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// 模板选择行 + 保存钮（两种模式共用）。
-  Widget _tplRow(BuildContext context, tokens, scheme) {
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            key: const ValueKey('tpl-open-sheet'),
-            onTap: _openTplSheet,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-              decoration: BoxDecoration(
-                color: tokens.card,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: tokens.cardBorder),
-              ),
-              child: Text(
-                '📋 模板：${_tpl.id == null ? '自由书写' : _tpl.name} ▾',
-                key: const ValueKey('tpl-label'),
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        GestureDetector(
-          key: const ValueKey('diary-save'),
-          onTap: _save,
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-            decoration: BoxDecoration(
-                gradient: tokens.gradient,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: tokens.cardShadow),
-            child: const Text('保存',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _fmt(String key, String icon, String? tip, VoidCallback onTap) {
-    return IconButton(
-      key: ValueKey(key),
-      tooltip: tip,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-      onPressed: onTap,
-      icon: Text(icon, style: const TextStyle(fontSize: 15)),
-    );
-  }
-
-  /// 线性图标版工具钮（拍照/相册/语音·禁 emoji）。
-  Widget _fmtIcon(String key, IconData icon, String? tip, VoidCallback onTap,
-      {bool dim = false}) {
-    return IconButton(
-      key: ValueKey(key),
-      tooltip: tip,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-      onPressed: onTap,
-      icon: Opacity(
-        opacity: dim ? .45 : 1,
-        child: Icon(icon, size: 17),
-      ),
-    );
-  }
-
   void _soon(String what) {
     AppToast.show(context, '$what · 敬请期待', ms: 1500);
   }
 
-  static String _two(int v) => v.toString().padLeft(2, '0');
 }
