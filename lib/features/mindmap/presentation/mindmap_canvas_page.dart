@@ -11,6 +11,7 @@ import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../data/mindmap_dao.dart';
+import '../domain/mindmap_clipboard.dart';
 import '../domain/mindmap_layout.dart';
 import '../domain/mindmap_layout_preset.dart';
 import '../domain/mindmap_measure.dart';
@@ -27,8 +28,7 @@ import 'mindmap_painter.dart';
 import 'mindmap_sheets.dart';
 import 'mindmap_style_sheet.dart';
 
-/// 节点操作面（长按菜单 / 读屏语义 / 按钮构件 / **批5 三段接线**）。
-/// part 件＝同库私有可见，见该文件头段注（抽出动机＝画布页体量守 1200 线）。
+/// 节点操作面（长按菜单/读屏语义/构件/**批5 三段**＋**批P3 剪贴板与换序**）；part 件＝同库私有可见（动机＝体量守线，见该件头段注）。
 part 'mindmap_canvas_ops.dart';
 
 /// 连接器操作面（批P：挂接/摘除 · 连接态 · 树内导航）。

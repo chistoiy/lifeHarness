@@ -252,6 +252,15 @@ class MindmapDao {
     return rows.map(MindmapNode.fromRow).toList();
   }
 
+  /// 表内当前最大节点 id（空表＝0）。粘贴分配新 id 用。
+  ///
+  /// 为什么不让数据库自增：粘贴得**先**算出「旧 id → 新 id」整张映射，才能在
+  /// 第二趟把 parent_id 补正（两趟防错挂，见 `pasteRemap`）——而自增 id 要等
+  /// 插入之后才知道。单线程 UI 顺序执行，取 max 后连续递增不会撞。
+  Future<int> maxNodeId() async =>
+      Sqflite.firstIntValue(await db.rawQuery('SELECT MAX(id) FROM $_nodes')) ??
+      0;
+
   /// 整行显式 id 插入（撤销「删」的恢复侧与跨图粘贴用；**不**改 id，
   /// 粘贴生成新 id 走 [addNode]）。不 touch 图行（命令栈统一 touch）。
   Future<void> insertNodeFull(MindmapNode n) => db.insert(_nodes, {

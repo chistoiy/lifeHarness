@@ -116,4 +116,26 @@ class MmCommands {
       undo: (dao) => dao.updateNode(before),
     );
   }
+
+  /// **多行同步改**（同级换序：常规档只换两行的 `sort`；历史数据撞值时整组
+  /// 重编号）。前后成对逐行写，整组算**一步**——撤销一次即整组复原。
+  ///
+  /// 为什么不复用 [editNode] 逐行 push：那会在撤销栈里留下 n 步，用户按一次
+  /// 撤销只退半组，出现「顺序回来一半」这种半吊子状态。
+  static MmCommand updateRows(
+      List<(MindmapNode before, MindmapNode after)> pairs, String label) {
+    return MmCommand(
+      label: label,
+      redo: (dao) async {
+        for (final p in pairs) {
+          await dao.updateNode(p.$2);
+        }
+      },
+      undo: (dao) async {
+        for (final p in pairs) {
+          await dao.updateNode(p.$1);
+        }
+      },
+    );
+  }
 }

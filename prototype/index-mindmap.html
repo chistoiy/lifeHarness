@@ -504,10 +504,18 @@ tailwind.config = {
         </div>
         <button class="nm" onclick="mmResetPos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg>归位到自动布局</button>
         <div class="nm-div"></div>
+        <!-- 批P3 §5 第 5 条：同级换序（只动兄弟序、不改父子；一步可撤） -->
+        <div class="nm-row">
+          <button class="nm" onclick="mmMoveSibling(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>上移</button>
+          <button class="nm" onclick="mmMoveSibling(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>下移</button>
+        </div>
         <!-- 批2 F4-2 节点复制/剪切/粘贴（与命令栈同批，含子级） -->
         <button class="nm" onclick="mmCopyNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.4"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>复制（含子级）</button>
         <button class="nm" onclick="mmCutNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/><path d="M8.7 8.2 19 17M8.7 15.8 19 7"/></svg>剪切（含子级）</button>
-        <button class="nm" onclick="mmPasteNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.4"/><path d="M9 4.5V3h6v1.5M9 11h6M9 15h4"/></svg>粘贴为子节点</button>
+        <div class="nm-row">
+          <button class="nm" onclick="mmPasteNode('sibling')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.4"/><path d="M9 4.5V3h6v1.5M9 11h6M9 15h4"/></svg>粘贴同级</button>
+          <button class="nm" onclick="mmPasteNode('child')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.4"/><path d="M9 4.5V3h6v1.5M9 11h6M9 15h4"/></svg>粘贴子级</button>
+        </div>
         <div class="nm-div"></div>
         <button class="nm danger" onclick="mmDelNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>删除节点（含子级）</button>
       </div>
@@ -2082,6 +2090,26 @@ function mmCopyNode(){
   const k=mmClipFrom(cur.sel);
   toast('已复制该枝（'+k+' 个节点，含子级）');
 }
+/* 批P3 §5 第 5 条：同级换序——只换兄弟序，父子关系一律不动。
+   有父＝换 TREE[par] 里的位置；无父（根级）＝换 cur.nodes 里的先后。
+   走 mmPushHistory 快照，一步可撤；到头的方向给一句人话、不写历史。 */
+function mmMoveSibling(dir){
+  closeNodeMenu();
+  const id=cur.sel;
+  if(!id){ toast('先选中一个节点'); return; }
+  const par=parentOf(id);
+  const list=par?(TREE[par]||[]):rootIds();
+  const i=list.indexOf(id), j=i+dir;
+  if(i<0||j<0||j>=list.length){ toast(dir<0?'已经是同级里的第一个':'已经是同级里的最后一个'); return; }
+  mmPushHistory('调整同级顺序');
+  if(par){ const t=list[i]; list[i]=list[j]; list[j]=t; TREE[par]=list; }
+  else {
+    const a=cur.nodes.findIndex(n=>n.id===list[i]), b=cur.nodes.findIndex(n=>n.id===list[j]);
+    if(a>=0&&b>=0){ const t=cur.nodes[a]; cur.nodes[a]=cur.nodes[b]; cur.nodes[b]=t; }
+  }
+  renderCanvas(); toast(dir<0?'已上移':'已下移');
+}
+
 function mmCutNode(){
   closeNodeMenu();
   const id=cur.sel;
@@ -2095,11 +2123,14 @@ function mmCutNode(){
   cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
   toast('已剪切该枝（'+k+' 个节点）');
 }
-function mmPasteNode(){
+/* 批P3 §5 第 10 条：默认「粘贴为同级」——落到选中节点的父下（选中是根＝新根）；
+   「粘贴为子节点」才挂进选中节点。复制 A、选 B、粘贴，A 不再莫名变成 B 的子级。 */
+function mmPasteNode(mode){
   closeNodeMenu();
   if(!clipNode){ toast('剪贴板为空'); return; }
-  const p=cur.sel||(cur.nodes[0]&&cur.nodes[0].id);
-  if(!p){ toast('先选中要粘贴到的节点'); return; }
+  const sel=cur.sel;
+  const p = mode==='child' ? (sel||(cur.nodes[0]&&cur.nodes[0].id)) : (sel?parentOf(sel):null);
+  if(mode==='child' && !p){ toast('先选中要粘贴到的节点'); return; }
   if(cur.nodes.length+clipNode.nodes.length>2000){ toast('已达节点上限（2000）'); return; }
   mmPushHistory('粘贴节点');
   const base='p'+Date.now()+'_', map={};
@@ -2108,7 +2139,7 @@ function mmPasteNode(){
     const cp=JSON.parse(JSON.stringify(n)); cp.id=nid; cp.init=false; cp.x=0; cp.y=0;
     cur.nodes.push(cp);
   });
-  (TREE[p]=TREE[p]||[]).push(map[clipNode.root]);
+  if(p) (TREE[p]=TREE[p]||[]).push(map[clipNode.root]);
   clipNode.nodes.forEach(n=>{ if(clipNode.tree[n.id]) TREE[map[n.id]]=clipNode.tree[n.id].map(k=>map[k]); });
   cur.sel=map[clipNode.root]; renderCanvas(); $('#mmToolbar').classList.remove('hide');
   toast('已粘贴 '+clipNode.nodes.length+' 个节点');

@@ -232,6 +232,203 @@ Future<String?> showMmMenu(
 }
 
 
+/// 节点菜单项（贴点浮层用）。
+///
+/// `inline`＝与**紧随其后的**同族项并排成一行（原型 `.nm-row`：成对或互斥的
+/// 短动作并排，既省高度也让「一个上一个下」「一个收一个放」这层对照看得见）。
+/// 连续 inline 项聚成一行；非 inline 项各自独占一行。
+typedef MmMenuItem = ({
+  String key,
+  IconData icon,
+  String label,
+  bool enabled,
+  bool inline,
+});
+
+/// 节点菜单 · **贴节点浮层**（原型 `openNodeMenuAt`）。
+///
+/// 为什么不沿用底部弹层：节点菜单是全模块最长的一份（原型 17 项），从底部
+/// 升起时菜单头与节点隔着一整屏，人得先在「我点的是哪个节点」和「菜单第一项」
+/// 之间来回找；贴点浮层把菜单直接落在节点下沿，上下文不丢，也不压住底部工具条。
+///
+/// [anchor]＝**屏幕坐标**（节点盒底边中点）。定位口径与原型一致：默认向下展开，
+/// 下沿放不下就上翻；左右夹在 10dp 边距内。高度上限＝屏高减 20，超出内部滚动
+/// （原型 `max-height + overflow-y:auto` 同款，不是缺陷）。
+///
+/// [groups]＝**组序列**：组间画分隔线（原型 `.nm-div`），组内按 [MmMenuItem.inline]
+/// 聚行。用「组的列表」而不是「平铺项＋尾部一行」，是因为原型的分隔线穿插在
+/// 中间（增/改/剪贴/删四段），尾部一行表达不了这个次序。
+Future<String?> showMmMenuAt(
+  BuildContext context,
+  Offset anchor, {
+  required List<List<MmMenuItem>> groups,
+  String? headline,
+}) {
+  return showGeneralDialog<String>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: '关闭菜单',
+    // 遮罩全透明：原型 `openNodeMenuAt` 没有遮罩（菜单旁边那枝还得看得清），
+    // 层级感交给面板自身的 elevation。透明 barrier 仍吃掉外部点击＝点哪都关。
+    barrierColor: Colors.transparent,
+    transitionDuration: const Duration(milliseconds: 140),
+    pageBuilder: (ctx, _, _) => CustomSingleChildLayout(
+      delegate: _MmMenuPosition(anchor),
+      child: _MmMenuPanel(groups: groups, headline: headline),
+    ),
+    transitionBuilder: (ctx, anim, _, child) =>
+        FadeTransition(opacity: anim, child: child),
+  );
+}
+
+/// 浮层定位：拿到**实际**子高度再落位（估算高度会在窄屏上忽高忽低）。
+class _MmMenuPosition extends SingleChildLayoutDelegate {
+  const _MmMenuPosition(this.anchor);
+
+  final Offset anchor;
+
+  static double _clamp(double v, double lo, double hi) =>
+      v < lo ? lo : (v > hi ? hi : v);
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints c) => BoxConstraints(
+        maxWidth: 236,
+        maxHeight: c.maxHeight - 20,
+      );
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final left = _clamp(anchor.dx - childSize.width / 2, 10,
+        _clamp(size.width - childSize.width - 10, 10, double.infinity));
+    var top = anchor.dy + 14;
+    if (top + childSize.height > size.height - 10) {
+      top = anchor.dy - childSize.height - 14; // 下沿放不下 ⇒ 上翻
+    }
+    return Offset(
+      left,
+      _clamp(top, 10, _clamp(size.height - childSize.height - 10, 10, double.infinity)),
+    );
+  }
+
+  @override
+  bool shouldRelayout(covariant _MmMenuPosition old) => old.anchor != anchor;
+}
+
+class _MmMenuPanel extends StatelessWidget {
+  const _MmMenuPanel({required this.groups, this.headline});
+
+  final List<List<MmMenuItem>> groups;
+  final String? headline;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      key: const ValueKey('mm-node-menu'),
+      color: cs.surfaceContainerHigh,
+      elevation: 10,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (headline != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 3, 8, 4),
+                child: Text(
+                  headline!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .4,
+                      color: cs.onSurfaceVariant.withValues(alpha: .7)),
+                ),
+              ),
+            for (var g = 0; g < groups.length; g++) ...[
+              if (g > 0)
+                Divider(
+                  height: 9,
+                  thickness: 1,
+                  color: cs.outlineVariant.withValues(alpha: .55),
+                ),
+              ..._rowsOf(context, groups[g]),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 一组内按 inline 聚行：连续 inline 项并排，其余各占一行。
+  List<Widget> _rowsOf(BuildContext context, List<MmMenuItem> items) {
+    final out = <Widget>[];
+    var i = 0;
+    while (i < items.length) {
+      if (!items[i].inline) {
+        out.add(_tile(context, items[i]));
+        i++;
+        continue;
+      }
+      final run = <MmMenuItem>[];
+      while (i < items.length && items[i].inline) {
+        run.add(items[i]);
+        i++;
+      }
+      out.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: Row(
+          children: [
+            for (var k = 0; k < run.length; k++) ...[
+              if (k > 0) const SizedBox(width: 6),
+              Expanded(child: _pairBtn(context, run[k])),
+            ],
+          ],
+        ),
+      ));
+    }
+    return out;
+  }
+
+  Widget _tile(BuildContext context, MmMenuItem it) {
+    final cs = Theme.of(context).colorScheme;
+    final fg = it.enabled ? cs.onSurface : cs.onSurfaceVariant.withValues(alpha: .4);
+    return ListTile(
+      key: ValueKey('mm-menu-${it.key}'),
+      dense: true,
+      enabled: it.enabled,
+      minLeadingWidth: 0,
+      horizontalTitleGap: 9,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      visualDensity: const VisualDensity(vertical: -2),
+      leading: Icon(it.icon, size: 18, color: fg),
+      title: Text(it.label, style: TextStyle(fontSize: 13.5, color: fg)),
+      onTap: it.enabled ? () => Navigator.pop(context, it.key) : null,
+    );
+  }
+
+  Widget _pairBtn(BuildContext context, MmMenuItem it) {
+    return OutlinedButton.icon(
+      key: ValueKey('mm-menu-${it.key}'),
+      onPressed: it.enabled ? () => Navigator.pop(context, it.key) : null,
+      icon: Icon(it.icon, size: 16),
+      label: Text(it.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
 /// 解析预览弹层（原型 sheetMm-fromMd）：层级树缩进预览＋截断提示＋确认。
 ///
 /// 批P P2：**单层标题**（多为全 H1）的处置二选一。判定位在解析层
