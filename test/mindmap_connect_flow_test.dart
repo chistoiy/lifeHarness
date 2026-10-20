@@ -90,7 +90,7 @@ void main() {
   /// 内同理）。这不是给测试开后门：无限动画本来就不该出现在 pumpAndSettle 路径上。
   Future<void> openMenu(WidgetTester tester) async {
     await letToastPass(tester);
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
   }
 
@@ -275,21 +275,22 @@ void main() {
         reason: '节点被下移让开提示条，否则合法目标被遮');
   });
 
-  testWidgets('工具条尊重系统手势条安全区（§5 第 1 条：不再贴死屏幕底）',
-      (tester) async {
-    await pumpMap(
-      tester,
-      seed: (d, m) async {
-        await d.addNode(mapId: m, parentId: null, title: '中心');
-      },
-      // 模拟 Android 手势导航：底部 inset 24dp。
-      viewPadding: const EdgeInsets.only(bottom: 24),
-    );
-    final more = tester.getRect(find.byKey(const ValueKey('mm-tool-more')));
-    final view = tester.view;
-    final viewH = view.physicalSize.height / view.devicePixelRatio;
-    expect(more.bottom, lessThanOrEqualTo(viewH - 24 + 0.5),
-        reason: '按钮整体退出手势热区');
-    expect(more.height, greaterThanOrEqualTo(40), reason: '命中区没被裁');
+  testWidgets('贴点气泡落在画布内（§5 第 1 条新口径：底部不再有常驻条，'
+      '安全区自然不相干）', (tester) async {
+    await pumpMap(tester, seed: (d, m) async {
+      await d.addNode(mapId: m, parentId: null, title: '中心');
+    });
+    await tapAt(tester, centerOf(tester, '中心'));
+    await tester.pump();
+    final child = tester.getRect(find.byKey(const ValueKey('mm-bubble-child')));
+    final more = tester.getRect(find.byKey(const ValueKey('mm-bubble-more')));
+    final canvas = tester.getRect(find.byKey(const ValueKey('mm-canvas-paint')));
+    expect(canvas.contains(child.topLeft) && canvas.contains(more.bottomRight),
+        isTrue, reason: '气泡四边都夹在画布内，不会被系统手势条压到');
+    expect(child.right, lessThanOrEqualTo(more.left),
+        reason: '主操作在左、次操作在右（原型同序）');
+    expect(more.height, greaterThanOrEqualTo(30), reason: '命中区没被裁');
+    // 旧口径「底部条退出手势热区」随底部条一并作废：这里断言它真的不在了。
+    expect(find.byKey(const ValueKey('mm-tool-more')), findsNothing);
   });
 }

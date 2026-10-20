@@ -201,15 +201,13 @@ void main() {
     testWidgets('点勾选框**不选中**（原型 stopPropagation 的等价面）',
         (tester) async {
       await pumpOneNode(tester, isTask: true);
-      // 先点空白取消选中，再点勾选框：底部工具条不应变为可用。
+      // 先点空白取消选中，再点勾选框：贴点气泡不该因此出现（批P5 口径——
+      // 「没选中」＝气泡不渲染，取代原先「工具条置灰」的表达）。
       final c = nodeCenter(tester);
       await tapAt(tester, c - const Offset(45, 0));
       await tester.pumpAndSettle();
-      final tool = tester.widget<Opacity>(
-          find.ancestor(of: find.byKey(const ValueKey('mm-tool-more')),
-              matching: find.byType(Opacity)));
-      expect(tool.opacity, lessThan(1.0),
-          reason: '工具条仍处未选中态 ⇒ 勾选没顺手选中节点');
+      expect(find.byKey(const ValueKey('mm-bubble-more')), findsNothing,
+          reason: '气泡仍不出现 ⇒ 勾选没顺手选中节点');
     });
 
     testWidgets('非任务节点点左侧＝仍是选中（不误触发勾选）', (tester) async {
@@ -245,7 +243,7 @@ void main() {
       // 选中 → 更多 → 编辑节点
       await tapAt(tester, nodeCenter(tester));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+      await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('mm-menu-edit')));
       await tester.pumpAndSettle();
@@ -268,7 +266,7 @@ void main() {
       final (dao, mapId, _) = await pumpOneNode(tester);
       await tapAt(tester, nodeCenter(tester));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+      await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('mm-menu-edit')));
       await tester.pumpAndSettle();
@@ -287,7 +285,7 @@ void main() {
       await tester.pumpAndSettle();
       await tapAt(tester, nodeCenter(tester));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+      await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('mm-menu-edit')));
       await tester.pumpAndSettle();

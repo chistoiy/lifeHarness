@@ -51,7 +51,7 @@ void main() {
     // 选中（中心主题在 fit 后视口中央）→ 更多 → 编辑节点。
     await tapAt(tester, tester.getCenter(find.byKey(const ValueKey('mm-canvas-paint'))));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('mm-menu-edit')));
     await tester.pumpAndSettle();
@@ -86,7 +86,7 @@ void main() {
     await tester.pumpAndSettle();
     await tapAt(tester, tester.getCenter(find.byKey(const ValueKey('mm-canvas-paint'))));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('mm-menu-edit')));
     await tester.pumpAndSettle();
@@ -98,20 +98,24 @@ void main() {
     expect(find.byKey(const ValueKey('mm-node-empty-hint')), findsOneWidget);
   });
 
-  testWidgets('点空白取消选中（B5）：工具条从可用转禁用', (tester) async {
+  testWidgets('点空白取消选中（B5 改口径）：贴点气泡随之消失', (tester) async {
     await seed(tester, act: (_) async {});
     final canvasCenter =
         tester.getCenter(find.byKey(const ValueKey('mm-canvas-paint')));
-    // 选中：工具条可用。
+    // 选中：气泡在，两枚都可点。
     await tapAt(tester, canvasCenter);
     await tester.pump();
-    var ink = tester.widget<InkWell>(find.byKey(const ValueKey('mm-tool-more')));
+    expect(find.byKey(const ValueKey('mm-bubble-child')), findsOneWidget);
+    final ink =
+        tester.widget<InkWell>(find.byKey(const ValueKey('mm-bubble-more')));
     expect(ink.onTap, isNotNull);
-    // 点空白（视口左上角落）＝取消选中 → 工具条禁用。
+    // 点空白（视口左上角落）＝取消选中 → 气泡整体消失（批P5：不再有常驻工具条
+    // 靠置灰表达「不可用」，没选中就等于没有这组操作）。
     await tapAt(tester, const Offset(24, 90));
     await tester.pump();
-    ink = tester.widget<InkWell>(find.byKey(const ValueKey('mm-tool-more')));
-    expect(ink.onTap, isNull, reason: '无选中时上下文工具条为禁用态（F1-10）');
+    expect(find.byKey(const ValueKey('mm-bubble-more')), findsNothing,
+        reason: '无选中时气泡不渲染（F1-10 的新表达）');
+    expect(find.byKey(const ValueKey('mm-bubble-child')), findsNothing);
   });
 
   testWidgets('加根节点入口在 AppBar：经弹层生成第二根（F1-4 交互面）',

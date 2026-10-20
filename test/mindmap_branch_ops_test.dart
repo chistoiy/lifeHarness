@@ -138,7 +138,7 @@ void main() {
     await letToastPass(tester);
     await tapAt(tester, centerOf(tester, title));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
     final target = find.byKey(ValueKey('mm-menu-$key'));
     expect(target, findsOneWidget, reason: '菜单里没有 $key');
@@ -195,7 +195,7 @@ void main() {
     await letToastPass(tester);
     await tapAt(tester, centerOf(tester, '甲'));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
     // 已是第一位 ⇒ 上移置灰（点不动），这是菜单层面的正确表达。
     final up =
@@ -311,7 +311,7 @@ void main() {
     await letToastPass(tester);
     await tapAt(tester, centerOf(tester, '根'));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
     for (final k in ['mm-menu-pasteSib', 'mm-menu-pasteChild']) {
       final b = tester.widget<OutlinedButton>(find.byKey(ValueKey(k)));

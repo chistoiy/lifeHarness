@@ -23,7 +23,10 @@ void main() {
     // 按实测登，此后只许减；下一批发落点＝把「指针仲裁」整段抽 part 还债。
     // 1316→1292（批P4 · 2026-10-20）：顶栏整段抽去 part（`_buildCanvasAppBar`），
     // 主文件净减 24 行——本批还的债，登记值随之下调（棘轮只降不升）。
-    'features/mindmap/presentation/mindmap_canvas_page.dart': 1292,
+    // 1292→1259（批P5 · 2026-10-20）：底部悬浮工具条整条撤掉（含三枚按钮与其
+    // 排布、以及只为它服务的 `selected` 派生），选中主操作搬进贴点气泡的
+    // 新 part 件（`mindmap_canvas_bubble.dart`）——主文件再减 33 行，继续下调。
+    'features/mindmap/presentation/mindmap_canvas_page.dart': 1259,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // 1520→1528 存量越线归位（小组件批E · 2026-10-18）：产品令「缺少修改打卡记录」——
     // 流水每行包一层 GestureDetector（key `hd-rec-<日键>`）点开那一天的记录编辑，

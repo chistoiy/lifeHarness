@@ -81,7 +81,7 @@ void main() {
     await tapAt(tester,
         tester.getCenter(find.byKey(const ValueKey('mm-canvas-paint'))));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
     // 批P：节点菜单加到 12 项，600 高的测试视口里末项在折叠线外 ⇒ 先滚进来。
     await tester.ensureVisible(find.byKey(const ValueKey('mm-menu-edit')));
@@ -118,7 +118,7 @@ void main() {
     final c = tester.getCenter(find.byKey(const ValueKey('mm-canvas-paint')));
     await tapAt(tester, c - const Offset(0, 30));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
     // 批P：节点菜单加到 12 项，600 高的测试视口里末项在折叠线外 ⇒ 先滚进来。
     await tester.ensureVisible(find.byKey(const ValueKey('mm-menu-del')));

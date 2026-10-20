@@ -1404,6 +1404,16 @@ function bindNodeDrag(el,n){
 function applyTransform(){
   $('#mmStage').style.transform='translate('+cur.tx+'px,'+cur.ty+'px) scale('+cur.scale+')';
   $('#mmScaleTag').textContent=Math.round(cur.scale*100)+'%';
+  /* 把每个节点的「第一个可见子级屏幕 y」预先算好挂在节点上：气泡让位要用，
+     而布局基线 base 是 renderCanvas 的局部变量、这里够不着。
+     本轮只算一次（O(边数)），比让气泡每次自己翻子级省事也不易算错。 */
+  cur.nodes.forEach(function(x){ x._kidY=undefined; });
+  cur.nodes.forEach(function(x){
+    var ks=treeKids(x.id); if(!ks.length)return;
+    var ky=null;
+    ks.forEach(function(k){ var y=(byId(k)||{}).y; if(typeof y==='number'&&(ky===null||y<ky))ky=y; });
+    if(ky!==null)x._kidY=ky*cur.scale+cur.ty;
+  });
   mmSyncBubble();
 }
 /* 画布手势仲裁（2d 裁定：拖空白＝平移、双指＝缩放、拖节点＝移动节点，三者互不抢）：
@@ -1519,8 +1529,17 @@ function mmSyncBubble(){
     /* 上方放不下：先挪到节点右侧（纵向树里右侧通常空着）→ 再左侧 → 最后才压到下方。
        不直接翻到下方，是因为纵向布局里节点下方紧跟着子级，压上去就挡字。 */
     const rx=x+w+10, lx=x-bbw-10;
-    if(rx+bbw<=vp.width-10){ left=rx; top=clamp(y+h/2-bh/2,10,vp.height-bh-10); }
-    else if(lx>=10){ left=lx; top=clamp(y+h/2-bh/2,10,vp.height-bh-10); }
+    /* 侧面让位时纵向别越过子级上沿：纵向树里节点正下方就是第一个子级，正居中
+       会横跨它的顶边。取第一个可见子级的屏幕 y 当「气泡下沿上限」，往上收；
+       收不下（子级上沿离节点不到一个气泡高）就不走侧面，落回「压下方」。 */
+    /* 子级屏幕 y 由 renderCanvas 落进 n._kidY（base 是渲染期局部变量，
+       mmSyncBubble 拿不到），这里直接用现成的绝对坐标。 */
+    const room=(typeof n._kidY==='number')?(n._kidY-y):null;
+    const sideOk=(room===null)||(room>bh);
+    const sideTop=sideOk?Math.min(clamp(y+h/2-bh/2,10,vp.height-bh-10),
+                                    room===null?1e9:y+room-bh):0;
+    if(rx+bbw<=vp.width-10&&sideOk){ left=rx; top=sideTop; }
+    else if(lx>=10&&sideOk){ left=lx; top=sideTop; }
     else { top=y+h+10; }
   }
   top=clamp(top,10,vp.height-bh-10);

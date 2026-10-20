@@ -78,7 +78,7 @@ void main() {
     await pumpCanvas(tester, mapId, topInset: 30);
 
     await tapNode(tester, '中心主题');
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
 
     final panel = find.byKey(const ValueKey('mm-node-menu'));
@@ -163,10 +163,9 @@ void main() {
         mapId: mapId, parentId: root.id, title: '被命中的节点');
     await pumpCanvas(tester, mapId, focusNodeId: child.id);
 
-    // 选中态判据＝底部工具条可用（未选中时三枚全置灰）。
-    final bind = tester.widget<InkWell>(
-        find.byKey(const ValueKey('mm-tool-bind')));
-    expect(bind.onTap, isNotNull, reason: '带 node 进图应已选中该节点');
+    // 选中态判据＝贴点气泡在场（批P5 起底部工具条整条撤掉，改由气泡表达选中）。
+    expect(find.byKey(const ValueKey('mm-bubble-child')), findsOneWidget,
+        reason: '带 node 进图应已选中该节点');
 
     // 且被摆到视口中心附近（不是按整图 fit 的左上角）。
     final sem = find.byWidgetPredicate(

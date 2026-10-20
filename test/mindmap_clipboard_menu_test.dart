@@ -63,7 +63,7 @@ void main() {
 
   Future<void> openMenu(WidgetTester tester) async {
     await letToastPass(tester);
-    await tester.tap(find.byKey(const ValueKey('mm-tool-more')));
+    await tester.tap(find.byKey(const ValueKey('mm-bubble-more')));
     await tester.pumpAndSettle();
   }
 

@@ -425,38 +425,4 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
     );
   }
 
-  Widget _toolBtn(
-    BuildContext context, {
-    required ValueKey<String> key,
-    required IconData icon,
-    required String label,
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return Opacity(
-      opacity: enabled ? 1 : .42,
-      child: Material(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          key: key,
-          borderRadius: BorderRadius.circular(14),
-          onTap: enabled ? onTap : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 18, color: cs.onSurface),
-                const SizedBox(width: 6),
-                Text(label,
-                    style: TextStyle(fontSize: 13, color: cs.onSurface)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

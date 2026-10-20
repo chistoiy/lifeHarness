@@ -38,6 +38,9 @@ part 'mindmap_connect_ops.dart';
 part 'mindmap_canvas_paint.dart';
 part 'mindmap_canvas_layout.dart';
 
+/// 选中态贴点气泡（批P5：底部工具条撤掉后，选中主操作整组搬到这里）。
+part 'mindmap_canvas_bubble.dart';
+
 /// 画布主屏（原型 mm-canvas · push 路由 `/mindmap/canvas?id=`）。
 ///
 /// 渲染层七条（冻结方案 §6.3，批 1 硬要求）：
@@ -1116,7 +1119,6 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
             child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
-    final selected = _selectedId == null ? null : _byId(_selectedId!);
     final visIds = _visibleIds();
     // 批P 三个输入集（聚焦/连接目标/置灰）是状态派生量，改成 State 上的 getter
     // ——绘制 part 直接吃，build 里不再各留一份。
@@ -1177,6 +1179,9 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
                     // 读屏语义层（§4.7）：Canvas 节点对读屏不可见 ⇒ 叠透明 Semantics。
                     for (final id in visIds)
                       _buildSemantics(context, id),
+                    // 批P5 §5 第 7 条：选中态贴点气泡（「加子节点」＋「更多」）。
+                    // 放在语义层之后、缩放标签之前——它比标签更该拿到触点。
+                    ?_selectedBubble(context),
                     // 缩放比例标签（尼尔森 1 系统状态可见性）。
                     Positioned(
                       right: 12,
@@ -1233,47 +1238,9 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
               },
             ),
           ),
-          // 悬浮工具条（贴画布底部、不占壳底栏——本模块不进 ShellRoute 底栏）。
-          // 批P §5 第 1 条：原 `SafeArea(top:false)`＋底部 10dp 只到手势条上沿，
-          // Android 手势导航下按钮仍贴死屏幕最底。bottom 抬到 18dp＋安全区
-          // ⇒ 与原型 `bottom:82`（≈41dp）对齐，热区不再正对手势条。
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _toolBtn(
-                    context,
-                    key: const ValueKey('mm-tool-bind'),
-                    icon: Icons.link_outlined,
-                    label: '挂笔记',
-                    enabled: selected != null,
-                    onTap: () => _bindNote(selected!),
-                  ),
-                  const SizedBox(width: 8),
-                  _toolBtn(
-                    context,
-                    key: const ValueKey('mm-tool-addchild'),
-                    icon: Icons.account_tree_outlined,
-                    label: '加子节点',
-                    enabled: selected != null,
-                    onTap: () => _addChild(selected!.id),
-                  ),
-                  const SizedBox(width: 8),
-                  _toolBtn(
-                    context,
-                    key: const ValueKey('mm-tool-more'),
-                    icon: Icons.more_horiz,
-                    label: '更多',
-                    enabled: selected != null,
-                    onTap: () => _showNodeMenu(selected!),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // 批P5 §5 第 7 条（产品拍板）：底部悬浮工具条**整条撤掉**——画布底部不再有常驻按钮条
+          // 挡内容；选中主操作整组搬进贴节点小气泡（`_selectedBubble`，在画布 Stack 内叠加）。
+          // 墓碑：2026-10-20 之前这里挂「挂笔记 / 加子节点 / 更多」三枚。
         ],
       ),
     );

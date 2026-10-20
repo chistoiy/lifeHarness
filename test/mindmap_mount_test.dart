@@ -213,19 +213,16 @@ void main() {
       final center = tester.getCenter(find.byKey(const ValueKey('mm-canvas-paint')));
       await tapAt(tester, center);
       await tester.pump();
-      // 点空白（左上角落）→ 取消选中：工具条回禁用态（onTap null）。
+      // 点空白（左上角落）→ 取消选中：贴点气泡整体消失（批P5 口径）。
       await tapAt(tester, const Offset(20, 80));
       await tester.pump();
-      // key 就钉在 InkWell 自身：find.descendant 不含自身，须直取。
-      final moreInk = tester.widget<InkWell>(
-          find.byKey(const ValueKey('mm-tool-more')));
+      expect(find.byKey(const ValueKey('mm-bubble-more')), findsNothing);
       // 双击画布空白（未挂节点语义已由挂载用例覆盖；此处断言不崩不跳）。
       await tapAt(tester, const Offset(20, 80));
       await tester.pump();
       await tapAt(tester, const Offset(20, 80));
       await tester.pumpAndSettle();
       expect(opened, isEmpty);
-      expect(moreInk, isNotNull);
     });
   });
 
