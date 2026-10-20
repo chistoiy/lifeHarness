@@ -82,6 +82,7 @@ class RestoreReport {
     required this.autoBackupPath,
     this.restoredAttachmentFiles = 0,
     this.configRestored = false,
+    this.scopeModules = const [],
   });
 
   /// 包内恢复的表数。
@@ -104,6 +105,13 @@ class RestoreReport {
 
   /// V1.66 批2：包内 `config/settings.json` 是否已应用（旧 v1 包恒 false）。
   final bool configRestored;
+
+  /// 余量批4：本次是否**按模块整组替换**（非空＝部分恢复，只动了这几个
+  /// 模块）；空＝整库替换（全量包/老包）。恢复报告据此改口径。
+  final List<String> scopeModules;
+
+  /// 是否部分恢复（只覆盖了 [scopeModules] 这几个模块）。
+  bool get isPartial => scopeModules.isNotEmpty;
 }
 
 /// 备份导出/导入恢复服务（目录/库/对话框全注入，可测）。
@@ -530,17 +538,34 @@ class BackupService {
   /// 仍抛出的异常由 UI 层兜底可见提示（2026-10-04 起，不再承诺「导出记录 tab」）。
   Future<String?> pickBackupFile() => pickFileHook();
 
-  /// 导入恢复（整库替换，不做记录级合并）。顺序钉死，见文件头注释。
+  /// 导入恢复：**默认整库替换，包内带 `manifest.scope` 时按模块整组替换**
+  /// （余量批4 · A1）。分流判据在 [LhBak.unpack] 内（唯一入口
+  /// [LhBakRestoreScope.fromManifest]），本方法只负责三件配套：
+  /// ① 附件腿按 scope 收窄（只还原本包涉及模块的附件目录，别的模块的附件
+  ///    目录**连清都不清**——整目录删除重建是全量替换口径）；
+  /// ② 恢复前自动备份恒为**全量**（回退件的意义是「恢复到动手前」，不能只回
+  ///    那几个模块）；
+  /// ③ 报告带 [RestoreReport.scopeModules]，UI 据此改口径。
   Future<RestoreReport> importBackup(String filePath,
       {String? passphrase}) async {
     // L1 日志批：恢复前置备份/校验/解包失败全部落日志（现场重开也记）。
     AppLog.addKey('备份导入开始：${p.basename(filePath)}');
     // 1) 前置校验：坏包在这里拒绝，现库一字节不动。
+    LhBakManifest verified;
     try {
-      await LhBak.verify(filePath, passphrase: passphrase);
+      verified = await LhBak.verify(filePath, passphrase: passphrase);
     } catch (e) {
       AppLog.add('备份校验失败（现库未动）：$e', level: LhLevel.error);
       rethrow;
+    }
+    // 1b) 范围判据也在 close 之前算完：坏 scope（认不出的模块 id）在这一步
+    //     拒绝，现库与自动备份都不动。判据与 unpack 内完全同源。
+    final scope = LhBakRestoreScope.fromManifest(verified);
+    if (scope != null) {
+      AppLog.addKey(
+          '备份为子集包：模块 ${scope.moduleIds.join(",")} · 涉及 ${scope.tables.length} 表'
+          '${scope.from != null ? ' · 时间 ${scope.from!.toIso8601String().substring(0, 10)}~${scope.to!.toIso8601String().substring(0, 10)}' : ""}',
+          );
     }
     // 2) 恢复前自动备份：close 之前完成 → 原库文件此后不再被触碰。
     final auto = await exportBackup(nameTag: kAutoBeforeRestoreTag);
@@ -598,15 +623,29 @@ class BackupService {
     // 目录组＝attachDirs 基名→原目录（组在包内才清旧目录）；散件＝
     // attachRootDirs 根目录（只覆盖不清理，根目录混有非附件文件）。
     // 失败 fail loud：自动备份已先行，用户可回退后重试（评估件 P0 口径）。
+    //
+    // 余量批4：子集包（scope != null）**只还原本包涉及的附件目录**——别的
+    // 模块的目录不在映射里，[LhBak.restoreAttachments] 遂不动它（整目录删除
+    // 重建＝全量替换语义，会误清别的模块的附件）。散件（documents 根导出物）
+    // 只随全量包收，子集包本就无散件，此处一并关掉。
     var restoredFiles = 0;
+    final attachTargets = scope == null
+        ? {
+            for (final d in attachDirs) p.basename(d): d,
+          }
+        : {
+            for (final d in attachDirs)
+              if (exportAttachDirsForModules(scope.moduleIds)
+                  .contains(p.basename(d)))
+                p.basename(d): d,
+          };
     try {
       restoredFiles = await LhBak.restoreAttachments(
         filePath: filePath,
-        dirTargets: {
-          for (final d in attachDirs) p.basename(d): d,
-        },
-        rootFilesTarget:
-            attachRootDirs.isEmpty ? null : attachRootDirs.first,
+        dirTargets: attachTargets,
+        rootFilesTarget: (scope != null || attachRootDirs.isEmpty)
+            ? null
+            : attachRootDirs.first,
         passphrase: passphrase,
       );
       if (restoredFiles > 0) {
@@ -623,7 +662,9 @@ class BackupService {
     // config＝投影非权威，DB 与附件已落定，fail loud 会把好数据堵在门外；
     // 旧 v1 包无该成员＝静默跳过（null）。prefs 未注入（单测）＝跳过。
     var configRestored = false;
-    if (prefs != null) {
+    // 余量批4：子集包不应用口径设置——`config/settings.json` 是导出时的
+    // 全局口径快照，与「只恢复某几个模块」不是一回事，套上等于顺手改了别处。
+    if (prefs != null && scope == null) {
       try {
         final text = await readMemberText(
             filePath, 'config/settings.json',
@@ -648,6 +689,7 @@ class BackupService {
       autoBackupPath: auto.file.path,
       restoredAttachmentFiles: restoredFiles,
       configRestored: configRestored,
+      scopeModules: scope?.moduleIds ?? const [],
     );
   }
 

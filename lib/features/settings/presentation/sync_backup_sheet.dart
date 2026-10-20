@@ -6,8 +6,12 @@ import '../../../core/backup/lh_bak.dart';
 import '../../../core/logging/app_log.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/linkage/export_units.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import 'export_sheet.dart';
+
+/// 同语义色同源（doclint 守护十色值棘轮）：与 export_sheet 的 _amber 同值。
+const Color _amber = Color(0xFFB45309);
 
 /// V1.41 Task 10 · S5「备份导出/导入」半屏（原型 index-sync.html s-backup）。
 ///
@@ -63,6 +67,34 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
   bool _needPass = false;
   bool _confirmed = false;
 
+  /// 余量批4：校验通过时一并解出的范围（null＝全量包/老包 → 整库替换）。
+  LhBakRestoreScope? _scope;
+
+  /// 恢复钮与确认语的文案随范围切换（全量＝原口径一字不动）。
+  bool get _partial => _scope != null;
+
+  /// 覆盖范围的人话（模块标签，长度受限——恢复前必须能一眼看完）。
+  String get _scopeLabels {
+    final s = _scope;
+    if (s == null) return '';
+    final labels = [
+      for (final id in s.moduleIds) _unitLabel(id),
+    ];
+    return labels.join('、');
+  }
+
+  static String _unitLabel(String id) {
+    for (final u in kExportUnits) {
+      if (u.id == id) return u.label;
+    }
+    return id;
+  }
+
+  /// `2026-10-15` 形式（只给 UI 看区间，不带时分——时分对「覆盖范围」无意义）。
+  static String _dateOf(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
   @override
   void initState() {
     super.initState();
@@ -116,8 +148,28 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
     try {
       final m = await svc.inspect(path, passphrase: pass);
       if (!mounted) return;
+      // 余量批4：范围在校验态就解出来——恢复前必须能说出「会覆盖哪几个
+      // 模块」，而不是等按了恢复才知道。解析失败（认不出的模块 id）按
+      // 校验失败处理：现库不动，用户看得见原因。
+      LhBakRestoreScope? scope;
+      String? scopeError;
+      try {
+        scope = LhBakRestoreScope.fromManifest(m);
+      } on LhBakException catch (e) {
+        scopeError = '${e.code}：${e.message}';
+      }
+      if (scopeError != null) {
+        setState(() {
+          _manifest = null;
+          _scope = null;
+          _needPass = false;
+          _verifyError = '范围无法识别（${scopeError!}）';
+        });
+        return;
+      }
       setState(() {
         _manifest = m;
+        _scope = scope;
         _verifyError = null;
         _needPass = false;
         _confirmed = false;
@@ -137,6 +189,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
       if (!mounted) return;
       setState(() {
         _manifest = null;
+        _scope = null;
         _needPass = e.code == LhBakException.codeNeedPassphrase;
         _verifyError = _needPass ? null : e.code;
       });
@@ -153,7 +206,9 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
       final report = await svc.importBackup(
           path,
           passphrase: _importPass.text.isEmpty ? null : _importPass.text);
-      _toast('恢复完成：${report.tableCount} 表 · ${report.totalRows} 行'
+      _toast(
+          '恢复完成：${report.tableCount} 表 · ${report.totalRows} 行'
+          '${report.isPartial ? ' · 仅覆盖 ${report.scopeModules.map(_unitLabel).join("、")}' : ''}'
           '${report.configRestored ? ' · 口径设置已还原（部分项重启后生效）' : ''}');
     } on LhBakException catch (e) {
       _toast('恢复失败：${e.code}');
@@ -165,7 +220,6 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final svc = ref.read(backupServiceProvider);
     final m = _manifest;
     return SafeArea(
       child: SingleChildScrollView(
@@ -246,7 +300,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
               const Padding(
                 padding: EdgeInsets.only(top: 6),
                 child: Text('加密包需口令',
-                    style: TextStyle(fontSize: 11.5, color: Color(0xFFF59E0B))),
+                    style: TextStyle(fontSize: 11.5, color: _amber)),
               ),
               const SizedBox(height: 6),
               Row(
@@ -313,7 +367,42 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                     if ((m.skippedLarge?.isNotEmpty ?? false))
                       Text('${m.skippedLarge!.length} 个超大附件未入包',
                           style: const TextStyle(
-                              fontSize: 11.5, color: Color(0xFFF59E0B))),
+                              fontSize: 11.5, color: _amber)),
+                    // ---- 余量批4：覆盖范围（AGENTS「点了必须有看得见的
+                    // 变化」——恢复前必须说清会覆盖什么、能不能退回）----
+                    if (_partial) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        key: const ValueKey('restore-scope-note'),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: tokens.cardBorder.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('本次只覆盖：$_scopeLabels',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 2),
+                            Text(
+                                '其余模块数据保持不动'
+                                '${_scope!.from != null ? ' · 包内数据限定 '
+                                    '${_dateOf(_scope!.from!)}~${_dateOf(_scope!.to ?? _scope!.from!)}' : ''}',
+                                style: const TextStyle(fontSize: 11.5)),
+                            const SizedBox(height: 2),
+                            const Text(
+                                '这几个模块本机数据将被包内版本覆盖 · 恢复前会自动生成备份，可退回',
+                                style: TextStyle(
+                                    fontSize: 11.5, color: _amber)),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -323,9 +412,12 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                           onChanged: (v) =>
                               setState(() => _confirmed = v ?? false),
                         ),
-                        const Expanded(
-                          child: Text('恢复将替换当前数据',
-                              style: TextStyle(fontSize: 12)),
+                        Expanded(
+                          child: Text(
+                              _partial
+                                  ? '恢复将替换上述模块的当前数据'
+                                  : '恢复将替换当前数据',
+                              style: const TextStyle(fontSize: 12)),
                         ),
                       ],
                     ),
@@ -337,7 +429,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                             key: const ValueKey('btn-restore'),
                             onPressed:
                                 (_confirmed && !_busy) ? _doRestore : null,
-                            child: const Text('恢复整库'),
+                            child: Text(_partial ? '恢复所选模块' : '恢复整库'),
                           ),
                         ),
                       ],

@@ -21,6 +21,9 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../database/schema.dart';
+import '../../../shared/linkage/export_units.dart';
+
+part 'lh_bak_parts.dart';
 
 /// App 版本常量（工程无 package_info_plus 依赖，直接常量注入；
 /// 收口批与 pubspec version 同步）。
@@ -474,16 +477,22 @@ class LhBak {
     }
   }
 
-  /// 解包恢复到 [targetDb]（整库替换，不做记录级合并，设计稿 §3 口径）：
+  /// 解包恢复到 [targetDb]（默认整库替换，不做记录级合并，设计稿 §3 口径）：
   /// **V1.66 P0-2 起：删旧表 → 按当前 schema DDL 重建 → 按列交集拷贝 →
   /// 当前 schema 辅助 DDL → 钉 user_version**（旧口径按包内快照 DDL 重建，
   /// 退版包恢复后表结构停在旧版、迁移永不触发——根因修复见上文）。
   /// 快照多出的遗留表按快照 DDL 保数据迁入。
   ///
+  /// **余量批4 · 部分恢复分流**（A1 按模块整组替换）：包内带
+  /// [LhBakManifest.scope] 时只对 scope 涉及的表走同一套「删→建→灌」，
+  /// **其余模块本机数据一行不动**（判据见 [LhBakRestoreScope.fromManifest]；
+  /// 全量包的路径与批1~批3 逐字相同，一个分支都不加）。
+  ///
   /// 加密档需给 [passphrase]（口径同 [verify]）：db.sqlite.enc 先解密写入
   /// 临时文件再 ATTACH，临时目录随本方法结束删除。
   /// 包内缺失（excludeTables 产物）的当前 schema 表按 DDL 建空表，
-  /// 列在返回 manifest 的 [LhBakManifest.missingTables]。
+  /// 列在返回 manifest 的 [LhBakManifest.missingTables]（部分恢复档下
+  /// **只报 scope 涉及的表**，否则会把「别的模块没进包」误报成缺表）。
   /// 附件落盘还原见 [restoreAttachments]（V1.66 P0-1）。
   static Future<LhBakManifest> unpack({
     required String filePath,
@@ -491,6 +500,8 @@ class LhBak {
     String? passphrase,
   }) async {
     final manifest = await verify(filePath, passphrase: passphrase);
+    // 分流判据必须先于任何 DDL 动作求值：坏 scope 在此拒绝，现库一字节不动。
+    final scope = LhBakRestoreScope.fromManifest(manifest);
     final zip = _openZip(filePath);
     final temp = Directory.systemTemp.createTempSync('lhbak_unpack_');
     final snapPath = p.join(temp.path, 'db.sqlite');
@@ -512,34 +523,78 @@ class LhBak {
       final snapTables = snapDdl.map((r) => r['name'] as String).toSet();
       final targetTables = await _tableNames(targetDb);
       final cur = await _currentDdl();
-      final missing = cur.names.difference(snapTables).toList()..sort();
+      // 部分恢复档：本机要重建的表＝scope 表 ∩（当前 schema 有 ∪ 包内有），
+      // 顺序按当前 schema 回放序，包内遗留表按快照名序补尾（与全量档同源）。
+      // 其余本机表**不进这个集合**＝一行不动。
+      final inScope = scope == null
+          ? null
+          : <String>{
+              for (final t in scope.tableNames)
+                if (cur.names.contains(t) || snapTables.contains(t)) t,
+            };
+      final recreate = inScope == null
+          ? targetTables
+          : [
+              for (final e in cur.tables.entries)
+                if (inScope.contains(e.key)) e.key,
+              for (final r in snapDdl)
+                if (inScope.contains(r['name'] as String) &&
+                    !cur.names.contains(r['name'] as String))
+                  r['name'] as String,
+            ];
+      // 缺表报告：全量档＝当前 schema 有而包内没有；部分恢复档**只报 scope
+      // 涉及的表**——别的模块本就不在包里，报成缺表等于误导用户。
+      final missing = (inScope == null
+              ? cur.names.difference(snapTables)
+              : inScope
+                  .where((t) => cur.names.contains(t))
+                  .toSet()
+                  .difference(snapTables))
+          .toList()
+        ..sort();
 
       // Task 10 携带修复（T8 遗留）：删旧表→重建→逐表 INSERT 期间表序任意，
       // 未来 schema 引入 FK 表后单事务内会出现外键瞬时违规；defer_foreign_keys
       // 把 FK 检查推迟到事务提交（对无 FK 的当前 schema 是无害空转）。
       await targetDb.execute('PRAGMA defer_foreign_keys=ON');
       await targetDb.transaction((txn) async {
-        for (final t in targetTables) {
+        for (final t in recreate) {
           await txn.execute('DROP TABLE IF EXISTS main."$t"');
         }
         // V1.66 P0-2：改按**当前 schema 终态 DDL** 重建（含迁移加列后的形态；
         // 替代旧口径「按包内快照 DDL 重建」）——退版包恢复后新列在、带默认值，
         // `no such column` 不再悬空。回放序＝临时内存库 sqlite_master 序
         // （表在前索引在后，含 FTS 虚拟表；影子表/种子不回放）。
-        for (final sql in cur.ordered) {
-          await txn.execute(_qualifyMain(sql));
+        //
+        // 部分恢复档（inScope 非 null）多一道归属判据：只有**属于本模块**的
+        // 表与其索引/触发器才重建，其余对象完全不动 —— 这正是 A1「按模块整组
+        // 替换」的题眼，漏这道判据就等于清库重建。
+        // 全量档 inScope == null → 所有判据恒真，回放面与批1~批3 逐字相同。
+        bool belongsTo(String table) => inScope == null || inScope.contains(table);
+        for (final e in cur.tables.entries) {
+          if (!belongsTo(e.key)) continue;
+          await txn.execute(_qualifyMain(e.value));
+        }
+        for (final e in cur.aux.entries) {
+          // 索引/触发器按 `ON <表>` 判归属；触发器无 ON 子句（本库 schema 不含
+          // 触发器）→ 维持原 best-effort 回放，与全量档一致。
+          final owner = _indexTableOf(e.value);
+          if (owner != null && !belongsTo(owner)) continue;
+          await txn.execute(_qualifyMain(e.value));
         }
         // 快照多出的遗留表（当前 schema 已退役，如 events）：按快照 DDL 保数据
         // 迁入（数据不丢，应用层不再读写）。
         for (final r in snapDdl) {
-          if (!cur.names.contains(r['name'] as String)) {
-            await txn.execute(_qualifyMain(r['sql'] as String));
-          }
+          final t = r['name'] as String;
+          if (cur.names.contains(t)) continue;
+          if (!belongsTo(t)) continue;
+          await txn.execute(_qualifyMain(r['sql'] as String));
         }
         // 逐表按**列交集**拷贝（旧包缺新列 → 新列落默认值；快照缺表 →
         // 建空表已由回放覆盖，报告 missingTables）。
         for (final r in snapDdl) {
           final t = r['name'] as String;
+          if (!belongsTo(t)) continue;
           final cols = await _intersectColumns(txn, snapName, t);
           if (cols.isEmpty) continue;
           final colList = cols.map((c) => '"$c"').join(',');
@@ -547,10 +602,16 @@ class LhBak {
               'INSERT INTO main."$t"($colList) SELECT $colList FROM $snapName."$t"');
         }
         // 快照遗留的辅助 DDL（退役表索引等）best-effort，失败不阻塞恢复
-        // （当前 schema 的索引已在回放序里建好）。
+        // （当前 schema 的索引已在回放序里建好）。部分恢复档下按包内 DDL 的
+        // `ON <表>` 判归属，判不出（无 ON 子句）一律跳过——名字判不出归属时
+        // 宁可不建索引，也不能给别的模块建。
         for (final r in snapAux) {
+          final sql = r['sql'] as String;
+          final owner = _indexTableOf(sql);
+          if (owner != null && !belongsTo(owner)) continue;
+          if (inScope != null && owner == null) continue;
           try {
-            await txn.execute(_qualifyMain(r['sql'] as String));
+            await txn.execute(_qualifyMain(sql));
           } catch (_) {
             // 遗留辅助 DDL 引用已退役对象等场景：索引非数据面，跳过。
           }
@@ -831,6 +892,9 @@ class LhBak {
       bool isShadow(String n) => vnames.any((v) => n.startsWith('${v}_'));
       final tables = <String, String>{};
       final ordered = <String>[];
+      // 对象名 → DDL（索引/触发器）。部分恢复档按对象名与其所属表名对账
+      // ——本库索引命名恒带表名（idx_/uniq_ 前缀 + 表名派生），见 [belongsTo]。
+      final aux = <String, String>{};
       for (final r in rows) {
         final type = r['type'] as String;
         final name = r['name'] as String;
@@ -841,11 +905,12 @@ class LhBak {
           tables[name] = sql;
           ordered.add(sql);
         } else {
+          aux[name] = sql;
           ordered.add(sql); // 索引/触发器按创建序回放
         }
       }
       return _currentDdlCache =
-          _CurrentDdl(tables, ordered, tables.keys.toSet());
+          _CurrentDdl(tables, ordered, tables.keys.toSet(), aux);
     } finally {
       await scratch.close();
     }
@@ -1090,47 +1155,14 @@ class _OpenedZip {
   }
 }
 
-/// 当前 schema 终态 DDL（[_CurrentDdl.ordered]＝建库回放序；[names]＝实表名集）。
+/// 当前 schema 终态 DDL（[_CurrentDdl.ordered]＝建库回放序；[names]＝实表名集；
+/// [aux]＝索引/触发器「对象名 → DDL」，部分恢复档据对象名判归属）。
 class _CurrentDdl {
-  const _CurrentDdl(this.tables, this.ordered, this.names);
+  const _CurrentDdl(this.tables, this.ordered, this.names, this.aux);
 
   final Map<String, String> tables;
   final List<String> ordered;
   final Set<String> names;
+  final Map<String, String> aux;
 }
 
-/// 一次 create 的加密器：全包共用一个随机 salt（PBKDF2 派生只做一次并缓存），
-/// 每个成员用独立随机 nonce；blob = salt(16)|nonce(12)|密文+tag(16)。
-class _BlobCipher {
-  _BlobCipher(this._passphrase) : _salt = _randomBytes(_saltLength);
-
-  final String _passphrase;
-  final Uint8List _salt;
-  SecretKey? _key;
-
-  Future<SecretKey> _deriveKey() async {
-    return _key ??= await Pbkdf2.hmacSha256(
-      iterations: kPbkdf2Iterations,
-      bits: 256,
-    ).deriveKeyFromPassword(password: _passphrase, nonce: _salt);
-  }
-
-  Future<Uint8List> encrypt(List<int> plain) async {
-    final key = await _deriveKey();
-    final nonce = _randomBytes(_nonceLength);
-    final box = await AesGcm.with256bits()
-        .encrypt(plain, secretKey: key, nonce: nonce);
-    final mac = box.mac.bytes;
-    final out = Uint8List(
-        _saltLength + _nonceLength + box.cipherText.length + mac.length);
-    var o = 0;
-    out.setRange(o, o + _saltLength, _salt);
-    o += _saltLength;
-    out.setRange(o, o + _nonceLength, nonce);
-    o += _nonceLength;
-    out.setRange(o, o + box.cipherText.length, box.cipherText);
-    o += box.cipherText.length;
-    out.setRange(o, o + mac.length, mac);
-    return out;
-  }
-}

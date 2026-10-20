@@ -359,4 +359,96 @@ void main() {
       await clearToasts(tester);
     });
   });
+
+  group('余量批4 · 部分恢复的覆盖范围明说', () {
+    testWidgets('子集包校验后：写明覆盖哪几个模块 + 本机将被覆盖 + 可退回',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
+      fake.pickedPath = '/fake/subset.lhbak';
+      // 子集包：只含「习惯」
+      fake.inspectResult = LhBakManifest(
+        dbVersion: 19,
+        appVersion: kAppVersion,
+        createdAt: DateTime(2026, 10, 15, 10, 0, 0),
+        tables: {'habit_entries': TableStat(rows: 12, checksum: 'b' * 32)},
+        excludedTables: const [],
+        encrypted: false,
+        members: const ['manifest.json', 'db.sqlite'],
+        scope: {
+          'modules': ['habit'],
+          'from': '2025-10-15T00:00:00.000',
+          'to': '2026-10-15T23:59:59.999',
+          'timeFilteredTables': ['habit_entries'],
+          'withAttachments': true,
+        },
+      );
+      await tester.tap(find.byKey(const ValueKey('btn-pick-backup')));
+      await settle5(tester);
+
+      // ① 覆盖范围：哪几个模块（功能标签用模块人话名，不出现 id）
+      expect(find.byKey(const ValueKey('restore-scope-note')), findsOneWidget);
+      expect(find.text('本次只覆盖：习惯'), findsOneWidget);
+      expect(find.text('本次只覆盖：habit'), findsNothing);
+      // ② 其余模块不动 + 时间区间如实
+      expect(find.textContaining('其余模块数据保持不动'), findsOneWidget);
+      expect(find.textContaining('2025-10-15~2026-10-15'), findsOneWidget);
+      // ③ 本机被覆盖 + 可退回（回退路径必须写出来，AGENTS 可见变化）
+      expect(find.textContaining('本机数据将被包内版本覆盖'), findsOneWidget);
+      expect(find.textContaining('可退回'), findsOneWidget);
+      // ④ 确认语与主钮按范围改口径
+      expect(find.text('恢复将替换上述模块的当前数据'), findsOneWidget);
+      expect(find.text('恢复将替换当前数据'), findsNothing);
+      expect(find.text('恢复所选模块'), findsOneWidget);
+      expect(find.text('恢复整库'), findsNothing);
+
+      // 勾选前不放量，勾选后恰一次
+      expect(fake.importCalls, 0);
+      await tester.tap(find.byKey(const ValueKey('confirm-restore')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('btn-restore')));
+      await settle5(tester);
+      expect(fake.importCalls, 1);
+      await clearToasts(tester);
+    });
+
+    testWidgets('全量包（无 scope）保持原口径：整库替换、不出现范围卡',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
+      fake.pickedPath = '/fake/full.lhbak';
+      fake.inspectResult = buildManifest();
+      await tester.tap(find.byKey(const ValueKey('btn-pick-backup')));
+      await settle5(tester);
+
+      expect(find.byKey(const ValueKey('restore-scope-note')), findsNothing);
+      expect(find.text('恢复将替换当前数据'), findsOneWidget);
+      expect(find.text('恢复整库'), findsOneWidget);
+      await clearToasts(tester);
+    });
+
+    testWidgets('scope 认不出的模块 id → 校验态直接报范围无法识别，不给恢复钮',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
+      fake.pickedPath = '/fake/bad.lhbak';
+      fake.inspectResult = LhBakManifest(
+        dbVersion: 19,
+        appVersion: kAppVersion,
+        createdAt: DateTime(2026, 10, 15),
+        tables: const {},
+        excludedTables: const [],
+        encrypted: false,
+        members: const ['manifest.json', 'db.sqlite'],
+        scope: const {'modules': ['ghost_module_xyz']},
+      );
+      await tester.tap(find.byKey(const ValueKey('btn-pick-backup')));
+      await settle5(tester);
+
+      expect(find.textContaining('范围无法识别'), findsOneWidget);
+      expect(find.byKey(const ValueKey('btn-restore')), findsNothing);
+      expect(fake.importCalls, 0);
+      await clearToasts(tester);
+    });
+  });
 }
