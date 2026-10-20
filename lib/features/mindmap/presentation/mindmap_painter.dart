@@ -39,6 +39,9 @@ class MmCanvasPainter extends CustomPainter {
     this.connectTargetIds = const <int>{},
     this.connectBlockedIds = const <int>{},
     this.connectPulse = 0,
+    this.linkKnobId,
+    this.linkFrom,
+    this.linkTo,
   });
 
   final List<MindmapNode> nodes;
@@ -80,6 +83,15 @@ class MmCanvasPainter extends CustomPainter {
 
   /// 连接态呼吸值 0~1（页面侧 AnimationController 驱动；静态时 0）。
   final double connectPulse;
+
+  /// 批P2 右缘拖拽连接点：该节点右缘画一枚 16dp 圆点（null＝不画）。
+  /// 只在「选中且没在连接态」时给——连接态已有整片描边闪烁，再挂个小点会打架。
+  final int? linkKnobId;
+
+  /// 拖动中的那根连线（屏幕坐标；null＝没在拖）。`linkFrom` 恒有值，
+  /// `linkTo` 为 null＝指针还在空白处（画一根短「拖尾＋松手取消」提示）。
+  final Offset? linkFrom;
+  final Offset? linkTo;
 
   /// 勾选框边长（原型 `.mm-task` 15px）。
   static const double taskBox = 15;
@@ -368,6 +380,54 @@ class MmCanvasPainter extends CustomPainter {
     paintGroup(blockedNodes, .32);
     paintGroup(dimNodes, .4);
     paintGroup(hotNodes, 1);
+
+    _paintLinkGesture(canvas);
+  }
+
+  /// 批P2 右缘连接点与拖动中的连线。
+  ///
+  /// 画在**节点之上**：圆点要能压出节点右缘之外，拖线要盖住途经节点才看得清
+  /// （它是手势反馈，不是内容层，不参与 L3「连线不钻盒」那条口径）。
+  void _paintLinkGesture(Canvas canvas) {
+    final from = linkFrom;
+    final to = linkTo;
+    final knob = linkKnobId;
+    // 拖动中：起点到指针一根虚线感的细线（两段实线叠画，省得为虚线下 DashPath）。
+    if (from != null) {
+      final tip = to ?? from;
+      final lp = Paint()
+        ..color = accent.withValues(alpha: to == null ? .34 : .82)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 * scale.clamp(.8, 1.3)
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(from, tip, lp);
+      // 端点小圆：命中目标时实心亮圈（「松手就落这」），空白时灰色空心。
+      canvas.drawCircle(
+          tip,
+          (to == null ? 4.0 : 7.0) * scale.clamp(.8, 1.3),
+          to == null
+              ? (Paint()
+                ..color = edge.withValues(alpha: .5)
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1.2)
+              : (Paint()..color = accent.withValues(alpha: .85)));
+    }
+    if (knob == null || layout == null) return;
+    final n = nodes.where((x) => x.id == knob).firstOrNull;
+    if (n == null) return;
+    final r = _nodeRect(n);
+    final c = Offset(r.right, r.center.dy);
+    final k = 8.0 * scale.clamp(.7, 1.5); // 直径 16 的逻辑半径
+    canvas.drawCircle(c, k, Paint()..color = nodeBg);
+    canvas.drawCircle(
+        c,
+        k,
+        Paint()
+          ..color = accent.withValues(alpha: from == null ? .78 : 1)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2);
+    canvas.drawCircle(
+        c, k * .42, Paint()..color = accent.withValues(alpha: .9));
   }
 
   @override
@@ -394,7 +454,11 @@ class MmCanvasPainter extends CustomPainter {
       !setEquals(old.focusIds, focusIds) ||
       !setEquals(old.connectTargetIds, connectTargetIds) ||
       !setEquals(old.connectBlockedIds, connectBlockedIds) ||
-      old.connectPulse != connectPulse;
+      old.connectPulse != connectPulse ||
+      // 批P2：连接点/拖线漏比＝按下没反馈、松手残影（同 dx/dy 漏比家族）。
+      old.linkKnobId != linkKnobId ||
+      old.linkFrom != linkFrom ||
+      old.linkTo != linkTo;
 }
 
 /// 一条连线的路由点列（[MmEdgeRoutes] 的元素）。

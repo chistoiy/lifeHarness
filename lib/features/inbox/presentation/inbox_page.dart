@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/ai/ai_review.dart';
+import '../../../core/database/app_database.dart';
 import '../../../core/logging/app_log.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
@@ -9,12 +10,18 @@ import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 // UIUX批（2026-10-12）：搜索钮接全局搜索半屏（守 R1：经 shared/linkage 出口）。
 import '../../../shared/linkage/search_mounts.dart';
+import '../../mindmap/data/mindmap_dao.dart';
 import '../domain/inbox_item.dart';
 import 'inbox_providers.dart';
+
+/// 导图 DAO（第五向「→导图」用；导图模块自身走画布页注入，这边只在分流时取一次）。
+final mindmapDaoProvider =
+    Provider<MindmapDao>((ref) => MindmapDao(AppDatabase.instance.db));
 
 /// 模块5 收集箱（原型 p-inbox）：秒记入口 + 未整理列表 + 10 秒四向分流（L6）。
 /// →待办 / →日记 / →笔记 / →摘录（选书落 book_quotes · origin=收集箱）全部真实落库；
 /// AI 一键分流（批4-B）：对最前 ≤3 条逐条 inbox.triage → 结果确认 → 复用既有转化路径。
+/// 第五向 →导图（批P2）：条目成为目标图根节点下第一层，补齐导图侧拉取的另一半。
 class InboxPage extends ConsumerStatefulWidget {
   const InboxPage({super.key});
 
@@ -66,6 +73,90 @@ class _InboxPageState extends ConsumerState<InboxPage> {
       s.replaceAll(RegExp(r'\s+'), ' ').length > 16
           ? '${s.replaceAll(RegExp(r'\s+'), ' ').substring(0, 16)}…'
           : s.replaceAll(RegExp(r'\s+'), ' ');
+
+  /// 第五向 · 转导图节点（批P2 / 工单 §5 第 9 条）。
+  ///
+  /// 口径（原型 S10 已过门）：选目标图 → 条目文本成为**该图根节点下第一层**，
+  /// 原条目 `routed_to='mindmap'` 留在收集箱（与另四向同款：分流只打标、不删除）。
+  ///
+  /// 「根节点下第一层」的落法＝挂到该图**第一棵树的根**下；图里没有任何根
+  /// （空图）时先补一个「中心主题」再挂——空图直接挂成游离根就失了「第一层」
+  /// 的语义，也看不出它属于哪张图。
+  Future<void> _toMindmap(InboxItem item) async {
+    final dao = ref.read(mindmapDaoProvider);
+    final maps = await dao.listLive();
+    if (!mounted) return;
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: maps.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.fromLTRB(20, 22, 20, 26),
+                child: Text(
+                  '还没有导图 · 先去思维导图建一张，再回来转',
+                  key: ValueKey('ibk-mm-empty'),
+                  style: TextStyle(fontSize: 13),
+                ),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 16, 20, 6),
+                    child: Text('转成哪张图的节点',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w800)),
+                  ),
+                  for (final (m, cnt) in maps)
+                    ListTile(
+                      key: ValueKey('ibk-mm-${m.id}'),
+                      dense: true,
+                      title: Text(m.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13.5)),
+                      trailing: Text('$cnt 节点',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(sheetCtx)
+                                  .colorScheme
+                                  .onSurfaceVariant)),
+                      onTap: () => Navigator.of(sheetCtx).pop(m.id),
+                    ),
+                ],
+              ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    // 取该图第一棵树的根（多根图的「中心主题」口径：sort 最小者）。
+    final nodes = await dao.nodesOf(picked);
+    final roots = nodes.where((n) => n.parentId == null).toList()
+      ..sort((a, b) => a.sort.compareTo(b.sort));
+    int? parentId;
+    if (roots.isEmpty) {
+      final center = await dao.addNode(
+          mapId: picked, parentId: null, title: '中心主题');
+      parentId = center.id;
+    } else {
+      parentId = roots.first.id;
+    }
+    final text = item.rawText.trim();
+    final title = text.split('\n').first;
+    await dao.addNode(
+      mapId: picked,
+      parentId: parentId,
+      title: title.isEmpty ? '（空条目）' : title,
+      note: text.contains('\n') ? text : '',
+    );
+    await ref.read(inboxDaoProvider).route(item.id!, 'mindmap', picked);
+    ref.invalidate(inboxItemsProvider);
+    AppLog.addKey(
+        '收集箱分流→导图节点：图 #$picked 根 #$parentId（原条 #${item.id}）');
+    _toast('已转为导图节点 · 原条目留在收集箱');
+  }
 
   Future<void> _triage(InboxItem item, String target, {String? text}) async {
     final dao = ref.read(inboxDaoProvider);
@@ -463,6 +554,10 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                   () => _triage(item, 'note')),
               _tri('→摘录', const Color(0xFF0EA5E9),
                   () => _triage(item, 'excerpt')),
+              // 第五向（批P2）：需求模块 18 要的双向里，收集箱侧这一半。
+              // 配色不新增硬编码：导图入口用主题主色（与「→待办」同为模块主操作色系），
+              // 色值棘轮基线因此不涨（新增色值须人审，一枚按钮不值得）。
+              _tri('→导图', tokens.accent, () => _toMindmap(item)),
               _tri('✕', const Color(0xFFF43F5E), () => _dismiss(item)),
             ],
           ),

@@ -60,7 +60,33 @@ const double _taskBoxW = 15;
 /// B9 单图节点硬上限。
 const int mmMaxNodes = 2000;
 
-enum _MmGestureMode { idle, pending, dragNode, pan, pinch, done }
+enum _MmGestureMode { idle, pending, dragNode, dragLink, pan, pinch, done }
+
+/// 批P2 右缘拖拽连接点的一次拖动（指针坐标一律画布局部坐标）。
+///
+/// 为什么不复用 `_connectFrom`：连接态是「点一下起点、再点落点」的两段式，
+/// 起点进态后就常驻；拖拽是「按住就接上（起点高亮、目标呼吸）、松手即结束」
+/// 的一段式——两者共用同一套目标集与 `_connectTo`，但生命周期不同，混一起
+/// 会出现「松手了还在连接态」。故单开一个轻对象，只在拖动期间存在。
+class _MmLinkDrag {
+  _MmLinkDrag({
+    required this.fromId,
+    required this.merge,
+    required this.blocked,
+  });
+
+  /// 起点节点 id。
+  final int fromId;
+
+  /// 起点即根＝「整枝并入」文案（与长按菜单同口径）。
+  final bool merge;
+
+  /// 不可作目标的集合＝起点的整棵子树（含自己）——挂进去就成环。
+  final Set<int> blocked;
+
+  /// 当前指针位置（画布局部）。
+  Offset at = Offset.zero;
+}
 class MindmapCanvasPage extends ConsumerStatefulWidget {
   const MindmapCanvasPage({
     super.key,
@@ -143,6 +169,16 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   );
+
+  /// 批P2 右缘拖拽连接点：正在拖的那根连线（null＝没在拖）。
+  /// 起手＝按住选中节点右缘那枚 16dp 圆点；松手落点命中合法目标＝挂接，
+  /// 落空白/自己整枝＝取消（与长按菜单「连接到…」殊途同归，同一个 `_connectTo`）。
+  /// 拖动中**不排长按、不排节点拖拽**——靠 [_dragLinkHover] 每帧高亮落点。
+  _MmLinkDrag? _linkDrag;
+
+  /// 拖动中悬停的落点（null＝空白）。**是否可挂接由 [_linkDrag] 的整枝集判定**
+  /// （拖拽入口天然可能落在自己整枝上，故这里不预先置灰，落点时才给理由）。
+  MindmapNode? _linkHover;
 
   // ── 手势仲裁状态 ──
   final Map<int, Offset> _pointers = {};
@@ -358,6 +394,96 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
 
   Offset _toCanvas(Offset screen) => (screen - _pan) / _scale;
 
+  /// 批P2：选中节点右缘那枚连接点的**画布坐标中心**（null＝当前没选中/不可见）。
+  /// 与绘制层同一份基线数据 ⇒ 画在哪、点哪就一定对得上。
+  Offset? _linkKnobCenter() {
+    final id = _selectedId;
+    final l = _layout;
+    if (id == null || l == null || !_visibleIds().contains(id)) return null;
+    final n = _byId(id);
+    final b = l.baseline[id];
+    if (n == null || b == null) return null;
+    final size = l.sizes[id] ?? const Size(120, _nodeH);
+    return b + Offset(_dxOf(n) + size.width, _dyOf(n) + size.height / 2);
+  }
+
+  /// 连接点命中半径：**屏幕上**取 22（触点 ≥44 的一半，但它是附属小点，
+  /// 不需要整 44 见方——否则会把节点右缘的拖拽手势全吞掉）。
+  static const double _linkKnobR = 22;
+
+  bool _hitLinkKnob(Offset canvas) {
+    final c = _linkKnobCenter();
+    if (c == null) return false;
+    return (canvas - c).distance * _scale <= _linkKnobR;
+  }
+
+  /// 起手拖连线（只在非连接态、有选中时成立）。
+  void _startLinkDrag(PointerDownEvent e) {
+    final id = _selectedId!;
+    final n = _byId(id)!;
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      _linkDrag = _MmLinkDrag(
+        fromId: id,
+        merge: n.parentId == null,
+        blocked: mmSubtreeOf(_nodes, id),
+      )..at = _toCanvas(_localOf(e.position));
+      _linkHover = null;
+    });
+    _connectPulse.repeat(reverse: true);
+  }
+
+  void _updateLinkDrag(Offset local) {
+    final d = _linkDrag;
+    if (d == null) return;
+    final canvas = _toCanvas(local);
+    final hit = _hitNode(canvas);
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      d.at = canvas;
+      // 点选与拖放共用一份判定：命中区（放宽到 44 行高）＋盒内，两者取并。
+      // 只认 `_hitNode` 会在「指针压在盒的上下沿外扩区」时松手挂不上；
+      // 只认盒内则要另写一份几何，与点击口径逐渐漂开。
+      final over = hit != null && _linkOverNode(hit);
+      _linkHover = (hit != null && hit.id != d.fromId && over) ? hit : null;
+    });
+  }
+
+  /// 松手：命中且合法＝挂接（复用连接态同一条 `_connectTo`），否则静默取消。
+  /// 取消**不弹 toast**——拖错了松手就散了，比「已取消」更轻（尼尔森 9 的
+  /// 「别为可预期的操作报错」）。成环原因走 `_connectTo` 的既有提示。
+  Future<void> _endLinkDrag() async {
+    final d = _linkDrag;
+    if (d == null) return;
+    final target = _linkHover;
+    _connectPulse.stop();
+    _connectPulse.value = 0;
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      _linkDrag = null;
+      _linkHover = null;
+    });
+    if (target == null) return;
+    final src = _byId(d.fromId);
+    if (src == null) return;
+    // `_connectTo` 读 `_connectMerge` 决定 label 文案：拖拽路径没走连接态，
+    // 这里临时按起手时算好的语义位摆正，结束后复位（不改连接态本身的生命周期）。
+    _connectMerge = d.merge;
+    await _connectTo(src, target);
+    _connectMerge = false;
+  }
+
+  void _cancelLinkDrag() {
+    if (_linkDrag == null) return;
+    _connectPulse.stop();
+    _connectPulse.value = 0;
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      _linkDrag = null;
+      _linkHover = null;
+    });
+  }
+
   MindmapNode? _hitNode(Offset canvas) {
     final l = _layout;
     if (l == null) return null;
@@ -383,6 +509,14 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
       _mode = _MmGestureMode.pending;
       _downGlobal = e.position;
       final local = _localOf(e.position);
+      // 批P2：按住「右缘连接点」＝起手拖连线。**先于**勾选框与节点命中判
+      // （它在节点盒右缘之外，但离盒很近，不先判会被当成点空白取消选中）。
+      if (_connectFrom == null && _hitLinkKnob(_toCanvas(local))) {
+        _dragNodeId = null;
+        _mode = _MmGestureMode.dragLink;
+        _startLinkDrag(e);
+        return;
+      }
       // 批P 连接态：点节点＝选目标。**不排拖拽也不排长按**（否则「想去点目标」
       // 变成「把起点拖走」/「弹自己的菜单」）；平移仍可（_panStart 照常记）。
       if (_connectFrom != null) {
@@ -432,6 +566,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
     if (!_pointers.containsKey(e.pointer)) return;
     _pointers[e.pointer] = e.position;
     switch (_mode) {
+      case _MmGestureMode.dragLink:
+        _updateLinkDrag(_localOf(e.position));
       case _MmGestureMode.pending:
         final moved = (e.position - _downGlobal).distance;
         if (moved < 4) return; // <4dp 仍算按住（tap/长按窗口）
@@ -540,6 +676,9 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
       } else if (wasMode == _MmGestureMode.dragNode) {
         _commitLiveOffsets();
         _relayout(); // 松手整树重排（拖拽中只局部重画）
+      } else if (wasMode == _MmGestureMode.dragLink) {
+        // 松手即落位：命中合法目标＝挂接，其余＝静默散掉。
+        _endLinkDrag();
       }
       _mode = _MmGestureMode.idle;
       _dragNodeId = null;
@@ -557,6 +696,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
     _longPressTimer?.cancel();
     if (_pointers.isEmpty) {
       _commitLiveOffsets();
+      _cancelLinkDrag();
       _mode = _MmGestureMode.idle;
       _dragNodeId = null;
     }
@@ -670,12 +810,15 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
 
   // ==================== 节点操作（F1-4~F1-12） ====================
 
-  Future<void> _addChild(int? parentId) =>
-      _createNode(parentId: parentId, headline: '添加子节点');
+  Future<void> _addChild(int? parentId) => _createNode(
+      parentId: parentId, headline: '添加子节点', continueOnSubmit: true);
 
   Future<void> _addSibling(MindmapNode n) =>
-      // 在根节点上加同级＝新增根（C7/F1-6）。
-      _createNode(parentId: n.parentId, headline: '添加同级节点');
+      // 在根节点上加同级＝新增根（C7/F1-6）。批P2：同级是速录主战场。
+      _createNode(
+          parentId: n.parentId,
+          headline: '添加同级节点',
+          continueOnSubmit: true);
 
   Future<void> _addRoot() => _createNode(parentId: null, headline: '加根节点');
 
@@ -773,33 +916,53 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
   }
 
   /// 新建节点（加子/加同级/加根三处共用）。
+  ///
+  /// 批P2 同级速录：回车提交且 [MmNodeSubmit.again] 时**弹层不关**，
+  /// 循环回到这里再开一次同名同级弹层（弹层内部已把标题等清空，
+  /// 这里只需重新走一遍插入），直到用户点保存/取消或到连录上限。
   Future<void> _createNode(
-      {required int? parentId, required String headline}) async {
+      {required int? parentId,
+      required String headline,
+      bool continueOnSubmit = false}) async {
     if (_nodes.length >= mmMaxNodes) {
       _toast('已达节点上限（$mmMaxNodes）');
       return;
     }
-    final d = await showMmNodeSheet(context, headline: headline);
-    if (d == null) return;
-    final created = await _dao.addNode(
-      mapId: widget.mapId,
-      parentId: parentId,
-      title: d.title,
-      note: d.note,
-      tags: d.tags,
-      isTask: d.isTask,
-      imagePath: d.imagePath,
-    );
-    setState(() => _nodes = [..._nodes, created]);
-    _undo.push(MmCommands.addSubtree(created, [created]));
-    _textSizeCache.clear();
-    _relayout();
-    setState(() => _selectedId = created.id);
+    var again = true;
+    while (again && mounted) {
+      final r = await showMmNodeSheet(
+        // ignore: use_build_context_synchronously
+        context,
+        headline: headline,
+        continueOnSubmit: continueOnSubmit,
+      );
+      if (r == null) break; // 取消＝收手（已录的都已落库，不撤）
+      final d = r.draft;
+      final created = await _dao.addNode(
+        mapId: widget.mapId,
+        parentId: parentId,
+        title: d.title,
+        note: d.note,
+        tags: d.tags,
+        isTask: d.isTask,
+        imagePath: d.imagePath,
+      );
+      setState(() => _nodes = [..._nodes, created]);
+      _undo.push(MmCommands.addSubtree(created, [created]));
+      _textSizeCache.clear();
+      _relayout();
+      setState(() => _selectedId = created.id);
+      again = r.again;
+      if (again && _nodes.length >= mmMaxNodes) {
+        _toast('已达节点上限（$mmMaxNodes）');
+        break;
+      }
+    }
   }
 
   /// 编辑节点（H2：标题＋备注读回改写；批5：再加三段）。
   Future<void> _editNode(MindmapNode n) async {
-    final d = await showMmNodeSheet(
+    final r = await showMmNodeSheet(
       context,
       headline: '编辑节点',
       initialTitle: n.title,
@@ -808,7 +971,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
       initialTask: n.isTask,
       initialImagePath: n.imagePath,
     );
-    if (d == null || n.id == null) return;
+    if (r == null || n.id == null) return;
+    final d = r.draft;
     final u = n.copyWith(
       title: d.title,
       note: d.note,

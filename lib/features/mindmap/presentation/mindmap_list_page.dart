@@ -336,7 +336,7 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
           initialTitle: m.title,
         );
         if (r != null) {
-          await _dao.renameMap(m.id!, r.title);
+          await _dao.renameMap(m.id!, r.draft.title);
           ref.read(mindmapTickProvider.notifier).state++;
           await _reload();
         }

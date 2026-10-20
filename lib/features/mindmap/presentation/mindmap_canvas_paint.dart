@@ -9,10 +9,32 @@ part of 'mindmap_canvas_page.dart';
 /// 从 build 里挪进函数，键（`mm-canvas-paint`）与 painter 参数逐值不变
 /// （既有 24 个画布用例靠这个键定位画布，抽件后一个都没动）。
 extension _MmCanvasPaintOps on _MindmapCanvasPageState {
+  /// 批P2：拖动中指针的屏幕位置＝画布局部坐标过一遍视口变换。
+  Offset _linkTipOnScreen() {
+    final d = _linkDrag;
+    if (d == null) return Offset.zero;
+    return d.at * _scale + _pan;
+  }
+
+  /// 批P2：画布坐标下的落点是否落在该节点盒内（拖线松手判定的备用口径；
+  /// 主判定仍走 `_hitNode`——它与点击同一份命中区，不会出现「看着压住了
+  /// 却挂不上」）。
+  bool _linkOverNode(MindmapNode n) {
+    final d = _linkDrag;
+    if (d == null) return false;
+    final l = _layout;
+    final id = n.id;
+    if (l == null || id == null) return false;
+    final b = l.baseline[id];
+    if (b == null) return false;
+    final s = l.sizes[id] ?? const Size(120, _nodeH);
+    final pos = b + Offset(_dxOf(n), _dyOf(n));
+    return Rect.fromLTWH(pos.dx, pos.dy, s.width, s.height).contains(d.at);
+  }
   /// 绘制层子树。入参＝本帧可见节点（裁剪后）。
   Widget _canvasPaintLayer(List<MindmapNode> painterNodes) {
     return RepaintBoundary(
-      // 连接态只驱动 painter 双环：包 AnimatedBuilder，
+      // 连接态与拖拽连接点都靠这枚呼吸控制器驱动帧：
       // 帧内只重建这一层（整页 setState 每帧太重）。
       child: AnimatedBuilder(
         animation: _connectPulse,
@@ -70,6 +92,14 @@ extension _MmCanvasPaintOps on _MindmapCanvasPageState {
             connectTargetIds: _connectTargetIds,
             connectBlockedIds: _connectBlockedIds,
             connectPulse: _connectPulse.value,
+            // 批P2：右缘连接点（选中才出，连接态期间让位）＋拖动中的连线。
+            linkKnobId: _connectFrom == null ? _selectedId : null,
+            linkFrom: _linkDrag == null
+                ? null
+                : _linkKnobCenter() == null
+                    ? null
+                    : _linkKnobCenter()! * _scale + _pan,
+            linkTo: _linkDrag == null ? null : _linkTipOnScreen(),
           ),
           child: const SizedBox.expand(),
         ),

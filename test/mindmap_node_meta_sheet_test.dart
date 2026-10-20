@@ -69,7 +69,7 @@ void main() {
   group('节点弹层三段', () {
     testWidgets('标签/任务/图片三段可填，保存产出 MmNodeDraft 全字段',
         (tester) async {
-      MmNodeDraft? got;
+      MmNodeSubmit? got;
       await tester.pumpWidget(MaterialApp(
         home: Builder(builder: (ctx) => Center(
               child: TextButton(
@@ -98,15 +98,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(got, isNotNull);
-      expect(got!.title, '带三段的节点');
-      expect(got!.tags, ['方法论', '复盘']);
-      expect(got!.isTask, isTrue);
-      expect(got!.imagePath, isNull);
+      expect(got!.draft.title, '带三段的节点');
+      expect(got!.draft.tags, ['方法论', '复盘']);
+      expect(got!.draft.isTask, isTrue);
+      expect(got!.draft.imagePath, isNull);
     });
 
     testWidgets('编辑分支读回三段现值（标签以 ", " 连接、任务态 chip 已是任务）',
         (tester) async {
-      MmNodeDraft? got;
+      MmNodeSubmit? got;
       await tester.pumpWidget(MaterialApp(
         home: Builder(builder: (ctx) => Center(
               child: TextButton(
@@ -133,14 +133,14 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('mm-node-save')));
       await tester.pumpAndSettle();
-      expect(got!.tags, ['a', 'b']);
-      expect(got!.isTask, isTrue);
-      expect(got!.imagePath, '/tmp/x.jpg');
+      expect(got!.draft.tags, ['a', 'b']);
+      expect(got!.draft.isTask, isTrue);
+      expect(got!.draft.imagePath, '/tmp/x.jpg');
     });
 
     testWidgets('清空标签再存＝无标签（原型 tags.length?tags:null 同款）',
         (tester) async {
-      MmNodeDraft? got;
+      MmNodeSubmit? got;
       await tester.pumpWidget(MaterialApp(
         home: Builder(builder: (ctx) => Center(
               child: TextButton(
@@ -159,7 +159,7 @@ void main() {
       await tester.enterText(find.byKey(const ValueKey('mm-node-tags')), '  ');
       await tester.tap(find.byKey(const ValueKey('mm-node-save')));
       await tester.pumpAndSettle();
-      expect(got!.tags, isEmpty);
+      expect(got!.draft.tags, isEmpty);
     });
   });
 

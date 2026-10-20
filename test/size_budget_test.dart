@@ -15,6 +15,13 @@ void main() {
 
   // 治理 G0~G7d⑤ 交付后（2026-09-29）实测登记的基线预算。
   const budget = <String, int>{
+    // 批P2（2026-10-20）新增登记：`mindmap_canvas_page.dart` 1316 行。
+    // 本批往里加了**右缘拖拽连接点**（手势仲裁一支：起手命中/拖动落点/松手挂接/
+    // 取消）＋**速录循环**（弹层反复打开直到用户收手），两者都读写画布页私有
+    // 状态、与指针仲裁和 build 主线咬在一起，抽 part 得把十几条参数穿边界
+    // （与既有三个 part 不同：那些是现成方法群可整段搬）。
+    // 按实测登，此后只许减；下一批发落点＝把「指针仲裁」整段抽 part 还债。
+    'features/mindmap/presentation/mindmap_canvas_page.dart': 1316,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // 1520→1528 存量越线归位（小组件批E · 2026-10-18）：产品令「缺少修改打卡记录」——
     // 流水每行包一层 GestureDetector（key `hd-rec-<日键>`）点开那一天的记录编辑，

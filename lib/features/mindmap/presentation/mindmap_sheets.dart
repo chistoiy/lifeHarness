@@ -484,7 +484,7 @@ class _MmFolderSheetState extends State<_MmFolderSheet> {
   Future<void> _create() async {
     final r = await showMmNodeSheet(context, headline: '新建文件夹');
     if (r == null) return;
-    await widget.dao.createFolder(r.title);
+    await widget.dao.createFolder(r.draft.title);
     await _reload();
   }
 
@@ -492,7 +492,7 @@ class _MmFolderSheetState extends State<_MmFolderSheet> {
     final r = await showMmNodeSheet(context,
         headline: '重命名文件夹', initialTitle: f.title);
     if (r == null) return;
-    await widget.dao.renameFolder(f.id!, r.title);
+    await widget.dao.renameFolder(f.id!, r.draft.title);
     await _reload();
   }
 
