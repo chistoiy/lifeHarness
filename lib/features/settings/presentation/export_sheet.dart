@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../core/backup/backup_service.dart';
 import '../../../core/backup/lh_bak.dart' show LhBakException;
 import '../../../core/logging/app_log.dart';
 import '../../../core/platform/saf_tree.dart';
