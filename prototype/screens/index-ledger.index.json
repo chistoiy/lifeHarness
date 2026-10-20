@@ -1,0 +1,295 @@
+{
+ "file": "index-ledger.html",
+ "total": 379246,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-finance",
+   "kind": "screen",
+   "title": "记账",
+   "role": "home",
+   "size": 4296,
+   "hash": "932a1e93"
+  },
+  {
+   "id": "p-txAdd",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 2396,
+   "hash": "d43c3d60"
+  },
+  {
+   "id": "p-txDetail",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 112,
+   "hash": "833f1f06"
+  },
+  {
+   "id": "p-report",
+   "kind": "screen",
+   "title": "检查报告",
+   "role": "home",
+   "size": 1709,
+   "hash": "f342937a"
+  },
+  {
+   "id": "p-yearly",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 485,
+   "hash": "aacf78e5"
+  },
+  {
+   "id": "p-budget",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 496,
+   "hash": "6e6bd32d"
+  },
+  {
+   "id": "p-assets",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 128,
+   "hash": "900559bf"
+  },
+  {
+   "id": "p-assetAcct",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 131,
+   "hash": "114d7fbd"
+  },
+  {
+   "id": "p-cats",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1320,
+   "hash": "0715c32a"
+  },
+  {
+   "id": "p-recur",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "3dbea0b4"
+  },
+  {
+   "id": "p-wish",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "e7360a2c"
+  },
+  {
+   "id": "p-debt",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "e43ee2de"
+  },
+  {
+   "id": "p-txSearch",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 820,
+   "hash": "4a2f1707"
+  },
+  {
+   "id": "p-lset",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "b4a73fb1"
+  },
+  {
+   "id": "p-export",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 128,
+   "hash": "bb8497cb"
+  },
+  {
+   "id": "p-billImport",
+   "kind": "screen",
+   "title": "导入账单",
+   "role": "home",
+   "size": 8019,
+   "hash": "b840e736"
+  },
+  {
+   "id": "sheetBillCat",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1361,
+   "hash": "42dd541a"
+  },
+  {
+   "id": "sheetBiAcctPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 785,
+   "hash": "1c925ecd"
+  },
+  {
+   "id": "sheetLedgerDate",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 998,
+   "hash": "740bb8dd"
+  },
+  {
+   "id": "sheetLedgerMore",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 437,
+   "hash": "90e6b93d"
+  },
+  {
+   "id": "sheetLedgerAcct",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 662,
+   "hash": "e087d2f9"
+  },
+  {
+   "id": "sheetLedgerCatAdd",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2242,
+   "hash": "493af22f"
+  },
+  {
+   "id": "sheetLedgerParent2",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 451,
+   "hash": "97818f12"
+  },
+  {
+   "id": "sheetLedgerCatPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2123,
+   "hash": "406a6943"
+  },
+  {
+   "id": "sheetLedgerWho",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 802,
+   "hash": "b9742b50"
+  },
+  {
+   "id": "sheetLedgerTag",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 994,
+   "hash": "b2319937"
+  },
+  {
+   "id": "sheetLedgerMerch",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 809,
+   "hash": "cd3f7b03"
+  },
+  {
+   "id": "sheetLedgerQuick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 628,
+   "hash": "bddc6e0d"
+  },
+  {
+   "id": "sheetLedgerHero",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1031,
+   "hash": "766d705d"
+  },
+  {
+   "id": "sheetLedgerBooks",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 565,
+   "hash": "39f2b831"
+  },
+  {
+   "id": "sheetLedgerAcctAdd",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1277,
+   "hash": "2bd4795c"
+  },
+  {
+   "id": "sheetLedgerBatches",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 629,
+   "hash": "15a77421"
+  },
+  {
+   "id": "sheetLedgerUndo",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1107,
+   "hash": "3afa374a"
+  },
+  {
+   "id": "sheetLedgerWheel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 747,
+   "hash": "c3e9c7db"
+  },
+  {
+   "id": "sheetAddExcerpt",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1251,
+   "hash": "b873c739"
+  },
+  {
+   "id": "sheetYearShare",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 887,
+   "hash": "aed11b1a"
+  }
+ ]
+}

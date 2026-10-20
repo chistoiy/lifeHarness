@@ -1,0 +1,2574 @@
+<!DOCTYPE html>
+<!--
+  LifeHarness · 思维导图专版高保真原型（事实源 index-mindmap.html）
+  所有权：模块专属屏（导图列表 / 画布主屏 / 节点操作 / 挂载与转入各弹层）在本副本内定稿。
+  共享面（我的/设置、记录页壳层、导航池、主页宫格、全局弹层风格）唯一写者为 prototype/index.html；
+  本副本对应部分仅作基线参照、不得在副本内定稿；如需改动登记到工单 §4「回灌成句」由收口人回灌 index.html。
+  基线：V1.62 · 2026-10-12 新建（同日**查漏补缺批**：补 ②卡片实体／加根·同级·图管理三入口／收集箱侧反向入口／删除二次确认＋删图入口／编辑节点（标题＋备注）／双击进笔记／点空白取消选中）。
+  屏 id 前缀 mm-（mindmap），弹层 sheetMm-，避免与既有模块撞名。
+  裁定口径（工单 docs/handoff/交棒话术-20261012-思维导图模块规划.md §2）：
+    2a 独立模块（宫格第 15 枚·不占底栏）；2b 四连接点（挂笔记/日记摘录插卡片/收集箱转节点/md 笔记反向解析）；
+    2c 独立表 mindmaps/mindmap_nodes；2d 自动树布局＋**自由拖拽定位**（2026-10-12 产品改口：落库只存相对基线的 dx/dy 偏移，
+    不存绝对坐标）＋手势三分＝拖节点／拖空白平移／双指缩放；「不做自由拖拽定位」旧口径作废。
+    2e 首批＝建图＋编辑＋挂笔记，模板/导出/分享不做。
+  批P（2026-10-19）：连接器（挂接/摘除·成环置灰·右缘拖拽）＋ md 单层标题并入中心主题
+    ＋ 树内导航（收起整枝/展开全部）＋ 层级分级与聚焦降噪（L1/L3/L5）。
+  校验：node tools/mm_check.js（结构断言）＋ CDP 真 390 视口截图矩阵。
+-->
+<html lang="zh-CN" class="" data-theme="minimal">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeHarness · 思维导图专版高保真原型 V1.62</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { fontFamily: { sans: ['Inter','Noto Sans SC','PingFang SC','Microsoft YaHei','system-ui','sans-serif'] } } }
+}
+</script>
+<style>
+  /* ================= 设计令牌（沿用全项目 4 套主题 · 与壳 index.html 同源） ================= */
+  :root{--accent:#6366f1;--accent-l:#818cf8;--g1:#6366f1;--g2:#8b5cf6;--g3:#d946ef;
+        --page:#f8fafc;--card:#fff;--card-bd:#f1f5f9;--card-r:20px;--card-sh:0 1px 3px rgba(15,23,42,.05);
+        --nav-bg:rgba(255,255,255,.85);--nav-bd:#e2e8f0;
+        --ok:#10b981;--warn:#f59e0b;--err:#ef4444;--info:#0ea5e9;
+        --mm-line:#cbd5e1;--mm-branch:#6366f1;--mm-canvas:#fdfdff}
+  html.dark{--page:#020617;--card:#0f172a;--card-bd:#1e293b;--nav-bg:rgba(2,6,23,.85);--nav-bd:#1e293b;
+        --mm-line:#334155;--mm-branch:#818cf8;--mm-canvas:#070b18}
+  html[data-theme="fresh"]{--accent:#10b981;--accent-l:#34d399;--g1:#34d399;--g2:#22d3ee;--g3:#60a5fa;--page:#f1faf4;--card-bd:#e2f2e9;--card-r:26px;--nav-bg:rgba(255,255,255,.88);--mm-line:#a7d8c0;--mm-branch:#10b981;--mm-canvas:#fbfffc}
+  html[data-theme="fresh"].dark{--page:#07130e;--card:#0c1a13;--card-bd:#16321f;--nav-bg:rgba(7,19,14,.88);--nav-bd:#16321f;--mm-line:#1f5137;--mm-branch:#34d399;--mm-canvas:#050f0b}
+  html[data-theme="retro"]{--accent:#b45309;--accent-l:#d97706;--g1:#b45309;--g2:#92400e;--g3:#7c2d12;--page:#f4ecdc;--card:#fdf6e9;--card-bd:#e0cfa9;--card-r:12px;--card-sh:3px 3px 0 #e2d3b1;--nav-bg:#f4ecd9;--nav-bd:#e0cfa9;--mm-line:#c9b183;--mm-branch:#b45309;--mm-canvas:#fffdf7}
+  html[data-theme="retro"].dark{--page:#171008;--card:#241a0e;--card-bd:#4a3722;--card-sh:3px 3px 0 #0c0702;--nav-bg:#211709;--nav-bd:#4a3722;--mm-line:#5c4527;--mm-branch:#d97706;--mm-canvas:#0f0a04}
+  html[data-theme="neumorph"]{--accent:#5b7cfa;--accent-l:#93a7ff;--g1:#7c93f5;--g2:#6272e8;--g3:#5565e0;--page:#e9eef5;--card:#e9eef5;--card-bd:transparent;--card-r:22px;--card-sh:8px 8px 18px #c9d2e3,-8px -8px 18px #ffffff;--nav-bg:#e9eef5;--nav-bd:#d7dfec;--mm-line:#b9c5d8;--mm-branch:#5b7cfa;--mm-canvas:#eef2f8}
+  html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342;--mm-line:#3d4557;--mm-branch:#93a7ff;--mm-canvas:#1c212c}
+
+  html,body{height:100%;background:#0f172a;font-family:Inter,'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif}
+  *{-webkit-tap-highlight-color:transparent}
+  .side-note{display:none}
+  @media(min-width:900px){.side-note{display:flex;flex-direction:column;gap:7px;margin-right:30px;color:#64748b;font-size:12px;line-height:1.85;width:210px}}
+
+  #phone{position:relative;width:100%;height:100vh;background:var(--page);color:#0f172a;
+         overflow:hidden;display:flex;flex-direction:column}
+  @media(min-width:900px){#phone{width:400px;height:840px;border-radius:44px;border:8px solid #1e293b;box-shadow:0 30px 80px rgba(0,0,0,.55)}}
+  html.dark #phone{color:#e2e8f0}
+
+  /* 状态栏 */
+  .statusbar{height:34px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:11px;font-weight:700;opacity:.55;position:relative;z-index:30}
+  .statusbar svg{width:14px;height:14px}
+  /* 顶栏 */
+  .appbar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:2px 16px 10px;position:relative;z-index:20}
+  .appbar h1{font-size:20px;font-weight:800;letter-spacing:-.01em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .sub{font-size:11px;opacity:.45;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .spacer{flex:1;min-width:0}
+  /* 触点 ≥44（〇B） */
+  .iconbtn{width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.6;transition:background .15s,opacity .15s}
+  .iconbtn:active{background:rgba(100,116,139,.16);opacity:1}
+  .iconbtn svg{width:19px;height:19px}
+  .iconbtn.solid{background:var(--accent);color:#fff;opacity:1;box-shadow:0 4px 12px rgba(99,102,241,.35)}
+  .iconbtn.danger{color:var(--err);opacity:.9}
+
+  #wrap{flex:1;position:relative;overflow:hidden}
+  .page{position:absolute;inset:0;overflow-y:auto;padding:0 16px 96px;display:none;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .page::-webkit-scrollbar{display:none}
+  .page.active{display:block;animation:slideIn .18s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+
+  .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--card-r);padding:13px 15px;box-shadow:var(--card-sh)}
+  .card+.card,.blk+.blk{margin-top:10px}
+  .sectitle{font-size:11px;font-weight:800;opacity:.42;margin:16px 2px 7px;letter-spacing:.05em}
+  .grad{background:linear-gradient(135deg,var(--g1) 0%,var(--g2) 55%,var(--g3) 100%)}
+  .empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:52px 20px;text-align:center}
+
+  /* ===== 思维导图画布（2d 裁定：自动树布局 ＋ **自由拖拽定位**；手势三分＝拖节点/拖空白平移/双指缩放）===== */
+  #mmCanvas{position:absolute;inset:0;overflow:hidden;touch-action:none;background:
+    radial-gradient(circle at 1px 1px,var(--mm-line) 1px,transparent 0) 0 0/22px 22px,var(--mm-canvas)}
+  #mmStage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  #mmEdges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  /* 连线/节点消费样式层变量（批3 F4-7）：未设时回落令牌原值，故「默认」零改动 */
+  #mmEdges path{fill:none;stroke:var(--mm-line-c,var(--mm-line));stroke-width:var(--mm-line-w,1.6)}
+  .mm-node{position:absolute;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:11px;
+    background:var(--mm-bg,var(--card));border:1.5px solid var(--card-bd);box-shadow:var(--card-sh);
+    color:var(--mm-fg,inherit);font-size:var(--mm-fs,13px);font-weight:700;white-space:nowrap;max-width:300px;transition:box-shadow .16s,border-color .16s,transform .16s;
+    user-select:none;-webkit-user-select:none}
+  .mm-node.root{border-color:var(--mm-branch);border-width:2px;background:color-mix(in srgb,var(--accent) 9%,var(--card));font-weight:800;font-size:15px;padding:9px 14px}
+  /* 批P L1 层级分级：根＝主色描边＋9% 淡底＋加粗（上一行）；二三级起描边降一档透明度。
+     先写 rgba 回落再写 color-mix（Chromium<111 不认 color-mix，无回落是整条失效而非退化）。 */
+  .mm-node.d2{border-color:rgba(203,213,225,.72);border-color:color-mix(in srgb,var(--card-bd) 72%,transparent)}
+  .mm-node.d3{border-color:rgba(203,213,225,.5);border-color:color-mix(in srgb,var(--card-bd) 52%,transparent)}
+  html.dark .mm-node.d2{border-color:rgba(51,65,85,.8);border-color:color-mix(in srgb,var(--card-bd) 80%,transparent)}
+  html.dark .mm-node.d3{border-color:rgba(51,65,85,.55);border-color:color-mix(in srgb,var(--card-bd) 55%,transparent)}
+  /* 批P L5 聚焦态：选中一枝时其余枝降到 40%，大图一眼读得出「我在哪一枝」 */
+  .mm-node.dim{opacity:.4}
+  /* 批P L3 连线不钻盒：连线层压到节点层之下，且节点盒一律不透明底（穿盒处不再像断线） */
+  #mmEdges{z-index:1}
+  #mmNodes{position:absolute;left:0;top:0;z-index:2}
+  #mmEdges .mm-edge-root{stroke:var(--mm-branch);stroke-width:calc(var(--mm-line-w,1.6px) + .9px);opacity:.92}
+  /* 批P P1 连接态：可选目标描边闪烁；成环目标置灰不可点；右缘连接点可拖 */
+  .mm-node.ctarget{border-color:var(--accent);animation:ctPulse 1.1s ease-in-out infinite}
+  @keyframes ctPulse{0%,100%{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 26%,transparent)}}
+  .mm-node.cblocked{opacity:.32;filter:grayscale(.6)}
+  .mm-node.hover{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent)}
+  .mm-node .mm-port{position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;
+    background:var(--accent);border:2.5px solid var(--card);box-shadow:0 1px 4px rgba(15,23,42,.28);touch-action:none;z-index:3}
+  #mmConnectBar{position:absolute;left:12px;right:12px;top:10px;z-index:22;display:flex;align-items:center;gap:9px;
+    padding:9px 12px;border-radius:13px;background:var(--card);border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);
+    box-shadow:0 8px 22px rgba(15,23,42,.16);font-size:11.5px;font-weight:800}
+  #mmConnectBar .cbar-t{flex:1;min-width:0;line-height:1.45}
+  #mmConnectBar button{font-size:11px;font-weight:800;padding:7px 11px;border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);min-height:34px}
+  html.dark #mmConnectBar button{color:var(--accent-l)}
+  .mm-node.sel{border-color:var(--mm-branch);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent),var(--card-sh)}
+  .mm-node:active{transform:scale(.97)}
+  .mm-node.dragging{opacity:.85;box-shadow:0 10px 28px rgba(15,23,42,.22);transform:scale(1.02);z-index:5}
+  /* flex 里的 .mm-txt 默认 flex-shrink:1，会被兄弟图标挤到只剩省略号宽度 —— 节点明明
+   量得够宽（诊断实测 r 宽 152 / 文字需 105+）却仍显示「深度工作…」。故锁成不收缩，
+   省略交给外层 max-width:MAXW 兜底。 */
+.mm-node .mm-txt{flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mm-node .mm-bind{flex-shrink:0;opacity:.85;display:inline-flex}
+  .mm-node .mm-bind svg{width:13px;height:13px}
+  .mm-node .mm-fold{flex-shrink:0;margin-left:2px;opacity:.45;display:inline-flex}
+  .mm-node .mm-fold svg{width:11px;height:11px}
+  /* 画布浮层：缩放读数 + 复位 */
+  #mmZoomBar{position:absolute;right:12px;bottom:88px;z-index:15;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  #mmZoomBar button{width:44px;height:44px;border-radius:14px;background:var(--card);border:1px solid var(--card-bd);
+    box-shadow:var(--card-sh);display:flex;align-items:center;justify-content:center;opacity:.85}
+  #mmZoomBar button:active{opacity:1}
+  #mmZoomBar svg{width:18px;height:18px}
+  #mmScaleTag{font-size:10px;font-weight:800;opacity:.45;padding:3px 7px;border-radius:7px;background:var(--card);border:1px solid var(--card-bd)}
+  /* 画布底部工具条 */
+  #mmToolbar{position:absolute;left:12px;right:12px;bottom:82px;z-index:15;display:flex;gap:8px;align-items:center;justify-content:center}
+  #mmToolbar .ttb{height:44px;padding:0 14px;border-radius:14px;background:var(--card);border:1px solid var(--card-bd);
+    box-shadow:var(--card-sh);font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:6px;opacity:.92}
+  #mmToolbar .ttb:active{opacity:1;transform:scale(.97)}
+  #mmToolbar .ttb svg{width:16px;height:16px}
+  #mmToolbar .ttb.pri{background:var(--accent);color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(99,102,241,.35)}
+
+  /* 列表行（导图列表 / 笔记候选 / 收集箱条目共用语言） */
+  .row{display:flex;align-items:center;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-bd);font-size:13px;font-weight:700;min-height:44px}
+  .row:last-child{border-bottom:none}
+  .row .r-ic{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    background:color-mix(in srgb,var(--accent) 11%,transparent);color:var(--accent)}
+  html.dark .row .r-ic{color:var(--accent-l)}
+  .row .r-ic svg{width:16px;height:16px}
+  .row .r-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .r-s{font-size:10px;opacity:.45;font-weight:600;margin-top:1px}
+  .row .r-x{flex-shrink:0;opacity:.4}
+  .row .r-x svg{width:15px;height:15px;display:block}
+  .row.sel .r-ic{background:var(--accent);color:#fff}
+  html.dark .row.sel .r-ic{color:#fff}
+
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:7px;
+    background:color-mix(in srgb,var(--accent) 11%,transparent);color:var(--accent);flex-shrink:0}
+  html.dark .chip{color:var(--accent-l)}
+  .chip.gray{background:rgba(100,116,139,.14);color:#64748b}
+  .chip.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:#047857}
+  html.dark .chip.ok{color:#6ee7b7}
+  .chip.warn{background:color-mix(in srgb,var(--warn) 15%,transparent);color:#b45309}
+  html.dark .chip.warn{color:#fbbf24}
+  .chip.err{background:color-mix(in srgb,var(--err) 12%,transparent);color:var(--err)}
+
+  .btn-main{display:block;width:100%;border-radius:15px;padding:12px 0;color:#fff;font-size:13.5px;font-weight:800;
+    box-shadow:0 6px 18px rgba(99,102,241,.32);transition:transform .14s}
+  .btn-main:active{transform:scale(.985)}
+  .btn2{border:1px solid var(--card-bd);border-radius:11px;padding:9px 0;font-size:12px;font-weight:800;opacity:.75;background:var(--card);min-height:40px}
+  .btn2:active{background:rgba(100,116,139,.12)}
+  .btn2.danger{color:var(--err);opacity:.95;border-color:color-mix(in srgb,var(--err) 35%,transparent)}
+  .mini-btn{font-size:11px;font-weight:800;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:7px 11px;border-radius:10px;min-height:36px;display:inline-flex;align-items:center;gap:5px}
+  html.dark .mini-btn{color:var(--accent-l)}
+  .mini-btn svg{width:14px;height:14px}
+
+  .field{margin-top:10px}
+  .field label{display:block;font-size:10px;font-weight:800;opacity:.45;margin-bottom:4px}
+  .field input,.field textarea{width:100%;border:1px solid var(--card-bd);border-radius:11px;padding:10px 11px;
+    background:rgba(100,116,139,.07);outline:none;font-size:12.5px;color:inherit}
+  .field input:focus,.field textarea:focus{border-color:var(--accent)}
+  .field textarea{resize:none;line-height:1.7}
+
+  /* 节点长按操作单（画布内浮层，不走弹层） */
+  #mmNodeMenu{position:absolute;z-index:40;width:216px;background:var(--card);border:1px solid var(--card-bd);
+    border-radius:16px;box-shadow:0 14px 40px rgba(15,23,42,.2);padding:6px;display:none;
+    max-height:calc(100% - 24px);overflow-y:auto;scrollbar-width:none}
+  #mmNodeMenu::-webkit-scrollbar{display:none}
+  /* 批P：项数到 15，视图两枚并排省一行（命中区仍 44） */
+  #mmNodeMenu .nm-row{display:flex;gap:6px}
+  #mmNodeMenu .nm-row .nm{flex:1;justify-content:center;padding:10px 6px}
+  #mmNodeMenu.open{display:block;animation:popIn .16s ease}
+  @keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+  #mmNodeMenu .nm{display:flex;align-items:center;gap:9px;padding:10px 10px;border-radius:11px;font-size:12.5px;font-weight:700;min-height:44px;width:100%;text-align:left}
+  #mmNodeMenu .nm:active{background:rgba(100,116,139,.14)}
+  #mmNodeMenu .nm svg{width:16px;height:16px;flex-shrink:0;opacity:.75}
+  #mmNodeMenu .nm.danger{color:var(--err)}
+  #mmNodeMenu .nm.danger svg{opacity:1}
+  #mmNodeMenu .nm-div{height:1px;background:var(--card-bd);margin:4px 8px}
+
+  /* 操作单行（图管理弹层 / 收集箱侧入口共用）——与节点操作单同语言 */
+  .op{display:flex;align-items:center;gap:10px;padding:11px 11px;border-radius:12px;font-size:13px;font-weight:700;min-height:44px;width:100%;text-align:left}
+  .op:active{background:rgba(100,116,139,.14)}
+  .op svg{width:17px;height:17px;flex-shrink:0;opacity:.75}
+  .op.danger{color:var(--err)}
+  .op.danger svg{opacity:1}
+  .op-div{height:1px;background:var(--card-bd);margin:4px 8px}
+  /* 后果清单行（二次确认弹层） */
+  .cf-row{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:5px 0}
+  .cf-row b{font-weight:800}
+  .cf-note{font-size:11px;opacity:.55;margin-top:7px;line-height:1.7}
+  /* 列表行尾「更多」钮（图管理入口，命中 ≥44） */
+  .row .row-more{width:40px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.5;margin-right:-8px}
+  .row .row-more:active{opacity:1}
+  .row .row-more svg{width:17px;height:17px}
+  /* 导图卡片实体（连接点② · 日记/摘录正文里插入后的样子） */
+  .mm-card{border:1px solid var(--card-bd);border-radius:16px;padding:12px 13px;background:var(--card);box-shadow:var(--card-sh);cursor:pointer}
+  .mm-card:active{transform:scale(.99)}
+  .mm-card-hd{display:flex;align-items:center;gap:9px}
+  .mm-card-ic{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    background:color-mix(in srgb,var(--accent) 11%,transparent);color:var(--accent)}
+  .mm-card-ic svg{width:17px;height:17px}
+  .mm-card-t{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mm-card-s{font-size:10px;opacity:.45;font-weight:600;margin-top:1px}
+  .mm-card-prev{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
+  /* 弹层 */
+  .sheet{position:absolute;inset:0;z-index:60;background:rgba(2,6,23,.45);display:none;align-items:flex-end}
+  .sheet.open{display:flex}
+  .sheet-panel{width:100%;max-height:86%;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+    background:var(--card);border-radius:24px 24px 0 0;padding:12px 16px 24px;animation:sheetUp .22s cubic-bezier(.2,.8,.2,1)}
+  @media(min-width:900px){.sheet-panel{width:384px}}
+  .sheet-panel::-webkit-scrollbar{display:none}
+  .grabber{width:36px;height:4px;border-radius:99px;background:#cbd5e1;margin:0 auto 10px;opacity:.6}
+  html.dark .grabber{background:#475569}
+  .sh-title{font-size:15px;font-weight:800}
+  .sh-sub{font-size:11px;opacity:.45;margin-top:2px;line-height:1.6}
+  .sh-head{display:flex;align-items:flex-start;gap:8px}
+  .sh-head .spacer{flex:1}
+
+  /* 底部导航（本模块不占底栏 5 档，壳内宫格直达；此处保留返回栈与图内切换两枚） */
+  #mmNav{position:absolute;left:0;right:0;bottom:0;height:66px;z-index:30;
+    background:var(--nav-bg);backdrop-filter:blur(14px);border-top:1px solid var(--nav-bd);display:flex;padding:6px 10px 8px}
+  .navtab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;opacity:.45;position:relative}
+  .navtab svg{width:21px;height:21px}
+  .navtab.on{opacity:1;color:var(--accent)}
+  html.dark .navtab.on{color:var(--accent-l)}
+  .navtab.on::after{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:18px;height:3px;border-radius:0 0 4px 4px;background:var(--accent)}
+
+  /* ================= 批2~批5 原型扩展样式（2026-10-12 全批次原型补齐） ================= */
+  /* 节点多行（批2 F4-6）：标题含换行时盒模型转多行，不再 nowrap + ellipsis。
+     flex-wrap 让标签独占第二行，避免标签挤走文字导致折行失控。 */
+  .mm-node.wrap{white-space:pre-wrap;max-width:220px;flex-wrap:wrap;align-items:flex-start;line-height:1.4}
+  .mm-node.wrap .mm-txt{white-space:pre-wrap;overflow:visible;text-overflow:clip;flex:0 1 auto;max-width:100%}
+  .mm-node.wrap .mm-tags{flex:1 1 100%;margin-top:2px}
+  /* 节点上的标签 / 任务勾选 / 图片缩略（批5 F4-9） */
+  .mm-node .mm-tags{display:inline-flex;gap:3px;flex-shrink:0}
+  .mm-node .mm-tag{font-size:9px;font-weight:800;padding:1px 5px;border-radius:5px;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)}
+  html.dark .mm-node .mm-tag{color:var(--accent-l)}
+  .mm-node .mm-task{width:15px;height:15px;border-radius:5px;border:1.6px solid var(--mm-line);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+  .mm-node .mm-task.on{background:var(--ok);border-color:var(--ok);color:#fff}
+  .mm-node .mm-task svg{width:10px;height:10px}
+  .mm-node .mm-thumb{width:22px;height:22px;border-radius:6px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(135deg,var(--g1),var(--g3))}
+  .mm-node .mm-thumb svg{width:12px;height:12px}
+  /* 选中态下的任务勾选可点（其余节点内元素命中区随节点走） */
+  .mm-node .mm-task{cursor:pointer}
+  /* 样式层控件（批3 F4-7） */
+  .swatches{display:flex;flex-wrap:wrap;gap:8px}
+  .swatch{min-width:40px;height:38px;padding:0 10px;border-radius:11px;border:1.5px solid var(--card-bd);display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;background:var(--card)}
+  .swatch.on{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
+  .seg{display:flex;gap:7px;flex-wrap:wrap}
+  .seg button{font-size:11px;font-weight:800;padding:8px 13px;border-radius:10px;border:1px solid var(--card-bd);background:var(--card);min-height:38px}
+  .seg button.on{background:var(--accent);color:#fff;border-color:transparent}
+  .step{display:flex;align-items:center;gap:10px}
+  .step button{width:40px;height:40px;border-radius:12px;border:1px solid var(--card-bd);background:var(--card);display:inline-flex;align-items:center;justify-content:center;font-size:17px;font-weight:800}
+  .step .val{flex:1;text-align:center;font-size:12px;font-weight:800;opacity:.75}
+  /* 布局预设卡（批4 F4-8） */
+  .lay-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .lay-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 8px;border:1.5px solid var(--card-bd);border-radius:14px;background:var(--card);font-size:11.5px;font-weight:800}
+  .lay-card.on{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+  .lay-card svg{width:60px;height:42px;opacity:.85}
+  /* 导出选项（批2 F4-5） */
+  .opt-row{display:flex;align-items:center;gap:11px;padding:12px 2px;border-bottom:1px solid var(--card-bd)}
+  .opt-row:last-child{border-bottom:none}
+  .opt-row .r-t{flex:1;min-width:0;font-size:13px;font-weight:700}
+  .sw{width:44px;height:26px;border-radius:99px;background:rgba(100,116,139,.28);position:relative;flex-shrink:0;transition:background .15s}
+  .sw::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .sw.on{background:var(--accent)}
+  .sw.on::after{left:21px}
+  /* 文件夹分组（批2 F4-4） */
+  .folder-hd{display:flex;align-items:center;gap:8px;padding:11px 2px 5px;font-size:11px;font-weight:800;opacity:.5}
+  .folder-hd .cnt{font-weight:700;opacity:.75}
+  .folder-hd svg{width:14px;height:14px;flex-shrink:0}
+  /* 更多菜单行图标（.op 内 svg 太小会撑满） */
+  .op>svg{width:18px;height:18px}
+  /* appbar 图标钮失效态（撤销/重做空栈时） */
+  .iconbtn[disabled]{opacity:.25;pointer-events:none}
+  /* 命令行内联代码（导出/搜索说明用） */
+  .kbd{font-size:10.5px;font-weight:800;padding:1px 5px;border-radius:5px;background:rgba(100,116,139,.16);font-family:ui-monospace,Menlo,Consolas,monospace}
+
+  /* toast */
+  #toast{position:absolute;left:20px;right:20px;bottom:88px;z-index:80;background:rgba(15,23,42,.93);color:#f1f5f9;
+    font-size:12px;font-weight:700;line-height:1.6;padding:11px 14px;border-radius:14px;display:none;backdrop-filter:blur(8px)}
+  .hide{display:none!important}
+  @media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+
+<div class="side-note">
+  <div style="font-size:15px;font-weight:800;color:#cbd5e1">LifeHarness 交互原型 · 思维导图专版</div>
+  <div>· 屏 id：mm-list / mm-canvas</div>
+  <div>· 弹层 id：sheetMm-new / sheetMm-node / sheetMm-bindNote / sheetMm-fromMd / sheetMm-fromInbox / sheetMm-rename / sheetMm-map / sheetMm-confirm / sheetMm-card / sheetMm-inboxTo / sheetMm-more / sheetMm-search / sheetMm-folders / sheetMm-export / sheetMm-style / sheetMm-layout</div>
+  <div>· 入口＝工作台宫格第 15 枚（不占底栏 5 档）</div>
+  <div>· 2d 口径：自动树布局 ＋ 自由拖拽定位（拖节点＝写 dx/dy 偏移），手势三分＝拖节点／拖空白平移／双指缩放</div>
+  <div>· 全批次覆盖：批1 数据/入口/画布编辑/图管理/挂载；批2 撤销重做/剪贴板/搜索/文件夹/导出/换行；批3 样式层；批4 布局家族(radial/both/横向预览)；批5 标签/任务/图片/.xmind</div>
+  <div>· 仅 UI 占位模拟，无真实业务数据</div>
+</div>
+
+<div id="phone">
+
+  <!-- 状态栏 -->
+  <div class="statusbar">
+    <span id="clock">9:41</span>
+    <span style="display:flex;align-items:center;gap:5px">
+      <svg viewBox="0 0 24 24" fill="currentColor" style="opacity:.8"><path d="M12 21 2 8.5C4.8 5.6 8.2 4 12 4s7.2 1.6 10 4.5L12 21z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.7 4H14V2h-4v2H8.3C7.6 4 7 4.6 7 5.3v15.3c0 .8.6 1.4 1.3 1.4h7.3c.8 0 1.4-.6 1.4-1.4V5.3C17 4.6 16.4 4 15.7 4z"/></svg>
+    </span>
+  </div>
+
+  <!-- 顶栏（返回/标题/新建三槽位按屏切换） -->
+  <div class="appbar">
+    <button id="btnBack" class="iconbtn" onclick="goBack()" aria-label="返回" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <div style="flex:1;min-width:0">
+      <h1 id="pageTitle">思维导图</h1>
+      <div class="sub" id="pageSub">4 张图 · 本地手绘</div>
+    </div>
+    <div class="spacer"></div>
+    <!-- 批2 F4-1 撤销/重做（画布态出现；空栈置灰） -->
+    <button id="btnUndo" class="iconbtn" onclick="mmUndo()" aria-label="撤销" style="display:none" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 7H16a4.5 4.5 0 0 1 0 9h-5"/><path d="M12.5 4.5 9.5 7l3 2.5"/></svg>
+    </button>
+    <button id="btnRedo" class="iconbtn" onclick="mmRedo()" aria-label="重做" style="display:none" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 7H8a4.5 4.5 0 0 0 0 9h5"/><path d="M11.5 4.5 14.5 7l-3 2.5"/></svg>
+    </button>
+    <button id="btnSearch" class="iconbtn" onclick="mmOpenSearch()" aria-label="搜索挂载节点" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+    </button>
+    <button id="btnNew" class="iconbtn" onclick="mmNewMap()" aria-label="新建导图">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button id="btnMore" class="iconbtn" onclick="mmOpenMore()" aria-label="更多">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+    </button>
+  </div>
+
+  <div id="wrap">
+
+    <!-- ================= P1 · mm-list 我的导图（列表/画布双态入口） ================= -->
+    <section id="mm-list" class="page active">
+      <!-- 从笔记/收集箱转入的来路提示（2b 四连接点的落地凭证） -->
+      <div id="mmSrcTip" class="hide card" style="border-color:color-mix(in srgb,var(--accent) 32%,transparent)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="chip" id="mmSrcChip">md 笔记</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12.5px;font-weight:800" id="mmSrcName">读书摘录 · 深度工作</div>
+            <div style="font-size:10px;opacity:.45;margin-top:1px" id="mmSrcHint">已按标题层级解析为 12 个节点，可在画布继续编辑</div>
+          </div>
+          <button class="iconbtn" style="width:34px;height:34px" onclick="mmHideSrc()" aria-label="关闭">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 空态（首批无图时） -->
+      <div id="mmEmpty" class="empty">
+        <div style="width:64px;height:64px;border-radius:20px;display:flex;align-items:center;justify-content:center;
+             background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" style="width:30px;height:30px">
+            <rect x="9" y="2.5" width="6" height="5" rx="1.6"/><rect x="2.5" y="16" width="6" height="5" rx="1.6"/>
+            <rect x="15.5" y="16" width="6" height="5" rx="1.6"/><path d="M12 7.5v4M5.5 16v-2.2h13V16"/>
+          </svg>
+        </div>
+        <div style="font-size:15px;font-weight:800">还没有导图</div>
+        <div style="font-size:11.5px;opacity:.5;line-height:1.75;max-width:250px">
+          新建一张空白图，或从 md 笔记、收集箱条目转成导图初稿
+        </div>
+        <button class="btn-main grad" style="margin-top:6px;padding:11px 26px;width:auto" onclick="mmNewMap()">新建导图</button>
+        <div style="display:flex;gap:8px;margin-top:2px">
+          <button class="btn2" style="padding:9px 14px" onclick="openSheet('sheetMm-fromMd')">从 md 笔记转</button>
+          <button class="btn2" style="padding:9px 14px" onclick="openSheet('sheetMm-fromInbox')">从收集箱转</button>
+        </div>
+      </div>
+
+      <!-- 有图态 -->
+      <div id="mmList" class="hide">
+        <div class="card" style="padding:12px 14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="font-size:11px;font-weight:800;opacity:.5;letter-spacing:.04em">最近编辑</span>
+            <span style="flex:1"></span>
+            <span style="font-size:10px;opacity:.4" id="mmStat">共 4 张 · 38 个节点</span>
+          </div>
+          <div id="mmRows"></div>
+        </div>
+
+        <div class="sectitle">从别处转成导图</div>
+        <div class="card">
+          <div class="row" onclick="openSheet('sheetMm-fromMd')">
+            <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.6"/><path d="M7 10l2.5 2L7 14M12.5 14.5H17"/></svg></span>
+            <span class="r-t">md 笔记转导图<div class="r-s">按标题层级 / 空行 / 缩进解析为初稿（连接点④）</div></span>
+            <span class="r-x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+          </div>
+          <div class="row" onclick="openSheet('sheetMm-fromInbox')">
+            <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.5h5l1.5 3h4l1.5-3h5"/><path d="M5.2 12.5 7.3 5h9.4l2.1 7.5V19a1.7 1.7 0 0 1-1.7 1.7H6.9a1.7 1.7 0 0 1-1.7-1.7z"/></svg></span>
+            <span class="r-t">收集箱条目转节点<div class="r-s">待整理碎片一键进图，作为根节点下第一层（连接点③·导图侧）</div></span>
+            <span class="r-x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+          </div>
+          <div class="row" onclick="openSheet('sheetMm-inboxTo')">
+            <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.5h5l1.5 3h4l1.5-3h5"/><path d="M5.2 12.5 7.3 5h9.4l2.1 7.5V19a1.7 1.7 0 0 1-1.7 1.7H6.9a1.7 1.7 0 0 1-1.7-1.7z"/><path d="M15.5 8.5H20"/></svg></span>
+            <span class="r-t">收集箱页「转导图」入口<div class="r-s">从收集箱条目的「⋯」直接转导图（第五向·反向，与上一条成双向）</div></span>
+            <span class="r-x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+          </div>
+          <div class="row" onclick="openSheet('sheetMm-card')">
+            <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/></svg></span>
+            <span class="r-t">在日记 / 摘录里插卡片<div class="r-s">正文插导图卡片，点击进画布；卡片形态见弹层（连接点②）</div></span>
+            <span class="r-x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+          </div>
+        </div>
+
+        <div class="sectitle">入口说明</div>
+        <div class="card" style="font-size:11px;opacity:.55;line-height:1.8">
+          本模块走<b style="opacity:.9">工作台宫格第 15 枚</b>直达，不占底栏（底栏 5 档已满：今天 / 待办 / 时间 / 记录 / 我的）。
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= P2 · mm-canvas 画布主屏（自动树布局 ＋ 平移/缩放） ================= -->
+    <section id="mm-canvas" class="page" style="padding:0;overflow:hidden">
+      <div id="mmCanvas">
+        <!-- 批P P1 连接态提示条：顶部常驻，点空白/取消退出 -->
+        <div id="mmConnectBar" class="hide">
+          <span class="cbar-t" id="mmConnectLbl">点一个目标节点完成连接</span>
+          <button onclick="mmCancelConnect()">取消</button>
+        </div>
+        <div id="mmStage">
+          <svg id="mmEdges" width="1400" height="900"></svg>
+          <div id="mmNodes"></div>
+        </div>
+
+        <!-- 缩放读数与复位（2d 改口：拖节点/拖空白平移/双指缩放 三分手势） -->
+        <div id="mmZoomBar">
+          <span id="mmScaleTag">100%</span>
+          <button onclick="mmZoomBy(1.25)" aria-label="放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button onclick="mmZoomBy(0.8)" aria-label="缩小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+          <button onclick="mmFit()" aria-label="适应画布"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
+          <!-- 批4 F4-8 布局切换 / 批3 F4-7 样式层：画布高频道，先于「更多」直达 -->
+          <button onclick="mmOpenLayout()" aria-label="布局"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.6" width="6" height="4.6" rx="1.4"/><rect x="2.6" y="16.8" width="6" height="4.6" rx="1.4"/><rect x="15.4" y="16.8" width="6" height="4.6" rx="1.4"/><path d="M12 7.2v3.3M5.6 16.8v-3.3h12.8v3.3"/></svg></button>
+          <button onclick="mmOpenStyle()" aria-label="样式"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2a8.8 8.8 0 0 0 0 17.6c1.2 0 2-.9 2-2 0-.6-.3-1-.3-1.6 0-.7.6-1.3 1.4-1.3h1.3c2.2 0 3.9-1.7 3.9-3.9C20.3 6.5 16.6 3.2 12 3.2z"/><circle cx="8" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.8" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg></button>
+        </div>
+
+        <!-- 画布工具条（选中态才出现的增删改＋挂笔记） -->
+        <div id="mmToolbar" class="hide">
+          <button class="ttb" onclick="mmNodeMenu('bind')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/></svg>
+            挂笔记
+          </button>
+          <button class="ttb pri" onclick="mmAddChild()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            加子节点
+          </button>
+          <button class="ttb" onclick="mmNodeMenu('more')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+            更多
+          </button>
+        </div>
+      </div>
+
+      <!-- 节点长按操作单（画布内浮层） -->
+      <div id="mmNodeMenu">
+        <div style="padding:7px 10px 6px;font-size:10px;font-weight:800;opacity:.4;letter-spacing:.04em" id="mmNmWho">节点操作</div>
+        <button class="nm" onclick="mmAddChild()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>添加子节点</button>
+        <button class="nm" onclick="mmAddSibling()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="5" rx="1.5"/><rect x="14" y="4" width="7" height="5" rx="1.5"/><path d="M6.5 9v3.5h11V9"/></svg>添加同级节点</button>
+        <button class="nm" onclick="mmAddRoot()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3.6"/><path d="M12 2.5v5.9M12 15.6v5.9M2.5 12h5.9M15.6 12h5.9"/></svg>添加根节点</button>
+        <div class="nm-div"></div>
+        <!-- 批P P1：挂接（根节点显示「并入…」）与摘除回根 -->
+        <button class="nm" id="mmNmConnect" onclick="mmStartConnect()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8.4 10.9 15.9 7M8.4 13.1 15.9 17"/></svg><span id="mmNmConnectLbl">连接到…</span></button>
+        <button class="nm" id="mmNmDetach" onclick="mmDetachNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 8.5 6 5M14.5 8.5 18 5M9.5 15.5 6 19M14.5 15.5 18 19"/><rect x="9" y="9" width="6" height="6" rx="1.6"/></svg>断开并移到根层级</button>
+        <div class="nm-div"></div>
+        <button class="nm" onclick="mmBindNote()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/></svg>挂载笔记</button>
+        <button class="nm" onclick="mmEditNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.5L19 9.5a2.1 2.1 0 0 0-3-3L5.5 17z"/><path d="M14.5 7.5l2 2"/></svg>编辑节点（标题＋备注）</button>
+        <button class="nm" onclick="mmToggleFold()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.5 15.5 12 8 19.5"/></svg><span id="mmFoldLbl">折叠子节点</span></button>
+        <!-- 批P P3 树内导航：纯视图态，不入命令栈 -->
+        <div class="nm-row">
+          <button class="nm" onclick="mmCollapseBranch()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M4 12h7M4 18h4"/><path d="M16 10.5 19 13.5 16 16.5"/></svg>收起整枝</button>
+          <button class="nm" onclick="mmExpandAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M4 12h7M4 18h4"/><path d="M19 10.5 16 13.5 19 16.5"/></svg>展开全部</button>
+        </div>
+        <button class="nm" onclick="mmResetPos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg>归位到自动布局</button>
+        <div class="nm-div"></div>
+        <!-- 批P3 §5 第 5 条：同级换序（只动兄弟序、不改父子；一步可撤） -->
+        <div class="nm-row">
+          <button class="nm" onclick="mmMoveSibling(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>上移</button>
+          <button class="nm" onclick="mmMoveSibling(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>下移</button>
+        </div>
+        <!-- 批2 F4-2 节点复制/剪切/粘贴（与命令栈同批，含子级） -->
+        <button class="nm" onclick="mmCopyNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.4"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>复制（含子级）</button>
+        <button class="nm" onclick="mmCutNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/><path d="M8.7 8.2 19 17M8.7 15.8 19 7"/></svg>剪切（含子级）</button>
+        <div class="nm-row">
+          <button class="nm" onclick="mmPasteNode('sibling')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.4"/><path d="M9 4.5V3h6v1.5M9 11h6M9 15h4"/></svg>粘贴同级</button>
+          <button class="nm" onclick="mmPasteNode('child')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.4"/><path d="M9 4.5V3h6v1.5M9 11h6M9 15h4"/></svg>粘贴子级</button>
+        </div>
+        <div class="nm-div"></div>
+        <button class="nm danger" onclick="mmDelNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>删除节点（含子级）</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ================= 底部导航（本模块两态：列表 / 画布） ================= -->
+  <nav id="mmNav">
+    <button class="navtab on" data-p="mm-list" onclick="navTab('mm-list')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M3.5 9h17M9.5 9v11"/></svg>
+      <span>全部导图</span>
+    </button>
+    <button class="navtab" data-p="mm-canvas" onclick="navTab('mm-canvas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M10.6 10.6 6.4 7.4M13.4 10.6l4.2-3.2M10.6 13.4l-4.2 3.2M13.4 13.4l4.2 3.2"/></svg>
+      <span>当前画布</span>
+    </button>
+  </nav>
+
+  <!-- ================= S1 · sheetMm-new 新建导图 ================= -->
+  <div class="sheet" id="sheetMm-new" onclick="if(event.target===this)closeSheet('sheetMm-new')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-title">新建导图</div>
+      <div class="sh-sub">建空图，或从别处转成初稿后再改名</div>
+      <div class="field">
+        <label>导图名称</label>
+        <input id="mmNewName" placeholder="例如：深度工作方法论" />
+      </div>
+      <div class="field">
+        <label>起点</label>
+        <div style="display:flex;gap:7px">
+          <button class="chip on" id="mmSrcBlank" onclick="mmPickSrc('blank',this)">空白图</button>
+          <button class="chip" id="mmSrcMd" onclick="mmPickSrc('md',this)">md 笔记</button>
+          <button class="chip" id="mmSrcInbox" onclick="mmPickSrc('inbox',this)">收集箱条目</button>
+        </div>
+      </div>
+      <button class="btn-main grad" style="margin-top:14px" onclick="mmCreateMap()">创建并进入画布</button>
+      <button class="btn2" style="width:100%;margin-top:8px" onclick="closeSheet('sheetMm-new')">取消</button>
+    </div>
+  </div>
+
+  <!-- ================= S2 · sheetMm-node 节点详情/新增（标题＋层级） ================= -->
+  <div class="sheet" id="sheetMm-node" onclick="if(event.target===this)closeSheet('sheetMm-node')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-title" id="mmNodeSheetTitle">添加子节点</div>
+      <div class="sh-sub" id="mmNodeSheetSub">挂在「深度工作方法论」下</div>
+      <div class="field">
+        <label>节点标题（批2 F4-6：可换行，回车即断行）</label>
+        <textarea id="mmNodeInput" rows="2" placeholder="一句话说清这个节点；需要两行就回车"></textarea>
+      </div>
+      <div class="field">
+        <label>备注（可选，画布不显示，可在此读回与修改）</label>
+        <textarea id="mmNodeNote" rows="2" placeholder="补充说明"></textarea>
+      </div>
+      <div class="field">
+        <label>标签（批5 · 逗号分隔，如：方法论, 复盘）</label>
+        <input id="mmNodeTags" placeholder="留空则无标签" />
+      </div>
+      <div class="field">
+        <label>任务属性（批5 · 联动待办）</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:3px">
+          <button class="chip" id="mmNodeTaskBtn" onclick="mmToggleTaskFlag()">设为任务</button>
+          <span style="font-size:11px;opacity:.5">勾选完成时经 linkage 发热办完成事件</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>节点图片（批5 · 走 image_attach 通路）</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:3px">
+          <button class="mini-btn" id="mmNodeImgBtn" onclick="mmToggleNodeImg()">选择图片</button>
+          <span style="font-size:11px;opacity:.5" id="mmNodeImgHint">未挂图片</span>
+        </div>
+      </div>
+      <button class="btn-main grad" style="margin-top:14px" onclick="mmSaveNode()">保存</button>
+      <button class="btn2" style="width:100%;margin-top:8px" onclick="closeSheet('sheetMm-node')">取消</button>
+    </div>
+  </div>
+
+  <!-- ================= S3 · sheetMm-bindNote 挂载笔记（连接点① 正向） ================= -->
+  <div class="sheet" id="sheetMm-bindNote" onclick="if(event.target===this)closeSheet('sheetMm-bindNote')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">挂载笔记</div>
+          <div class="sh-sub">节点可挂任意笔记；点击节点跳笔记详情。只存引用，笔记改名或删除不会让节点失效</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-bindNote')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <input id="mmBindSearch" placeholder="搜索笔记标题…" oninput="mmRenderNotes()" />
+      </div>
+      <div id="mmBindList" style="margin-top:8px"></div>
+      <div id="mmBindCur" class="hide card" style="margin-top:12px;border-color:color-mix(in srgb,var(--ok) 40%,transparent)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="chip ok">已挂载</span>
+          <div style="flex:1;min-width:0;font-size:12px;font-weight:700" id="mmBindCurName">深度工作</div>
+          <button class="mini-btn" style="color:var(--err);background:color-mix(in srgb,var(--err) 10%,transparent)" onclick="mmUnbind()">解除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= S4 · sheetMm-fromMd md 笔记转导图（连接点④ 反向入口） ================= -->
+  <div class="sheet" id="sheetMm-fromMd" onclick="if(event.target===this)closeSheet('sheetMm-fromMd')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">md 笔记转导图</div>
+          <div class="sh-sub">按标题层级 / 空行 / 缩进解析为初稿，解析结果只落导图表，不反写原笔记</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-fromMd')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sectitle" style="margin-top:12px">选一篇 md 笔记</div>
+      <div id="mmMdList"></div>
+      <div id="mmMdPreview" class="hide" style="margin-top:12px">
+        <div class="sectitle">解析预览</div>
+        <!-- 批P P2：单层标题（多为全 H1）的判定结论，结论先行 -->
+        <div id="mmMdHint" class="hide" style="font-size:11px;font-weight:800;color:var(--accent);margin:0 2px 7px"></div>
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+            <span class="chip" id="mmMdChipH">标题层级 4 级</span>
+            <span class="chip gray" id="mmMdChipLv">缩进 3 级</span>
+            <span class="chip gray" id="mmMdChipBlank">空行分段 5 段</span>
+            <span class="chip ok" id="mmMdCount">共 12 个节点</span>
+          </div>
+          <div id="mmMdTree" style="margin-top:10px"></div>
+        </div>
+        <div id="mmMdStructWrap" class="hide">
+          <div class="sectitle" style="margin:12px 2px 6px">结构</div>
+          <div class="seg">
+            <button id="mmMdStructCenter" class="on" onclick="mmPickMdStruct('center')">并入中心主题</button>
+            <button id="mmMdStructMulti" onclick="mmPickMdStruct('multi')">保留为多根</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn-main grad hide" id="mmMdGo" style="margin-top:14px" onclick="mmMdImport()">转成导图并进入画布</button>
+      <button class="btn2" id="mmMdCancel" style="width:100%;margin-top:8px" onclick="mmMdReset()">取消</button>
+    </div>
+  </div>
+
+  <!-- ================= S5 · sheetMm-fromInbox 收集箱条目转节点（连接点③） ================= -->
+  <div class="sheet" id="sheetMm-fromInbox" onclick="if(event.target===this)closeSheet('sheetMm-fromInbox')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">收集箱条目转导图</div>
+          <div class="sh-sub">待整理碎片一键进图，作为根节点下第一层；条目原文保留在收集箱不动</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-fromInbox')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sectitle" style="margin-top:12px">待整理 6 条 · 勾选后转入</div>
+      <div id="mmInboxList"></div>
+      <div id="mmInboxPick" style="margin-top:12px;display:flex;align-items:center;gap:9px">
+        <span style="flex:1;font-size:11px;opacity:.5" id="mmInboxCount">已选 0 条</span>
+        <button class="btn2 danger" style="padding:9px 14px" onclick="toast('原条目留在收集箱，仅清除本图的引用（可撤销）')">清除已转入</button>
+      </div>
+      <button class="btn-main grad" style="margin-top:12px" onclick="mmInboxImport()">转为导图节点</button>
+    </div>
+  </div>
+
+  <!-- ================= S6 · sheetMm-rename 图/节点改名 ================= -->
+  <div class="sheet" id="sheetMm-rename" onclick="if(event.target===this)closeSheet('sheetMm-rename')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-title" id="mmRenameTitle">重命名</div>
+      <div class="field">
+        <input id="mmRenameInput" />
+      </div>
+      <button class="btn-main grad" style="margin-top:14px" onclick="mmRenameSave()">保存</button>
+      <button class="btn2" style="width:100%;margin-top:8px" onclick="closeSheet('sheetMm-rename')">取消</button>
+    </div>
+  </div>
+
+  <!-- ================= S7 · sheetMm-map 图管理（改名/复制/删除 · 列表行「更多」进入） ================= -->
+  <div class="sheet" id="sheetMm-map" onclick="if(event.target===this)closeSheet('sheetMm-map')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title" id="mmMapTitle">导图操作</div>
+          <div class="sh-sub" id="mmMapSub">深度工作方法论 · 12 个节点</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-map')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div style="margin-top:12px">
+        <button class="op" onclick="mmMapRename()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.5L19 9.5a2.1 2.1 0 0 0-3-3L5.5 17z"/><path d="M14.5 7.5l2 2"/></svg>重命名</button>
+        <button class="op" onclick="mmMapCopy()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.4"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>复制一张</button>
+        <button class="op" onclick="mmMapToFolder()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.8 1.8 0 0 1 4.8 5.7h4l1.6 1.8h7.8A1.8 1.8 0 0 1 20 9.3v8.4A1.8 1.8 0 0 1 18.2 19.5H4.8A1.8 1.8 0 0 1 3 17.7z"/></svg>移到文件夹</button>
+        <div class="op-div"></div>
+        <button class="op danger" onclick="mmMapDelete()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>删除导图（移入回收站）</button>
+      </div>
+      <div class="card" style="margin-top:10px;font-size:11px;opacity:.55;line-height:1.8">
+        删除＝移入回收站「导图」第九类，30 天内可恢复回原位；恢复时连带全部节点。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= S8 · sheetMm-confirm 通用二次确认（删除等不可逆动作） ================= -->
+  <div class="sheet" id="sheetMm-confirm" onclick="if(event.target===this)closeSheet('sheetMm-confirm')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-title" id="mmConfirmTitle">确认操作</div>
+      <div class="sh-sub" id="mmConfirmSub"></div>
+      <div class="card" style="margin-top:10px" id="mmConfirmBody"></div>
+      <button class="btn-main" id="mmConfirmOk" style="margin-top:14px;background:linear-gradient(135deg,#ef4444,#f97316);box-shadow:0 6px 18px rgba(239,68,68,.32)" onclick="mmConfirmDo()">删除</button>
+      <button class="btn2" style="width:100%;margin-top:8px" onclick="closeSheet('sheetMm-confirm')">取消</button>
+    </div>
+  </div>
+
+  <!-- ================= S9 · sheetMm-card 导图卡片实体（连接点②） ================= -->
+  <div class="sheet" id="sheetMm-card" onclick="if(event.target===this)closeSheet('sheetMm-card')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">插入导图卡片</div>
+          <div class="sh-sub">在日记 / 阅读摘录正文的工具条点「导图卡片」插入；插入后正文里的样子＝下方卡片</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-card')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sectitle" style="margin-top:12px">卡片实体（点击进画布）</div>
+      <div class="mm-card" onclick="mmCardOpen()">
+        <div class="mm-card-hd">
+          <span class="mm-card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="5" rx="1.6"/><rect x="2.5" y="16" width="6" height="5" rx="1.6"/><rect x="15.5" y="16" width="6" height="5" rx="1.6"/><path d="M12 7.5v4M5.5 16v-2.2h13V16"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="mm-card-t" id="mmCardName">深度工作方法论</div>
+            <div class="mm-card-s" id="mmCardSub">思维导图 · 3 个根 · 12 个节点</div>
+          </div>
+          <span class="chip">点击进画布</span>
+        </div>
+        <div class="mm-card-prev" id="mmCardPrev">
+          <span class="chip gray">要事优先的时间块</span>
+          <span class="chip gray">减少切换成本</span>
+          <span class="chip gray">每周复盘时段去向</span>
+        </div>
+      </div>
+      <div class="card" style="margin-top:10px;font-size:11px;opacity:.6;line-height:1.8">
+        默认预览＝导图的<b>根节点集合</b>（首 3 个根 ＋ 「+N」）；点卡片进该图画布。卡片只存图引用——图被删时卡片保留并显示占位，不使卡片失效。
+      </div>
+      <button class="btn2" style="width:100%;margin-top:10px" onclick="closeSheet('sheetMm-card')">知道了</button>
+    </div>
+  </div>
+
+  <!-- ================= S10 · sheetMm-inboxTo 收集箱侧「转导图」入口（连接点③ 反向 · 第五向） ================= -->
+  <div class="sheet" id="sheetMm-inboxTo" onclick="if(event.target===this)closeSheet('sheetMm-inboxTo')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">收集箱侧「转导图」入口</div>
+          <div class="sh-sub">连接点③ 的另一半（L6 第五向）：在收集箱条目的「⋯」菜单里直接转导图，与导图侧拉取成双向</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-inboxTo')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sectitle" style="margin-top:12px">收集箱条目 · 长按「⋯」菜单（示意）</div>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;padding:2px 2px 8px">试试把每天第一小时留给最难的那件事</div>
+        <div class="op-div"></div>
+        <button class="op" onclick="toast('转为待办（L6 既有第一向）')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 12.5l4 4L19 7"/></svg>转为待办</button>
+        <button class="op" onclick="toast('转为日记素材（L6 既有第二向）')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h6"/></svg>写进日记</button>
+        <button class="op" onclick="toast('转为笔记（L6 既有第三向）')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/></svg>转为笔记</button>
+        <button class="op" onclick="toast('转为阅读摘录（L6 既有第四向）')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5z"/><path d="M8.5 8h7M8.5 12h5"/></svg>转为摘录</button>
+        <button class="op" onclick="mmInboxToGo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="5" rx="1.6"/><rect x="2.5" y="16" width="6" height="5" rx="1.6"/><rect x="15.5" y="16" width="6" height="5" rx="1.6"/><path d="M12 7.5v4M5.5 16v-2.2h13V16"/></svg>转为导图节点（第五向·本批新增）</button>
+      </div>
+      <div class="card" style="margin-top:10px;font-size:11px;opacity:.6;line-height:1.8">
+        点「转为导图节点」＝弹选目标图，条目文本作为该图根节点下第一层；原条目留在收集箱不动。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= S11 · sheetMm-more 更多（列表/画布自适应菜单） ================= -->
+  <div class="sheet" id="sheetMm-more" onclick="if(event.target===this)closeSheet('sheetMm-more')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title" id="mmMoreTitle">更多</div>
+          <div class="sh-sub" id="mmMoreSub">导图工具与设置</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-more')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div style="margin-top:12px" id="mmMoreList"></div>
+    </div>
+  </div>
+
+  <!-- ================= S12 · sheetMm-search 全局搜索挂载节点（批2 F4-3） ================= -->
+  <div class="sheet" id="sheetMm-search" onclick="if(event.target===this)closeSheet('sheetMm-search')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">搜索挂载节点</div>
+          <div class="sh-sub">导图节点作为一类搜索数据源（经 shared/linkage 出口，不直连 feature）；点结果跳画布并定位到该节点</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-search')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <input id="mmSearchInput" placeholder="搜节点标题或所挂笔记标题…" oninput="mmRenderSearch()" />
+      </div>
+      <div id="mmSearchList" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- ================= S13 · sheetMm-folders 文件夹归类（批2 F4-4） ================= -->
+  <div class="sheet" id="sheetMm-folders" onclick="if(event.target===this)closeSheet('sheetMm-folders')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">文件夹归类</div>
+          <div class="sh-sub" id="mmFolderSub">多层文件夹整理导图（复用 note_folders 同级表）；点文件夹把目标图移入</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-folders')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <input id="mmNewFolder" placeholder="新建文件夹名称…" />
+      </div>
+      <button class="btn2" style="width:100%;margin-top:8px" onclick="mmCreateFolder()">新建文件夹</button>
+      <div class="sectitle">文件夹</div>
+      <div id="mmFolderList"></div>
+    </div>
+  </div>
+
+  <!-- ================= S14 · sheetMm-export 导出（批2 F4-5） ================= -->
+  <div class="sheet" id="sheetMm-export" onclick="if(event.target===this)closeSheet('sheetMm-export')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">导出</div>
+          <div class="sh-sub">同一序列化层多渲染器；全部本地生成、零云依赖</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-export')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sectitle" style="margin-top:12px">格式</div>
+      <div class="seg" id="mmExportFmt">
+        <button class="on" onclick="mmPickFmt('html',this)">HTML</button>
+        <button onclick="mmPickFmt('md',this)">Markdown</button>
+        <button onclick="mmPickFmt('opml',this)">OPML</button>
+        <button onclick="mmPickFmt('png',this)">PNG</button>
+        <button onclick="mmPickFmt('xmind',this)">.xmind</button>
+      </div>
+      <div class="card" style="margin-top:10px" id="mmExportSpec"></div>
+      <div class="card" style="margin-top:10px">
+        <div class="opt-row">
+          <div class="r-t">包含挂载笔记正文<div style="font-size:10px;opacity:.45;font-weight:600;margin-top:1px">默认关；仅 HTML / Markdown 生效（隐私默认口径，禁「默认带正文」）</div></div>
+          <div class="sw" id="mmExportBody" onclick="mmToggleSw(this)"></div>
+        </div>
+        <div class="opt-row">
+          <div class="r-t">附带横向布局预设<div style="font-size:10px;opacity:.45;font-weight:600;margin-top:1px">导出文件自带横向预设（仅 HTML 生效）</div></div>
+          <div class="sw on" id="mmExportLand" onclick="mmToggleSw(this)"></div>
+        </div>
+      </div>
+      <button class="btn-main grad" style="margin-top:14px" onclick="mmDoExport()">导出到文件</button>
+      <button class="btn2" style="width:100%;margin-top:8px" onclick="closeSheet('sheetMm-export')">取消</button>
+    </div>
+  </div>
+
+  <!-- ================= S15 · sheetMm-style 样式层（批3 F4-7） ================= -->
+  <div class="sheet" id="sheetMm-style" onclick="if(event.target===this)closeSheet('sheetMm-style')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">样式</div>
+          <div class="sh-sub">文字色 / 字号 / 节点背景 / 线条 / 画布背景；全部走设计令牌，自动跟随 4 套主题与深浅色</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-style')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sectitle" style="margin-top:12px">文字色</div>
+      <div class="swatches" id="mmStText"></div>
+      <div class="sectitle">字号</div>
+      <div class="seg" id="mmStSize"></div>
+      <div class="sectitle">节点背景色</div>
+      <div class="swatches" id="mmStBg"></div>
+      <div class="sectitle">连线颜色</div>
+      <div class="swatches" id="mmStLine"></div>
+      <div class="sectitle">连线粗细</div>
+      <div class="step">
+        <button onclick="mmStepLineW(-0.4)" aria-label="变细">-</button>
+        <span class="val" id="mmStLineW">1.6 px</span>
+        <button onclick="mmStepLineW(0.4)" aria-label="变粗">+</button>
+      </div>
+      <div class="sectitle">画布背景</div>
+      <div class="swatches" id="mmStCanvas"></div>
+      <button class="btn2" style="width:100%;margin-top:16px" onclick="mmStyleReset()">恢复默认样式</button>
+    </div>
+  </div>
+
+  <!-- ================= S16 · sheetMm-layout 布局与横向预览（批4 F4-8） ================= -->
+  <div class="sheet" id="sheetMm-layout" onclick="if(event.target===this)closeSheet('sheetMm-layout')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-head">
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">布局与横向预览</div>
+          <div class="sh-sub">结构 × 方向 正交两维；点预设即时生效（改布局只重算基线，节点拖拽偏移 dx/dy 仍保留）</div>
+        </div>
+        <button class="iconbtn" onclick="closeSheet('sheetMm-layout')" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sectitle" style="margin-top:12px">结构与方向</div>
+      <div class="lay-grid" id="mmLayGrid"></div>
+      <div class="sectitle">容器比例</div>
+      <div class="seg" id="mmLayRatio">
+        <button class="on" onclick="mmPickRatio('portrait',this)">竖屏友好</button>
+        <button onclick="mmPickRatio('landscape',this)">横向预览</button>
+      </div>
+      <div class="card" style="margin-top:12px;font-size:11px;opacity:.6;line-height:1.8">
+        横向预览＝按横向比例重排画布，<b>App 内不转屏</b>（不改全局方向、退出无还原残留）；导出 HTML 自带横向预设。批 1 抽出的唯一布局引擎在此展开为 4 形态。
+      </div>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <div id="toast"></div>
+
+</div>
+
+<script>
+/* ==========================================================================
+   壳层（与 index.html / index-journal.html 同源范式：setPage / navTo / navTab /
+   openSheet / closeSheet / toast / goBack；TITLES 驱动顶栏标题）
+   ========================================================================== */
+const TITLES={
+  'mm-list':['思维导图','4 张图 · 本地手绘'],
+  'mm-canvas':['深度工作方法论','12 个节点 · 自动树布局']
+};
+const $=(s,r)=> (r||document).querySelector(s);
+const $$=(s,r)=> Array.from((r||document).querySelectorAll(s));
+let curPage='mm-list';
+const stack=[];
+let toastTimer;
+
+function setPage(p){
+  const el=document.getElementById(p);
+  if(!el){toast('屏 '+p+' 未在本专版内');return;}
+  $$('.page').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active'); el.scrollTop=0;
+  const t=TITLES[p]||['思维导图',''];
+  $('#pageTitle').textContent=t[0]; $('#pageSub').textContent=t[1];
+  $('#btnBack').style.display=(stack.length&&p!=='mm-list')?'inline-flex':'none';
+  $('#btnNew').style.display=(p==='mm-list')?'inline-flex':'none';
+  $('#btnMore').style.display='inline-flex';
+  /* 批2：列表态给「搜索挂载节点」；画布态给「撤销/重做」（空栈置灰，见 mmSyncUndo） */
+  if($('#btnSearch'))$('#btnSearch').style.display=(p==='mm-list')?'inline-flex':'none';
+  if($('#btnUndo'))$('#btnUndo').style.display=(p==='mm-canvas')?'inline-flex':'none';
+  if($('#btnRedo'))$('#btnRedo').style.display=(p==='mm-canvas')?'inline-flex':'none';
+  mmSyncUndo();
+  $$('.navtab').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  curPage=p;
+  /* 画布页不吃底栏通底（2d：画布手势与底栏双指收起共存不互抢，画布自身仲裁） */
+  $('#mmNav').style.display=(p==='mm-canvas')?'flex':'none';
+  /* 进画布先 renderCanvas 再 fit：只 fit 不画节点的话，首次从列表进画布是空白屏
+     （2026-10-12 截图矩阵实锤：02/08 两张 canvas 态 nodes=0）。rAF 等一帧是为了
+     #mmCanvas 拿到布局尺寸，mmFit 要用它的 clientWidth/Height。 */
+  if(p==='mm-canvas') requestAnimationFrame(()=>{ renderCanvas(); mmFit(); });
+  if(p==='mm-list') renderList();
+  closeNodeMenu();
+}
+function navTo(p){ if(p===curPage)return; stack.push(curPage); setPage(p); }
+function navTab(p){ stack.length=0; setPage(p); }
+function goBack(){ if(stack.length){ setPage(stack.pop()); return; } navTab('mm-list'); }
+function openSheet(id){ const s=document.getElementById(id); if(!s){toast('弹层 '+id+' 未在本专版内');return;}
+  s.classList.add('open');
+  if(id==='sheetMm-bindNote')mmRenderNotes();
+  if(id==='sheetMm-fromMd')mmRenderMdList();
+  if(id==='sheetMm-fromInbox')mmRenderInbox();
+  if(id==='sheetMm-search')mmRenderSearch();
+  if(id==='sheetMm-folders')mmRenderFolders();
+  if(id==='sheetMm-style')mmRenderStyle();
+  if(id==='sheetMm-layout')mmRenderLayout();
+  if(id==='sheetMm-export')mmRenderExportSpec();
+  if(id==='sheetMm-node')setTimeout(()=>{const i=$('#mmNodeInput'); if(i)i.focus();},80);
+}
+function closeSheet(id){ const s=document.getElementById(id); if(!s)return; s.classList.remove('open'); }
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.style.display='block';
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.style.display='none',2400);
+}
+
+/* ==========================================================================
+   演示数据（2c 独立表 mindmaps / mindmap_nodes 的内存镜像；首批只到「编辑＋挂笔记」）
+   ========================================================================== */
+const NOTES=[
+  {id:'n1',title:'深度工作的四种活动',kind:'md',    sub:'md 文档 · 3 天前'},
+  {id:'n2',title:'注意力残留',      kind:'plain', sub:'纯文本 · 5 天前'},
+  {id:'n3',title:'读书摘录 · 慢思考',kind:'md',    sub:'md 文档 · 1 周前'},
+  {id:'n4',title:'会议记录模板',    kind:'rich',  sub:'富文本 · 2 周前'},
+  {id:'n5',title:'（已删除的笔记）',  kind:'plain', sub:'原笔记已删除 · 显示占位',broken:true}
+];
+const MD_NOTES=[
+  {id:'m1',title:'深度工作方法论（md 笔记）',nodes:12,h:4,lv:3},
+  {id:'m2',title:'《稀缺》读书笔记（md 笔记）',nodes:18,h:4,lv:4},
+  {id:'m3',title:'产品需求梳理（md 笔记）',nodes:9,h:3,lv:2},
+  /* 批P P2 复现件：全文只有一层标题（全 H1）——旧口径会解析成 6 个孤立根 */
+  {id:'m4',title:'晨间流程清单（md 笔记）',nodes:7,h:1,lv:1}
+];
+const MD_SINGLE_ITEMS=['起床后先喝水','十分钟拉伸','写当天三件事','不看手机半小时','深度段第一块','睡前复盘一页'];
+const INBOX=[
+  {id:'i1',text:'试试把每天第一小时留给最难的那件事'},
+  {id:'i2',text:'读《稀缺》第三章：带宽损耗'},
+  {id:'i3',text:'给团队做一次「注意力审计」分享'},
+  {id:'i4',text:'会议前先写一页纸，减少口头对齐'},
+  {id:'i5',text:'每周五留 30 分钟清收集箱'},
+  {id:'i6',text:'试试双时段：深度段 + 沟通段'}
+];
+const MAPS=[
+  {id:'g1',name:'深度工作方法论',nodes:12,binds:3,src:'md',   at:'今天 09:20',folder:'f1'},
+  {id:'g2',name:'2026 年度目标',  nodes:14,binds:1,src:'inbox',at:'昨天 21:05',folder:'f1'},
+  {id:'g3',name:'《稀缺》读书脉络',nodes:9, binds:2,src:'hand', at:'10-08',   folder:'f2'},
+  {id:'g4',name:'产品需求树',     nodes:3, binds:0,src:'hand', at:'10-02',   folder:null}
+];
+/* 批2 F4-4 文件夹（复用 note_folders 多层树 DAO 或同级表） */
+const FOLDERS=[{id:'f1',name:'工作'},{id:'f2',name:'阅读'}];
+
+/* 当前图（画布态）。init=true 根节点；x/y 由自动树布局算，用户微调值存在 dx/dy。 */
+let cur={id:'g1',nodes:[
+  {id:'r',t:'深度工作方法论',init:true,x:0,y:0},
+  {id:'n1',t:'时间块划分',x:0,y:0,ref:'n1',note:'深度段的边界要写死，避免被临时会议吃掉'},
+  {id:'n2',t:'注意力残留',x:0,y:0,ref:'n2'},
+  {id:'n3',t:'固定仪式',x:0,y:0},
+  {id:'n4',t:'双时段：深度段 + 沟通段',x:0,y:0},
+  {id:'n5',t:'早上重仓',x:0,y:0},
+  {id:'n6',t:'断舍离会议',x:0,y:0},
+  {id:'n7',t:'上午社交互动',x:0,y:0},
+  {id:'n8',t:'批处理沟通',x:0,y:0},
+  {id:'n9',t:'注意力预算表',x:0,y:0,ref:'n3',note:'每周填一次，超支就挪仪式'},
+  {id:'n10',t:'每周复盘：哪些时段被吃掉了',x:0,y:0},
+  {id:'n11',t:'跑数据 · 回消息合并段',x:0,y:0},
+  {id:'n12',t:'空出来才算真自由',x:0,y:0}
+],sel:null,folded:{},scale:1,tx:0,ty:0};
+const TREE={'r':['n1','n2','n3'],'n1':['n4','n5'],'n2':['n6','n7','n8'],'n3':['n9'],'n9':['n10','n11'],'n4':['n12']};
+
+/* ==========================================================================
+   2d 口径实现：自动树布局（基线坐标由布局算，用户拖拽只存 dx/dy 偏移）＋ 平移/双指缩放
+   —— 布局方向＝**纵向树**（父在上、子在下竖排，缩进表达层级）。
+   为什么不用横向树（2026-10-12 截图矩阵实锤）：手机竖屏 390 宽，横向树把 13 个节点
+   摊到 ~900px 宽，mmFit 自动缩到 41%，中文全被截成「深度工…」且整棵树压成一条线。
+   纵向树天然适配竖屏，缩放落在 90~110% 区间，文字完整可读。
+   ========================================================================== */
+const NODE_H=40, GAP_Y=14, INDENT=22, PAD=16, MAXW=300;
+/* 量宽：中文全角按 2 个字宽估粗宽（2026-10-12 目检实锤：按 1 倍估会把「时间块划分」
+   截成「时间…」）。粗宽只用来摆第一版；renderCanvas 末尾再用**真实 DOM 宽度**
+   （scrollWidth）回填 box 并重排一次 —— 图标与折叠箭头的实际占宽只有 DOM 知道。
+   实现侧走 TextPainter 量真实盒，本处同口径。*/
+const WIDE=/[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFF60]/;
+function roughW(t){ let w=0; for(const ch of t) w+=WIDE.test(ch)?2:1; return w; }
+function measure(nodes){
+  const box={};
+  nodes.forEach(n=>{ box[n.id]=Math.min(MAXW, roughW(n.t)*7.4+(n.init?32:26)+(n.ref?24:0)); });
+  return box;
+}
+/* 第二趟：真实宽度回填。
+   两个坑（2026-10-12 目检两次实锤）：
+   ① 不能读 el.scrollWidth —— 节点是 width 定死 + overflow:hidden，scrollWidth 返回的是
+      **被裁后**的值，量出来永远等于当前宽，修正永不发生（带折叠箭头的节点一直截断）。
+   ② .mm-txt 自己也是 overflow:hidden，所以量它之前要先摘掉 ellipsis 限宽，量完恢复。
+   现在：摘限宽后取 .mm-txt 的 rect 宽 + 兄弟图标宽 + 节点内边距与边框。 */
+function refineBox(host,box){
+  const next={}; let changed=false;
+  for(const el of host.children){
+    const id=el.getAttribute('data-id'); if(!id)continue;
+    const cs=getComputedStyle(el);
+    const padX=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
+    const bd=parseFloat(cs.borderLeftWidth)+parseFloat(cs.borderRightWidth);
+    const gap=parseFloat(cs.columnGap)||0;
+    let extra=0;
+    for(const sib of el.children){
+      if(sib.classList.contains('mm-txt'))continue;
+      extra+=sib.getBoundingClientRect().width+gap;
+    }
+    const t=el.querySelector('.mm-txt');
+    let txtW=0;
+    if(t){
+      /* 量之前先把 ellipsis 摘掉：.mm-txt 自己也是 overflow:hidden，不摘量到的还是裁后宽 */
+      const prev=t.style.cssText; t.style.cssText=prev+';overflow:visible;text-overflow:clip;max-width:none';
+      txtW=t.getBoundingClientRect().width;
+      t.style.cssText=prev;
+    }
+    const real=Math.min(MAXW, Math.ceil(txtW+extra+padX+bd));
+    if(Math.abs(real-(box[id]||0))>1){ next[id]=real; changed=true; } else next[id]=box[id];
+  }
+  return changed?next:null;
+}
+/* 第二趟之补：真实**高度**回填（H_OV）。
+   多行节点在固定宽下自动折行，行数只有 DOM 知道；只按 '\n' 数估高会压到下一行。
+   递归有界：_hp 每次完整渲染序列归零，最多再排 2 趟。 */
+let _hp=0;
+function refineHeights(host){
+  if(_hp>5)return false;
+  let changed=false;
+  for(const el of host.children){
+    const id=el.getAttribute('data-id'); if(!id)continue;
+    const h=el.offsetHeight;
+    const cur=H_OV[id]||0;
+    if(h>0&&Math.abs(h-cur)>1){ H_OV[id]=h; changed=true; }
+  }
+  if(changed)_hp++;
+  return changed;
+}
+/* ==========================================================================
+   布局引擎（批1 抽出唯一接口、批4 展开为 4 形态）：
+   struct(tree/radial) × dir(right/both) × 容器比例(portrait/landscape)
+   —— 各形态只产「基线坐标」；实际坐标＝基线＋用户拖拽偏移 dx/dy（批1 口径不变），
+   故切换布局时用户摆过的节点仍守在相对位置（只重算基线）。
+   ========================================================================== */
+function treeKids(id){ return (TREE[id]||[]).filter(k=>!cur.folded[k]); }
+function byId(id){ return cur.nodes.find(n=>n.id===id); }
+function rootIds(){
+  const cs=new Set(); Object.keys(TREE).forEach(p=>(TREE[p]||[]).forEach(k=>cs.add(k)));
+  return cur.nodes.filter(n=>!cs.has(n.id)).map(n=>n.id);
+}
+/* 节点高度：单行 40；含换行时先按行数估，renderCanvas 二趟再用真实 offsetHeight 回填
+   （H_OV）——多行 + 自动折行时估不准，靠真实高度兜底，否则会压到下一行（2026-10-12 目检实锤）。 */
+let H_OV={};
+function nodeH(n){
+  const o=H_OV[n.id]; if(o)return o;
+  const lines=String(n.t||'').split('\n').length;
+  return lines>1?(lines*18+22):40;
+}
+let VIEW={struct:'tree',dir:'right',ratio:'portrait'};
+const DEFAULT_STYLE={text:'default',size:'md',bg:'paper',line:'default',lineW:1.6,canvas:'dots'};
+function ensureStyle(){ if(!cur.style) cur.style=Object.assign({},DEFAULT_STYLE); return cur.style; }
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function layout(boxIn){
+  const box=boxIn||measure(cur.nodes);
+  const W=id=>box[id]||60, H=n=>nodeH(n);
+  let base={}, depth={};
+  if(VIEW.struct==='radial'){ const r=posRadial(box); base=r.base; depth=r.depth; }
+  else if(VIEW.dir==='both'||VIEW.ratio==='landscape'){ const r=posTree(box,VIEW.dir==='both'); base=r.base; depth=r.depth; }
+  else { const r=posOutline(box); base=r.base; depth=r.depth; }
+  /* 各形态坐标原点不同，统一归一到非负再叠用户偏移（拖拽只存 dx/dy，不存绝对坐标） */
+  let minX=Infinity,minY=Infinity;
+  cur.nodes.forEach(n=>{ const p=base[n.id]||{x:0,y:0}; if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y; });
+  if(!isFinite(minX))minX=0; if(!isFinite(minY))minY=0;
+  let maxX=0,maxY=0;
+  cur.nodes.forEach(n=>{
+    const p=base[n.id]||{x:0,y:0};
+    n.x=p.x-minX+PAD+(n.dx||0);
+    n.y=p.y-minY+PAD+(n.dy||0);
+    if(n.x+W(n.id)>maxX)maxX=n.x+W(n.id);
+    if(n.y+H(n)>maxY)maxY=n.y+H(n);
+  });
+  return {w:maxX+PAD,h:maxY+PAD,box,depth};
+}
+/* —— 形态一：纵向大纲（竖屏默认；批1 交付形态：父在上、子竖排缩进表达层级）——
+   行高按**各节点真实高度**累加（不是固定 40），否则多行节点会压到下一行（2026-10-12 实锤）。 */
+function posOutline(box){
+  const base={},depth={};
+  let y=0;
+  const walk=(id,d)=>{
+    depth[id]=d;
+    base[id]={x:INDENT*d, y:y};
+    y+=nodeH(byId(id))+GAP_Y;
+    treeKids(id).forEach(k=>walk(k,d+1));
+  };
+  rootIds().forEach(r=>walk(r,0));
+  return {base,depth};
+}
+/* —— 形态二：横向树（横向预览 / both；父左子右，父居中于整块子树）—— */
+function posTree(box,both){
+  const base={},depth={};
+  const W=id=>box[id]||60;
+  let maxW=90; cur.nodes.forEach(n=>{ const w=W(n.id); if(w>maxW)maxW=w; });
+  const colW=maxW+46;
+  const subH=id=>{
+    const ks=treeKids(id);
+    if(!ks.length)return nodeH(byId(id));
+    let h=0; ks.forEach((k,i)=>{ h+=subH(k)+(i?GAP_Y:0); });
+    return Math.max(nodeH(byId(id)),h);
+  };
+  const place=(id,d,x,top,dir)=>{
+    depth[id]=d;
+    const ks=treeKids(id), h=subH(id);
+    base[id]={x: dir<0 ? (x-W(id)) : x, y: top+(h-nodeH(byId(id)))/2};
+    let sy=top;
+    ks.forEach((k,i)=>{
+      if(i)sy+=GAP_Y;
+      place(k,d+1, x+dir*colW, sy, dir);
+      sy+=subH(k);
+    });
+  };
+  let y=0;
+  rootIds().forEach(r=>{
+    const blk=subH(r);
+    if(both){
+      const ks=treeKids(r), mid=Math.ceil(ks.length/2), right=ks.slice(0,mid), left=ks.slice(mid);
+      depth[r]=0; base[r]={x:0, y:y+(blk-nodeH(byId(r)))/2};
+      let ry=y, ly=y;
+      right.forEach((k,i)=>{ if(i)ry+=GAP_Y; place(k,1,colW,ry,1); ry+=subH(k); });
+      left.forEach((k,i)=>{ if(i)ly+=GAP_Y; place(k,1,0,ly,-1); ly+=subH(k); });
+    } else {
+      place(r,0,0,y,1);
+    }
+    y+=blk+70;
+  });
+  return {base,depth};
+}
+/* —— 形态三：放射（radial；根居中，子级按角度铺同心圆；both＝整圆、right＝右半圆）—— */
+function posRadial(box){
+  const base={},depth={};
+  const W=id=>box[id]||60;
+  const STEP=150;
+  let centerY=0;
+  rootIds().forEach(r=>{
+    /* 圆心取「根节点中心」：根按自身宽高居中到原点，子级才铺在它四周（否则圆点落在根的左上角，
+       一层子级会压在根上，2026-10-12 目检实锤）。 */
+    base[r]={x:-W(r)/2, y:centerY-nodeH(byId(r))/2}; depth[r]=0;
+    const a0=VIEW.dir==='both'?-Math.PI:(-Math.PI/2), a1=VIEW.dir==='both'?Math.PI:(Math.PI/2);
+    let reach=0;
+    const ring=(pid,d,lo,hi)=>{
+      const ks=treeKids(pid); if(!ks.length)return;
+      const R=STEP*d; if(R>reach)reach=R;
+      ks.forEach((k,i)=>{
+        const span=hi-lo, a=(ks.length===1)?((lo+hi)/2):(lo+span*i/(ks.length-1));
+        const cx=Math.cos(a)*R, cy=Math.sin(a)*R;
+        base[k]={x:cx-W(k)/2, y:centerY+cy-nodeH(byId(k))/2};
+        depth[k]=d;
+        const half=Math.max(0.16,(span/Math.max(1,ks.length))*0.82);
+        ring(k,d+1,a-half,a+half);
+      });
+    };
+    ring(r,1,a0,a1);
+    centerY+=Math.max(320,2*(reach+120));
+  });
+  return {base,depth};
+}
+function renderCanvas(boxIn){
+  const L=layout(boxIn);
+  const host=$('#mmNodes');
+  host.innerHTML='';
+  const DP=depths(), FOCUS=cur.sel?branchSet(cur.sel):null, BLOCK=connect.from?blockSet(connect.from):null;
+  cur.nodes.forEach(n=>{
+    const w=L.box[n.id]||60;
+    const multiline=String(n.t||'').indexOf('\n')>=0;
+    const el=document.createElement('div');
+    const dp=DP[n.id]||0;
+    el.className='mm-node'+(n.init?' root':'')+' d'+Math.min(dp,3)+(cur.sel===n.id?' sel':'')+(multiline?' wrap':'')
+      +(FOCUS&&!FOCUS.has(n.id)?' dim':'')
+      +(connect.from&&connect.from!==n.id?(BLOCK.has(n.id)?' cblocked':' ctarget'):'');
+    el.style.left=n.x+'px'; el.style.top=n.y+'px';
+    el.style.width=(multiline?'176px':w+'px');
+    el.style.justifyContent=n.init?'center':'flex-start';
+    el.setAttribute('data-id',n.id);
+    /* 批5：任务勾选 / 图片缩略 / 标签 都进节点内；批1：挂载角标 / 折叠箭头 */
+    el.innerHTML=
+      (n.task?'<span class="mm-task'+(n.taskDone?' on':'')+'" title="任务（批5）">'+(n.taskDone?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>':'')+'</span>':'')+
+      (n.img?'<span class="mm-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.4"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5"/></svg></span>':'')+
+      (n.ref?'<span class="mm-bind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h5"/></svg></span>':'')+
+      '<span class="mm-txt">'+esc(n.t)+'</span>'+
+      (n.tags&&n.tags.length?'<span class="mm-tags">'+n.tags.map(t=>'<span class="mm-tag">'+esc(t)+'</span>').join('')+'</span>':'')+
+      ((TREE[n.id]&&TREE[n.id].length)?'<span class="mm-fold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>':'')+(cur.sel===n.id&&!connect.from?'<span class="mm-port" aria-label="拖到目标节点完成连接"></span>':'');
+    el.addEventListener('click',()=>{
+      if(connect.from){ if(connect.from!==n.id)mmConnectTo(connect.from,n.id,connect.mode); else mmCancelConnect(); return; }
+      mmSelect(n.id);
+    });
+    /* H4 裁定：单击＝选中、双击＝进笔记。仅「已挂笔记」的节点双击才进笔记，
+       未挂载的节点双击仍归为选中（不产生空跳转）。 */
+    el.addEventListener('dblclick',ev=>{ ev.preventDefault(); mmOpenNote(n); });
+    /* 批5 任务勾选：点勾选区不触发选中/拖拽（stopPropagation 双保险） */
+    const tb=el.querySelector('.mm-task');
+    if(tb){
+      tb.addEventListener('pointerdown',ev=>ev.stopPropagation());
+      tb.addEventListener('click',ev=>{ ev.stopPropagation(); mmToggleTask(n); });
+    }
+    bindNodeDrag(el,n);
+    bindPort(el,n);
+    host.appendChild(el);
+  });
+  /* 第二趟：用真实 DOM 宽度修正宽度后重排一次（图标/箭头的实际占宽只有 DOM 知道） */
+  const fixed=refineBox(host,L.box);
+  if(fixed){ renderCanvas(fixed); return; }
+  if(refineHeights(host)){ renderCanvas(L.box); return; }
+  drawEdges(L);
+  $('#mmStage').style.width=L.w+'px'; $('#mmStage').style.height=L.h+'px';
+  $('#mmEdges').setAttribute('width',L.w); $('#mmEdges').setAttribute('height',L.h);
+  mmApplyStyleVars();
+  applyTransform();
+  _hp=0;
+}
+/* 连线：把本帧所有边**批量进同一条 drawPath**（批1 性能规格；不逐边 draw）。
+   —— 纵向大纲走「竖折线」；横向树/放射走「父中心到子中心直线」。折叠的子级不画。 */
+function drawEdges(L){
+  const svg=$('#mmEdges');
+  const box=(L&&L.box)||{};
+  const W=id=>box[id]||60;
+  const radial=VIEW.struct==='radial';
+  const horiz=!radial&&(VIEW.dir==='both'||VIEW.ratio==='landscape');
+  const parts=[], roots=[];
+  const top=childSetNow();
+  Object.keys(TREE).forEach(pid=>{
+    const isTop=!top.has(pid);            /* 主干＝从根出发的边（批P L1：加粗提亮） */
+    (TREE[pid]||[]).forEach(kid=>{
+      if(cur.folded[kid])return;
+      const p=byId(pid), c=byId(kid);
+      if(!p||!c)return;
+      const ph=nodeH(p), ch=nodeH(c);
+      let d='';
+      if(radial||horiz){
+        const x1=p.x+W(pid)/2, y1=p.y+ph/2, x2=c.x+W(kid)/2, y2=c.y+ch/2;
+        d='M'+x1+' '+y1+'L'+x2+' '+y2;
+      } else {
+        const px=p.x+10, py=p.y+ph, cx=c.x, cy=c.y+ch/2, vx=c.x-9;
+        d='M'+px+' '+py+'V'+(cy-7)+'Q'+px+' '+cy+' '+(px+9)+' '+cy+'H'+(vx+3);
+      }
+      (isTop?roots:parts).push(d);
+    });
+  });
+  svg.innerHTML=(parts.length?'<path d="'+parts.join(' ')+'"/>':'')+(roots.length?'<path class="mm-edge-root" d="'+roots.join(' ')+'"/>':'');
+}
+/* ---- 自由拖拽定位节点（2d 裁定 2026-10-12 产品改口：产品要自由拖拽定位）----
+   口径：拖节点＝写该节点的 dx/dy（相对自动布局基线的偏移）；
+   拖空白＝平移画布；双指捏合＝缩放。落库只存 dx/dy，不存绝对坐标，
+   这样换布局类型时基线变了、用户的偏移仍可叠加上去。 */
+function bindNodeDrag(el,n){
+  let sx=0,sy=0,ox=0,oy=0,moved=false,dragging=false,pre=null;
+  el.addEventListener('pointerdown',ev=>{
+    if(ev.button!==0)return;
+    if(connect.from)return;        /* 批P：连接态下点节点＝选目标，不启动拖拽 */
+    ev.stopPropagation();          /* 关键：点在节点上不让画布平移分支接手 */
+    sx=ev.clientX; sy=ev.clientY; ox=n.dx||0; oy=n.dy||0; moved=false; pre=null;
+    /* setPointerCapture 在真机保证「指针滑出节点仍继续拖」，但它会改派事件到捕获元素，
+       合成事件（CDP/测试）下偶有拿不到后续 move 的情形；失败就不捕获，事件仍绑在本元素上，
+       退化成「滑出节点即松手」，真机行为不受影响。*/
+    try{ el.setPointerCapture(ev.pointerId); }catch(e){}
+    dragging=true;
+    el.classList.add('dragging');
+  });
+  el.addEventListener('pointermove',ev=>{
+    /* 不用 hasPointerCapture 做守卫：没捕获成功时它恒 false，move 永远进不来
+       （2026-10-12 拖拽探针实锤：down/up 都到、move 一次没进）。
+       改用「本元素正处在拖拽态」这个自有标志判断。 */
+    if(!dragging)return;
+    const ddx=(ev.clientX-sx)/cur.scale, ddy=(ev.clientY-sy)/cur.scale;
+    if(!moved&&Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)<5)return;  /* 5px 内当点击 */
+    if(!pre)pre=mmSnap();          /* 首次真正位移前取快照，供撤销回退 */
+    moved=true;
+    n.dx=ox+ddx; n.dy=oy+ddy;
+    /* 移动中只改这一枚节点的 left/top ＋ 重画线，不重建 DOM（否则节点闪） */
+    const L=layout();
+    const q=cur.nodes.find(x=>x.id===n.id);
+    if(q){ el.style.left=q.x+'px'; el.style.top=q.y+'px'; }
+    drawEdges(L);
+  });
+  el.addEventListener('pointerup',ev=>{
+    try{ if(el.hasPointerCapture(ev.pointerId))el.releasePointerCapture(ev.pointerId); }catch(e){}
+    dragging=false;
+    el.classList.remove('dragging');
+    if(moved){
+      if(pre){ undoStack.push({s:pre,label:'移动节点'}); if(undoStack.length>50)undoStack.shift(); redoStack.length=0; mmSyncUndo(); }
+      renderCanvas(); toast('已挪动「'+n.t+'」· 可在「更多」里归位'); return;
+    }
+    /* 没动：二次点击＝长按菜单（首次点击已由 click 选中） */
+    if(cur.sel===n.id) openNodeMenuAt(n,ev.clientX,ev.clientY);
+  });
+  el.addEventListener('pointercancel',()=>{
+    dragging=false; el.classList.remove('dragging'); if(moved)renderCanvas();
+  });
+}
+function applyTransform(){
+  $('#mmStage').style.transform='translate('+cur.tx+'px,'+cur.ty+'px) scale('+cur.scale+')';
+  $('#mmScaleTag').textContent=Math.round(cur.scale*100)+'%';
+}
+/* 画布手势仲裁（2d 裁定：拖空白＝平移、双指＝缩放、拖节点＝移动节点，三者互不抢）：
+   监听挂在 #mmCanvas 上，用 pointer 事件自己在 JS 里分流，不进 GestureDetector 竞技场——
+   节点上的 pointerdown 会被 stopPropagation 拦掉，所以「点在节点上」不会走到平移分支。
+   与底栏双指收起手势的共存口径：底栏监听只在壳内页生效且是 Listener 级原始事件，
+   画布在自己的 touch-action:none 区域内优先消费，两边不互抢（原型层示意，实现批须真机验）。*/
+(function bindCanvasGestures(){
+  const cv=$('#mmCanvas');
+  const pts=new Map();
+  let panning=false, pinch0=null, panMoved=false, downPt=null;
+  cv.addEventListener('pointerdown',ev=>{
+    if(ev.target.closest('.mm-node'))return;      /* 点在节点上＝拖节点，不平移 */
+    pts.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(pts.size===1){ panning=true; panMoved=false; downPt={x:ev.clientX,y:ev.clientY}; try{cv.setPointerCapture(ev.pointerId);}catch(e){} }
+    else if(pts.size===2){ panning=false; pinch0=pinchState(); }
+  });
+  cv.addEventListener('pointermove',ev=>{
+    if(!pts.has(ev.pointerId))return;
+    const prev=pts.get(ev.pointerId);
+    pts.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(pts.size===2&&pinch0){ applyPinch(); return; }
+    if(!panning)return;
+    /* 位移 >5px 才算平移，否则当作「点空白」（用于取消选中） */
+    if(downPt&&Math.abs(ev.clientX-downPt.x)+Math.abs(ev.clientY-downPt.y)>5)panMoved=true;
+    cur.tx+=ev.clientX-prev.x; cur.ty+=ev.clientY-prev.y;
+    applyTransform();
+  });
+  const up=ev=>{
+    const wasSingle=pts.size===1;
+    pts.delete(ev.pointerId);
+    if(pts.size<2)pinch0=null;
+    if(pts.size===0)panning=false;
+    /* 点空白（未发生平移）＝取消选中（对齐常见画布手感；此前点空白不取消） */
+    if(wasSingle&&!panMoved){ if(connect.from){ mmCancelConnect(); } else { cur.sel=null; mmSelect(null); } }
+    downPt=null;
+  };
+  cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',ev=>{ pts.delete(ev.pointerId); if(pts.size<2)pinch0=null; if(pts.size===0)panning=false; downPt=null; });
+  function pinchState(){
+    const a=Array.from(pts.values());
+    return {d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),scale:cur.scale,tx:cur.tx,ty:cur.ty,
+            mid:{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
+  }
+  function applyPinch(){
+    const a=Array.from(pts.values());
+    const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
+    const vp=cv.getBoundingClientRect();
+    const cx=pinch0.mid.x-vp.left, cy=pinch0.mid.y-vp.top;
+    const ns=Math.max(.25,Math.min(pinch0.scale*(d/(pinch0.d||1)),4));
+    cur.tx=cx-(cx-pinch0.tx)*(ns/pinch0.scale);
+    cur.ty=cy-(cy-pinch0.ty)*(ns/pinch0.scale);
+    cur.scale=ns; applyTransform();
+  }
+})();
+function mmFit(){
+  const L=layout();
+  const vp=$('#mmCanvas').getBoundingClientRect();
+  /* 缩放上下限对齐冻结方案 §F1-3：下限 25%、上限 400%（横向预览天然更宽，靠 25% 兜住全图）。 */
+  const k=Math.min((vp.width-20)/L.w,(vp.height-20)/L.h,1.1);
+  cur.scale=Math.max(.25,Math.min(k,4));
+  cur.tx=Math.max(10,(vp.width-L.w*cur.scale)/2); cur.ty=Math.max(10,(vp.height-L.h*cur.scale)/2);
+  applyTransform();
+}
+function mmZoomBy(f){
+  const vp=$('#mmCanvas').getBoundingClientRect(), cx=vp.width/2, cy=vp.height/2;
+  const ns=Math.max(.25,Math.min(cur.scale*f,4));
+  cur.tx=cx-(cx-cur.tx)*(ns/cur.scale); cur.ty=cy-(cy-cur.ty)*(ns/cur.scale); cur.scale=ns;
+  applyTransform();
+}
+function mmSelect(id){
+  cur.sel=id;
+  renderCanvas();
+  $('#mmToolbar').classList.toggle('hide',!id);
+  if(id){const n=cur.nodes.find(x=>x.id===id);
+    $('#mmNmWho').textContent=(isRoot(id)?'根节点':'节点')+' · '+(n?n.t:'');}
+  else closeNodeMenu();
+}
+/* 长按操作单：定点打开（避免越过手机下沿） */
+function openNodeMenuAt(node,cx,cy){
+  const m=$('#mmNodeMenu'), vp=$('#mmCanvas').getBoundingClientRect();
+  m.classList.add('open');
+  const w=216,h=m.offsetHeight||300;
+  m.style.left=Math.max(10,Math.min(vp.width-w-10,cx-vp.left-w/2))+'px';
+  m.style.top =Math.max(10,Math.min(vp.height-h-10,cy-vp.top+14))+'px';
+  $('#mmFoldLbl').textContent=cur.folded[node.id]?'展开子节点':'折叠子节点';
+  /* 批P：根节点没有父可挂，动作语义变「并入…」（整枝成为别人的子级） */
+  const top=isRoot(node.id);
+  const lbl=$('#mmNmConnectLbl'); if(lbl)lbl.textContent=top?'并入…':'连接到…';
+  const det=$('#mmNmDetach'); if(det)det.style.display=top?'none':'';
+}
+function closeNodeMenu(){ $('#mmNodeMenu').classList.remove('open'); }
+function mmNodeMenu(which){
+  closeNodeMenu();
+  if(which==='bind') mmBindNote(); else openNodeMenuAt(cur.nodes.find(n=>n.id===cur.sel)||{id:cur.sel},200,300);
+}
+
+/* ==========================================================================
+   批P · 连接器（挂接/摘除）＋ 树内导航
+   —— 数据侧零新列：连接＝改 parent_id（本原型即 TREE 父子表），摘除＝从父的子表
+      摘掉、自然回根层级。成环在入口处杜绝（自己的整枝置灰不可点），不给事后报错。
+   ========================================================================== */
+function depths(){
+  const dp={};
+  const walk=(id,d)=>{ if(dp[id]!==undefined)return; dp[id]=d; (TREE[id]||[]).forEach(k=>walk(k,d+1)); };
+  rootIds().forEach(r=>walk(r,0));
+  cur.nodes.forEach(n=>{ if(dp[n.id]===undefined)dp[n.id]=0; });
+  return dp;
+}
+/* 一枝＝自己＋全部祖先＋全部后代（L5 聚焦态用） */
+function branchSet(id){
+  const out=new Set([id]);
+  let p=parentOf(id); while(p){ out.add(p); p=parentOf(p); }
+  (function down(i){ (TREE[i]||[]).forEach(k=>{ if(out.has(k))return; out.add(k); down(k); }); })(id);
+  return out;
+}
+/* to 是否落在 from 的子树里（是则挂接会成环） */
+function subtreeHas(from,to){
+  if(from===to)return true;
+  let hit=false;
+  (function w(i){ if(hit)return; (TREE[i]||[]).forEach(k=>{ if(k===to){hit=true;return;} w(k); }); })(from);
+  return hit;
+}
+function blockSet(id){ const s=new Set(); (function w(i){ if(s.has(i))return; s.add(i); (TREE[i]||[]).forEach(w); })(id); return s; }
+function mmStartConnect(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id){ toast('先选中一个节点'); return; }
+  connect={from:id,mode:isRoot(id)?'merge':'attach'};
+  renderCanvas();
+  mmRenderConnectBar('tap');
+  mmMakeRoomForBar();
+}
+/* 顶部提示条会盖住最上面那枚节点（多半就是根）：进场时整体下移让开，别让可点目标被遮 */
+function mmMakeRoomForBar(){
+  const bar=$('#mmConnectBar'); if(!bar||bar.classList.contains('hide'))return;
+  const br=bar.getBoundingClientRect();      /* 屏坐标比屏坐标，别拿视口高当阈值 */
+  let minTop=Infinity;
+  $$('#mmNodes .mm-node').forEach(e=>{ const r=e.getBoundingClientRect(); if(r.top<minTop)minTop=r.top; });
+  if(minTop<Infinity&&minTop<br.bottom+10){ cur.ty+=br.bottom+10-minTop; applyTransform(); }
+}
+function mmRenderConnectBar(kind){
+  const bar=$('#mmConnectBar'); if(!bar)return;
+  bar.classList.remove('hide');
+  const n=byId(connect.from);
+  $('#mmConnectLbl').textContent = kind==='drag'
+    ? '拖到目标节点松手即挂接 · 松在空白处取消'
+    : (connect.mode==='merge'
+        ? '点一个目标节点，把「'+(n?n.t:'')+'」整枝并入它下面'
+        : '点一个目标节点，把「'+(n?n.t:'')+'」挂到它下面');
+}
+function mmCancelConnect(silent){
+  if(!connect.from)return;
+  connect={from:null,mode:'attach'};
+  const bar=$('#mmConnectBar'); if(bar)bar.classList.add('hide');
+  renderCanvas();
+  if(!silent)toast('已取消连接');
+}
+/* 落库：摘旧父 · 挂新父 · 目标折叠态自动展开（否则「连了什么也看不见」）· 滚到落位 */
+function mmConnectTo(from,to,mode){
+  if(!from||!to)return;
+  if(from===to){ toast('不能连到节点自己'); return; }
+  if(subtreeHas(from,to)){ toast('不能挂到自己的子节点下（会成环）'); return; }
+  const fn=byId(from), tn=byId(to); if(!fn||!tn)return;
+  mmPushHistory((mode==='merge'?'并入':'连接到')+'「'+tn.t+'」');
+  const old=parentOf(from);
+  if(old){ TREE[old]=(TREE[old]||[]).filter(k=>k!==from); if(!TREE[old].length)delete TREE[old]; }
+  (TREE[to]=TREE[to]||[]).push(from);
+  delete cur.folded[to];
+  connect={from:null,mode:'attach'};
+  const bar=$('#mmConnectBar'); if(bar)bar.classList.add('hide');
+  cur.sel=from; renderCanvas(); $('#mmToolbar').classList.remove('hide');
+  mmCenterOn(to);
+  toast(mode==='merge'?'已把「'+fn.t+'」整枝并入「'+tn.t+'」':'已把「'+fn.t+'」连接到「'+tn.t+'」');
+}
+/* 摘除：只摘父子关系，节点与它自己的子级都保留 */
+function mmDetachNode(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id)return;
+  const p=parentOf(id);
+  if(!p){ toast('该节点已在根层级'); return; }
+  const n=byId(id);
+  mmPushHistory('断开到根层级');
+  TREE[p]=(TREE[p]||[]).filter(k=>k!==id); if(!TREE[p].length)delete TREE[p];
+  renderCanvas();
+  toast('已断开「'+(n?n.t:'')+'」· 现为根层级');
+}
+/* 树内导航（纯视图态，不入命令栈） */
+function mmCollapseBranch(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id){ toast('先选中一个节点'); return; }
+  const keep=branchSet(id);                 /* 祖先链＋自己＋后代都要留可见，否则根一折＝整屏空 */
+  Object.keys(TREE).forEach(p=>{ if(!keep.has(p))cur.folded[p]=true; });
+  keep.forEach(k=>{ delete cur.folded[k]; });
+  renderCanvas(); toast('已收起其余枝，只留当前枝');
+}
+function mmExpandAll(){
+  closeNodeMenu();
+  cur.folded={}; renderCanvas(); toast('已展开全部节点');
+}
+/* 右缘连接点：拖到目标节点松手＝同「连接到…」（原型必做；实现侧可后置） */
+function bindPort(el,n){
+  const p=el.querySelector('.mm-port'); if(!p)return;
+  p.addEventListener('pointerdown',ev=>{
+    if(ev.button!==0)return;
+    ev.stopPropagation(); ev.preventDefault();
+    portDrag={from:n.id};
+    try{p.setPointerCapture(ev.pointerId);}catch(e){}
+    mmRenderConnectBar('drag');
+  });
+  p.addEventListener('pointermove',ev=>{
+    if(!portDrag)return;
+    const hit=document.elementFromPoint(ev.clientX,ev.clientY);
+    const box=hit&&hit.closest?hit.closest('.mm-node'):null;
+    $$('#mmNodes .mm-node').forEach(e=>e.classList.remove('hover'));
+    if(box&&box.getAttribute('data-id')!==n.id)box.classList.add('hover');
+  });
+  p.addEventListener('pointerup',ev=>{
+    if(!portDrag)return;
+    const hit=document.elementFromPoint(ev.clientX,ev.clientY);
+    const box=hit&&hit.closest?hit.closest('.mm-node'):null;
+    const to=box?box.getAttribute('data-id'):null;
+    portDrag=null;
+    $$('#mmNodes .mm-node').forEach(e=>e.classList.remove('hover'));
+    const bar=$('#mmConnectBar'); if(bar)bar.classList.add('hide');
+    if(to)mmConnectTo(n.id,to,'attach'); else renderCanvas();
+  });
+}
+
+/* ==========================================================================
+   节点增删改（首批：建图 + 编辑）
+   ========================================================================== */
+let pendingParent=null, editingNode=null, renameTarget=null;
+let nodeMode='child', mapMenuTarget=null, confirmCb=null;
+/* 批P：连接态（from＝起点节点，mode＝attach 挂接 / merge 整枝并入）＋右缘连接点拖拽态 */
+let connect={from:null,mode:'attach'}, portDrag=null;
+/* 批P P2：md 单层标题的处置（center 并入中心主题 / multi 保留多根） */
+let mdStruct='center';
+/* 批5 节点扩展：任务勾选（联动待办）与图片挂载在「编辑节点」弹层内编辑 */
+let nodeTaskOn=false, nodeImgOn=false;
+function mmNewMap(){ pendingParent=null; $('#mmNewName').value=''; mmPickSrc('blank',$('#mmSrcBlank')); openSheet('sheetMm-new'); }
+function mmPickSrc(k,el){
+  $$('#sheetMm-new .chip').forEach(c=>c.classList.remove('on')); el.classList.add('on');
+  pendingParent=k;
+  if(k==='md'){ closeSheet('sheetMm-new'); openSheet('sheetMm-fromMd'); }
+  if(k==='inbox'){ closeSheet('sheetMm-new'); openSheet('sheetMm-fromInbox'); }
+}
+function mmCreateMap(){
+  const v=$('#mmNewName').value.trim();
+  if(!v){ toast('导图名称不能为空'); $('#mmNewName').focus(); return; }
+  MAPS.unshift({id:'g'+Date.now(),name:v,nodes:1,binds:0,src:'hand',at:'刚刚'});
+  cur={id:'g'+Date.now(),nodes:[{id:'r',t:v,init:true,x:0,y:0}],sel:null,folded:{},scale:1,tx:0,ty:0,style:Object.assign({},DEFAULT_STYLE)};
+  for(const k in TREE)delete TREE[k];
+  closeSheet('sheetMm-new'); stack.length=0; setPage('mm-canvas');
+  toast('已建空图 · 长按节点可增删改');
+}
+/* --- 根/父子关系小工具（多根与同级判定的基础；与 layout 同口径：根＝无父引用） --- */
+function childSetNow(){ const s=new Set(); Object.keys(TREE).forEach(p=>(TREE[p]||[]).forEach(k=>s.add(k))); return s; }
+function isRoot(id){ return !childSetNow().has(id); }
+function parentOf(id){ if(!childSetNow().has(id))return null; for(const p of Object.keys(TREE)){ if((TREE[p]||[]).indexOf(id)>=0)return p; } return null; }
+function mmAddChild(){
+  closeNodeMenu();
+  const p=cur.sel||(cur.nodes[0]&&cur.nodes[0].id);
+  const pn=cur.nodes.find(n=>n.id===p);
+  nodeMode='child'; editingNode=null; pendingParent=p;
+  $('#mmNodeSheetTitle').textContent='添加子节点';
+  $('#mmNodeSheetSub').textContent='挂在「'+(pn?pn.t:'')+'」下';
+  $('#mmNodeInput').value=''; $('#mmNodeNote').value=''; mmNodeExtrasReset();
+  openSheet('sheetMm-node');
+}
+/* 添加同级：在根节点上操作即＝新增根（一图多根） */
+function mmAddSibling(){
+  closeNodeMenu();
+  const n=cur.nodes.find(x=>x.id===cur.sel);
+  if(!n){ toast('先选中一个节点'); return; }
+  const par=parentOf(n.id);
+  if(!par){ mmAddRoot(); return; }
+  const pn=cur.nodes.find(x=>x.id===par);
+  nodeMode='sibling'; editingNode=null; pendingParent=par;
+  $('#mmNodeSheetTitle').textContent='添加同级节点';
+  $('#mmNodeSheetSub').textContent='与「'+n.t+'」同级（挂在「'+(pn?pn.t:'')+'」下）';
+  $('#mmNodeInput').value=''; $('#mmNodeNote').value=''; mmNodeExtrasReset();
+  openSheet('sheetMm-node');
+}
+function mmAddRoot(){
+  closeNodeMenu();
+  nodeMode='root'; editingNode=null; pendingParent=null;
+  $('#mmNodeSheetTitle').textContent='添加根节点';
+  $('#mmNodeSheetSub').textContent='作为一张图里的另一棵树（一图多根）';
+  $('#mmNodeInput').value=''; $('#mmNodeNote').value=''; mmNodeExtrasReset();
+  openSheet('sheetMm-node');
+}
+/* H2 裁定：节点长按菜单「重命名」升级为「编辑节点」——标题＋备注都可读回改写 */
+function mmEditNode(){
+  closeNodeMenu();
+  const n=cur.nodes.find(x=>x.id===cur.sel);
+  if(!n){ toast('先选中一个节点'); return; }
+  nodeMode='edit'; editingNode=n.id; pendingParent=null;
+  $('#mmNodeSheetTitle').textContent='编辑节点';
+  $('#mmNodeSheetSub').textContent='标题与备注都可读回修改';
+  $('#mmNodeInput').value=n.t; $('#mmNodeNote').value=n.note||''; mmNodeExtrasFill(n);
+  openSheet('sheetMm-node');
+}
+function mmRenameNode(){
+  closeNodeMenu();
+  const n=cur.nodes.find(x=>x.id===cur.sel); if(!n)return;
+  renameTarget={kind:'node',id:n.id};
+  $('#mmRenameTitle').textContent='重命名节点'; $('#mmRenameInput').value=n.t;
+  openSheet('sheetMm-rename');
+}
+function mmSaveNode(){
+  const v=$('#mmNodeInput').value.trim();
+  if(!v){ toast('节点标题不能为空'); return; }
+  const note=($('#mmNodeNote').value||'').trim();
+  const tags=($('#mmNodeTags').value||'').split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  if(nodeMode==='edit'&&editingNode){
+    mmPushHistory('编辑节点');
+    const n=byId(editingNode);
+    if(n){ n.t=v; n.note=note||null; n.tags=tags.length?tags:null; n.task=nodeTaskOn; n.img=nodeImgOn; if(!n.task)n.taskDone=false; }
+    closeSheet('sheetMm-node'); cur.sel=editingNode; renderCanvas();
+    $('#mmToolbar').classList.remove('hide');
+    toast('已更新「'+v.split('\n')[0]+'」'); return;
+  }
+  if(cur.nodes.length>=2000){ toast('已达节点上限（2000）'); return; }
+  mmPushHistory(nodeMode==='root'?'添加根节点':(nodeMode==='sibling'?'添加同级节点':'添加子节点'));
+  const id='n'+Date.now();
+  cur.nodes.push({id,t:v,note:note||null,tags:tags.length?tags:null,task:nodeTaskOn,taskDone:false,img:nodeImgOn,x:0,y:0});
+  /* pendingParent 为空＝加根：不挂到任何父，自然成为一棵新树 */
+  if(pendingParent){ (TREE[pendingParent]=TREE[pendingParent]||[]).push(id); }
+  closeSheet('sheetMm-node'); cur.sel=id; renderCanvas();
+  $('#mmToolbar').classList.remove('hide');
+  toast(nodeMode==='root'?'已加根节点':'已加节点 · 长按可继续操作');
+}
+/* H1 裁定：删节点（含子级）不再「选中即删」，改走二次确认并**列明连带子级数**；
+   文案不出现「可撤销」（首批无撤销命令栈）。删空后自动补一个根，图不为空。 */
+function mmDelNode(){
+  closeNodeMenu();
+  const id=cur.sel, n=cur.nodes.find(x=>x.id===id);
+  if(!n)return;
+  const kill=[]; const walk=i=>{ if(kill.indexOf(i)>=0)return; kill.push(i); (TREE[i]||[]).forEach(walk); };
+  walk(id);
+  const kids=kill.length-1;
+  mmConfirm({
+    title:'删除节点', sub:'「'+n.t+'」'+(isRoot(id)?'（根节点）':''),
+    body:'<div class="cf-row"><span>本节点</span><b>1 个</b></div>'+
+         '<div class="cf-row"><span>连带子节点</span><b>'+kids+' 个</b></div>'+
+         '<div class="cf-note">删除后该枝整体移除（共 '+kill.length+' 个节点），不进回收站、不可撤销。</div>',
+    okLabel:kids>0?('删除（含 '+kids+' 个子节点）'):'删除',
+    cb:()=>{
+      mmPushHistory('删除节点');
+      kill.forEach(i=>{ delete TREE[i]; cur.nodes=cur.nodes.filter(x=>x.id!==i); });
+      if(!cur.nodes.length) cur.nodes.push({id:'r',t:'中心主题',init:true,x:0,y:0});
+      cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
+      toast('已删除 '+kill.length+' 个节点');
+    }
+  });
+}
+function mmToggleFold(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id||!(TREE[id]||[]).length)return;
+  mmPushHistory(cur.folded[id]?'展开子节点':'折叠子节点');
+  cur.folded[id]=!cur.folded[id];
+  cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
+  toast(cur.folded[id]?'已折叠':'已展开');
+}
+/* 归位：清掉该节点的拖拽偏移 dx/dy，回到自动布局给的基线坐标。
+   落库只存偏移不存绝对坐标，正是为了让「归位」与「换布局」都只需清偏移。 */
+function mmResetPos(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id)return;
+  const n=cur.nodes.find(x=>x.id===id); if(!n||(!n.dx&&!n.dy)){ toast('该节点本来就在自动布局位上'); return; }
+  mmPushHistory('归位到自动布局');
+  n.dx=0; n.dy=0; renderCanvas();
+  toast('「'+n.t+'」已归位到自动布局');
+}
+function mmRenameSave(){
+  const v=$('#mmRenameInput').value.trim(); if(!v)return;
+  if(renameTarget.kind==='node'){ const n=cur.nodes.find(x=>x.id===renameTarget.id); if(n)n.t=v; renderCanvas(); }
+  else { const m=MAPS.find(x=>x.id===renameTarget.id); if(m)m.name=v; renderList(); }
+  closeSheet('sheetMm-rename'); toast('已改名');
+}
+/* H4 裁定：双击已挂笔记的节点＝进该笔记详情（复用既有笔记路由；失效笔记不可打开） */
+function mmOpenNote(n){
+  closeNodeMenu();
+  if(!n||!n.ref)return;
+  const note=NOTES.find(x=>x.id===n.ref);
+  if(!note||note.broken){ toast('原笔记已删除 · 无法打开（节点保留占位标题）'); return; }
+  toast('进入笔记「'+note.title+'」（复用笔记详情路由）');
+}
+/* --- 通用二次确认（删节点 / 删图共用；对齐 lhConfirm 的多行后果惯例） --- */
+function mmConfirm(o){
+  confirmCb=o.cb||null;
+  $('#mmConfirmTitle').textContent=o.title||'确认操作';
+  $('#mmConfirmSub').textContent=o.sub||'';
+  $('#mmConfirmBody').innerHTML=o.body||'';
+  const ok=$('#mmConfirmOk');
+  ok.textContent=o.okLabel||'确认';
+  if(o.danger===false){ ok.style.background='var(--accent)'; ok.style.boxShadow='0 6px 18px rgba(99,102,241,.32)'; }
+  else { ok.style.background='linear-gradient(135deg,#ef4444,#f97316)'; ok.style.boxShadow='0 6px 18px rgba(239,68,68,.32)'; }
+  openSheet('sheetMm-confirm');
+}
+function mmConfirmDo(){
+  const cb=confirmCb; confirmCb=null;
+  closeSheet('sheetMm-confirm');
+  if(cb)cb();
+}
+/* --- 图管理（列表行内「更多」）：改名 / 复制 / 删除（H1：删图进回收站第九类） --- */
+function mmMapMenu(id){
+  const m=MAPS.find(x=>x.id===id); if(!m)return;
+  mapMenuTarget=id;
+  $('#mmMapTitle').textContent='导图操作';
+  $('#mmMapSub').textContent=m.name+' · '+m.nodes+' 个节点';
+  openSheet('sheetMm-map');
+}
+function mmMapMenuAt(id,ev){ if(ev&&ev.stopPropagation)ev.stopPropagation(); mmMapMenu(id); }
+function mmMapRename(){
+  const m=MAPS.find(x=>x.id===mapMenuTarget); if(!m)return;
+  closeSheet('sheetMm-map');
+  renameTarget={kind:'map',id:m.id};
+  $('#mmRenameTitle').textContent='重命名导图'; $('#mmRenameInput').value=m.name;
+  openSheet('sheetMm-rename');
+}
+function mmMapCopy(){
+  const m=MAPS.find(x=>x.id===mapMenuTarget); if(!m)return;
+  const copy={id:'g'+Date.now(),name:m.name+' 副本',nodes:m.nodes,binds:m.binds||0,src:m.src,at:'刚刚'};
+  MAPS.unshift(copy);
+  closeSheet('sheetMm-map'); renderList();
+  toast('已复制为「'+copy.name+'」（含全部节点与挂载引用）');
+}
+function mmMapDelete(){
+  const m=MAPS.find(x=>x.id===mapMenuTarget); if(!m)return;
+  closeSheet('sheetMm-map');
+  mmConfirm({
+    title:'删除导图', sub:'「'+m.name+'」 · '+m.nodes+' 个节点',
+    body:'<div class="cf-row"><span>连带删除节点</span><b>'+m.nodes+' 个</b></div>'+
+         '<div class="cf-row"><span>挂载引用</span><b>'+(m.binds||0)+' 处</b></div>'+
+         '<div class="cf-note">删除后移入回收站「导图」第九类，30 天内可恢复回原位（恢复时连带全部节点）；原笔记不受影响。</div>',
+    okLabel:'删除导图',
+    cb:()=>{
+      const i=MAPS.findIndex(x=>x.id===m.id); if(i>=0)MAPS.splice(i,1);
+      renderList(); toast('已移入回收站 · 30 天内可恢复');
+    }
+  });
+}
+/* --- 连接点② 卡片实体：点卡片进该图画布 --- */
+function mmCardOpen(){
+  closeSheet('sheetMm-card');
+  stack.length=0; setPage('mm-canvas');
+  toast('已进入卡片所指的画布');
+}
+/* --- 连接点③ 反向（收集箱侧「转导图」）：选目标图后追加节点 --- */
+function mmInboxToGo(){
+  closeSheet('sheetMm-inboxTo');
+  stack.length=0; setPage('mm-canvas');
+  toast('已追加为「深度工作方法论」根节点下第一层 · 原条目留在收集箱');
+}
+
+/* ==========================================================================
+   连接点① 节点挂笔记（正向）
+   ========================================================================== */
+function mmBindNote(){
+  closeNodeMenu();
+  const n=cur.nodes.find(x=>x.id===cur.sel);
+  if(!n){ toast('先选中一个节点'); return; }
+  $('#mmBindCurName').textContent=(NOTES.find(x=>x.id===n.ref)||{title:'（已解除）'}).title;
+  $('#mmBindCur').classList.toggle('hide',!n.ref);
+  openSheet('sheetMm-bindNote');
+}
+function mmRenderNotes(){
+  const q=($('#mmBindSearch').value||'').trim();
+  const list=NOTES.filter(n=>!q||n.title.includes(q));
+  $('#mmBindList').innerHTML=list.length?list.map(n=>
+    '<div class="row'+(cur.sel&&(cur.nodes.find(x=>x.id===cur.sel)||{}).ref===n.id?' sel':'')+'" onclick="mmPickNote(\''+n.id+'\')">'+
+      '<span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h5"/></svg></span>'+
+      '<span class="r-t">'+n.title+'<div class="r-s">'+n.sub+'</div></span>'+
+      (n.broken?'<span class="chip err">已失效</span>':'')+
+      '<span class="r-x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>'+
+    '</div>').join('')
+    :'<div style="padding:26px 0;text-align:center;font-size:11.5px;opacity:.45">没有匹配的笔记</div>';
+}
+function mmPickNote(id){
+  const n=cur.nodes.find(x=>x.id===cur.sel); if(!n)return;
+  mmPushHistory('挂载笔记');
+  n.ref=id; renderCanvas(); mmRenderNotes();
+  const note=NOTES.find(x=>x.id===id);
+  $('#mmBindCurName').textContent=note.title;
+  $('#mmBindCur').classList.remove('hide');
+  toast(note.broken?'原笔记已删除 · 节点保留并显示占位标题':'已挂载 · 双击节点进该笔记');
+}
+function mmUnbind(){
+  const n=cur.nodes.find(x=>x.id===cur.sel); if(!n)return;
+  mmPushHistory('解除挂载');
+  n.ref=null; renderCanvas(); mmRenderNotes();
+  $('#mmBindCur').classList.add('hide'); toast('已解除挂载');
+}
+
+/* ==========================================================================
+   连接点④ md 笔记反向解析为导图初稿
+   ========================================================================== */
+let mdPick=null;
+function mmRenderMdList(){
+  $('#mmMdList').innerHTML=MD_NOTES.map(m=>
+    '<div class="row'+(mdPick===m.id?' sel':'')+'" onclick="mmPickMd(\''+m.id+'\')">'+
+      '<span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.6"/><path d="M7 10l2.5 2L7 14M12.5 14.5H17"/></svg></span>'+
+      '<span class="r-t">'+m.title+'<div class="r-s">'+m.h+' 级标题 · 解析出 '+m.nodes+' 个节点</div></span>'+
+      '<span class="r-x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>'+
+    '</div>').join('');
+}
+function mmPickMd(id){
+  mdPick=id; mmRenderMdList();
+  const m=MD_NOTES.find(x=>x.id===id);
+  const single=(m.h===1);                 /* 批P P2：全文仅一层标题 */
+  $('#mmMdCount').textContent='共 '+m.nodes+' 个节点';
+  $('#mmMdChipH').textContent='标题层级 '+m.h+' 级';
+  $('#mmMdChipLv').textContent='缩进 '+m.lv+' 级';
+  $('#mmMdChipBlank').textContent=single?('单层标题 '+MD_SINGLE_ITEMS.length+' 枚'):'空行分段 5 段';
+  if(single){
+    $('#mmMdTree').innerHTML=MD_SINGLE_ITEMS.map(s=>'<div style="font-size:11px;opacity:.6;margin-left:12px">'+s+'</div>').join('');
+    $('#mmMdStructWrap').classList.remove('hide');
+    mmPickMdStruct(mdStruct);
+  } else {
+    $('#mmMdTree').innerHTML=
+      '<div style="font-size:11.5px;font-weight:800">'+m.title.replace('（md 笔记）','')+'</div>'+
+      '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">要事优先的时间块</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">早上重仓 · 深度段 90~180 分钟</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">社交互动 · 浅任务合并段</div>'+
+      '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">减少切换成本</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">批处理 · 一次沟通一件事</div>'+
+      '<div style="font-size:11px;opacity:.6;margin:5px 0 5px 12px">每周复盘时段去向</div>'+
+      '<div style="font-size:11px;opacity:.6;margin-left:12px">哪些时段被会议吃掉了</div>';
+    $('#mmMdStructWrap').classList.add('hide');
+    $('#mmMdHint').classList.add('hide');
+  }
+  $('#mmMdPreview').classList.remove('hide'); $('#mmMdGo').classList.remove('hide');
+  $('#mmMdCancel').textContent='取消';
+}
+/* 批P P2：结构口径二选一（默认并入中心主题；并列清单的意图不强并） */
+function mmPickMdStruct(k){
+  mdStruct=k;
+  const c=$('#mmMdStructCenter'), mm=$('#mmMdStructMulti');
+  if(c)c.classList.toggle('on',k==='center');
+  if(mm)mm.classList.toggle('on',k==='multi');
+  const hint=$('#mmMdHint'); if(!hint)return;
+  hint.classList.remove('hide');
+  hint.textContent = k==='center'
+    ? '已按单层标题并入中心主题（'+MD_SINGLE_ITEMS.length+' 项）'
+    : '保留为 '+MD_SINGLE_ITEMS.length+' 个并列根，可在画布手动挂接';
+}
+function mmMdReset(){
+  mdPick=null; mdStruct='center';
+  $('#mmMdPreview').classList.add('hide'); $('#mmMdGo').classList.add('hide');
+  $('#mmMdStructWrap').classList.add('hide'); $('#mmMdHint').classList.add('hide');
+  $('#mmMdCancel').textContent='关闭';
+}
+function mmMdImport(){
+  if(!mdPick){ toast('先选一篇 md 笔记'); return; }
+  const m=MD_NOTES.find(x=>x.id===mdPick);
+  const single=(m.h===1);
+  const name=m.title.replace('（md 笔记）','');
+  let nodes=[], tree={}, hint='', outN=m.nodes;
+  if(single){
+    /* 批P P2：单层标题（全 H1）默认并进中心主题——中心主题＝图名，其余全部挂在它下 */
+    if(mdStruct==='center'){
+      nodes=[{id:'r',t:name,init:true,x:0,y:0}]; tree={r:[]};
+      MD_SINGLE_ITEMS.forEach((s,i)=>{ const id='h'+i; nodes.push({id,t:s,x:0,y:0}); tree.r.push(id); });
+      outN=MD_SINGLE_ITEMS.length+1;
+      hint='已按单层标题并入中心主题（'+MD_SINGLE_ITEMS.length+' 项），可在画布继续编辑';
+    } else {
+      nodes=MD_SINGLE_ITEMS.map((s,i)=>({id:'h'+i,t:s,x:0,y:0}));
+      outN=MD_SINGLE_ITEMS.length;
+      hint='单层标题保留为 '+MD_SINGLE_ITEMS.length+' 个并列根，可在画布手动挂接';
+    }
+  } else {
+    const seed=['要事优先的时间块','减少切换成本','每周复盘时段去向'];
+    const leaf=['早上重仓 · 深度段 90~180 分钟','社交互动 · 浅任务合并段','批处理 · 一次沟通一件事','哪些时段被会议吃掉了','空出来才算真自由'];
+    nodes=[{id:'r',t:name,init:true,x:0,y:0}];
+    tree={r:[]};
+    seed.forEach((s,i)=>{const id='s'+i;nodes.push({id,t:s,x:0,y:0});tree.r.push(id);
+      if(i===0){['早上重仓 · 深度段 90~180 分钟','社交互动 · 浅任务合并段'].forEach((l,j)=>{const k=id+'_'+j;nodes.push({id:k,t:l,x:0,y:0});tree[id]=tree[id]||[];tree[id].push(k);});}
+    });
+    ['哪些时段被会议吃掉了','空出来才算真自由'].forEach((l,i)=>{const id='x'+i;nodes.push({id,t:l,x:0,y:0});tree['s2']=tree['s2']||[];tree['s2'].push(id);});
+    nodes.forEach((n,i)=>{if(n.init)return;n.ref=(i%4===1)?'n2':null;});
+    hint='已按标题层级解析为 '+m.nodes+' 个节点，可在画布继续编辑';
+  }
+  cur={id:'g'+Date.now(),nodes,sel:null,folded:{},scale:1,tx:0,ty:0,style:Object.assign({},DEFAULT_STYLE)};
+  Object.keys(TREE).forEach(k=>delete TREE[k]);
+  Object.keys(tree).forEach(k=>TREE[k]=tree[k]);
+  MAPS.unshift({id:cur.id,name,nodes:outN,binds:2,src:'md',at:'刚刚'});
+  TITLES['mm-canvas']=[name,outN+' 个节点 · 由 md 笔记解析'];
+  const modeTxt=(mdStruct==='center')?'并入中心主题':'保留多根';
+  mmMdReset(); closeSheet('sheetMm-fromMd'); stack.length=0; setPage('mm-canvas');
+  showSrcTip('md 笔记',name,hint);
+  toast(single?('已转成导图 · 单层标题按「'+modeTxt+'」处理'):'已转成导图 · 原 md 笔记未改动');
+}
+function showSrcTip(chip,name,hint){
+  $('#mmSrcChip').textContent=chip; $('#mmSrcName').textContent=name; $('#mmSrcHint').textContent=hint;
+  $('#mmSrcTip').classList.remove('hide');
+}
+function mmHideSrc(){ $('#mmSrcTip').classList.add('hide'); }
+
+/* ==========================================================================
+   连接点③ 收集箱条目转节点
+   ========================================================================== */
+const inboxSel={};
+function mmRenderInbox(){
+  $('#mmInboxList').innerHTML=INBOX.map(i=>
+    '<div class="row'+(inboxSel[i.id]?' sel':'')+'" onclick="mmPickInbox(\''+i.id+'\')">'+
+      '<span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.5h5l1.5 3h4l1.5-3h5"/><path d="M5.2 12.5 7.3 5h9.4l2.1 7.5V19a1.7 1.7 0 0 1-1.7 1.7H6.9a1.7 1.7 0 0 1-1.7-1.7z"/></svg></span>'+
+      '<span class="r-t">'+i.text+'</span>'+
+      '<span class="r-x">'+(inboxSel[i.id]?'<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>':'')+'</span>'+
+    '</div>').join('');
+  $('#mmInboxCount').textContent='已选 '+Object.keys(inboxSel).filter(k=>inboxSel[k]).length+' 条';
+}
+function mmPickInbox(id){ inboxSel[id]=!inboxSel[id]; mmRenderInbox(); }
+function mmInboxImport(){
+  const ids=Object.keys(inboxSel).filter(k=>inboxSel[k]);
+  if(!ids.length){ toast('先勾选要转入的条目'); return; }
+  const items=INBOX.filter(i=>ids.indexOf(i.id)>=0);
+  items.forEach((it,i)=>{
+    const id='b'+Date.now()+'_'+i;
+    cur.nodes.push({id,t:it.text,x:0,y:0});
+    (TREE[cur.sel||'r']=TREE[cur.sel||'r']||[]).push(id);
+  });
+  closeSheet('sheetMm-fromInbox'); renderCanvas();
+  ids.forEach(k=>delete inboxSel[k]);
+  toast('已转入 '+items.length+' 条 · 原条目留在收集箱');
+}
+
+/* ==========================================================================
+   批2 F4-1 · 撤销/重做命令栈（不得用 AppToast 单次撤销顶替）
+   —— 内存快照式：每次变更前把 {nodes,tree,folded} 压入撤销栈；撤销＝弹回并压重做栈。
+      步数上限 50；按钮空栈置灰（批2 起画布顶栏常驻两枚）。
+   ========================================================================== */
+let undoStack=[], redoStack=[];
+function mmSnap(){
+  return {nodes:JSON.parse(JSON.stringify(cur.nodes)),
+          tree:JSON.parse(JSON.stringify(TREE)),
+          folded:JSON.parse(JSON.stringify(cur.folded))};
+}
+function mmPushHistory(label){
+  undoStack.push({s:mmSnap(),label:label||'编辑'});
+  if(undoStack.length>50)undoStack.shift();
+  redoStack.length=0; mmSyncUndo();
+}
+function mmRestore(s){
+  cur.nodes=s.nodes; cur.sel=null;
+  Object.keys(TREE).forEach(k=>delete TREE[k]);
+  Object.keys(s.tree).forEach(k=>TREE[k]=s.tree[k]);
+  cur.folded=s.folded||{};
+  renderCanvas(); $('#mmToolbar').classList.add('hide'); mmSyncUndo();
+}
+function mmSyncUndo(){
+  const u=$('#btnUndo'), r=$('#btnRedo');
+  if(u)u.disabled=!undoStack.length;
+  if(r)r.disabled=!redoStack.length;
+}
+function mmUndo(){
+  if(!undoStack.length){ toast('没有可撤销的步骤'); return; }
+  const h=undoStack.pop();
+  redoStack.push({s:mmSnap(),label:h.label});
+  mmRestore(h.s); toast('已撤销：'+h.label);
+}
+function mmRedo(){
+  if(!redoStack.length){ toast('没有可重做的步骤'); return; }
+  const h=redoStack.pop();
+  undoStack.push({s:mmSnap(),label:h.label});
+  mmRestore(h.s); toast('已重做：'+h.label);
+}
+
+/* ==========================================================================
+   批2 F4-2 · 节点复制 / 剪切 / 粘贴（含子级）
+   ========================================================================== */
+let clipNode=null;
+function mmSubtreeIds(id){ const out=[]; (function w(i){ if(out.indexOf(i)>=0)return; out.push(i); (TREE[i]||[]).forEach(w); })(id); return out; }
+function mmClipFrom(id){
+  const ids=mmSubtreeIds(id), set=new Set(ids);
+  const tree={}; ids.forEach(i=>{ tree[i]=(TREE[i]||[]).filter(k=>set.has(k)); });
+  clipNode={root:id,tree:tree,nodes:JSON.parse(JSON.stringify(cur.nodes.filter(n=>set.has(n.id))))};
+  return ids.length;
+}
+function mmCopyNode(){
+  closeNodeMenu();
+  if(!cur.sel){ toast('先选中一个节点'); return; }
+  const k=mmClipFrom(cur.sel);
+  toast('已复制该枝（'+k+' 个节点，含子级）');
+}
+/* 批P3 §5 第 5 条：同级换序——只换兄弟序，父子关系一律不动。
+   有父＝换 TREE[par] 里的位置；无父（根级）＝换 cur.nodes 里的先后。
+   走 mmPushHistory 快照，一步可撤；到头的方向给一句人话、不写历史。 */
+function mmMoveSibling(dir){
+  closeNodeMenu();
+  const id=cur.sel;
+  if(!id){ toast('先选中一个节点'); return; }
+  const par=parentOf(id);
+  const list=par?(TREE[par]||[]):rootIds();
+  const i=list.indexOf(id), j=i+dir;
+  if(i<0||j<0||j>=list.length){ toast(dir<0?'已经是同级里的第一个':'已经是同级里的最后一个'); return; }
+  mmPushHistory('调整同级顺序');
+  if(par){ const t=list[i]; list[i]=list[j]; list[j]=t; TREE[par]=list; }
+  else {
+    const a=cur.nodes.findIndex(n=>n.id===list[i]), b=cur.nodes.findIndex(n=>n.id===list[j]);
+    if(a>=0&&b>=0){ const t=cur.nodes[a]; cur.nodes[a]=cur.nodes[b]; cur.nodes[b]=t; }
+  }
+  renderCanvas(); toast(dir<0?'已上移':'已下移');
+}
+
+function mmCutNode(){
+  closeNodeMenu();
+  const id=cur.sel;
+  if(!id){ toast('先选中一个节点'); return; }
+  const k=mmClipFrom(id);
+  mmPushHistory('剪切节点');
+  const par=parentOf(id), ids=mmSubtreeIds(id);
+  if(par) TREE[par]=(TREE[par]||[]).filter(x=>x!==id);
+  ids.forEach(i=>{ delete TREE[i]; cur.nodes=cur.nodes.filter(x=>x.id!==i); });
+  if(!cur.nodes.length) cur.nodes.push({id:'r',t:'中心主题',init:true,x:0,y:0});
+  cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
+  toast('已剪切该枝（'+k+' 个节点）');
+}
+/* 批P3 §5 第 10 条：默认「粘贴为同级」——落到选中节点的父下（选中是根＝新根）；
+   「粘贴为子节点」才挂进选中节点。复制 A、选 B、粘贴，A 不再莫名变成 B 的子级。 */
+function mmPasteNode(mode){
+  closeNodeMenu();
+  if(!clipNode){ toast('剪贴板为空'); return; }
+  const sel=cur.sel;
+  const p = mode==='child' ? (sel||(cur.nodes[0]&&cur.nodes[0].id)) : (sel?parentOf(sel):null);
+  if(mode==='child' && !p){ toast('先选中要粘贴到的节点'); return; }
+  if(cur.nodes.length+clipNode.nodes.length>2000){ toast('已达节点上限（2000）'); return; }
+  mmPushHistory('粘贴节点');
+  const base='p'+Date.now()+'_', map={};
+  clipNode.nodes.forEach(n=>{
+    const nid=base+n.id; map[n.id]=nid;
+    const cp=JSON.parse(JSON.stringify(n)); cp.id=nid; cp.init=false; cp.x=0; cp.y=0;
+    cur.nodes.push(cp);
+  });
+  if(p) (TREE[p]=TREE[p]||[]).push(map[clipNode.root]);
+  clipNode.nodes.forEach(n=>{ if(clipNode.tree[n.id]) TREE[map[n.id]]=clipNode.tree[n.id].map(k=>map[k]); });
+  cur.sel=map[clipNode.root]; renderCanvas(); $('#mmToolbar').classList.remove('hide');
+  toast('已粘贴 '+clipNode.nodes.length+' 个节点');
+}
+/* 批5 任务勾选：节点上的小方框，点一下即完成/取消（联动待办经 linkage 出口） */
+function mmToggleTask(n){
+  mmPushHistory(n.taskDone?'取消完成':'完成任务');
+  n.taskDone=!n.taskDone; renderCanvas();
+  toast(n.taskDone?'已完成 · 已发送待办完成事件（经 linkage 出口）':'已取消完成');
+}
+
+/* ==========================================================================
+   批2 F4-3 · 全局搜索挂载节点（导图节点作为一类搜索数据源，经 linkage）
+   ========================================================================== */
+function mmOpenSearch(){ closeSheet('sheetMm-more'); const i=$('#mmSearchInput'); if(i)i.value=''; mmRenderSearch(); openSheet('sheetMm-search'); }
+function mmSearchPool(){
+  const m=MAPS.filter(x=>x.id===cur.id)[0];
+  const nm=m?m.name:(TITLES['mm-canvas']||['请选择'])[0];
+  return cur.nodes.map(n=>{
+    const note=n.ref?NOTES.filter(x=>x.id===n.ref)[0]:null;
+    return {nid:n.id,node:String(n.t||'').replace(/\n/g,' '),note:note?note.title:'',map:nm};
+  });
+}
+function mmRenderSearch(){
+  const q=($('#mmSearchInput').value||'').trim();
+  const pool=mmSearchPool().filter(r=>!q||r.node.indexOf(q)>=0||r.note.indexOf(q)>=0);
+  $('#mmSearchList').innerHTML=pool.length?pool.slice(0,30).map(r=>
+    '<div class="row" onclick="mmJumpNode(\''+r.nid+'\')">'+
+      '<span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></span>'+
+      '<span class="r-t">'+esc(r.node)+(r.note?'<div class="r-s">挂载：'+esc(r.note)+' · '+esc(r.map)+'</div>':'<div class="r-s">'+esc(r.map)+'</div>')+'</span>'+
+      '<span class="r-x">'+ICON_CHEV+'</span>'+
+    '</div>').join(''):'<div style="padding:26px 0;text-align:center;font-size:11.5px;opacity:.45">没有匹配的挂载节点</div>';
+}
+function mmJumpNode(nid){
+  closeSheet('sheetMm-search');
+  stack.length=0; setPage('mm-canvas');
+  setTimeout(function(){ mmSelect(nid); mmCenterOn(nid); },140);
+  toast('已定位到该节点');
+}
+function mmCenterOn(id){
+  const n=byId(id); if(!n)return;
+  const vp=$('#mmCanvas').getBoundingClientRect();
+  cur.tx=vp.width/2-(n.x+30)*cur.scale;
+  cur.ty=vp.height/2-(n.y+20)*cur.scale;
+  applyTransform();
+}
+
+/* ==========================================================================
+   批2 F4-4 · 文件夹归类（多层文件夹整理导图）
+   ========================================================================== */
+let folderMoveTarget=null;
+function mmOpenFolders(){ closeSheet('sheetMm-more'); folderMoveTarget=null; mmRenderFolders(); openSheet('sheetMm-folders'); }
+function mmMapToFolder(){ closeSheet('sheetMm-map'); folderMoveTarget=mapMenuTarget; mmRenderFolders(); openSheet('sheetMm-folders'); }
+function mmRenderFolders(){
+  const tgt=folderMoveTarget?MAPS.filter(m=>m.id===folderMoveTarget)[0]:null;
+  $('#mmFolderSub').textContent=tgt?('把「'+tgt.name+'」移入某个文件夹'):'多层文件夹整理导图；从导图行的「更多」进入可移入';
+  const rowOf=(id,name,cnt,checked)=>
+    '<div class="row'+(checked?' sel':'')+'" onclick="mmPickFolder('+(id?"'"+id+"'":'null')+')">'+
+      '<span class="r-ic">'+ICON_FOLDER+'</span>'+
+      '<span class="r-t">'+esc(name)+'<div class="r-s">'+cnt+' 张图</div></span>'+
+      '<span class="r-x">'+ICON_CHEV+'</span>'+
+    '</div>';
+  let html='';
+  if(tgt)html+='<div class="card" style="font-size:11.5px;opacity:.6;line-height:1.7;margin-bottom:6px">点一个文件夹把「'+esc(tgt.name)+'」移入；点「未归类」移出。</div>';
+  html+=FOLDERS.map(f=>rowOf(f.id,f.name,MAPS.filter(m=>m.folder===f.id).length,!!(tgt&&tgt.folder===f.id))).join('');
+  html+=rowOf(null,'未归类',MAPS.filter(m=>!m.folder).length,!!(tgt&&!tgt.folder));
+  $('#mmFolderList').innerHTML=html;
+}
+function mmPickFolder(fid){
+  if(!folderMoveTarget){ toast('请从导图行的「更多」进入再移入'); return; }
+  const m=MAPS.filter(x=>x.id===folderMoveTarget)[0]; if(!m)return;
+  m.folder=fid;
+  closeSheet('sheetMm-folders'); renderList();
+  const f=fid?FOLDERS.filter(x=>x.id===fid)[0]:null;
+  toast(f?('已移入「'+f.name+'」'):'已移出文件夹');
+}
+function mmCreateFolder(){
+  const v=($('#mmNewFolder').value||'').trim();
+  if(!v){ toast('文件夹名称不能为空'); return; }
+  FOLDERS.push({id:'f'+Date.now(),name:v}); $('#mmNewFolder').value='';
+  mmRenderFolders(); renderList(); toast('已新建文件夹「'+v+'」');
+}
+
+/* ==========================================================================
+   批3 F4-7 · 样式层（文字色/字号/背景色/线条色粗/画布背景）——全部走设计令牌
+   ========================================================================== */
+const STYLE_DEFS={
+  text:[['default','默认'],['accent','主题'],['muted','弱化'],['warn','警示']],
+  size:[['sm','小'],['md','中'],['lg','大']],
+  bg:[['paper','纸'],['soft','浅主题'],['deep','深主题']],
+  line:[['default','默认'],['accent','主题'],['muted','深']],
+  canvas:[['dots','网点'],['plain','纯色'],['tint','主题浅'],['deep','主题深']]
+};
+function STYLE_BTNS(kind,curv){
+  return STYLE_DEFS[kind].map(it=>'<button class="swatch'+(curv===it[0]?' on':'')+'" onclick="mmSetStyle(\''+kind+'\',\''+it[0]+'\')">'+it[1]+'</button>').join('');
+}
+function mmApplyStyleVars(){
+  const st=ensureStyle();
+  const stage=$('#mmStage'), cv=$('#mmCanvas');
+  if(!stage||!cv)return;
+  /* 空串＝不设该变量，回落 CSS 令牌原值（「默认」档零改动） */
+  stage.style.setProperty('--mm-fg', ({default:'',accent:'var(--accent)',muted:'#64748b',warn:'var(--err)'})[st.text]||'');
+  stage.style.setProperty('--mm-fs', ({sm:'12px',md:'13px',lg:'15px'})[st.size]||'13px');
+  stage.style.setProperty('--mm-bg', ({paper:'',soft:'color-mix(in srgb,var(--accent) 8%,var(--card))',deep:'color-mix(in srgb,var(--accent) 18%,var(--card))'})[st.bg]||'');
+  stage.style.setProperty('--mm-line-c', ({default:'',accent:'var(--mm-branch)',muted:'#94a3b8'})[st.line]||'');
+  stage.style.setProperty('--mm-line-w', (st.lineW||1.6)+'px');
+  cv.style.background = (st.canvas==='dots') ? '' :
+    (({plain:'var(--card)',tint:'color-mix(in srgb,var(--accent) 6%,var(--mm-canvas))',deep:'color-mix(in srgb,var(--accent) 14%,var(--mm-canvas))'})[st.canvas]||'');
+}
+function mmOpenStyle(){ closeSheet('sheetMm-more'); mmRenderStyle(); openSheet('sheetMm-style'); }
+function mmRenderStyle(){
+  const st=ensureStyle();
+  $('#mmStText').innerHTML=STYLE_BTNS('text',st.text);
+  $('#mmStSize').innerHTML=STYLE_DEFS.size.map(s=>'<button class="'+(st.size===s[0]?'on':'')+'" onclick="mmSetStyle(\'size\',\''+s[0]+'\')">'+s[1]+'</button>').join('');
+  $('#mmStBg').innerHTML=STYLE_BTNS('bg',st.bg);
+  $('#mmStLine').innerHTML=STYLE_BTNS('line',st.line);
+  $('#mmStCanvas').innerHTML=STYLE_BTNS('canvas',st.canvas);
+  const w=$('#mmStLineW'); if(w)w.textContent=Number(st.lineW||1.6).toFixed(1)+' px';
+}
+function mmSetStyle(kind,val){
+  const st=ensureStyle();
+  if(st[kind]===val)return;
+  mmPushHistory('调整样式（'+kind+'）');
+  st[kind]=val; mmRenderStyle(); renderCanvas();
+}
+function mmStepLineW(d){
+  const st=ensureStyle();
+  const v=Math.round(Math.max(0.8,Math.min(4,(st.lineW||1.6)+d))*10)/10;
+  if(Math.abs(v-(st.lineW||1.6))<0.01)return;
+  mmPushHistory('调整线粗');
+  st.lineW=v; mmRenderStyle(); renderCanvas();
+}
+function mmStyleReset(){
+  mmPushHistory('恢复默认样式');
+  cur.style=Object.assign({},DEFAULT_STYLE);
+  mmRenderStyle(); renderCanvas(); toast('已恢复默认样式');
+}
+
+/* ==========================================================================
+   批4 F4-8 · 布局家族（struct tree/radial × dir right/both × 容器比例）＋横向预览
+   ========================================================================== */
+const LAY_PRESETS=[
+  {k:'tree/right/portrait',  t:'纵向树', s:'竖屏默认'},
+  {k:'tree/right/landscape', t:'横向树', s:'父左子右'},
+  {k:'tree/both/landscape',  t:'双向树', s:'子级分列两侧'},
+  {k:'radial/both/portrait', t:'放射图', s:'根居中四面铺开'}
+];
+function LAY_SVG(k){
+  if(k==='radial')return '<svg viewBox="0 0 60 42"><line x1="30" y1="21" x2="12" y2="9" stroke="currentColor" stroke-width="1.4"/><line x1="30" y1="21" x2="48" y2="9" stroke="currentColor" stroke-width="1.4"/><line x1="30" y1="21" x2="12" y2="33" stroke="currentColor" stroke-width="1.4"/><line x1="30" y1="21" x2="48" y2="33" stroke="currentColor" stroke-width="1.4"/><rect x="24" y="16.5" width="12" height="9" rx="2.6" fill="currentColor"/><rect x="6" y="4.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="42" y="4.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="6" y="28.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="42" y="28.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  if(k==='hboth')return '<svg viewBox="0 0 60 42"><line x1="30" y1="21" x2="10" y2="11" stroke="currentColor" stroke-width="1.4"/><line x1="30" y1="21" x2="10" y2="31" stroke="currentColor" stroke-width="1.4"/><line x1="30" y1="21" x2="50" y2="11" stroke="currentColor" stroke-width="1.4"/><line x1="30" y1="21" x2="50" y2="31" stroke="currentColor" stroke-width="1.4"/><rect x="24" y="16.5" width="12" height="9" rx="2.6" fill="currentColor"/><rect x="3" y="6.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="26.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="45" y="6.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="45" y="26.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  if(k==='hright')return '<svg viewBox="0 0 60 42"><line x1="14" y1="21" x2="26" y2="21" stroke="currentColor" stroke-width="1.4"/><line x1="38" y1="21" x2="46" y2="11" stroke="currentColor" stroke-width="1.4"/><line x1="38" y1="21" x2="46" y2="31" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="16.5" width="12" height="9" rx="2.6" fill="currentColor"/><rect x="26" y="16.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="46" y="6.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="46" y="26.5" width="12" height="9" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  /* 纵向大纲：父在上、子竖排缩进（上中下三层示意，勿画成横向树） */
+  return '<svg viewBox="0 0 60 42"><path d="M14 13.5v20" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14 21.5h10" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14 31.5h10" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="4" y="4" width="20" height="9.5" rx="2.6" fill="currentColor"/><rect x="24" y="17" width="20" height="9.5" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="24" y="27" width="20" height="9.5" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+}
+function mmOpenLayout(){ closeSheet('sheetMm-more'); mmRenderLayout(); openSheet('sheetMm-layout'); }
+function mmRenderLayout(){
+  const ck=VIEW.struct+'/'+VIEW.dir+'/'+VIEW.ratio;
+  $('#mmLayGrid').innerHTML=LAY_PRESETS.map(p=>{
+    const ic=(p.k.indexOf('radial')===0)?'radial':(p.k.indexOf('both')>=0?'hboth':(p.k.indexOf('landscape')>=0?'hright':'outline'));
+    return '<div class="lay-card'+(ck===p.k?' on':'')+'" onclick="mmApplyPreset(\''+p.k+'\')">'+LAY_SVG(ic)+
+      '<div>'+p.t+'</div><div style="font-size:9.5px;opacity:.45;font-weight:600">'+p.s+'</div></div>';
+  }).join('');
+  $$('#mmLayRatio button').forEach(b=>b.classList.toggle('on',(b.textContent.indexOf('横向')>=0)===(VIEW.ratio==='landscape')));
+}
+function mmApplyPreset(k){
+  const a=k.split('/');
+  mmPushHistory('切换布局');
+  VIEW.struct=a[0]; VIEW.dir=a[1]; VIEW.ratio=a[2];
+  mmRenderLayout(); renderCanvas(); mmFit();
+  const p=LAY_PRESETS.filter(x=>x.k===k)[0];
+  toast('布局＝'+(p?p.t:k));
+}
+function mmPickRatio(k,el){
+  if(VIEW.ratio===k)return;
+  mmPushHistory('切换容器比例');
+  VIEW.ratio=k;
+  $$('#mmLayRatio button').forEach(b=>b.classList.remove('on')); if(el)el.classList.add('on');
+  mmRenderLayout(); renderCanvas(); mmFit();
+  toast(k==='landscape'?'已切换横向预览（App 内不转屏）':'已切回竖屏友好');
+}
+
+/* ==========================================================================
+   批2 F4-5 · 导出（同一序列化层多渲染器：HTML / md / opml / PNG / .xmind）
+   ========================================================================== */
+let exportFmt='html';
+function mmOpenExport(){
+  closeSheet('sheetMm-more'); exportFmt='html';
+  $$('#mmExportFmt button').forEach((b,i)=>b.classList.toggle('on',i===0));
+  mmRenderExportSpec(); openSheet('sheetMm-export');
+}
+function mmPickFmt(k,el){
+  exportFmt=k;
+  $$('#mmExportFmt button').forEach(b=>b.classList.remove('on'));
+  if(el)el.classList.add('on');
+  mmRenderExportSpec();
+}
+function mmRenderExportSpec(){
+  const hasBodyOpt=(exportFmt==='html'||exportFmt==='md');
+  const spec={
+    html:'单文件、零外链（CSS/JS 内联）；可折叠展开节点、点节点看挂载笔记标题与摘要、画布平移缩放；深浅色跟随系统；自带横向布局预设。不含编辑。',
+    md:'以标题层级输出 Markdown 大纲，可直接粘回笔记；挂载笔记以方括号标注在节点后。',
+    opml:'标准 OPML 大纲，可导入其它脑图 / 大纲工具。',
+    png:'复用既有离屏绘制通路（note_sheets.dart）导出整图 PNG；超长图自动分片。',
+    xmind:'.xmind 只出不进：导出为 XMind 可打开的格式；不提供 .xmind 导入。'
+  }[exportFmt];
+  const el=$('#mmExportSpec'); if(!el)return;
+  el.innerHTML='<div style="font-size:11.5px;opacity:.7;line-height:1.8">'+spec+'</div>'+
+    (hasBodyOpt?'':'<div style="font-size:11px;opacity:.45;margin-top:6px">该格式不含「挂载正文」选项。</div>');
+}
+function mmToggleSw(el){ el.classList.toggle('on'); }
+function mmDoExport(){
+  const name=(TITLES['mm-canvas']||['导图'])[0]||'导图';
+  const withBody=$('#mmExportBody').classList.contains('on');
+  const withLand=$('#mmExportLand').classList.contains('on');
+  const box=measure(cur.nodes);
+  if(exportFmt==='html'){ downloadText(name+'.html',buildExportHtml(name,withBody,withLand,box),'text/html'); closeSheet('sheetMm-export'); toast('已导出 HTML 单文件（零外链 · '+(withBody?'含挂载正文':'仅标题')+'）'); return; }
+  if(exportFmt==='md'){ downloadText(name+'.md',buildExportMd(name,withBody),'text/markdown'); closeSheet('sheetMm-export'); toast('已导出 Markdown 大纲'); return; }
+  if(exportFmt==='opml'){ downloadText(name+'.opml',buildExportOpml(name),'text/xml'); closeSheet('sheetMm-export'); toast('已导出 OPML 大纲'); return; }
+  if(exportFmt==='png'){ closeSheet('sheetMm-export'); toast('PNG 走离屏绘制通路（原型示意 · 复用 note_sheets.dart）'); return; }
+  closeSheet('sheetMm-export'); toast('已导出 .xmind（只出不进）');
+}
+function downloadText(filename,text,mime){
+  try{
+    const blob=new Blob([text],{type:mime+';charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{ URL.revokeObjectURL(a.href); }catch(e){} a.remove(); },900);
+  }catch(e){ toast('导出失败：'+e.message); }
+}
+function buildExportMd(name,withBody){
+  const out=['# '+name,''];
+  const walk=(id,d)=>{
+    const n=byId(id); if(!n)return;
+    const noteT=n.ref?((NOTES.filter(x=>x.id===n.ref)[0]||{}).title||''):'';
+    out.push(new Array(d+1).join('  ')+'- '+String(n.t||'').replace(/\n/g,' ')+(noteT?('  [挂载：'+noteT+']'):''));
+    if(withBody&&n.note)out.push(new Array(d+2).join('  ')+n.note);
+    treeKids(id).forEach(k=>walk(k,d+1));
+  };
+  rootIds().forEach(r=>walk(r,0));
+  return out.join('\n')+'\n';
+}
+function buildExportOpml(name){
+  const L=['<?xml version="1.0" encoding="UTF-8"?>','<opml version="2.0">','<head><title>'+esc(name)+'</title></head>','<body>'];
+  const walk=(id,d)=>{
+    const n=byId(id); if(!n)return;
+    const pad=new Array(d+2).join('  ');
+    L.push(pad+'<outline text="'+esc(String(n.t||'').replace(/\n/g,' '))+'">');
+    treeKids(id).forEach(k=>walk(k,d+1));
+    L.push(pad+'</outline>');
+  };
+  rootIds().forEach(r=>walk(r,0));
+  L.push('<\/body>','<\/opml>');
+  return L.join('\n')+'\n';
+}
+/* 导出 HTML：单文件零外链；两套深浅令牌走 prefers-color-scheme；
+   同时嵌入竖屏/横向两套坐标，文件内可切换（批4 横向预设的落法 C）。 */
+function buildExportHtml(name,withBody,withLand,box){
+  const save=VIEW.ratio;
+  VIEW.ratio='landscape'; const L2=layout(box); const c2=cur.nodes.map(n=>({x:n.x,y:n.y}));
+  VIEW.ratio=save; const L1=layout(box); const c1=cur.nodes.map(n=>({x:n.x,y:n.y}));
+  const W=id=>box[id]||60;
+  const nodes=cur.nodes.map((n,i)=>({
+    i:n.id,t:String(n.t||''),w:W(n.id),h:nodeH(n),r:n.init?1:0,
+    x:c1[i].x,y:c1[i].y,x2:c2[i].x,y2:c2[i].y,
+    note:n.ref?((NOTES.filter(x=>x.id===n.ref)[0]||{}).title||''):'',
+    body:(withBody&&n.note)?n.note:''
+  }));
+  const edges=[]; Object.keys(TREE).forEach(p=>(TREE[p]||[]).forEach(k=>edges.push([p,k])));
+  const D=JSON.stringify({name:name,w1:L1.w,h1:L1.h,w2:L2.w,h2:L2.h,land:!!withLand,nodes:nodes,edges:edges});
+  const A=[
+   '<!DOCTYPE html>',
+   '<html lang="zh-CN"><head><meta charset="utf-8">',
+   '<meta name="viewport" content="width=device-width,initial-scale=1">',
+   '<title>'+esc(name)+' 思维导图</title><style>',
+   ':root{--bg:#f8fafc;--card:#fff;--bd:#e2e8f0;--fg:#0f172a;--line:#cbd5e1;--accent:#6366f1}',
+   '@media(prefers-color-scheme:dark){:root{--bg:#020617;--card:#0f172a;--bd:#1e293b;--fg:#e2e8f0;--line:#334155;--accent:#818cf8}}',
+   '*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:400 14px Inter,"Noto Sans SC",system-ui,sans-serif}',
+   '#cv{position:fixed;inset:0;overflow:hidden;touch-action:none;background:radial-gradient(circle at 1px 1px,var(--line) 1px,transparent 0) 0 0/22px 22px}',
+   '#st{position:absolute;left:0;top:0;transform-origin:0 0}',
+   '#eg{position:absolute;left:0;top:0;overflow:visible}',
+   '.n{position:absolute;padding:7px 11px;border-radius:11px;background:var(--card);border:1.5px solid var(--bd);font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer}',
+   '.n.root{border-color:var(--accent);font-weight:800;font-size:15px}',
+   '.bar{position:fixed;left:12px;right:12px;bottom:12px;display:flex;gap:8px;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:8px 10px;font-size:12px;font-weight:700}',
+   '.bar button{padding:7px 11px;border-radius:10px;border:1px solid var(--bd);background:transparent;color:inherit;font-weight:800;font-size:12px}',
+   '#tip{position:fixed;left:12px;right:12px;top:12px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px 12px;font-size:12px;line-height:1.6;display:none;white-space:pre-wrap}',
+   '</style></head><body>',
+   '<div id="cv"><div id="st"><svg id="eg"></svg><div id="nd"></div></div></div>',
+   '<div id="tip"></div>',
+   '<div class="bar"><span id="nm" style="flex:1;overflow:hidden;text-overflow:ellipsis"></span><button id="lf">折叠/展开</button><button id="hr">横向预设</button><span id="sc">100%</span></div>',
+   '<script>var D='+D+';<\/script>',
+   '<script>',
+   "(function(){var cv=document.getElementById('cv'),st=document.getElementById('st'),eg=document.getElementById('eg'),nd=document.getElementById('nd'),sc=document.getElementById('sc'),tip=document.getElementById('tip');",
+   "document.getElementById('nm').textContent=D.name;",
+   "var tx=0,ty=0,k=1,land=D.land,folded=false,pos={};",
+   "function xy(n){return land?{x:n.x2,y:n.y2}:{x:n.x,y:n.y}}",
+   "function apply(){st.style.transform='translate('+tx+'px,'+ty+'px) scale('+k+')';sc.textContent=Math.round(k*100)+'%'}",
+   "function draw(){var W=land?D.w2:D.w1,H=land?D.h2:D.h1;nd.innerHTML='';pos={};",
+   "D.nodes.forEach(function(n){var p=xy(n);pos[n.i]=p;if(folded&&!n.r)return;var e=document.createElement('div');e.className='n'+(n.r?' root':'');e.style.left=p.x+'px';e.style.top=p.y+'px';e.textContent=(n.note?'[挂] ':'')+n.t;e.onclick=function(){if(n.note){tip.style.display='block';tip.textContent='挂载笔记：'+n.note+(n.body?(' / '+n.body):'')}else{tip.style.display='none'}};nd.appendChild(e)});",
+   "var S='';D.edges.forEach(function(p){var a=pos[p[0]],b=pos[p[1]];if(!a||!b)return;S+='M'+(a.x+a.w/2)+' '+(a.y+a.h/2)+'L'+(b.x+b.w/2)+' '+(b.y+b.h/2)+' '});",
+   "eg.innerHTML='<path d=\"'+S+'\" fill=\"none\" stroke=\"var(--line)\" stroke-width=\"1.6\"/>';",
+   "k=Math.max(.4,Math.min((innerWidth-24)/W,(innerHeight-96)/H,1.1));tx=Math.max(12,(innerWidth-W*k)/2);ty=Math.max(12,(innerHeight-H*k)/2);apply()}",
+   "document.getElementById('lf').onclick=function(){folded=!folded;draw()};",
+   "document.getElementById('hr').onclick=function(){land=!land;draw()};",
+   "var pt={};cv.addEventListener('pointerdown',function(e){pt[e.pointerId]={x:e.clientX,y:e.clientY}});",
+   "cv.addEventListener('pointermove',function(e){var p=pt[e.pointerId];if(!p)return;tx+=e.clientX-p.x;ty+=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;apply()});",
+   "cv.addEventListener('pointerup',function(e){delete pt[e.pointerId]});addEventListener('resize',draw);draw();})();",
+   '<\/script><\/body><\/html>'
+  ];
+  return A.join('\n');
+}
+
+/* ==========================================================================
+   批5 F4-9 · 节点扩展：标签 / 任务属性（联动待办）/ 图片 / .xmind（在导出内）
+   ========================================================================== */
+function mmNodeExtrasReset(){
+  nodeTaskOn=false; nodeImgOn=false;
+  const tb=$('#mmNodeTaskBtn'); if(tb){ tb.textContent='设为任务'; tb.classList.remove('on'); }
+  const ih=$('#mmNodeImgHint'); if(ih)ih.textContent='未挂图片';
+  const tg=$('#mmNodeTags'); if(tg)tg.value='';
+}
+function mmNodeExtrasFill(n){
+  const tg=$('#mmNodeTags'); if(tg)tg.value=(n.tags||[]).join(', ');
+  nodeTaskOn=!!n.task; nodeImgOn=!!n.img;
+  const tb=$('#mmNodeTaskBtn'); if(tb){ tb.textContent=nodeTaskOn?'已是任务':'设为任务'; tb.classList.toggle('on',nodeTaskOn); }
+  const ih=$('#mmNodeImgHint'); if(ih)ih.textContent=nodeImgOn?'已挂图片（demo）':'未挂图片';
+}
+function mmToggleTaskFlag(){
+  nodeTaskOn=!nodeTaskOn;
+  const b=$('#mmNodeTaskBtn'); if(b){ b.textContent=nodeTaskOn?'已是任务':'设为任务'; b.classList.toggle('on',nodeTaskOn); }
+}
+function mmToggleNodeImg(){
+  nodeImgOn=!nodeImgOn;
+  const h=$('#mmNodeImgHint'); if(h)h.textContent=nodeImgOn?'已挂图片（demo）':'未挂图片';
+}
+
+/* ==========================================================================
+   更多菜单（列表 / 画布自适应）
+   ========================================================================== */
+const ICON_TREE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="5" rx="1.6"/><rect x="2.5" y="16" width="6" height="5" rx="1.6"/><rect x="15.5" y="16" width="6" height="5" rx="1.6"/><path d="M12 7.5v4M5.5 16v-2.2h13V16"/></svg>';
+const ICON_MORE='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>';
+const ICON_CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+const ICON_FOLDER='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.8 1.8 0 0 1 4.8 5.7h4l1.6 1.8h7.8A1.8 1.8 0 0 1 20 9.3v8.4A1.8 1.8 0 0 1 18.2 19.5H4.8A1.8 1.8 0 0 1 3 17.7z"/></svg>';
+const ICON_SEARCH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>';
+const ICON_EXPORT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11M7.5 10 12 14.5 16.5 10M4.5 18.5h15"/></svg>';
+const ICON_LAYOUT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.6" width="6" height="4.6" rx="1.4"/><rect x="2.6" y="16.8" width="6" height="4.6" rx="1.4"/><rect x="15.4" y="16.8" width="6" height="4.6" rx="1.4"/><path d="M12 7.2v3.3M5.6 16.8v-3.3h12.8v3.3"/></svg>';
+const ICON_STYLE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2a8.8 8.8 0 0 0 0 17.6c1.2 0 2-.9 2-2 0-.6-.3-1-.3-1.6 0-.7.6-1.3 1.4-1.3h1.3c2.2 0 3.9-1.7 3.9-3.9C20.3 6.5 16.6 3.2 12 3.2z"/><circle cx="8" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.8" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg>';
+const MORE_ICON={mmOpenLayout:ICON_LAYOUT,mmOpenStyle:ICON_STYLE,mmOpenExport:ICON_EXPORT,mmOpenSearch:ICON_SEARCH,mmOpenFolders:ICON_FOLDER};
+function mmOpenMore(){
+  const onCanvas=curPage==='mm-canvas';
+  $('#mmMoreTitle').textContent=onCanvas?'画布工具':'更多';
+  $('#mmMoreSub').textContent=onCanvas?'布局 / 样式 / 导出 / 搜索（批2~批4）':'搜索 / 归类 / 导出（批2）';
+  const items=onCanvas?[
+    ['mmOpenLayout','布局与横向预览','tree / radial × right / both（批4）'],
+    ['mmOpenStyle','样式层','文字色 / 字号 / 背景 / 线条 / 画布（批3）'],
+    ['mmOpenExport','导出为文件','HTML / md / opml / PNG / .xmind（批2）'],
+    ['mmOpenSearch','搜索挂载节点','检索已挂笔记的节点并定位（批2）']
+  ]:[
+    ['mmOpenSearch','搜索挂载节点','作为一类搜索数据源（批2）'],
+    ['mmOpenFolders','文件夹归类','多层文件夹整理导图（批2）'],
+    ['mmOpenExport','导出为文件','HTML / md / opml / PNG / .xmind（批2）']
+  ];
+  $('#mmMoreList').innerHTML=items.map(it=>
+    '<button class="op" onclick="'+it[0]+'()">'+(MORE_ICON[it[0]]||ICON_TREE)+
+    '<span style="flex:1;min-width:0;text-align:left">'+it[1]+
+    '<div style="font-size:10px;opacity:.45;font-weight:600;margin-top:1px">'+it[2]+'</div></span>'+
+    '<span class="r-x">'+ICON_CHEV+'</span></button>').join('');
+  openSheet('sheetMm-more');
+}
+
+/* ==========================================================================
+   列表态
+   ========================================================================== */
+function renderList(){
+  const n=MAPS.length;
+  /* 副标题随实况走：空图时说「还没有导图」而不是留「4 张图 · 本地手绘」的死文案
+     （2026-10-12 空态截图实锤：清空列表后副标题仍报 4 张，与空态自相矛盾）。 */
+  TITLES['mm-list'][1]=n?(n+' 张图 · 本地手绘'):'还没有导图 · 可从 md 笔记或收集箱转入';
+  const ps=$('#pageSub'); if(ps&&curPage==='mm-list')ps.textContent=TITLES['mm-list'][1];
+  $('#mmEmpty').style.display=n?'none':'flex';
+  $('#mmList').classList.toggle('hide',!n);
+  $('#mmStat').textContent='共 '+n+' 张 · '+MAPS.reduce((t,m)=>t+m.nodes,0)+' 个节点';
+  const rowOf=m=>
+    '<div class="row" onclick="mmOpenMap(\''+m.id+'\')">'+
+      '<span class="r-ic">'+ICON_TREE+'</span>'+
+      '<span class="r-t">'+esc(m.name)+'<div class="r-s">'+m.nodes+' 个节点 · '+esc(m.at)+'</div></span>'+
+      (m.binds?'<span class="chip">'+m.binds+' 挂载</span>':'')+
+      (m.src!=='hand'?'<span class="chip gray">'+(m.src==='md'?'md 转':'收集箱')+'</span>':'')+
+      '<button class="row-more" onclick="mmMapMenuAt(\''+m.id+'\',event)" aria-label="更多操作">'+ICON_MORE+'</button>'+
+    '</div>';
+  /* 批2 F4-4：有文件夹时按文件夹分组（未归类殿后）；无文件夹时保持平铺 */
+  let html='';
+  if(FOLDERS.length){
+    FOLDERS.forEach(f=>{
+      const ms=MAPS.filter(m=>m.folder===f.id);
+      if(!ms.length)return;
+      html+='<div class="folder-hd">'+ICON_FOLDER+' '+esc(f.name)+' <span class="cnt">'+ms.length+'</span></div>'+ms.map(rowOf).join('');
+    });
+    const un=MAPS.filter(m=>!m.folder);
+    if(un.length)html+='<div class="folder-hd">'+ICON_FOLDER+' 未归类 <span class="cnt">'+un.length+'</span></div>'+un.map(rowOf).join('');
+  } else {
+    html=MAPS.map(rowOf).join('');
+  }
+  $('#mmRows').innerHTML=html;
+}
+function mmOpenMap(id){
+  const m=MAPS.find(x=>x.id===id);
+  TITLES['mm-canvas']=[m.name,m.nodes+' 个节点 · 自动树布局'];
+  cur.sel=null; $('#mmToolbar').classList.add('hide');
+  setPage('mm-canvas');
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('#mmNodeMenu')) closeNodeMenu(); });
+/* 深链入口：壳内宫格点「思维导图」靠 REDIRECTS 落到 index-mindmap.html#mm-list
+   （与 index-journal.html / index-media.html 同款口径：hash 决定落地屏）。
+   也让校验工装能用 ?shot=xxx 直接落到目标屏，不必跟 DOMContentLoaded 抢时序。*/
+function mmBoot(){
+  let h=''; try{ h=decodeURIComponent((location.hash||'').slice(1)); }catch(e){}
+  const map={'mm-list':'mm-list','mm-canvas':'mm-canvas'};
+  const target=map[h]||'mm-list';
+  /* 画布屏先给一棵种子树（深链直达 #mm-canvas 时列表没点过，cur 仍是初始树；
+     若已建图/转图则 cur 已换过，标题跟着走）。节点绘制交给 setPage 里的 renderCanvas。 */
+  if(target==='mm-canvas'&&(!cur.nodes||!cur.nodes.length)){
+    const g=MAPS[0];
+    if(g) TITLES['mm-canvas']=[g.name,g.nodes+' 个节点 · 自动树布局'];
+  }
+  setPage(target);
+}
+window.addEventListener('DOMContentLoaded',mmBoot);
+window.addEventListener('hashchange',()=>{ mmBoot(); });
+window.mmBoot=mmBoot;
+</script>
+</body>
+</html>

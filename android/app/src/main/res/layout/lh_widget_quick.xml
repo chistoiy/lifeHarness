@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  4×1 快捷记录小组件（F2-2）· 2026-10-18 三区改版（产品令：原「左按钮＋右金额」
+  两区占整行、信息密度低）：记一笔｜今日支出｜本月结余 三区并列——一次看见
+  「记入口＋今天花了多少＋本月还剩多少」；条内不显名（名称由桌面添加列表承载）。
+  「记一笔」点击＝弹窗记账（QuickAddActivity · 不开 App · 不进最近任务 · 版式
+  复刻记账页），整块与按钮同一目标（§4.4 单一点击区）。
+  读数由 QuickRecordWidget 从 SharedPreferences 快照写入（C5）；隐藏金额时两个
+  金额位一律 ••••（B7，Dart 侧已遮蔽，原生不再判一次）。
+  ⚠ RemoteViews 白名单：分隔线用 ImageView——裸 <View> 会 InflateException
+    （8150 装机实锤同一类）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lh_wg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/lh_wg_card"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/lh_wg_btn"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="3"
+        android:background="@drawable/lh_wg_btn"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_lh_wg_add" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="@string/lh_widget_quick_action"
+            android:textColor="@color/lh_wg_btn_fg"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="11dp"
+        android:layout_marginBottom="11dp"
+        android:background="@color/lh_wg_div"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="3.5"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="11dp"
+        android:paddingEnd="6dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/lh_widget_label_today_cost"
+            android:textColor="@color/lh_wg_sub"
+            android:textSize="9sp" />
+
+        <TextView
+            android:id="@+id/lh_wg_amount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/lh_widget_no_data"
+            android:textColor="@color/lh_wg_fg"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="11dp"
+        android:layout_marginBottom="11dp"
+        android:background="@color/lh_wg_div"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="3.5"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="11dp"
+        android:paddingEnd="11dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/lh_widget_label_month_balance"
+            android:textColor="@color/lh_wg_sub"
+            android:textSize="9sp" />
+
+        <TextView
+            android:id="@+id/lh_wg_balance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/lh_widget_no_data"
+            android:textColor="@color/lh_wg_acc"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

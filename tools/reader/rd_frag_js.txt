@@ -1,0 +1,726 @@
+/* ================================================================
+   阅读器模块（Reader · V1.49 专版新增）
+   事实源：prototype/index-reader.html · 本段零改动主原型既有函数
+   ================================================================ */
+const RD_HLC={y:['#fde047','荧光黄'],g:['#86efac','薄荷绿'],b:['#93c5fd','天空蓝'],p:['#f9a8d4','蜜桃粉'],v:['#c4b5fd','雾紫']};
+const RD_THEMES={day:{n:'日间',bg:'#faf6ee',fg:'#3b3630'},eye:{n:'护眼',bg:'#cfe6cf',fg:'#2f4a33'},night:{n:'夜间',bg:'#101317',fg:'#9aa4b0'}};
+const RD_FONTS={system:['系统默认',"'PingFang SC',system-ui,sans-serif"],serif:['衬线','Georgia,"Noto Serif SC",serif'],hei:['黑体','SimHei,"Microsoft YaHei",sans-serif'],mono:['等宽','ui-monospace,monospace']};
+const RD_TASKS=['容器校验 · mimetype','版本与结构识别','目录构建（NCX / nav）','封面与元数据抽取','分页预计算'];
+function rdPad(n){return n<10?'0'+n:''+n}
+function rdHMS(s){s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?h+'h'+rdPad(m)+'m':m+'分'+rdPad(x)+'秒'}
+function rdMS(s){s=Math.max(0,Math.floor(s));return rdPad(Math.floor(s/60))+':'+rdPad(s%60)}
+function rdMM(d){return rdPad(d.getMonth()+1)+'-'+rdPad(d.getDate())}
+function rdHM(d){return rdPad(d.getHours())+':'+rdPad(d.getMinutes())}
+function rdRel(d){if(!d)return '从未打开';const t=new Date(),same=rdMM(t)===rdMM(d);const days=Math.floor((t-(d.getMonth()===t.getMonth()?d:new Date(d)))/864e5);
+  if(same)return '今天 '+rdHM(d);const y=new Date(t.getTime()-864e5);if(rdMM(y)===rdMM(d))return '昨天 '+rdHM(d);
+  return days<=7?days+' 天前':rdMM(d)+' '+rdHM(d)}
+function rdAgo(min){return new Date(Date.now()-min*60000)}
+
+/* ---- 书目与初始状态 ---- */
+let RD_BOOKS=[
+ {id:0,t:'思考，快与慢',a:'丹尼尔·卡尼曼',press:'中信出版社',pub:'2012-07',isbn:'9787521705516',fmt:'EPUB3',size:8.4,cover:'linear-gradient(150deg,#1e3a5f,#4f77c9)',st:1,secs:16320,last:rdAgo(95),rate:4,src:'内部存储/下载/思考快与慢.epub'},
+ {id:1,t:'人类简史',a:'尤瓦尔·赫拉利',press:'中信出版社',pub:'2014-01',isbn:'9787508660752',fmt:'EPUB3',size:24.1,cover:'linear-gradient(150deg,#78350f,#d97706)',st:0,secs:0,last:null,rate:0,src:'内部存储/下载/人类简史.epub'},
+ {id:2,t:'克拉拉与太阳',a:'石黑一雄',press:'上海译文出版社',pub:'2021-04',isbn:'9787532785819',fmt:'EPUB2',size:5.2,cover:'linear-gradient(150deg,#b91c1c,#f59e0b)',st:2,secs:11880,last:rdAgo(60*26+40),rate:5,src:'内部存储/文档/克拉拉与太阳.epub'},
+ {id:3,t:'设计心理学',a:'唐纳德·诺曼',press:'中信出版社',pub:'2015-03',isbn:'9787508672755',fmt:'EPUB3',size:9.9,cover:null,st:1,secs:1350,last:rdAgo(60*50),rate:0,src:'内部存储/文档/the-design-of-everyday-things.epub'}
+];
+const RD_INTROS={0:'日常生活中的思考，快与慢并存：直觉一闪念与 reasoned 慢推演。本书用大量可复玩的实验案例，讲清系统 1 如何抢答、系统 2 如何偷懒，以及我们该如何在设计决策中识别偏误。',
+ 1:'从认知革命到科学革命，智人如何靠虚构故事协作统治地球。',2:'一座被太阳祝福的城市里，人工智能朋友克拉拉的等待与牺牲。',3:'可见性、示能、映射与反馈——好设计如何让人不必说明书。'};
+/* ---- 目录（lv1 分组 / lv2 可读书章） ---- */
+const RD_TOC={0:[
+ {i:'g1',t:'第一部分 · 两副头脑',lv:1},{i:'c0',t:'序言 · 思考的事先声明',lv:2},{i:'c1',t:'第 1 章 山间剧场的故事',lv:2},{i:'c2',t:'第 2 章 注意力自动机',lv:2},{i:'c3',t:'第 3 章 惰性的控制者',lv:2},{i:'c4',t:'第 4 章 有理由的系统',lv:2},
+ {i:'g2',t:'第二部分 · 启发法与偏误',lv:1},{i:'c5',t:'第 5 章 三枚硬币与一大法则',lv:2},{i:'c6',t:'第 6 章 小数定律',lv:2},{i:'c7',t:'第 7 章 锚定效应',lv:2},{i:'c8',t:'第 8 章 可得性',lv:2},
+ {i:'g3',t:'第三部分 · 过度自信',lv:1},{i:'c9',t:'第 9 章 叙事之祸',lv:2},{i:'c10',t:'第 10 章 海斯与前景',lv:2},{i:'c11',t:'第 11 章 直觉的公式',lv:2},
+ {i:'g4',t:'第四部分 · 选择',lv:1},{i:'c12',t:'第 12 章 损失的暴政',lv:2},{i:'c13',t:'第 13 章 反事实的账本',lv:2},{i:'c14',t:'第 14 章 四个模式',lv:2},{i:'c15',t:'第 15 章 融合与评估',lv:2},{i:'c16',t:'第 16 章 结果的近观',lv:2},
+ {i:'g5',t:'第五部分 · 两个自我',lv:1},{i:'c17',t:'第 17 章 体验的自我',lv:2},{i:'c18',t:'第 18 章 记得的自我',lv:2},{i:'c19',t:'尾声 · 两个自我',lv:2}]};
+const RD_LEAVES=b=>RD_TOC[b].filter(r=>r.lv===2).map(r=>r.i);
+function rdLeafIdx(b,ch){return RD_LEAVES(b).indexOf(ch)}
+function rdChName(b,ch){const r=RD_TOC[b].find(x=>x.i===ch);return r?r.t:''}
+function rdCfi(b,ch,pi){return 'epub/2/'+(rdLeafIdx(b,ch)+2)+'/2,'+pi}
+/* ---- 正文语料（真实章 + 生成章） ---- */
+const RD_TXT={
+ c0:[{k:'h',t:'序言'},{k:'p',t:'这本书讨论的是思考这件事本身：为什么我们有时判断精准，有时却错得离谱，以及错误为何常常显得理所当然。'},{k:'p',t:'书中出现两位主角。系统 1 依赖直觉，运行飞速且不带 effort；系统 2 负责慢推理，勤快但懒惰，能不做就不做。'},{k:'p',t:'两位主角没有名字，只有代号。你可以在阅读中随时停下来，观察自己正在被哪一位支配。'},{k:'q',t:'「你能想象的一切都不恐怖，你能衡量的才算数。」'},{k:'p',t:'全书分五个部分：两副头脑、启发法与偏误、过度自信、选择、两个自我。每章都配有一个可以当场做的小实验。'}],
+ c1:[{k:'h',t:'第 1 章 山间剧场的故事'},{k:'p',t:'想象你独自开车穿过乡间公路，路况熟悉，思绪飘到了晚饭的安排上。此时迎面来了一辆越线的卡车，你一脚刹车，心跳瞬间到了嗓子眼。'},{k:'p',t:'紧急接管你的，是运行了千万年的古老大脑。它在你「意识到」危险之前，已经完成测距、减速、握紧方向盘三件事。'},{k:'p',t:'这就是系统 1：识别、联想、直觉反应。它不需要努力，也不会关机。'},{k:'p',t:'而当你试着算 17 乘以 24，你请出的是系统 2：注意力被占用，瞳孔放大，心率上升，别的思考全部暂停。'},{k:'p',t:'麻烦在于，多数日常判断本应交给系统 2，却被系统 1 抢答了。抢答又快又自信，让人察觉不到破绽。'},{k:'p',t:'本章的小实验：读三遍「苹果」，你会开始怀疑它是不是这个读音。熟悉感一旦被打破，判断立刻露馅。'},{k:'p',t:'错觉真相效应同样源于熟悉：重复出现的陈述更容易被判为真，哪怕它来自你最不信任的来源。'},{k:'p',t:'所以，读一本讲偏误的书并不能让你免疫偏误——你只能学会识别那些容易中招的情境。'},{k:'p',t:'识别情境，比训练意志可靠得多。这是全书反复出现的主张。'}],
+ c4:[{k:'h',t:'第 4 章 有理由的系统'},{k:'p',t:'系统 2 有一个鲜为人知的身份：它其实是系统 1 的公关秘书。它不总是发号施令，更多时候在为直觉决定寻找理由。'},{k:'p',t:'启动效应实验一再复现：先看过「洗手液」相关词汇的人，随后更愿意为清洁用品付高价，却坚称与刚才的阅读无关。'},{k:'p',t:'联想是一条激活链，从概念扩散到评价，再扩散到动作。链条上的每一环都发生在意识之外。'},{k:'p',t:'这解释了为什么「环境设计」有效：图书馆里放咖啡香，读者更安静；办公室摆绿植，谈判更少拍桌。'},{k:'p',t:'更微妙的暗示：被要求回忆「童年」的被试，走路速度显著变慢，仿佛身体先于头脑接受了变老的设定。'},{k:'p',t:'系统 2 的自控力并非无限资源。连续做决策的人，会在傍晚对甜食和简单答案双双缴械。'},{k:'p',t:' ego  depletion（自我损耗）虽有争议，日常经验却站得住：饿着肚子不做重大决定，是朴素而可靠的守则。'},{k:'p',t:'分心是默认状态，专注是稀缺预算。把重要判断放在预算最满的时段，比苛责自己专注有效。'},{k:'p',t:'书中链接一章一节都有呼应：锚定是联想链的刹车失灵，可得性是记忆检索的捷径，过度自信是叙事对因果的伪造。'},{k:'p',t:'在本书官网与延伸阅读中（示例外链），卡尼曼附上了全部实验材料清单与数据。'},{k:'p',t:'读完本章，试着回想今天你做过的三个小决定：你很可能一个也说不清理由。这不是缺陷，是架构。'}],
+ c5:[{k:'h',t:'第 5 章 三枚硬币与一大法则'},{k:'p',t:'抛掷一枚硬币，正面朝上的概率是二分之一。抛两次都正面的概率是四分之一——但多数人会在被追问时犹豫。'},{k:'p',t:'代表性启发法让我们用「像不像」代替「概率多大」。一个戴眼镜、爱读书的年轻人，更像图书管理员还是农民？'},{k:'p',t:'直觉选择了相似性，忽略了基础率：农民群体里也有眼镜与书生气，而图书管理员总数就那么些。'},{k:'p',t:'三枚硬币的游戏里，连续三次的「规律」让系统 1 兴奋不已，仿佛窥见了命运的语法。'},{k:'p',t:'热手谬误的正反两面：有时我们否认连续性（轮盘赌），有时又发明连续性（投篮手感）。'},{k:'p',t:'随机性不需要理由，但讲故事的头脑不允许无因之果。'},{k:'p',t:'对抗方法只有一个：先问基础率，再问相似性，最后才允许直觉发言。'}]
+};
+function rdHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+const RD_SENTS=['这个概念在后续章节会反复出现，值得放慢速度重读一遍。','把熟悉的材料放回陌生语境，判断的裂缝就会显形。','多数误判不是能力问题，而是抢答问题：先开口的人没有核对。','测量改变感受，命名改变记忆——给它一个词，它就换一副面孔。','对照实验给出的答案朴素：情境的微小改动，足以翻转整天的行为。','读到这里不妨停一下，回想你自己最近一次「说不清理由」的决定。'];
+function rdChText(b,ch){if(RD_TXT[ch])return RD_TXT[ch];
+  const n=6+(rdHash(b+'|'+ch)%6);const t=rdChName(b,ch);const out=[{k:'h',t:t}];
+  for(let i=0;i<n;i++)out.push({k:'p',t:'围绕「'+t+'」，'+RD_SENTS[(rdHash(ch+i)%RD_SENTS.length)]+'案例与实验在第 '+(rdLeafIdx(b,ch)+1)+' 章之后继续展开。'});
+  if(ch==='c7')out.splice(2,0,{k:'img',t:'图 7-1 · 锚定值随转速分布变化（示意）'});
+  if(ch==='c2')out.push({k:'lk',t:'延伸阅读与来源清单见附录（内链跳 尾声），原始材料发布于 princeton.edu（外链）。'});
+  return out}
+/* ---- 持久配置与位置 ---- */
+const RD_DEF={fs:19,lh:1.62,ls:0.4,mar:22,theme:'day',bg:'#faf6ee',fg:'#3b3630',font:'system',anim:'cover',bright:false,auto:false,autoSecs:10,mode:'page',linkAsk:'ask',volPage:false,ttsOn:false,ttsRate:1,noteSync:true,aiOn:true};
+let rdCfg=JSON.parse(JSON.stringify(RD_DEF));
+let rdBooksCfg={};
+let RD_POS={0:{ch:'c4',pg:2,sec:6},3:{ch:'c0',pg:0,sec:0},2:{ch:'c19',pg:0,sec:0}};
+const RD_HL=[{id:'h1',b:0,ch:'c1',p0:3,p1:3,color:'y',at:rdAgo(60*24*26)},{id:'h2',b:0,ch:'c4',p0:1,p1:2,color:'g',at:rdAgo(60*30)},{id:'h3',b:0,ch:'c4',p0:8,p1:8,color:'b',at:rdAgo(140)},{id:'h4',b:2,ch:'c0',p0:1,p1:1,color:'p',at:rdAgo(60*90)}];
+const RD_AN=[{id:'a1',b:0,ch:'c4',p0:4,quote:'被要求回忆「童年」的被试，走路速度显著变慢。',note:'环境暗示作用于身体先于意识——店里放慢歌影响步速，同一机制。准备在自己空间做一组对照。',at:rdAgo(200)},{id:'a2',b:0,ch:'c1',p0:9,quote:'识别情境，比训练意志可靠得多。',note:'全书方法论的钥匙句。值得转进「方法论」笔记并关联目标 KR。',at:rdAgo(60*24*12)}];
+let RD_NOTE_IDS={};// 'hl:h1' -> note object（用于双向删除）
+let RD_DAYS=[0,45,30,60,25,80,42,35,50,20,65,40,55,38,12];
+let RD_DONE={0:{c0:1,c1:1,c2:1,c3:1},2:Object.fromKeys?null:null};
+/* 已读章节：按当前位置派生（见 rdChDone） */
+let RD_V={b:0,ch:'c4',pg:0,chrome:false,t0:0,sel:null,selTxt:'',hit:null,hitI:0};
+let rdPagCache={};
+function rdSt(b){return Object.assign({},rdCfg,rdBooksCfg[b]||{})}
+function rdPersist(){try{localStorage.setItem('lh_reader_v1',JSON.stringify({cfg:rdCfg,bcfg:rdBooksCfg,pos:RD_POS,days:RD_DAYS,hl:RD_HL,an:RD_AN}))}catch(e){}}
+function rdLoadPersist(){try{const s=JSON.parse(localStorage.getItem('lh_reader_v1')||'null');if(!s)return;
+  rdCfg=Object.assign(rdCfg,s.cfg||{});rdBooksCfg=s.bcfg||{};if(s.pos)RD_POS=Object.assign(RD_POS,s.pos);if(s.days)RD_DAYS=s.days;
+  if(s.hl&&s.hl.length){RD_HL.length=0;s.hl.forEach(x=>RD_HL.push(x))}if(s.an&&s.an.length){RD_AN.length=0;s.an.forEach(x=>RD_AN.push(x))}}catch(e){}}
+function rdThemeColors(st){const t=RD_THEMES[st.theme];return st.theme==='custom'?{bg:st.bg,fg:st.fg}:{bg:t?t.bg:st.bg,fg:t?t.fg:st.fg}}
+/* ---- 分页引擎（实算：字号/行距/边距变化 → 页数与进度联动） ---- */
+function rdMm(v){return v*12}
+function rdPagesOf(b,ch){const st=rdSt(b);const key=b+'|'+ch+'|'+st.fs+'|'+st.lh+'|'+st.ls+'|'+st.mar;
+  if(rdPagCache[key])return rdPagCache[key];
+  const W=390-st.mar*2,H=700-st.mar*2;const fs=st.fs;const cpl=Math.max(6,Math.floor(W/(fs*(1+st.ls*0.03))));
+  const arr=rdChText(b,ch);const ph=arr.map(x=>{let len=(x.t||'').length;
+    if(x.k==='h')return {h:fs*1.6+14,len};if(x.k==='img')return {h:190,len:20};
+    const lines=Math.max(1,Math.ceil((len+2)/cpl));return {h:lines*fs*st.lh+(x.k==='q'?18:7),len}});
+  const pages=[];let cur=[],h=0;
+  for(let i=0;i<arr.length;i++){const x=ph[i];const add=cur.length?8:0;
+    if(h+add+x.h>H&&cur.length){pages.push(cur);cur=[];h=0}else if(cur.length)h+=8;
+    cur.push(i);h+=x.h}
+  if(cur.length)pages.push(cur);
+  if(!pages.length)pages.push([0]);
+  rdPagCache={};rdPagCache[key]=pages;return pages}
+function rdTotalPages(b){return RD_LEAVES(b).reduce((s,ch)=>s+rdPagesOf(b,ch).length,0)}
+function rdGPos(b,ch,pg){let g=0;for(const c of RD_LEAVES(b)){if(c===ch)return g+pg;g+=rdPagesOf(b,c).length}return g}
+function rdPct(b){const tv=rdTotalPages(b),pos=RD_POS[b];if(!pos)return 0;return Math.min(100,Math.round(rdGPos(b,pos.ch,Math.min(pos.pg,rdPagesOf(b,pos.ch).length-1))/tv*100))}
+function rdStPct(b){if(RD_V.b===b&&curPage==='p-readerPage')return Math.min(100,Math.round(rdGPos(b,RD_V.ch,RD_V.pg)/rdTotalPages(b)*100));return rdPct(b)}
+function rdGPosTo(b,g){const lv=RD_LEAVES(b);for(const ch of lv){const n=rdPagesOf(b,ch).length;if(g<n)return{ch,pg:g};g-=n}return{ch:lv[lv.length-1],pg:Math.max(0,rdPagesOf(b,lv[lv.length-1]).length-1)}}
+function rdSavePos(){RD_POS[RD_V.b]={ch:RD_V.ch,pg:RD_V.pg,sec:Math.floor((Date.now()-RD_V.t0)/1000)};const bk=RD_BOOKS.find(x=>x.id===RD_V.b);if(bk){bk.last=new Date();if(bk.st===0)bk.st=1}rdPersist()}
+
+/* ---- 图标 ---- */
+function rdi(p,s){s=s||15;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`}
+const RD_IC={copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 5.5A1.5 1.5 0 0 0 14.5 4H6a2 2 0 0 0-2 2v8.5A1.5 1.5 0 0 0 5.5 16"/>',
+ hl:'<path d="M15 4 4 15v5h5L20 9z"/><path d="M13 6l5 5"/>',pen:'<path d="M4 20l1-4L16 5l3 3L8 19z"/>',ai:'<path d="M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2m0-12-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3.2"/>',
+ note:'<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/>',dict:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>',
+ share:'<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/>',
+ lft:'<path d="m14 6-6 6 6 6"/>',rgt:'<path d="m10 6 6 6-6 6"/>'};
+function rdEsc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function rdRx(s){return (s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+
+/* ---- 渲染：书架 ---- */
+let rdShelfView='cover',rdShelfSt='all',rdSelSet=new Set(),rdNotesSelMode=false,rdNotesSet=new Set();
+function rdBook(b){return RD_BOOKS.find(x=>x.id===b)}
+function rdMarkN(b){return RD_HL.filter(h=>b<0||h.b===b).length+RD_AN.filter(a=>b<0||a.b===b).length}
+function rdCoverHtml(bk,cls){const pct=rdStPct(bk.id);
+  if(bk.cover)return `<div class="${cls} rounded-xl shadow text-white p-2 text-[9px] leading-[13px] font-bold relative overflow-hidden" style="background:${bk.cover}">${rdEsc(bk.t.slice(0,14))}<div class="absolute bottom-1.5 left-2 right-2 text-[7px] opacity-60 truncate">${rdEsc(bk.a)}</div></div>`;
+  return `<div class="${cls} rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center font-black text-lg border border-dashed border-slate-300 dark:border-slate-600">${rdEsc(bk.t[0])}</div>`}
+function rdBadge(bk){const p=rdStPct(bk.id);return bk.st===2?'<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">已读完</span>':bk.st===1?`<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-brand-500/15 text-brand-500">阅读中 ${p}%</span>`:'<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">未读</span>'}
+function rdRenderShelf(){const q=($('#rdShelfQ').value||'').trim().toLowerCase();
+  const filt=RD_BOOKS.filter(b=>(rdShelfSt==='all'||b.st===+rdShelfSt)&&(!q||b.t.toLowerCase().includes(q)||b.a.toLowerCase().includes(q)));
+  $('#rdStatusChips').innerHTML=[['all','全部 '+RD_BOOKS.length],['1','阅读中'],['0','未读'],['2','已读完']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${rdShelfSt===k?'on':''}" onclick="rdShelfSt='${k}';rdRenderShelf()">${l}</button>`).join('');
+  $('#rdShCount').textContent=RD_BOOKS.length;
+  $('#rdHDoing').textContent=RD_BOOKS.filter(b=>b.st===1).length;$('#rdHDone').textContent=RD_BOOKS.filter(b=>b.st===2).length;
+  $('#rdHToday').textContent=rdHMS(rdTodaySecs());$('#rdHMark').textContent=rdMarkN(-1);
+  const last=[...RD_BOOKS].filter(b=>b.last).sort((a,b)=>b.last-a.last)[0];
+  if(last){const pos=RD_POS[last.id];$('#rdResumeT').textContent=last.t;
+    $('#rdResumeSub').textContent=(pos?rdChName(last.id,pos.ch)+' · ':'')+`已读 ${rdStPct(last.id)}% · ${rdRel(last.last)}`;
+    $('#rdResumeBtn').classList.remove('hidden')}
+  else $('#rdResumeBtn').classList.add('hidden');
+  const list=$('#rdShelfList');
+  if(!filt.length){list.innerHTML=`<div class="card text-center py-10"><div class="text-3xl opacity-30">${rdi(RD_IC.dict,34)}</div><div class="text-xs font-bold mt-2">没有匹配的书籍</div><button class="mini-btn mt-3" onclick="navTo('p-readerImport')">导入 EPUB</button></div>`;return}
+  if(rdShelfView==='cover'){list.className='mt-3 pb-24 grid grid-cols-3 gap-3';
+    list.innerHTML=filt.map(bk=>`<div class="relative" onclick="rdOpenBookDetail(${bk.id})" oncontextmenu="event.preventDefault();rdEnterSel(${bk.id})"><div class="aspect-[3/4]">${rdCoverHtml(bk,'w-full h-full')}</div>
+      <div class="text-[11px] font-bold mt-1.5 leading-4 truncate">${rdEsc(bk.t)}</div><div class="text-[9px] text-slate-400 truncate">${rdEsc(bk.a)}</div>
+      <div class="mt-1 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${rdStPct(bk.id)}%"></span></div>
+      <div class="mt-1">${rdBadge(bk)}</div>
+      ${rdSelSet.has(bk.id)?'<div class="absolute -top-1 -right-1 w-5 h-5 rounded-full grad text-white flex items-center justify-center text-[10px]">✓</div>':''}</div>`).join('')}
+  else{list.className='mt-3 space-y-2.5 pb-24';
+    list.innerHTML=filt.map(bk=>{const p=rdStPct(bk.id),pos=RD_POS[bk.id];
+      return `<div class="card flex gap-3 items-center active:scale-[.99] transition" onclick="rdOpenBookDetail(${bk.id})"><div class="w-10 h-14 shrink-0">${rdCoverHtml(bk,'w-full h-full')}</div>
+        <div class="flex-1 min-w-0"><div class="text-sm font-bold truncate">${rdEsc(bk.t)}</div>
+        <div class="text-[10px] text-slate-400 truncate">${rdEsc(bk.a)} · ${bk.fmt} · ${bk.size} MB</div>
+        <div class="text-[9px] text-slate-400 mt-0.5">${pos?'上次：'+rdChName(bk.id,pos.ch):'未开始'} · ${rdRel(bk.last)}</div></div>
+        <div class="text-right shrink-0"><div class="text-base font-black">${p}%</div>${rdBadge(bk)}</div>
+        ${rdSelSet.has(bk.id)?'<div class="w-5 h-5 rounded-full grad text-white flex items-center justify-center text-[10px] shrink-0">✓</div>':''}</div>`}).join('')}
+  rdRenderSelBar()}
+function rdToggleView(){rdShelfView=rdShelfView==='cover'?'list':'cover';$('#rdViewBtn').textContent=rdShelfView==='cover'?'▦':'☰';rdRenderShelf();toast(rdShelfView==='cover'?'封面视图':'列表视图')}
+function rdEnterSel(id){rdSelSet.add(id);$('#rdSelTop').classList.remove('hidden');$('#rdSelTop').classList.add('flex');rdRenderShelf()}
+function rdExitSel(){rdSelSet.clear();$('#rdSelTop').classList.add('hidden');$('#rdSelTop').classList.remove('flex');rdRenderShelf()}
+function rdBulkDelete(){if(!rdSelSet.size)return toast('先选择书籍');const n=rdSelSet.size;
+  RD_BOOKS=RD_BOOKS.filter(b=>!rdSelSet.has(b.id));rdPersist();toast(`已移除 ${n} 本 · 仅清除阅读数据，EPUB 源文件保留（撤销见回收站）`);rdExitSel();rdRenderShelf()}
+function rdBulkDone(){rdSelSet.forEach(id=>{const bk=rdBook(id);if(bk){bk.st=2;RD_POS[id]={ch:RD_LEAVES(id)[RD_LEAVES(id).length-1],pg:0,sec:0}}});toast('已标记读完 · 批注保留');rdExitSel()}
+function rdRenderSelBar(){$('#rdSelN').textContent=rdSelSet.size;const b=$('#rdSelBar2');if(rdSelSet.size){b.classList.remove('hidden');b.classList.add('flex');$('#rdSelN2').textContent=rdSelSet.size}else{b.classList.add('hidden');b.classList.remove('flex')}}
+
+/* ---- 渲染：导入向导 ---- */
+let RD_IMP={step:1,dir:'download',file:null,meta:null,timer:null};
+const RD_FILES={download:[
+ {n:'思考快与慢.epub',sz:'8.4 MB',dup:0},
+ {n:'界面周刊 092.epub',sz:'18.9 MB',meta:{t:'界面周刊 092',a:'界面新闻 编',press:'东方出版中心',pub:'2026-09',isbn:'EPUB-2026-092',fmt:'EPUB3',cover:'linear-gradient(150deg,#0f172a,#475569)',intro:'商业与文化的周刊合订本：12 个专题、48 篇长文，图文混排。'}},
+ {n:'古籍精藏本.epub',sz:'6.2 MB',drm:1},
+ {n:'大英百科词典.epub',sz:'186 MB',warn:'大文件：解析与分页预计算可能需要 1-2 分钟'}],
+ docs:[
+ {n:'我们仨.epub',sz:'3.1 MB',meta:{t:'我们仨',a:'杨绛',press:'生活·读书·新知三联书店',pub:'2003-07',isbn:'9787108018266',fmt:'EPUB2',cover:'linear-gradient(150deg,#94a3b8,#e2e8f0)',intro:'一个单纯温馨的学术家庭的回忆：OTES 图书馆里的相聚与离别。'}},
+ {n:'产品方法论.pdf',sz:'12.4 MB',pdf:1}]};
+function rdImpGo(step){RD_IMP.step=step;rdImpRender()}
+function rdImpNext(s){if(s===2){RD_IMP.dir='download';RD_IMP.file=null}rdImpGo(s)}
+function rdImpRender(){$('#rdImpSteps').innerHTML=['授权','选文件','解析','核对'].map((l,i)=>`<div class="flex items-center gap-1 ${i<=RD_IMP.step-1?'text-brand-500':'text-slate-300 dark:text-slate-600'}"><span class="w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${i===RD_IMP.step-1?'grad text-white':'bg-slate-100 dark:bg-slate-800'}">${i+1}</span><span class="text-[10px] font-bold">${l}</span>${i<3?'<span class="w-4 h-px bg-current opacity-40"></span>':''}</div>`).join('');
+  ['rdImp1','rdImp2','rdImp3','rdImp4'].forEach((id,i)=>$('#'+id).classList.toggle('hidden',i!==RD_IMP.step-1));
+  if(RD_IMP.step===2)rdImpFiles()}
+function rdImpDir(d){RD_IMP.dir=d;rdImpFiles()}
+function rdImpFiles(){const box=$('#rdImpFiles');
+  box.innerHTML=(RD_FILES[RD_IMP.dir]||[]).map((f,i)=>{const bad=f.drm||f.pdf;
+    return `<button class="w-full card flex items-center gap-3 text-left ${bad?'opacity-45':''}" onclick="rdImpPick('${RD_IMP.dir}',${i})">
+      <span class="w-9 h-9 rounded-xl ${f.pdf?'bg-rose-50 dark:bg-rose-500/15':'bg-indigo-50 dark:bg-brand-500/15'} flex items-center justify-center text-brand-500">${rdi(f.pdf?'<path d="M6 3h9l4 4v14H6z"/><path d="M9 12h2m0 0v4m-2-2h4"/>':'<path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h5"/>')}</span>
+      <div class="flex-1 min-w-0"><div class="text-xs font-bold truncate">${rdEsc(f.n)}</div><div class="text-[10px] text-slate-400">${f.sz}${f.drm?' · DRM 加密':f.pdf?' · PDF 文档':f.dup!=null?' · 已在书架':''}${f.warn?' · 大文件':''}</div></div>
+      ${f.drm?'<span class="text-[9px] text-rose-500 font-bold">不支持</span>':f.pdf?'<span class="text-[9px] text-slate-400">PDF 走独立模块</span>':'<span class="text-slate-300">›</span>'}</button>`}).join('')}
+function rdImpPick(dir,i){const f=RD_FILES[dir][i];
+  if(f.drm)return toast('检测到 DRM 加密：受版权保护书籍无法打开（需求边界）');
+  if(f.pdf)return toast('PDF 由独立模块承载，阅读器仅支持 EPUB');
+  RD_IMP.file=f;rdImpGo(3);rdImpParse()}
+function rdImpParse(){clearInterval(RD_IMP.timer);$('#rdImpFile').textContent=RD_IMP.file.n;
+  $('#rdImpStepsList').innerHTML=RD_TASKS.map((t,i)=>`<div id="rdTk${i}" class="flex items-center gap-2 opacity-40"><span class="w-4 text-center">${rdi(RD_IC.dict,13)}</span><span>${t}</span><b class="ml-auto text-[10px]" id="rdTkS${i}">…</b></div>`).join('');
+  $('#rdImpBar').style.width='0%';let i=0;
+  RD_IMP.timer=setInterval(()=>{const el=$('#rdTk'+i),s=$('#rdTkS'+i);
+    if(el){el.classList.remove('opacity-40');el.firstElementChild.innerHTML=rdi('<path d="M20 6 9 17l-5-5"/>',13);s.textContent='✓'}
+    $('#rdImpBar').style.width=((i+1)/RD_TASKS.length*100)+'%';i++;
+    if(i>=RD_TASKS.length){clearInterval(RD_IMP.timer);setTimeout(()=>rdImpMeta(),450)}},560)}
+function rdImpMeta(){const f=RD_IMP.file;const m=f.meta||{t:f.n.replace(/\.epub$/,''),a:'未知作者',press:'',pub:'',isbn:'—',fmt:'EPUB3',cover:null,intro:'（元数据未提供 description 字段）'};
+  RD_IMP.meta=m;$('#rdFM_t').value=m.t;$('#rdFM_a').value=m.a;$('#rdFM_press').value=m.press;$('#rdFM_pub').value=m.pub;$('#rdFM_isbn').value=m.isbn;$('#rdFM_intro').value=m.intro;
+  $('#rdImpCover').style.background=m.cover||'#e2e8f0';$('#rdImpCover').innerHTML=m.cover?`<div class="text-white">${rdEsc(m.t.slice(0,14))}<br><span class="opacity-50">${rdEsc(m.a)}</span></div>`:`<div class="text-slate-400 font-black text-base">${rdEsc(m.t[0])}</div>`;
+  $('#rdImpFmtTag').textContent=m.fmt+' · 图文混排';
+  const dup=RD_BOOKS.find(b=>b.t===m.t)||RD_BOOKS.find(b=>b.id===f.dup);
+  $('#rdImpDup').classList.toggle('hidden',!dup);
+  if(dup){$('#rdImpDup').innerHTML=`已存在同名书籍《${rdEsc(dup.t)}》（进度 ${rdStPct(dup.id)}%）。重复导入将并存为两个条目，进度与批注互不相通。`;$('#rdImpSave').textContent='重复仍导入'}
+  else $('#rdImpSave').textContent='加入书架 · 开始阅读';
+  rdImpGo(4)}
+function rdImpCommit(){const m=RD_IMP.meta,f=RD_IMP.file;const id=Math.max(...RD_BOOKS.map(b=>b.id))+1;
+  RD_BOOKS.push({id,t:m.t,a:m.a,press:m.press||'—',pub:m.pub||'—',isbn:m.isbn||'—',fmt:m.fmt,size:parseFloat(f.sz),cover:m.cover||null,st:0,secs:0,last:null,rate:0,src:'内部存储/'+(RD_IMP.dir==='download'?'下载':'文档')+'/'+f.n});
+  RD_TOC[id]=[{i:'g0',t:'正文',lv:1}];for(let c=0;c<9;c++)RD_TOC[id].push({i:'nb'+id+'_'+c,t:'第 '+(c+1)+' 章',lv:2});
+  rdPersist();rdImpGo(1);rdRenderShelf();
+  toast(`《${m.t}》已加入书架 · 源文件保留原位 · 未读取存储其他文件`);navTo('p-readerShelf')}
+
+/* ---- 渲染：书籍资料页 ---- */
+let rdCurBook=0;
+function rdStars(bk){let h='';for(let i=1;i<=5;i++)h+=`<button class="text-lg leading-none ${i<=bk.rate?'text-amber-400':'text-slate-300 dark:text-slate-600'}" onclick="rdRate(${bk.id},${i})">${i<=bk.rate?'★':'☆'}</button>`;return h}
+function rdRate(id,r){const bk=rdBook(id);bk.rate=bk.rate===r?0:r;toast(bk.rate?`已评 ${r} 星 · 感想可写入读书笔记（联动 L18）`:'已清除评分');rdOpenBookDetail(id)}
+function rdOpenBookDetail(id){rdCurBook=id;navTo('p-readerBook')}
+function rdRenderBook(){const bk=rdBook(rdCurBook);if(!bk)return;const p=rdStPct(bk.id),pos=RD_POS[bk.id],tp=rdTotalPages(bk.id),gp=pos?rdGPos(bk.id,pos.ch,Math.min(pos.pg,rdPagesOf(bk.id,pos.ch).length-1)):0;
+  const chs=RD_LEAVES(bk.id).length,done=pos?rdLeafIdx(bk.id,pos.ch):0;
+  $('#rdBookBody').innerHTML=`
+  <div class="flex gap-4">
+    <div class="w-24 h-36 shrink-0">${rdCoverHtml(bk,'w-full h-full')}</div>
+    <div class="flex-1 min-w-0">
+      <div class="font-extrabold text-lg leading-6">${rdEsc(bk.t)}</div>
+      <div class="text-xs text-slate-400 mt-0.5">${rdEsc(bk.a)}</div>
+      <div class="flex items-center gap-1 mt-1">${rdStars(bk)}<span class="text-[10px] text-slate-400 ml-1">${bk.rate?bk.rate+'.0':'未评分'}</span></div>
+      <div class="mt-1.5 flex flex-wrap gap-1 text-[9px]"><span class="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">${bk.fmt}</span><span class="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">${bk.size} MB</span><span class="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">无 DRM</span></div>
+    </div></div>
+  <div class="mt-3 space-y-1.5 text-[11px]">
+    ${[['出版社',bk.press],['出版日期',bk.pub],['ISBN',bk.isbn],['源文件',bk.src]].map(([k,v])=>`<div class="flex gap-2"><span class="w-14 text-slate-400 shrink-0">${k}</span><span class="flex-1 font-semibold truncate">${rdEsc(''+v)}</span></div>`).join('')}
+    <div class="flex gap-2"><span class="w-14 text-slate-400 shrink-0">简介</span><p class="flex-1 leading-5 text-slate-500 dark:text-slate-400" id="rdIntroP">${rdEsc(RD_INTROS[bk.id]||'（EPUB 无简介字段）')}</p></div>
+  </div>
+  <button class="mt-3 w-full py-3 rounded-2xl grad text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[.99]" onclick="rdOpenBook(${bk.id},true)">
+    ${rdi('<path d="M8 5v14l11-7z"/>',14)}${bk.st===0?'开始阅读':bk.st===2?'重温本书':'继续阅读 · '+p+'%'}</button>
+  <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+    <button class="card flex items-center justify-center gap-1.5 font-bold py-2.5" onclick="rdFromStart(${bk.id})">从头读</button>
+    <button class="card flex items-center justify-center gap-1.5 font-bold py-2.5" onclick="openSheet('sheetRtPreview');rdPvRender(${bk.id})">缩览</button>
+  </div>
+  <div class="mt-3 grid grid-cols-4 text-center text-[10px]">
+    <div class="card !py-2.5"><b class="text-base">${rdHMS(bk.secs)}</b><div class="text-slate-400">累计时长</div></div>
+    <div class="card !py-2.5"><b class="text-base">${done}/${chs}</b><div class="text-slate-400">已读章节</div></div>
+    <div class="card !py-2.5"><b class="text-base">${RD_HL.filter(h=>h.b===bk.id).length}</b><div class="text-slate-400">高亮</div></div>
+    <div class="card !py-2.5"><b class="text-base">${RD_AN.filter(a=>a.b===bk.id).length}</b><div class="text-slate-400">批注</div></div></div>
+  <div class="mt-3 card">
+    <div class="flex items-center justify-between"><div class="text-xs font-extrabold">阅读位置</div><span class="text-[9px] font-mono text-slate-400">${pos?rdCfi(bk.id,pos.ch,pos.pg):'—'}</span></div>
+    <div class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">${pos?'上次读到 '+rdChName(bk.id,pos.ch)+' · 第 '+(pos.pg+1)+' 页 · '+rdRel(bk.last):'尚未开始'} · 全书约 ${tp} 页</div>
+    <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad transition-all" style="width:${p}%"></span></div>
+  </div>
+  <div class="mt-3 card divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+    <button class="w-full flex items-center justify-between py-2.5 text-left" onclick="rdGotoNotes(${bk.id})"><span class="font-bold">高亮与批注</span><span class="text-[10px] text-slate-400">${rdMarkN(bk.id)} 条 · 点击行可跳原文</span></button>
+    <button class="w-full flex items-center justify-between py-2.5 text-left" onclick="rdOpenStats(${bk.id})"><span class="font-bold">本书阅读统计</span><span class="text-[10px] text-slate-400">时长 · 进度 · 剩余预估</span></button>
+    <button class="w-full flex items-center justify-between py-2.5 text-left" onclick="openSheet('sheetRtAppearance');rdApOpen('book')"><span class="font-bold">本书专属外观</span><span class="text-[10px] text-slate-400" id="rdBkApSum">${rdCfg.theme==='custom'?'自定义':RD_THEMES[rdCfg.theme].n} · ${rdSt(bk.id).fs}px${Object.keys(rdBooksCfg[bk.id]||{}).length?' · 本书已覆写':''}</span></button>
+    <button class="w-full flex items-center justify-between py-2.5 text-left" onclick="rdReviewPrompt(${bk.id})"><span class="font-bold">写读后感（入读书笔记）</span><span class="text-slate-300">›</span></button>
+    <button class="w-full flex items-center justify-between py-2.5 text-left text-rose-500 font-bold" onclick="rdDelOpen(${bk.id})"><span>删除本书</span><span class="text-[10px] font-normal">默认仅删阅读数据 · 保留源文件</span></button>
+  </div>`;
+  $('#pageTitle').textContent='书籍资料';$('#pageSub').textContent=bk.t}
+let rdDelId=0,rdDelOpt='cache';
+function rdDelOpen(id){rdDelId=id;rdDelOpt='cache';const bk=rdBook(id);$('#rdDelName').textContent=bk.t;rdDelRender();openSheet('sheetRtDelete')}
+function rdDelRender(){$('#rdDelOpts').innerHTML=[['cache','仅删除阅读数据','进度 · 外观记忆 · 分页缓存清除 · 保留 EPUB 源文件'],['src','连同源文件一起删除','经系统授权移除 '+'.epub 文件本体（模拟 SAF）']].map(([k,l,s])=>`<button class="w-full card !py-2.5 text-left flex items-start gap-2.5" onclick="rdDelOpt='${k}';rdDelRender()"><span class="mt-0.5 w-4 h-4 rounded-full border-2 ${rdDelOpt===k?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'} flex items-center justify-center text-[9px] text-white">${rdDelOpt===k?'✓':''}</span><span><b>${l}</b><div class="text-[10px] text-slate-400 mt-0.5">${s}</div></span></button>`).join('')}
+function rdDeleteCommit(){const i=RD_BOOKS.findIndex(b=>b.id===rdDelId);if(i<0)return closeSheet('sheetRtDelete');
+  const bk=RD_BOOKS[i];RD_BOOKS.splice(i,1);delete RD_POS[bk.id];delete rdBooksCfg[bk.id];delete RD_TOC[bk.id];rdPagCache={};
+  closeSheet('sheetRtDelete');rdPersist();
+  if(curPage==='p-readerBook')goBack();rdRenderShelf();
+  toast(`已删除《${bk.t}》${rdDelOpt==='src'?'（含源文件）':'（仅阅读数据 · 源文件保留）'} · 批注笔记保留在笔记库`)}
+function rdReviewPrompt(id){rdCurBook=id;RD_V.sel={ch:null,pi:null};openSheet('sheetRtAnnot');$('#rdAnTitle').textContent='读后感 · 《'+rdBook(id).t+'》';
+  $('#rdAnQuote').innerHTML=`评分 ${rdBook(id).rate||'—'} 星 · 出处：读书笔记（无 CFI 定位）`;$('#rdAnCfi').textContent='写入笔记库 · 关联书籍';$('#rdAnText').value=''}
+function rdFromStart(id){RD_POS[id]={ch:RD_LEAVES(id)[0],pg:0,sec:0};rdPersist();rdOpenBook(id,true);toast('已回到封面 · 从头读')}
+
+/* ---- 阅读主屏 ---- */
+function rdOpenBook(id,enter){RD_V.b=id;const pos=RD_POS[id];RD_V.ch=pos?pos.ch:RD_LEAVES(id)[0];RD_V.pg=pos?Math.min(pos.pg,Math.max(0,rdPagesOf(id,pos.ch).length-1)):0;
+  RD_V.mode=rdSt(id).mode||'page';RD_V.sel=null;RD_V.t0=Date.now();
+  const t=rdThemeColors(rdSt(id));const st=rdSt(id);
+  $('#rdStage').style.background=t.bg;$('#rdStage').style.color=t.fg;
+  navTo('p-readerPage');rdRenderPage(true);
+  if(pos&&id!==undefined&&enter!==2)toast('已恢复上次位置 · '+rdCfi(id,pos.ch,pos.pg))}
+function rdResume(){const last=[...RD_BOOKS].filter(b=>b.last).sort((a,b)=>b.last-a.last)[0];if(!last)return toast('还没有开始阅读的书 · 先去导入');rdOpenBook(last.id)}
+function rdBack(){rdLeave();if(stack.length||curPage==='p-readerPage')goBack()}
+function rdLeave(){if(!RD_V.t0)return;const secs=Math.floor((Date.now()-RD_V.t0)/1000);
+  if(secs>2){const bk=rdBook(RD_V.b);if(bk){bk.secs+=secs;RD_DAYS[RD_DAYS.length-1]+=Math.round(secs/60)}
+    RD_V.t0=0;rdSavePos();rdPersist();toast(`本次 ${rdHMS(secs)} · 已计入《${bk?bk.t:''}》与时间账本（联动 L4）`)}}
+function rdSessSecs(){return RD_V.t0?Math.floor((Date.now()-RD_V.t0)/1000):0}
+function rdTodaySecs(){return RD_DAYS[RD_DAYS.length-1]*60+(curPage==='p-readerPage'?rdSessSecs():0)}
+function rdHlAt(b,ch,pi){let c=null;for(const h of RD_HL)if(h.b===b&&h.ch===ch&&pi>=h.p0&&pi<=h.p1)c=h.color;return c}
+function rdAnAt(b,ch,pi){return RD_AN.find(a=>a.b===b&&a.ch===ch&&a.p0===pi)}
+function rdParaHtml(b,ch,x,pi){let inner=rdEsc(x.t);
+  if(ch==='c4'&&pi===9)inner='本书官网与'+`<a class="rd-link" onclick="event.stopPropagation();rdGotoCh('${rdLeafIdx(b,'c19')>=0?'c19':ch}',0)">延伸阅读清单</a>`+'见附录（内链跳 尾声），原始材料发布于 <a class="rd-link" onclick="event.stopPropagation();rdExtLink(\'https://princeton.edu/kaneman/experiments\')">princeton.edu</a>（外链）。';
+  if(RD_V.hit&&RD_V.hit.b===b&&RD_V.hit.ch===ch&&RD_V.hitPi===pi&&RD_V.hit.q)inner=inner.replace(new RegExp(rdRx(rdEsc(RD_V.hit.q)),'g'),m=>`<span class="rd-cur">${m}</span>`);
+  const c=rdHlAt(b,ch,pi);const an=rdAnAt(b,ch,pi);
+  const wrap=`<span onclick="event.stopPropagation();rdSelect(${pi},${pi})">${inner}</span>`;
+  return {inner:wrap,c,an}}
+function rdRenderPage(anim){const b=RD_V.b,ch=RD_V.ch,st=rdSt(b);const t=rdThemeColors(st);
+  $('#rdStage').style.background=t.bg;$('#rdStage').style.color=t.fg;
+  $('#rdBody').innerHTML='';const fam=RD_FONTS[st.font]?RD_FONTS[st.font][1]:RD_FONTS.system[1];
+  let html='';const arr=rdChText(b,ch);
+  const mk=(x,pi)=>{if(x.k==='img')return `<div class="rdp-i" data-pi="${pi}" onclick="event.stopPropagation();rdImgOpen('${rdEsc(x.t)}')">${rdFigSvg()}<figcaption>${rdEsc(x.t)} · 点击放大 / 保存</figcaption></div>`;const r=rdParaHtml(b,ch,x,pi);const sty=x.k==='h'?'class="rdp rdp-h"':x.k==='q'?'class="rdp rdp-q"':'class="rdp"';
+    return `<p ${sty} data-pi="${pi}" ${r.c?`style="background:${RD_HLC[r.c][0]}44;padding:1px 2px;border-radius:3px"`:''}>${r.inner}${r.an?`<span class="rd-dot" title="批注" onclick="event.stopPropagation();rdAnEdit('${r.an.id}')"></span>`:''}</p>`};
+  if(RD_V.mode==='scroll'){const box=document.createElement('div');box.className='rd-scroll-mode';
+    box.style.cssText=`font-size:${st.fs}px;line-height:${st.lh};letter-spacing:${st.ls}px;font-family:${fam};padding:${st.mar+26}px ${st.mar}px ${st.mar+56}px`;
+    box.innerHTML=arr.map((x,pi)=>mk(x,pi)).join('');$('#rdBody').appendChild(box);$('#rdScroll').style.position='absolute'}
+  else{const pages=rdPagesOf(b,ch);RD_V.pg=Math.min(RD_V.pg,pages.length-1);
+    const wrap=document.createElement('div');
+    wrap.style.cssText=`display:flex;flex-direction:column;justify-content:center;height:100%;font-size:${st.fs}px;line-height:${st.lh};letter-spacing:${st.ls}px;font-family:${fam};padding:calc(${st.mar}px + 40px) ${st.mar}px calc(${st.mar}px + 46px)`;
+    let body=pages[RD_V.pg].map(pi=>mk(arr[pi],pi)).join('');
+    if(ch===RD_LEAVES(b)[RD_LEAVES(b).length-1]&&RD_V.pg>=pages.length-1)body+='<p class="rdp text-center" style="text-indent:0;opacity:.55">—— 全书完 ——</p>';
+    wrap.innerHTML=body;if(anim)wrap.classList.add('rd-swig');
+    $('#rdBody').appendChild(wrap)}
+  rdChromeLabels();rdSelHide()}
+function rdChromeLabels(){const b=RD_V.b,st=rdSt(b);const pages=rdPagesOf(b,RD_V.ch);const tp=rdTotalPages(b),gp=rdGPos(b,RD_V.ch,RD_V.pg);
+  $('#rdTopTitle').textContent=rdBook(b).t;$('#rdTopSub').textContent=rdChName(b,RD_V.ch)+' · '+(RD_V.mode==='scroll'?'滚动':'翻页')+'模式';
+  $('#rdCFi').textContent=rdCfi(b,RD_V.ch,RD_V.pg);
+  $('#rdPgLbl').textContent=RD_V.mode==='scroll'?`第 ${gp+1}/${tp} 页`:`${RD_V.pg+1}/${pages.length} 页 · 全书 ${Math.round(gp/tp*100)}%`;
+  const sl=$('#rdProg');sl.max=tp-1;sl.value=gp;
+  $('#rdThemeBtn').textContent=RD_THEMES[st.theme]?RD_THEMES[st.theme].n:'自定义';
+  $('#rdModeBtn').textContent=RD_V.mode==='page'?'滚动':'翻页'}
+function rdFlip(dir){const b=RD_V.b;
+  if(RD_V.mode==='scroll'){const box=$('#rdBody').firstElementChild;if(box){const vh=box.parentElement.clientHeight-120;box.parentElement.scrollTop+=dir*vh;return}}
+  const pages=rdPagesOf(b,RD_V.ch);const lv=RD_LEAVES(b);const ci=lv.indexOf(RD_V.ch);
+  let np=RD_V.pg+dir;
+  if(np>=pages.length){if(ci===lv.length-1){const bk=rdBook(b);bk.st=2;RD_POS[b]={ch:RD_V.ch,pg:pages.length-1,sec:0};rdPersist();rdRenderPage();return toast('已读完最后一页 · 本书标记为「已读完」')}
+    RD_V.ch=lv[ci+1];RD_V.pg=0;rdSavePos();rdRenderPage(true);flash('第 '+(ci+2)+' 章 · '+rdChName(b,RD_V.ch));return}
+  if(np<0){if(ci===0){RD_V.pg=0;return rdRenderPage()}RD_V.ch=lv[ci-1];RD_V.pg=rdPagesOf(b,RD_V.ch).length-1;rdSavePos();rdRenderPage(true);flash(rdChName(b,RD_V.ch));return}
+  RD_V.pg=np;rdSavePos();rdRenderPage(true)}
+function flash(msg){const el=$('#rdToast2');el.textContent=msg;el.classList.remove('hidden');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.add('hidden'),1300)}
+function rdTapCenter(){if(RD_V.sel){rdSelHide();return}RD_V.chrome=!RD_V.chrome;$('#rdTop').classList.toggle('hidden',!RD_V.chrome);$('#rdTop').classList.toggle('flex',RD_V.chrome);
+  $('#rdBottom').classList.toggle('hidden',!RD_V.chrome);$('#rdBottom').classList.toggle('flex',RD_V.chrome);
+  if(RD_V.chrome)$('#rdSessChip').textContent=rdMS(rdSessSecs())}
+function rdSeek(v){const b=RD_V.b;const p=rdGPosTo(b,+v);RD_V.ch=p.ch;RD_V.pg=p.pg;rdSavePos();if(curPage!=='p-readerPage')navTo('p-readerPage');else rdRenderPage();RD_V.chrome=true;$('#rdTop').classList.remove('hidden');$('#rdTop').classList.add('flex');$('#rdBottom').classList.remove('hidden');$('#rdBottom').classList.add('flex')}
+function rdFsNudge(d){const b=RD_V.b;const key=curInBook(b)?'book':'global';const st=rdSt(b);const fs=Math.min(30,Math.max(14,st.fs+d));
+  if(key==='book')rdBooksCfg[b]=Object.assign(rdBooksCfg[b]||{},{fs});else rdCfg.fs=fs;
+  rdPersist();rdRenderPage();flash(`字号 ${fs}`)}
+function curInBook(b){return Object.keys(rdBooksCfg[b]||{}).length>0||RD_V.b===b}
+function rdModeToggle(){RD_V.mode=RD_V.mode==='page'?'scroll':'page';rdSt;const b=RD_V.b;rdCfg.mode=RD_V.mode;rdSavePos();rdRenderPage();
+  if(RD_V.mode==='scroll'){$('#rdScroll').scrollTop=rdGPos(b,RD_V.ch,RD_V.pg)*8}else toast('已切换翻页模式 · 左右滑动翻页')}
+function rdThemeCycle(){const b=RD_V.b;const order=['day','eye','night'];const st=rdSt(b);let i=order.indexOf(st.theme);i=i<0?0:(i+1)%3;
+  const th=RD_THEMES[order[i]];rdCfg.theme=order[i];rdCfg.bg=th.bg;rdCfg.fg=th.fg;rdPersist();rdRenderPage();flash('主题 · '+th.n)}
+
+/* ---- 选中文本（划词） ---- */
+function rdSelect(pi0,pi1){if(pi1==null)pi1=pi0;RD_V.sel={ch:RD_V.ch,p0:pi0,p1:pi1};
+  RD_V.selTxt=rdChText(RD_V.b,RD_V.ch).slice(pi0,pi1+1).map(x=>x.t).join('\n');
+  const first=$('#rdBody').querySelector(`[data-pi="${pi0}"]`);const stage=$('#rdStage').getBoundingClientRect();
+  let top=120;if(first){const r=first.getBoundingClientRect();top=Math.max(54,r.top-stage.top-46)}
+  const bar=$('#rdSelBar');bar.style.left='50%';bar.style.transform='translateX(-50%)';bar.style.top=top+'px';
+  $('#rdColorPop').classList.add('hidden');
+  const acts=[['复制',RD_IC.copy,'rdCopySel()'],['高亮',RD_IC.hl,'rdColorShow()'],['批注',RD_IC.pen,'rdAnOpen()'],['AI 解读',RD_IC.ai,'rdAiOpen()'],['写笔记',RD_IC.note,'rdSelToNote()'],['词典',RD_IC.dict,'rdDictOpen()'],['分享',RD_IC.share,'rdShareSel()']];
+  $('#rdSelActs').innerHTML=`<div class="sdb text-brand-300" onclick="rdSelGrow(-1)">${rdi(RD_IC.lft,14)}<span>前扩</span></div>`+
+    acts.filter(a=>a[0]!=='AI 解读'||rdCfg.aiOn).map(a=>`<div class="sdb" onclick="${a[2]}">${rdi(a[1],14)}<span>${a[0]}</span></div>`).join('')+
+    `<div class="sdb text-brand-300" onclick="rdSelGrow(1)">${rdi(RD_IC.rgt,14)}<span>后扩</span></div>`;
+  bar.classList.remove('hidden');
+  if(rdCfg.aiOn)$('#rdSelActs').firstElementChild.setAttribute('title','按句扩展选区')}
+function rdSelHide(){RD_V.sel=null;$('#rdSelBar').classList.add('hidden');$('#rdColorPop').classList.add('hidden')}
+function rdSelGrow(d){if(!RD_V.sel)return;const n=rdChText(RD_V.b,RD_V.ch).length;
+  if(d>0)RD_V.sel.p1=Math.min(n-1,RD_V.sel.p1+1);else RD_V.sel.p0=Math.max(0,RD_V.sel.p0-1);
+  rdSelect(RD_V.sel.p0,RD_V.sel.p1)}
+function rdColorShow(){const pop=$('#rdColorPop');pop.classList.remove('hidden');pop.style.top=(parseFloat($('#rdSelBar').style.top)-46)+'px';pop.style.left='50%';pop.style.transform='translateX(-50%)';
+  pop.innerHTML=Object.entries(RD_HLC).map(([k,v])=>`<button title="${v[1]}" class="w-6 h-6 rounded-full border-2 border-white/40" style="background:${v[0]}" onclick="rdAddHl('${k}')"></button>`).join('')+
+  `<button class="w-6 h-6 rounded-full bg-slate-700 text-white text-[10px] font-bold" title="删除高亮" onclick="rdDelHl()">✕</button>`}
+function rdSelText(){return RD_V.selTxt}
+function rdAddHl(color){const s=RD_V.sel;const id='h'+Date.now();
+  RD_HL.push({id,b:RD_V.b,ch:s.ch,p0:s.p0,p1:s.p1,color,at:new Date()});
+  rdSyncNote('hl',id);rdPersist();toast(`已高亮 ${s.p1-s.p0+1} 段 · ${RD_HLC[color][1]}${rdCfg.noteSync?' · 已同步笔记库（联动 L18）':''}`);
+  rdRenderPage();rdSelHide()}
+function rdDelHl(){const s=RD_V.sel;if(!s)return;const rm=RD_HL.filter(h=>h.b===RD_V.b&&h.ch===s.ch&&h.p0>=s.p0&&h.p1<=s.p1);
+  rm.forEach(h=>rdUnsyncNote('hl',h.id));for(let i=RD_HL.length-1;i>=0;i--)if(rm.includes(RD_HL[i]))RD_HL.splice(i,1);
+  rdPersist();toast(rm.length?'已删除 '+rm.length+' 处高亮':'此处没有高亮可删');rdRenderPage();rdSelHide()}
+function rdCopySel(){try{navigator.clipboard&&navigator.clipboard.writeText(rdSelText())}catch(e){}toast('已复制 '+rdSelText().length+' 字')}
+function rdShareSel(){if(!RD_V.sel)return;const txt=rdSelText()+'\n\n——《'+rdBook(RD_V.b).t+'》'+rdChName(RD_V.b,RD_V.sel.ch)+' · '+rdCfi(RD_V.b,RD_V.sel.ch,RD_V.sel.p0);
+  if(navigator.share){navigator.share({title:'书摘',text:txt}).catch(()=>{})}toast('已调起系统分享 · 含出处引用')}
+
+/* ---- 批注 ---- */
+let rdAnEditing=null;
+function rdAnOpen(){if(!RD_V.sel)return;rdAnEditing=null;openSheet('sheetRtAnnot');$('#rdAnTitle').textContent='添加批注 · '+rdChName(RD_V.b,RD_V.ch);
+  $('#rdAnQuote').textContent=RD_V.selTxt;$('#rdAnCfi').textContent=rdCfi(RD_V.b,RD_V.sel.ch,RD_V.sel.p0)+' · 绑定书籍+章节+CFI';$('#rdAnText').value=''}
+function rdAnEdit(id){const a=RD_AN.find(x=>x.id===id);if(!a)return;openSheet('sheetRtAnnot');rdAnEditing=id;
+  $('#rdAnTitle').textContent='编辑批注 · '+rdChName(a.b,a.ch);$('#rdAnQuote').textContent=a.quote;$('#rdAnCfi').textContent=rdCfi(a.b,a.ch,a.p0)+' · '+rdRel(a.at);$('#rdAnText').value=a.note}
+function rdAnSave(){const txt=$('#rdAnText').value.trim();if(!txt)return toast('批注内容为空');
+  rdCfg.noteSync=$('#rdAnSync').classList.contains('on');
+  if(rdAnEditing){const a=RD_AN.find(x=>x.id===rdAnEditing);a.note=txt;rdSyncNote('an',a.id,true);toast('批注已更新 · 笔记库同步')}
+  else if(RD_V.sel&&RD_V.sel.ch===null){const bk=rdBook(rdCurBook);const t='> 评分 '+(bk.rate||'—')+' 星\n\n'+txt+'\n\n——《'+bk.t+'》读后感 '+(rdAnSync? '': '')+rdMM(new Date());
+    D.notes.unshift({t:`《${bk.t}》读后感 · ${txt.slice(0,12)}…`,txt:t,folder:'关联阅读',words:txt.length,time:rdMM(new Date()),cre:rdMM(new Date()),pin:0,md:0});
+    try{renderNotes()}catch(e){}toast('读后感已写入读书笔记（联动 L18）');rdAnSelClear()}
+  else{if(!RD_V.sel){closeSheet('sheetRtAnnot');return}
+    const id='a'+Date.now();RD_AN.push({id,b:RD_V.b,ch:RD_V.sel.ch,p0:RD_V.sel.p0,quote:RD_V.selTxt,note:txt,at:new Date()});
+    rdSyncNote('an',id);toast('批注已保存 · 绑定 '+rdCfi(RD_V.b,RD_V.sel.ch,RD_V.sel.p0)+'（联动 L18）')}
+  rdPersist();closeSheet('sheetRtAnnot');rdRenderPage();rdRenderShelf();
+  if(curPage==='p-readerNotes')rdRenderNotes()}
+function rdAnSelClear(){RD_V.sel=null}
+function rdSyncNote(kind,mid,update){if(!rdCfg.noteSync)return;const key=kind+':'+mid;
+  const src=kind==='hl'?RD_HL.find(h=>h.id===mid):RD_AN.find(a=>a.id===mid);if(!src)return;
+  const bk=rdBook(src.b)||{t:'已删除书籍'};
+  const quote=(kind==='hl'?rdChText(src.b,src.ch).slice(src.p0,src.p1+1).map(x=>x.t).join(' '):src.quote)||'';
+  const noteTxt=kind==='hl'?'> '+quote+`\n\n划线 ${RD_HLC[src.color][1]} · ${rdChName(src.b,src.ch)} · ${rdCfi(src.b,src.ch,src.p0)}（阅读器自动同步）`:'> '+src.quote+'\n\n💭 '+src.note+`\n\n批注 · ${rdChName(src.b,src.ch)} · ${rdCfi(src.b,src.ch,src.p0)}（阅读器自动同步）`;
+  let obj=RD_NOTE_IDS[key];
+  if(obj&&D.notes.includes(obj)){if(update){obj.txt=noteTxt;obj.words=noteTxt.length}else return}
+  obj={t:kind==='hl'?`《${bk.t}》划线 · ${quote.slice(0,12)}…`:`《${bk.t}》批注 · ${quote.slice(0,12)}…`,txt:noteTxt,folder:'关联阅读',words:noteTxt.length,time:rdMM(new Date()),cre:rdMM(src.at||new Date()),pin:0,md:0};
+  D.notes.unshift(obj);RD_NOTE_IDS[key]=obj;
+  try{renderNotes()}catch(e){}}
+function rdUnsyncNote(kind,mid){const obj=RD_NOTE_IDS[kind+':'+mid];if(!obj)return;
+  const i=D.notes.indexOf(obj);if(i>=0)D.notes.splice(i,1);delete RD_NOTE_IDS[kind+':'+mid];try{renderNotes()}catch(e){}}
+
+/* ---- 词典 / AI ---- */
+const RD_DICT={'锚定效应':['ān dìng xiào yìng','名','判断时过度依赖最先获得的数值，如同船抛下的锚。经典实验：联合国非洲国家席位比例的估计值，会随轮盘随机数显著漂移。','近义词：启动效应 · 反例：充分信息后仍偏倚的专家估计'],
+ '系统一':['xì tǒng yī','名','快、自动、几乎不费力的思考模式；擅长模式识别，容易被熟悉感欺骗。','对应英文 System 1 · 出自本书第 1 章'],
+ '启发法':['qǐ fǎ fǎ','名','在信息不完整时以相似性、可得性等捷径代替概率运算的心智策略。','代表：代表性 / 可得性 / 锚定'],
+ '损失厌恶':['sǔn shī yàn wù','名','等值损失带来的痛感约为收益快感两倍，导致风险决策系统性保守。','前景理论核心参数 λ≈2.25']};
+function rdDictOpen(){const w=(RD_V.selTxt.replace(/\s/g,'')||'').slice(0,6);
+  const hit=Object.entries(RD_DICT).find(([k])=>w.includes(k.slice(0,2))||k.includes(w));
+  const e=hit?hit[1]:['—','短语','（本地词典未收录该词 · 可下载扩展词库）','取词长度 ≤6 字效果最佳'];
+  openSheet('sheetRtDict');$('#rdDcWord').textContent=w||'选词';$('#rdDcPh').textContent=e[0]+' · '+e[1];
+  $('#rdDcBody').innerHTML=`<div>${e[2]}</div><div class="text-slate-400 text-[11px]">${e[3]}</div>`;$('#rdDcWord').dataset.w=w}
+function rdDcInsert(){const w=$('#rdDcWord').dataset.w||'';openSheet('sheetRtAnnot');$('#rdAnTitle').textContent='添加批注 · 释义随附';
+  $('#rdAnQuote').textContent=RD_V.selTxt;$('#rdAnCfi').textContent=rdCfi(RD_V.b,RD_V.sel?RD_V.sel.ch:RD_V.ch,RD_V.sel?RD_V.sel.p0:RD_V.pg);
+  $('#rdAnText').value='【'+w+'】'+(RD_DICT[w]?RD_DICT[w][2]:'释义见本地词典包')}
+function rdAiOpen(){const q=RD_V.selTxt;openSheet('sheetRtAi');$('#rdAiQuote').textContent=q;$('#rdAiOut').innerHTML='<span class="text-slate-400">正在结合上下文解读…</span>';
+  const ch=rdChName(RD_V.b,RD_V.ch);
+  const chunks=[`【要点】这段话把「${ch.slice(0,10)}」的核心机制收拢为一个可操作结论：`,
+    '先理解它依赖的前提（意识资源有限、联想自动扩散），再看它推出的行为预测（环境暗示先于态度改变）。',
+    '【背景】它与第 1 章的抢答模型、第 5 章的基础率忽视互为证据链，',
+    '属于同一个主张在不同实验材料上的三次复现。',
+    '【追问】如果把它用于你的工作流：哪一类决策最容易在此机制下被环境牵着走？可设一个「先写数字再做判断」的对照仪式。'];
+  let i=0;clearInterval(RD_AI.timer);RD_AI.text='';
+  RD_AI.timer=setInterval(()=>{if(i>=chunks.length){clearInterval(RD_AI.timer);return}
+    RD_AI.text+=chunks[i];$('#rdAiOut').innerHTML=rdEsc(RD_AI.text).replace(/\n/g,'<br>')+'<span class="rd-pulse" style="display:inline-block"></span>';i++},420)}
+const RD_AI={timer:0,text:''};
+function rdAiCopy(){try{navigator.clipboard&&navigator.clipboard.writeText(RD_AI.text)}catch(e){}toast('解读已复制')}
+function rdAiToAnnot(){if(!RD_V.sel)return;closeSheet('sheetRtAi');rdAnOpen();$('#rdAnText').value=RD_AI.text}
+function rdAiToNote(){const bk=rdBook(RD_V.b);const txt=RD_AI.text;const sq=RD_V.selTxt||'';
+  D.notes.unshift({t:`《${bk.t}》AI 解读 · ${rdChName(RD_V.b,RD_V.ch).slice(0,10)}`,txt:'> '+sq+'\n\n'+txt+'\n\n（AI 生成 · 已标注来源）',folder:'关联阅读',words:txt.length,time:rdMM(new Date()),cre:rdMM(new Date()),pin:0,md:0});
+  try{renderNotes()}catch(e){}closeSheet('sheetRtAi');toast('已建读书笔记 · 标注 AI 来源（联动 L18）')}
+function rdSelToNote(){const bk=rdBook(RD_V.b);const s=RD_V.sel||{ch:RD_V.ch,p0:RD_V.pg};const sq=RD_V.selTxt||((rdChText(bk.id,s.ch)[s.p0]||{t:''}).t);
+  const cite=rdCfi(bk.id,s.ch,s.p0);const txt='> '+sq+'\n\n——《'+bk.t+'》'+rdChName(bk.id,s.ch)+' · '+cite;
+  D.notes.unshift({t:`《${bk.t}》摘录 · ${sq.slice(0,10)}…`,txt,folder:'关联阅读',words:sq.length,time:rdMM(new Date()),cre:rdMM(new Date()),pin:0,md:0});
+  try{renderNotes()}catch(e){}rdSelHide();toast('已新建读书笔记 · 原文+出处引用已插入（联动 L18）· 可在笔记继续编辑')}
+
+/* ---- 图片 / 链接 ---- */
+let rdIvS=1;
+function rdImgOpen(cap){const fig=rdFigSvg();openSheet('sheetRtImg');$('#rdIvBox').innerHTML=fig;$('#rdIvCap').textContent=cap;rdIvS=1;$('#rdIvBox').style.transform='scale(1)'}
+let rdFigCache=null;
+function rdFigSvg(){if(rdFigCache)return rdFigCache;return rdFigCache=`<svg viewBox="0 0 300 170" style="width:100%;display:block;background:#fff"><rect width="300" height="170" fill="#fbfbfd"/><text x="14" y="24" font-size="11" fill="#334" font-weight="700">锚定值随「轮盘转速」分布（示意）</text>
+  <polyline points="20,130 60,120 100,96 140,104 180,70 220,82 260,52" fill="none" stroke="#6366f1" stroke-width="2.5"/>
+  ${[0,1,2,3,4,5,6].map(i=>`<circle cx="${[20,60,100,140,180,220,260][i]}" cy="${[130,120,96,104,70,82,52][i]}" r="3.5" fill="#6366f1"/>`).join('')}
+  <line x1="20" y1="148" x2="270" y2="148" stroke="#cbd5e1"/><line x1="20" y1="34" x2="20" y2="148" stroke="#cbd5e1"/>
+  <text x="250" y="162" font-size="8" fill="#94a3b8">EPUB3 · image/svg+xml</text></svg>`}
+function rdIvZoom(d){rdIvS=Math.min(2.4,Math.max(0.6,rdIvS+d*0.3));$('#rdIvBox').style.transform='scale('+rdIvS+')';toast('缩放 '+Math.round(rdIvS*100)+'%')}
+function rdIvSave(){toast('已保存到相册 · Pictures/LifeHarness/')}
+function rdExtLink(url){const b=RD_V.b;const mode=rdSt(b).linkAsk||rdCfg.linkAsk;
+  if(mode==='deny')return toast('外链已被禁止 · 可在阅读器设置改为询问/允许');
+  if(mode==='allow')return toast('已在系统浏览器打开（模拟）');
+  openSheet('sheetRtLink');$('#rdLkUrl').textContent=url}
+
+/* ---- 目录 ---- */
+function rdTocRender(){const b=RD_V.b;$('#rdTocN').textContent=RD_LEAVES(b).length;$('#rdTocCur').textContent='当前 · '+rdChName(b,RD_V.ch);
+  const lv=RD_LEAVES(b),ci=lv.indexOf(RD_V.ch);
+  $('#rdTocList').innerHTML=RD_TOC[b].map(r=>{if(r.lv===1)return `<div class="text-[10px] font-black text-slate-400 mt-3 mb-1">${rdEsc(r.t)}</div>`;
+    const i=lv.indexOf(r.i);const st=i<ci?'done':i===ci?'cur':'todo';const np=rdPagesOf(b,r.i).length;const mk=RD_HL.filter(h=>h.b===b&&h.ch===r.i).length+RD_AN.filter(a=>a.b===b&&a.ch===r.i).length;
+    const pct=i<ci?100:i===ci?Math.round((RD_V.pg+1)/np*100):0;
+    return `<button class="w-full flex items-center gap-2 py-2 text-left ${st==='cur'?'text-brand-500 font-extrabold':st==='done'?'text-slate-400':'font-semibold'}" onclick="rdGotoCh('${r.i}',0)">
+    <span class="w-4 text-center text-[10px]">${st==='done'?'✓':st==='cur'?'▸':'·'}</span>
+    <span class="flex-1 min-w-0 truncate text-xs">${rdEsc(r.t)}</span>
+    ${mk?`<span class="text-[8px] rounded-full px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400">${mk}</span>`:''}
+    <span class="text-[9px] tabular-nums opacity-60">${pct}%</span></button>`}).join('')}
+function rdGotoCh(ch,pg){if(!RD_LEAVES(RD_V.b).includes(ch))return;
+  RD_V.ch=ch;RD_V.pg=pg||0;rdSavePos();closeSheet('sheetRtToc');rdRenderPage(true);
+  if(curPage!=='p-readerPage')navTo('p-readerPage');flash(rdChName(RD_V.b,ch))}
+
+/* ---- 全书检索 ---- */
+function rdCorpus(b){return RD_LEAVES(b).map(ch=>({ch,arr:rdChText(b,ch)}))}
+function rdSearchRender(){const q=$('#rdSq').value.trim();$('#rdSqX').classList.toggle('hidden',!q);
+  if(!q){$('#rdSHits').innerHTML='';$('#rdSInfo').textContent='输入关键词检索全书正文';return}
+  const hits=[];for(const{ch,arr}of rdCorpus(RD_V.b))arr.forEach((x,pi)=>{if(x.t&&x.t.includes(q))hits.push({ch,pi,t:x.t})});
+  $('#rdSInfo').textContent=`《${rdBook(RD_V.b).t}》命中 ${hits.length} 处 · 覆盖 ${RD_LEAVES(RD_V.b).length} 章正文`;
+  $('#rdSHits').innerHTML=hits.length?hits.map((h,i)=>`<button class="w-full card text-left active:scale-[.99] transition" onclick="rdHitJump(${i},'${rdEsc(q)}')">
+    <div class="text-[10px] text-slate-400">${rdEsc(rdChName(RD_V.b,h.ch))} · ${rdCfi(RD_V.b,h.ch,h.pi)}</div>
+    <div class="text-xs leading-5 mt-1">${rdEsc(h.t).replace(new RegExp(rdRx(rdEsc(q)),'g'),m=>`<mark class="bg-amber-200 dark:bg-amber-500/30 rounded px-0.5">${m}</mark>`)}</div></button>`).join(''):
+    `<div class="card text-center py-10"><div class="text-xs font-bold">未找到「${rdEsc(q)}」</div><div class="text-[10px] text-slate-400 mt-1">换个关键词试试 · 检索仅在本机进行</div><button class="mini-btn mt-3" onclick="$('#rdSq').value='';rdSearchRender()">清空</button></div>`}
+function rdHitJump(i,q){RD_V.hit={b:RD_V.b,ch:rdCorpus(RD_V.b)[0].ch,q:q};const hits=[];for(const{ch,arr}of rdCorpus(RD_V.b))arr.forEach((x,pi)=>{if(x.t&&x.t.includes(q))hits.push({ch,pi})});
+  const h=hits[i];if(!h)return;RD_V.hit={b:RD_V.b,ch:h.ch,pi:h.pi,q};RD_V.ch=h.ch;
+  const pages=rdPagesOf(RD_V.b,h.ch);RD_V.pg=Math.min(h.pi,pages.length-1);
+  for(let p=0;p<pages.length;p++)if(pages[p].includes(h.pi)){RD_V.pg=p;break}
+  RD_V.hitPi=h.pi;rdSavePos();navTo('p-readerPage');rdRenderPage();rdChromeHit(hits,i)}
+function rdChromeHit(hits,i){RD_V.hits=hits;RD_V.hitI=i;$('#rdHitsBar').classList.remove('hidden');$('#rdHitsBar').classList.add('flex');
+  $('#rdHitsLbl').textContent=`「${RD_V.hit.q}」第 ${i+1}/${hits.length} 处`;RD_V.chrome=true;$('#rdTop').classList.remove('hidden')}
+function rdHitGo(d){if(!RD_V.hits)return;let i=RD_V.hitI+d;if(i<0)i=RD_V.hits.length-1;if(i>=RD_V.hits.length)i=0;
+  const h=RD_V.hits[i];RD_V.ch=h.ch;const pages=rdPagesOf(RD_V.b,h.ch);for(let p=0;p<pages.length;p++)if(pages[p].includes(h.pi))RD_V.pg=p;
+  RD_V.hitPi=h.pi;RD_V.hit={b:RD_V.b,ch:h.ch,pi:h.pi,q:RD_V.hit.q};RD_V.hitI=i;rdSavePos();rdRenderPage();$('#rdHitsLbl').textContent=`「${RD_V.hit.q}」第 ${i+1}/${RD_V.hits.length} 处`;
+  const el=$('#rdBody').querySelector(`[data-pi="${h.pi}"]`);if(el)el.scrollIntoView({block:'center'})}
+function rdClearHit(){RD_V.hit=null;$('#rdHitsBar').classList.add('hidden');$('#rdHitsBar').classList.remove('flex');rdRenderPage()}
+function rdToggleAllHits(){const on=!RD_V.allHl;RD_V.allHl=on;$('#rdSAllBtn').classList.toggle('on',on);
+  if(on&&RD_V.hit){toast('已高亮全部匹配（阅读器内以色块标注）')}else rdRenderPage()}
+
+/* ---- 批注总览 ---- */
+let rdNotesBook=-1,rdNotesTab='all',rdNotesCh='all';
+function rdGotoNotes(b){rdNotesBook=b;rdNotesTab='all';navTo('p-readerNotes')}
+function rdNotesTabsHtml(){const tabs=[['all','全部'],['hl','高亮'],['an','批注']];
+  return tabs.map(([k,l])=>`<button class="seg-pill !text-[11px] ${rdNotesTab===k?'on':''}" onclick="rdNotesTab='${k}';rdRenderNotes()">${l}</button>`).join('')}
+function rdRenderNotes(){const b=rdNotesBook;const bk=b>=0?rdBook(b):null;
+  if(bk)$('#pageTitle').textContent='批注 · '+bk.t;else $('#pageTitle').textContent='全部批注';
+  $('#pageSub').textContent=bk?`${RD_HL.filter(h=>h.b===b).length} 高亮 · ${RD_AN.filter(a=>a.b===b).length} 批注`:'跨全部书籍';
+  $('#rdNotesHead').innerHTML=`<div class="flex items-center gap-2 mt-1">
+    <button class="seg-pill !text-[11px] ${b<0?'on':''}" onclick="rdGotoNotes(-1)">全部书籍</button>
+    ${RD_BOOKS.map(x=>`<button class="seg-pill !text-[11px] ${x.id===b?'on':''}" onclick="rdGotoNotes(${x.id})">${rdEsc(x.t.slice(0,6))}</button>`).join('')}</div>`;
+  $('#rdNotesTabs').innerHTML=rdNotesTabsHtml()+`<span class="flex-1"></span><button class="seg-pill !text-[11px]" onclick="rdNotesEnterSel()">多选</button>`;
+  const hs=(b<0?RD_HL:RD_HL.filter(h=>h.b===b)).map(h=>({k:'hl',o:h,at:h.at,b:h.b}));
+  const as=(b<0?RD_AN:RD_AN.filter(a=>a.b===b)).map(a=>({k:'an',o:a,at:a.at,b:a.b}));
+  let rows=[...hs,...as].filter(r=>rdNotesTab==='all'||r.k===rdNotesTab).sort((x,y)=>y.at-x.at);
+  $('#rdNotesList').innerHTML=rows.length?rows.map((r,ri)=>{const o=r.o;const q=(r.k==='hl'?rdChText(o.b,o.ch).slice(o.p0,o.p1+1).map(x=>x.t).join(' '):o.quote);
+    const col=r.k==='hl'?RD_HLC[o.color][0]:'#f97316';const bkd=rdBook(o.b)||{t:'已删除'};
+    return `<div class="card border-l-4 !pl-3 relative" style="border-left-color:${col}" onclick="${rdNotesSelMode?`rdNotesTapSel('${r.k}','${o.id}')`:`rdJumpCfi(${o.b},'${o.ch}',${o.p0})`}">
+      <div class="text-[9px] text-slate-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:${col}"></span>${r.k==='hl'?'高亮':'批注'} · ${b<0?rdEsc(bkd.t)+' · ':''}${rdEsc(rdChName(o.b,o.ch))} · ${rdCfi(o.b,o.ch,o.p0)} · ${rdRel(o.at)}</div>
+      <div class="text-xs leading-5 mt-1">${rdEsc(q).slice(0,120)}</div>
+      ${r.k==='an'?`<div class="text-[11px] leading-5 mt-1 text-brand-500 font-semibold">💭 ${rdEsc(o.note).slice(0,120)}</div>`:''}
+      <div class="flex items-center gap-2 mt-1.5 text-[10px]"><span class="text-slate-400">点击跳原文</span><span class="flex-1"></span>
+      ${r.k==='an'?`<button class="link-act" onclick="event.stopPropagation();rdAnEdit('${o.id}')">编辑</button>`:''}
+      <button class="link-act !text-rose-400" onclick="event.stopPropagation();rdNoteDel('${r.k}','${o.id}')">删除</button></div>
+      ${rdNotesSet.has(o.id)?'<div class="absolute top-2 right-2 w-5 h-5 rounded-full grad text-white flex items-center justify-center text-[10px]">✓</div>':''}</div>`}).join(''):
+    `<div class="card text-center py-10 opacity-70"><div class="text-2xl">${rdi(RD_IC.pen,26)}</div><div class="text-xs font-bold mt-2">这个视图还空着</div><button class="mini-btn mt-3" onclick="rdResume()">去书里划词</button></div>`;
+  const nSync=Object.keys(RD_NOTE_IDS).length;
+  $('#rdNotesSyncTxt').textContent=rdCfg.noteSync?`${nSync} 条已同步到笔记库 · 笔记模块可查阅`:'同步已关闭（阅读器设置）· 既有笔记保留'}
+function rdNoteDel(k,id){if(k==='hl'){const i=RD_HL.findIndex(h=>h.id===id);if(i>=0){rdUnsyncNote('hl',id);RD_HL.splice(i,1)}}
+  else{const i=RD_AN.findIndex(a=>a.id===id);if(i>=0){rdUnsyncNote('an',id);RD_AN.splice(i,1)}}
+  rdPersist();rdRenderNotes();rdRenderShelf();toast('已删除')}
+function rdNotesEnterSel(){rdNotesSelMode=true;$('#rdNotesSelTop').classList.remove('hidden');$('#rdNotesSelTop').classList.add('flex');$('#rdNotesBar').classList.remove('hidden');$('#rdNotesBar').classList.add('flex');rdRenderNotes()}
+function rdNotesExitSel(){rdNotesSelMode=false;rdNotesSet.clear();$('#rdNotesSelTop').classList.add('hidden');$('#rdNotesSelTop').classList.remove('flex');$('#rdNotesBar').classList.add('hidden');$('#rdNotesBar').classList.remove('flex');rdRenderNotes()}
+function rdNotesTapSel(id){if(rdNotesSet.has(id))rdNotesSet.delete(id);else rdNotesSet.add(id);$('#rdNotesSelN').textContent=rdNotesSet.size;$('#rdNotesSelN2').textContent=rdNotesSet.size;rdRenderNotes()}
+function rdNotesBulkDel(){rdNotesSet.forEach(id=>{const hk=RD_HL.findIndex(h=>h.id===id),ak=RD_AN.findIndex(a=>a.id===id);
+  if(hk>=0){rdUnsyncNote('hl',id);RD_HL.splice(hk,1)}if(ak>=0){rdUnsyncNote('an',id);RD_AN.splice(ak,1)}});
+  toast(`已删除 ${rdNotesSet.size} 条 · 笔记库同步移除（撤销在回收站 30 天）`);rdNotesExitSel();rdPersist();rdRenderNotes();rdRenderShelf()}
+function rdMarkSelRead(){toast('已把选中条目所在章节标记为已读（目录同步）');rdNotesExitSel()}
+function rdJumpCfi(b,ch,pi){RD_V.b=b;RD_V.ch=ch;RD_V.sel=null;
+  const pages=rdPagesOf(b,ch);for(let p=0;p<pages.length;p++)if(pages[p].includes(pi)){RD_V.pg=p;break}
+  RD_V.hitPi=pi;RD_V.hit={b,ch,pi,q:''};rdSavePos();rdRenderPage();
+  if(curPage!=='p-readerPage')navTo('p-readerPage');
+  const el=$('#rdBody').querySelector(`[data-pi="${pi}"]`);if(el){el.classList.add('rd-hit');setTimeout(()=>el.classList.remove('rd-hit'),1600)}
+  flash('已定位 '+rdCfi(b,ch,pi))}
+
+/* ---- 导出 ---- */
+let rdEx={scope:'book',fmt:'md',cfi:true};
+function rdExRender(){const n=(rdEx.scope==='book'?RD_HL.filter(h=>h.b===rdCurBook).length+RD_AN.filter(a=>a.b===rdCurBook).length:rdMarkN(-1));
+  $('#rdExOpts').innerHTML=`<div class="flex gap-1.5">${['book','all'].map(k=>`<button class="seg-pill !text-[11px] ${rdEx.scope===k?'on':''}" onclick="rdEx.scope='${k}';rdExRender()">${k==='book'?'仅本书':'全部书籍'}</button>`).join('')}</div>
+  <div class="flex gap-1.5 mt-2">${[['md','Markdown'],['txt','TXT']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${rdEx.fmt===k?'on':''}" onclick="rdEx.fmt='${k}';rdExRender()">${l}</button>`).join('')}
+  <span class="flex-1"></span><button class="seg-pill !text-[11px] ${rdEx.cfi?'on':''}" onclick="rdEx.cfi=!rdEx.cfi;rdExRender()">含 CFI 定位</button></div>`;
+  $('#rdExN').textContent=n;
+  const lines=rdExLines();$('#rdExPreview').innerHTML=rdEsc(lines.slice(0,4).join('\n')).replace(/\n/g,'<br>')+(lines.length>4?'\n…共 '+lines.length+' 行':'')}
+function rdExLines(){const out=['# 阅读批注导出 · '+new Date().toLocaleDateString()];
+  const books=rdEx.scope==='book'?[rdBook(rdCurBook)]:RD_BOOKS;
+  for(const bk of books){if(!bk)continue;out.push('','## 《'+bk.t+'》 '+bk.a);
+    RD_HL.filter(h=>h.b===bk.id).forEach(h=>out.push('- ['+RD_HLC[h.color][1]+'] '+rdChText(bk.id,h.ch).slice(h.p0,h.p1+1).map(x=>x.t).join(' ')+(rdEx.cfi?'  ('+rdCfi(bk.id,h.ch,h.p0)+')':'')));
+    RD_AN.filter(a=>a.b===bk.id).forEach(a=>out.push('- [批注] '+a.quote+(rdEx.cfi?'  ('+rdCfi(bk.id,a.ch,a.p0)+')':''),  '  > '+a.note))}
+  return out}
+function rdExportCommit(){const txt=rdExLines().join('\n');const ext=rdEx.fmt;
+  try{const blob=new Blob([txt],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='阅读批注导出.'+ext;a.click()}catch(e){}
+  closeSheet('sheetRtExport');toast(`已导出 ${rdEx.fmt.toUpperCase()} · 个人数据 · 随 WebDAV/S3 整体备份`)}
+function rdExportAll(){rdEx.scope='all';openSheet('sheetRtExport');rdExRender()}
+
+/* ---- 统计 ---- */
+let rdStatsBook=-1;
+function rdOpenStats(b){rdStatsBook=b;navTo('p-readerStats')}
+function rdStatsAll(){rdStatsBook=-1;navTo('p-readerStats')}
+function rdRenderStats(){const b=rdStatsBook;
+  if(b<0){const tot=RD_BOOKS.reduce((s,x)=>s+x.secs,0),mks=rdMarkN(-1);
+    $('#rdStatsBody').innerHTML=`<div class="grad rounded-3xl p-4 text-white mt-1">
+      <div class="flex items-center justify-between"><b class="text-sm">全库 · ${RD_BOOKS.length} 本</b><button class="text-[10px] bg-white/20 rounded-full px-2.5 py-1" onclick="toast('分享卡已生成（含本周时长水印）')">分享</button></div>
+      <div class="text-3xl font-black mt-2">${(tot/3600).toFixed(1)}<span class="text-sm font-bold"> 小时</span></div>
+      <div class="text-[10px] opacity-75 mt-1">累计阅读 · 今日 ${rdHMS(rdTodaySecs())} · 高亮批注 ${mks} 条</div>
+      <div class="mt-3 flex items-end gap-1 h-10">${RD_DAYS.map((m,i)=>`<div class="flex-1 rounded-t ${i===RD_DAYS.length-1?'bg-white':'bg-white/35'}" style="height:${Math.max(4,m/8)}px" title="${m} 分钟"></div>`).join('')}</div>
+      <div class="text-[9px] opacity-60 mt-1 text-center">近 14 天阅读分钟 · 末柱含本次实时</div></div>
+    <div class="mt-3 space-y-2.5">${RD_BOOKS.map(x=>`<button class="w-full card flex items-center gap-3 text-left" onclick="rdOpenStats(${x.id})">
+      <div class="w-9 h-12 shrink-0">${rdCoverHtml(x,'w-full h-full')}</div>
+      <div class="flex-1 min-w-0"><div class="text-xs font-bold truncate">${rdEsc(x.t)}</div><div class="text-[10px] text-slate-400">${rdHMS(x.secs)} · ${rdStPct(x.id)}% · ${rdMarkN(x.id)} 条批注</div>
+      <div class="mt-1 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${rdStPct(x.id)}%"></span></div></div>
+      <span class="text-slate-300">›</span></button>`).join('')}</div>`;
+    $('#pageSub').textContent='全库汇总';return}
+  const bk=rdBook(b);const tp=rdTotalPages(b),pos=RD_POS[b]||{ch:RD_LEAVES(b)[0],pg:0};const gp=rdGPos(b,pos.ch,pos.pg);
+  const pct=rdStPct(b),mins=bk.secs/60+rdSessSecs()/60,avg=gp>0?mins/gp:0.5,remPg=tp-gp;
+  const done=pos?rdLeafIdx(b,pos.ch)+(RD_V.b===b&&curPage==='p-readerPage'?(RD_V.pg+1)/rdPagesOf(b,RD_V.ch).length:0):0;
+  $('#rdStatsBody').innerHTML=`<div class="grad rounded-3xl p-4 text-white mt-1">
+    <div class="flex items-center justify-between"><b class="text-sm">${rdEsc(bk.t)}</b><button class="text-[10px] bg-white/20 rounded-full px-2.5 py-1" onclick="toast('本书统计分享卡（模拟）')">分享</button></div>
+    <div class="text-3xl font-black mt-2">${(bk.secs/3600).toFixed(1)}<span class="text-sm font-bold"> 小时</span></div>
+    <div class="text-[10px] opacity-75 mt-1">本书累计 · 均速 ${avg?avg.toFixed(1):'—'} 分钟/页 · 已读 ${Math.round(done)}/${RD_LEAVES(b).length} 章</div></div>
+  <div class="mt-3 grid grid-cols-4 text-center text-[10px]">
+    <div class="card !py-2.5"><b class="text-base">${pct}%</b><div class="text-slate-400">进度</div></div>
+    <div class="card !py-2.5"><b class="text-base">${remPg}</b><div class="text-slate-400">剩余页估</div></div>
+    <div class="card !py-2.5"><b class="text-base" id="rdStRemT">${remPg&&avg?rdHMS(remPg*avg*60):'—'}</b><div class="text-slate-400">预计读完</div></div>
+    <div class="card !py-2.5"><b class="text-base">${rdMarkN(b)}</b><div class="text-slate-400">高亮·批注</div></div></div>
+  <div class="mt-3 card"><div class="text-xs font-extrabold">本书近 14 天时长</div>
+    <div class="mt-2 flex items-end gap-1 h-12">${RD_DAYS.map((m,i)=>`<div class="flex-1 rounded-t grad ${i===RD_DAYS.length-1?'':''}" style="height:${Math.max(3,m/6)}px"></div>`).join('')}</div>
+    <div class="text-[9px] text-slate-400 mt-1 text-center">按当前节奏预计还需 ${remPg&&avg?rdHMS(remPg*avg*60):'—'} 读完</div></div>
+  <div class="mt-3 card"><div class="text-xs font-extrabold mb-2">章节进度（点击跳章）</div>
+    ${RD_LEAVES(b).map((ch,i)=>{const n=rdPagesOf(b,ch).length;const p=i<rdLeafIdx(b,pos.ch)?100:i===rdLeafIdx(b,pos.ch)?Math.round((pos.pg+1)/n*100):0;
+      return `<button class="w-full flex items-center gap-2 py-1" onclick="rdOpenBook(${b});rdGotoCh('${ch}',0)">
+      <span class="w-16 text-[9px] text-slate-400 truncate text-left">${rdEsc(rdChName(b,ch).slice(0,7))}</span>
+      <span class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${p}%"></span></span>
+      <b class="text-[9px] tabular-nums w-8 text-right">${p}%</b></button>`}).join('')}</div>
+  <div class="mt-3 flex gap-2"><button class="mini-btn" onclick="rdOpenBook(${b})">回到阅读</button><button class="mini-btn" onclick="rdGotoNotes(${b})">看批注</button><span class="flex-1"></span><button class="mini-btn" onclick="openSheet('sheetRtExport');rdExRender()">导出批注</button></div>`;
+  $('#pageSub').textContent=bk.t}
+
+/* ---- 外观面板（草稿制） ---- */
+let rdDraft={},rdApScopeK='book';
+let rdApBookK=0;
+function rdApOpen(scope,bid){rdApScopeK=scope;rdApBookK=(bid!=null?bid:(RD_V.b!=null?RD_V.b:rdCurBook));
+  rdDraft=JSON.parse(JSON.stringify(scope==='book'?Object.assign({},rdCfg,rdBooksCfg[rdApBookK]||{}):rdCfg));
+  $('#rdApScope').innerHTML=[['book','本书专属'],['global','全部书籍']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${rdApScopeK===k?'on':''}" onclick="rdApOpen('${k}')">${l}</button>`).join('');
+  rdApControls();rdApPreview()}
+function rdApControls(){const d=rdDraft;
+  $('#rdApFs').value=d.fs;$('#rdApFsV').textContent=d.fs;
+  $('#rdApLh').value=d.lh;$('#rdApLhV').textContent=(+d.lh).toFixed(2);
+  $('#rdApLs').value=d.ls;$('#rdApLsV').textContent=(+d.ls).toFixed(1);
+  $('#rdApMar').value=d.mar;$('#rdApMarV').textContent=d.mar<=12?'窄':d.mar>=36?'宽':'中';
+  $('#rdApThemes').innerHTML=Object.entries(RD_THEMES).map(([k,v])=>`<button class="rd-themecard ${d.theme===k?'on':''} rounded-xl p-2 text-center" style="background:${v.bg};color:${v.fg}" onclick="rdApSet('theme','${k}')"><div class="text-[10px] font-black">${v.n}</div><div class="text-[7px] opacity-70 mt-0.5">Aa 阅读示例</div></button>`).join('');
+  $('#rdApFonts').innerHTML=Object.entries(RD_FONTS).map(([k,v])=>`<button class="rd-fs ${d.font===k?'on':''} rounded-xl px-3 py-2 text-[11px] font-bold shrink-0" style="font-family:${v[1]}" onclick="rdApSet('font','${k}')">${v[0]}</button>`).join('');
+  $('#rdApAnim').innerHTML=[['cover','覆盖'],['push','平移'],['fade','虚化']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${d.anim===k?'on':''}" onclick="rdApSet('anim','${k}')">${l}</button>`).join('');
+  $('#rdApBright').classList.toggle('on',!!d.bright);$('#rdApAuto').classList.toggle('on',!!d.auto);$('#rdApAutoLbl').textContent=d.auto?d.autoSecs+' 秒':'关';
+  $('#rdApBg').value=d.bg;$('#rdApFg').value=d.fg;
+  $('#rdApSaveBtn').textContent=rdApScopeK==='book'?'保存到本书':'设为全局默认'}
+function rdApSet(k,v){rdDraft[k]=v;if(k==='theme'){const t=RD_THEMES[v];rdDraft.bg=t.bg;rdDraft.fg=t.fg}rdApControls();rdApPreview()}
+function rdApSetColor(v,k){rdDraft[k]=v;rdDraft.theme='custom';rdApPreview();$('#rdApThemes').querySelectorAll('.rd-themecard').forEach(x=>x.classList.remove('on'))}
+function rdApTgl(k,el,applyNow){el.classList.toggle('on');rdDraft[k]=el.classList.contains('on');
+  if(applyNow){rdCfg[k]=el.classList.contains('on');rdPersist();rdApplyTheme()}
+  if(k==='auto'){if(rdDraft.auto){openSheet('sheetRtAutoPage');wReg('wAutoSecs',RD_AUTOS.map(x=>x+' 秒'),Math.max(0,RD_AUTOS.indexOf(rdDraft.autoSecs||10)),()=>{})}else{rdStopAuto()}}}
+const RD_AUTOS=[3,5,8,10,15,20,30,45,60];
+function rdAutoConfirm(){const w=WHEELS['wAutoSecs'];rdDraft.auto=true;rdDraft.autoSecs=RD_AUTOS[w?w.i:3];rdApControls();toast('自动翻页 '+rdDraft.autoSecs+' 秒/页')}
+function rdApPreview(){const d=rdDraft;const el=$('#rdApPrev');el.style.background=d.theme==='custom'?d.bg:RD_THEMES[d.theme].bg;el.style.color=d.theme==='custom'?d.fg:RD_THEMES[d.theme].fg;
+  el.style.fontFamily=RD_FONTS[d.font]?RD_FONTS[d.font][1]:'';
+  el.innerHTML=`<div style="font-size:${d.fs*0.62}px;line-height:${d.lh};letter-spacing:${d.ls}px;padding:${d.mar*0.4}px ${d.mar*0.55}px">系统 2 有一个鲜为人知的身份：它其实是系统 1 的公关秘书。它不总是发号施令，更多时候在为直觉决定寻找理由。</div>`}
+function rdApSave(){const d=rdDraft;
+  if(rdApScopeK==='book')rdBooksCfg[rdApBookK]=Object.assign(rdBooksCfg[rdApBookK]||{},d);else rdCfg=Object.assign(rdCfg,d);
+  rdPagCache={};rdPersist();closeSheet('sheetRtAppearance');
+  if(curPage==='p-readerPage')rdRenderPage();else rdApplyTheme();
+  toast(rdApScopeK==='book'?'本书外观已保存 · 逐书独立记忆':'全局默认已更新 · 未覆写的书即时生效')}
+function rdApplyTheme(){const t=rdThemeColors(rdSt(RD_V.b));$('#rdStage').style.background=t.bg;$('#rdStage').style.color=t.fg}
+
+/* ---- 阅读器设置页 ---- */
+function rdSetPut(k,v){rdCfg[k]=v;rdPersist();if(curPage==='p-readerPage')rdRenderPage();rdRenderSettings()}
+function rdRenderSettings(){
+  $('#rdSetApSum').textContent=(RD_THEMES[rdCfg.theme]?RD_THEMES[rdCfg.theme].n:'自定义')+' · '+rdCfg.fs+'px · '+RD_FONTS[rdCfg.font][0];
+  $('#rdAnimSeg').innerHTML=[['cover','覆盖'],['push','平移'],['fade','虚化']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${rdCfg.anim===k?'on':''}" onclick="rdSetPut('anim','${k}')">${l}</button>`).join('');
+  $('#rdLinkSeg').innerHTML=[['deny','禁止'],['ask','每次询问'],['allow','允许打开']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${rdCfg.linkAsk===k?'on':''}" onclick="rdSetPut('linkAsk','${k}')">${l}</button>`).join('');
+  $('#rdSetAutoLbl').textContent=rdCfg.auto?rdCfg.autoSecs+' 秒/页':'关';
+  $('#rdSetTtsV').textContent=rdCfg.ttsVoice||'离线标准女声';
+  $('#rdPerBook').innerHTML=RD_BOOKS.map(bk=>{const o=rdBooksCfg[bk.id];const p=RD_POS[bk.id];
+    return `<div class="flex items-center gap-2 py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <span class="flex-1 font-bold truncate">${rdEsc(bk.t)}</span>
+    <span class="text-[9px] text-slate-400">${p?'位置 '+rdChName(bk.id,p.ch):'未读'}${o?' · 专属外观':''}</span>
+    ${o?`<button class="link-act" onclick="delete rdBooksCfg[${bk.id}];rdPagCache={};rdPersist();rdRenderSettings();toast('《${rdEsc(bk.t).slice(0,8)}》已回落全局默认')">重置</button>`:''}
+    <button class="link-act" onclick="rdOpenBook(${bk.id})">续读</button></div>`}).join('')}
+function rdResetPrefs(){if(!confirm('恢复出厂外观与所有逐书记忆？批注数据保留'))return;
+  rdCfg=JSON.parse(JSON.stringify(RD_DEF));rdBooksCfg={};rdPagCache={};rdPersist();rdRenderSettings();rdRenderShelf();toast('已重置 · 高亮批注与笔记不受影响')}
+function rdAutoToggle(el){rdCfg.auto=el.classList.contains('on');if(rdCfg.auto){openSheet('sheetRtAutoPage');wReg('wAutoSecs',RD_AUTOS.map(x=>x+' 秒'),Math.max(0,RD_AUTOS.indexOf(rdCfg.autoSecs)),()=>{})}else rdStopAuto();rdPersist();rdRenderSettings()}
+/* ---- 更多菜单 ---- */
+function rdMoreRender(){$('#rdMoreMarkN').textContent=rdMarkN(RD_V.b)+' 条';
+  $('#rdMoreGrid').innerHTML=[['目录','<path d="M5 4h14v16H5z"/><path d="M9 8h7M9 12h7M9 16h4"/>','openSheet(\'sheetRtToc\');rdTocRender()'],
+  ['笔记','<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7"/>',`rdSelToNote()`],
+  ['统计','<path d="M4 20V10m6 10V4m6 16v-7"/>',`rdOpenStats(RD_V.b)`],
+  ['批注','<path d="M15 4 4 15v5h5L20 9z"/>',`rdGotoNotes(RD_V.b)`],
+  ['缩览','<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',`openSheet('sheetRtPreview');rdPvRender(RD_V.b)`],
+  ['常亮','<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M12 7v5l3 3"/>',`rdMoreBright()`],
+  ['分享','<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/>',`toast('已分享本书卡片与进度（含出处签名）')`],
+  ['资料','<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/>',`rdOpenBookDetail(RD_V.b)`]].map(([l,p,fn])=>`<button class="bg-slate-50 dark:bg-slate-800 rounded-xl py-2.5 flex flex-col items-center gap-1 font-bold" onclick="closeSheet('sheetRtMore');${fn}">${rdi(p,17)}${l}</button>`).join('');
+  $('#rdMoreMode').innerHTML=[['page','翻页'],['scroll','滚动']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${RD_V.mode===k?'on':''}" onclick="RD_V.mode='${k}';rdCfg.mode='${k}';rdPersist();closeSheet('sheetRtMore');rdRenderPage()">${l}</button>`).join('');
+  $('#rdMoreBright').classList.toggle('on',!!rdCfg.bright);$('#rdMoreTts').classList.toggle('on',!!rdCfg.ttsOn)}
+function rdMoreBright(){rdCfg.bright=!rdCfg.bright;$('#rdMoreBright').classList.toggle('on',rdCfg.bright);rdPersist();toast(rdCfg.bright?'阅读时屏幕保持常亮':'已恢复系统息屏策略')}
+/* ---- 缩略图 ---- */
+function rdPvRender(b){RD_V.b=b;const tp=rdTotalPages(b);const n=Math.min(8,tp);$('#rdPvN').textContent=n;let h='';
+  for(let g=0;g<n;g++){const p=rdGPosTo(b,g);const arr=rdChText(b,p.ch);const txt=arr.slice(0,4).map(x=>x.t).join(' ').slice(0,42);
+    h+=`<button class="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-left" onclick="closeSheet('sheetRtPreview');rdSeek(${g})">
+    <div class="aspect-[3/4] text-[4.5px] leading-[6.5px] overflow-hidden bg-[#faf6ee] text-[#3b3630] p-0.5">${rdEsc(txt)}<span style="display:block;height:1.5px;background:#fde047;margin-top:1px"></span></div>
+    <div class="text-[8px] text-slate-400 mt-0.5">第 ${g+1} 页</div></button>`}
+  $('#rdPvGrid').innerHTML=h}
+/* ---- TTS ---- */
+let rdTtsTimer=0,rdTtsI=0;
+function rdTtsFromMore(el){el.classList.toggle('on');if(el.classList.contains('on'))rdTtsOn();else rdTtsOff(true)}
+function rdTtsOn(){rdCfg.ttsOn=true;closeSheet('sheetRtMore');$('#rdTts').classList.remove('hidden');$('#rdTtsCh').textContent=rdChName(RD_V.b,RD_V.ch);
+  RD_V.chrome=false;$('#rdTop').classList.add('hidden');$('#rdBottom').classList.add('hidden');
+  rdTtsI=RD_V.sel?RD_V.sel.p0:RD_V.pg;rdTtsTick();clearInterval(rdTtsTimer);rdTtsTimer=setInterval(rdTtsTick,3200/(rdCfg.ttsRate||1));toast('朗读中 · 本地离线引擎（'+(rdCfg.ttsVoice||'标准女声')+'）')}
+function rdTtsTick(){const arr=rdChText(RD_V.b,RD_V.ch);const i=rdTtsI%arr.length;
+  $('#rdTtsNext').textContent=arr[i]?arr[i].t.slice(0,26)+'…':'';
+  $$('#rdBody .rdp .rd-cur').forEach(x=>x.classList.remove('rd-cur'));
+  const el=$('#rdBody').querySelector(`[data-pi="${i}"]`);if(el)el.classList.add('rd-cur')}
+function rdTtsToggle(){const el=$('#rdTtsPlay');if(rdTtsTimer){clearInterval(rdTtsTimer);rdTtsTimer=0;el.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';toast('已暂停')}
+  else{rdTtsTimer=setInterval(rdTtsTick,3200/(rdCfg.ttsRate||1));el.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="14" y="5" width="3.5" height="14" rx="1"/></svg>';toast('继续朗读')}
+  RD_V.ttsPaused=!rdTtsTimer}
+function rdTtsRate(){const r=rdCfg.ttsRate||1;rdCfg.ttsRate=r>=1.5?0.75:r+0.25;$('#rdTtsRate').textContent=rdCfg.ttsRate.toFixed(2).replace(/0$/,'')+'x';if(rdTtsTimer){clearInterval(rdTtsTimer);rdTtsTimer=setInterval(rdTtsTick,3200/rdCfg.ttsRate)}rdPersist();toast('语速 '+rdCfg.ttsRate+'x')}
+function rdTtsOff(quiet){clearInterval(rdTtsTimer);rdTtsTimer=0;rdCfg.ttsOn=false;$('#rdTts').classList.add('hidden');$$('#rdBody .rd-cur').forEach(x=>x.classList.remove('rd-cur'));if(!quiet)toast('已停止朗读');rdPersist()}
+function rdVcRender(){const vs=[['离线标准女声',true],['离线温润男声',false],['粤语女声（扩展包）',false],['英语精读包（扩展包）',false]];
+  $('#rdVcList').innerHTML=vs.map(([v,on])=>`<button class="w-full flex items-center justify-between card !py-2.5" onclick="rdCfg.ttsVoice='${v}';rdPersist();closeSheet('sheetRtVoice');toast('音色已切换（离线引擎）')"><span class="font-bold ${on?'text-brand-500':''}">${v}</span><span class="text-[9px] text-slate-400">${on?'当前':''}</span></button>`).join('')}
+/* ---- 自动翻页 ---- */
+let rdAutoTimer=0;
+function rdStartAuto(){rdStopAuto();if(!rdCfg.auto)return;rdAutoTimer=setInterval(()=>{if(curPage==='p-readerPage'&&!RD_V.sel&&!RD_V.ttsPaused)rdFlip(1)},(rdCfg.autoSecs||10)*1000)}
+function rdStopAuto(){clearInterval(rdAutoTimer);rdAutoTimer=0}
+
+/* ---- 路由包装：进出阅读器联动 ---- */
+const rdSetPage0=setPage;
+setPage=function(p){
+  if(curPage==='p-readerPage'&&p!=='p-readerPage'){rdLeave();rdStopAuto();rdTtsOff(true);if(RD_V.sel)rdSelHide();$('#rdTop').classList.add('hidden');$('#rdBottom').classList.add('hidden')}
+  if(RD_V.hit&&p!=='p-readerPage'&&p!=='p-readerSearch'){RD_V.hit=null;$('#rdHitsBar').classList.add('hidden')}
+  rdSetPage0(p);
+  if(p==='p-readerShelf')rdRenderShelf();
+  if(p==='p-readerImport')rdImpRender();
+  if(p==='p-readerBook'){rdRenderBook()}
+  if(p==='p-readerNotes')rdRenderNotes();
+  if(p==='p-readerStats')rdRenderStats();
+  if(p==='p-readerSettings')rdRenderSettings();
+  if(p==='p-readerSearch')rdSearchRender();
+  if(p==='p-readerPage'){if(!RD_V.t0)RD_V.t0=Date.now();rdStartAuto();rdChromeLabels();if(rdCfg.ttsOn)$('#rdTts').classList.remove('hidden')}
+  if(p==='p-records'&&recTab==='book')$('#rdShelfSub')&&($('#rdShelfSub').textContent=RD_BOOKS.filter(b=>b.st===1).length+' 本在读 · 划词批注同步笔记库（联动 L18）');
+  if(p!=='p-readerShelf'&&rdSelSet.size&&p!=='p-readerShelf')rdExitSel()};
+/* 实时计时芯片 */
+setInterval(()=>{if(curPage==='p-readerPage'&&RD_V.chrome)$('#rdSessChip').textContent=rdMS(rdSessSecs());
+  if(curPage==='p-readerStats')renderStatsTick()},1000);
+function renderStatsTick(){if(rdStatsBook<0){const el=$('#rdHToday');}const c=$('#rdStRemT');if(c&&rdStatsBook>=0){/* 实时剩余不动，时长在 hero 固定 */}}
+/* 键盘与滑动 */
+document.addEventListener('keydown',e=>{if(curPage!=='p-readerPage')return;
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();rdFlip(1)}if(e.key==='ArrowLeft'){e.preventDefault();rdFlip(-1)}
+  if(e.key==='Escape'&&RD_V.sel)rdSelHide()});
+(()=>{const st=$('#rdStage');if(!st)return;let sx=0,sy=0;
+  st.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+  st.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+    if(RD_V.mode==='page'&&Math.abs(dx)>70&&Math.abs(dx)>2*Math.abs(dy))rdFlip(dx<0?1:-1)},{passive:true})})();
+/* ---- 启动 ---- */
+function rdBoot(){rdLoadPersist();
+  /* 种子批注同步到笔记库（保持演示一致） */
+  RD_HL.forEach(h=>rdSyncNote('hl',h.id));RD_AN.forEach(a=>rdSyncNote('an',a.id));
+  try{renderNotes()}catch(e){}
+  /* 阅读 tab / 书籍详情 的阅读器入口副标题 */
+  const sub=$('#rdShelfSub');if(sub)sub.textContent=RD_BOOKS.filter(b=>b.st===1).length+' 本在读 · 划词批注同步笔记库（联动 L18）';
+  rdRenderShelf();rdVcRender();
+  /* 阅读计时：进入 p-readerPage 前 RD_V 已带位置 */
+  RD_V.b=0;RD_V.ch=(RD_POS[0]||{}).ch||'c4';RD_V.pg=(RD_POS[0]||{}).pg||0;rdRenderPage();
+  /* 深链 */
+  const hash=location.hash||'';
+  const m=(hash+' '+location.search).match(/(p-r[A-Za-z0-9]+)(?:[\/_](b(\d+))|_i(\d+))?/);
+  if(m){const p=m[1],el=document.getElementById(p);
+    if(el&&el.classList.contains('page')){const bid=m[3]!=null?+m[3]:(m[4]!=null?+m[4]:null);
+      if(p==='p-readerBook'&&bid!=null)rdCurBook=bid;
+      if(p==='p-readerPage'&&bid!=null)RD_V.b=RD_BOOKS.some(x=>x.id===bid)?bid:0;
+      if(p==='p-readerNotes')rdNotesBook=bid!=null?bid:0;
+      if(p==='p-readerStats'&&bid!=null)rdStatsBook=bid;
+      stack.length=0;setPage(p);
+      if(p==='p-readerPage'){RD_V.ch=(RD_POS[RD_V.b]||{}).ch||RD_LEAVES(RD_V.b)[0];RD_V.pg=(RD_POS[RD_V.b]||{}).pg||0;rdRenderPage();RD_V.chrome=true;$('#rdTop').classList.remove('hidden');$('#rdTop').classList.add('flex');$('#rdBottom').classList.remove('hidden');$('#rdBottom').classList.add('flex')}
+      if(p==='p-readerImport')rdImpGo(bid!=null?bid:1)}}
+  rdFigSvg()}
+rdBoot();
+/* ---- 阅读器模块结束 ---- */

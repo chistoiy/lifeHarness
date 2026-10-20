@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面模块批2 · 小组件文案（§5.6：名称＝「LifeHarness · 小部件名」）。
+  文案口径＝原型 prototype/index-desktop.html 屏 dt-widget（同字）。
+-->
+<resources>
+    <string name="lh_widget_overview_name">LifeHarness · 今日概览</string>
+    <string name="lh_widget_overview_desc">今日待办与习惯打卡进度</string>
+    <string name="lh_widget_quick_name">LifeHarness · 快捷记录</string>
+    <string name="lh_widget_quick_desc">记一笔｜今日支出｜本月结余</string>
+
+    <string name="lh_widget_no_data">暂无数据，打开 App 后同步</string>
+    <!-- 总开关关闭后的空态（8148 装机实锤修「死开关」时新增） -->
+    <string name="lh_widget_disabled">已在「外观与交互」中停用</string>
+    <string name="lh_widget_hint_none">今天没有要打卡的习惯</string>
+    <string name="lh_widget_hint_all">今天已全部打卡</string>
+    <string name="lh_widget_hint_left">还差 %1$d 项就全勤</string>
+    <string name="lh_widget_a11y_overview">今日待办 %1$d 项，习惯 %2$d/%3$d 已完成</string>
+    <string name="lh_widget_label_todo">待办</string>
+    <string name="lh_widget_label_habit">打卡</string>
+    <string name="lh_widget_label_today_cost">今日支出</string>
+    <!-- 4×1 三区（2026-10-18 改版）：第三区读数标题 -->
+    <string name="lh_widget_label_month_balance">本月结余</string>
+    <string name="lh_widget_quick_action">记一笔</string>
+
+    <!-- 批3 · 2×2 待办清单 -->
+    <string name="lh_widget_todo_name">LifeHarness · 今日待办</string>
+    <string name="lh_widget_todo_desc">最近待办，点勾圈直接完成</string>
+    <string name="lh_widget_todo_toggle">完成这条待办</string>
+    <string name="lh_widget_todo_empty">今天没有待办</string>
+    <string name="lh_widget_todo_more">还有 %1$d 条</string>
+    <string name="lh_widget_a11y_todo">%1$d 条待办，点左圈可完成</string>
+
+    <!-- 批3 · 2×2 记账概览（三行读数：今日支出／本月支出／本月结余） -->
+    <string name="lh_widget_ledger_name">LifeHarness · 记账概览</string>
+    <string name="lh_widget_ledger_desc">今日、本月支出与结余</string>
+    <string name="lh_widget_label_month_cost">本月支出</string>
+    <string name="lh_widget_label_balance">本月结余</string>
+    <string name="lh_widget_ledger_hint">点一下记一笔</string>
+    <string name="lh_widget_a11y_ledger">今日支出 %1$s，本月支出 %2$s，本月结余 %3$s</string>
+
+    <!-- 批A · 2×2 打卡-单习惯（一枚绑一个习惯，点按钮即打卡） -->
+    <string name="lh_widget_habit_name">LifeHarness · 打卡</string>
+    <string name="lh_widget_habit_desc">单习惯打卡，点一下即打卡</string>
+    <string name="lh_widget_habit_btn">打卡</string>
+    <string name="lh_widget_habit_done">已打卡</string>
+    <string name="lh_widget_habit_streak">连击 %1$d 天 · 今日未打卡</string>
+    <string name="lh_widget_habit_streak_done">连击 %1$d 天 · 今日已打卡</string>
+    <string name="lh_widget_habit_streak0">今日未打卡</string>
+    <string name="lh_widget_habit_streak0_done">今日已打卡</string>
+    <string name="lh_widget_a11y_habit">%1$s，连击 %2$d 天，%3$s</string>
+    <!-- 数值型（记量）习惯：状态行显示进度，步进行 ±N ＋ 主按钮「打卡」（2026-10-18 报障补 · 批D 改三格） -->
+    <string name="lh_widget_habit_val">%1$s/%2$s %3$s</string>
+    <string name="lh_widget_habit_val_streak">%1$s/%2$s %3$s · 连击 %4$d 天</string>
+    <string name="lh_widget_habit_add">+%1$s</string>
+    <!-- 步进行左格（原型 `−5`）。用 U+2212 减号而不是 ASCII 连字符：等宽对齐、不与数字混同 -->
+    <string name="lh_widget_habit_minus">−%1$s</string>
+    <!-- 已提交态（原型「提交后只显示「已打卡 · 30」」） -->
+    <string name="lh_widget_habit_done_val">已打卡 · %1$s</string>
+
+    <!-- 批A · 失效三态（产品 2026-10-17 勾定文案；点击起 App 开配置/管理页） -->
+    <string name="lh_widget_wait_data">等待数据</string>
+    <string name="lh_widget_no_binding">未选择内容，点此设置</string>
+    <string name="lh_widget_source_invalid">内容已失效，点此重新选择</string>
+
+    <!-- 批C · 1×1 模块瓦片（2026-10-18）：一枚瓦片＝一个模块，点了直达该模块首页。
+         名称带「模块 · 」前缀——选择器里与应用图标同名会分不清（规格 §10.2 待产品定，
+         暂按此口径；产品若改口只动这一处文案）。 -->
+    <string name="lh_tile_todo_name">模块 · 待办</string>
+    <string name="lh_tile_todo_desc">点一下直达待办</string>
+    <string name="lh_tile_label_todo">待办</string>
+    <string name="lh_tile_today_name">模块 · 今天</string>
+    <string name="lh_tile_today_desc">点一下直达今天</string>
+    <string name="lh_tile_label_today">今天</string>
+    <string name="lh_tile_calendar_name">模块 · 时间</string>
+    <string name="lh_tile_calendar_desc">点一下直达时间</string>
+    <string name="lh_tile_label_calendar">时间</string>
+    <string name="lh_tile_journal_name">模块 · 记录</string>
+    <string name="lh_tile_journal_desc">点一下直达记录</string>
+    <string name="lh_tile_label_journal">记录</string>
+    <string name="lh_tile_habit_name">模块 · 习惯</string>
+    <string name="lh_tile_habit_desc">点一下直达习惯</string>
+    <string name="lh_tile_label_habit">习惯</string>
+    <string name="lh_tile_inbox_name">模块 · 收集箱</string>
+    <string name="lh_tile_inbox_desc">点一下直达收集箱</string>
+    <string name="lh_tile_label_inbox">收集箱</string>
+    <string name="lh_tile_ledger_name">模块 · 记账</string>
+    <string name="lh_tile_ledger_desc">点一下直达记账</string>
+    <string name="lh_tile_label_ledger">记账</string>
+    <string name="lh_tile_items_name">模块 · 物品</string>
+    <string name="lh_tile_items_desc">点一下直达物品</string>
+    <string name="lh_tile_label_items">物品</string>
+    <string name="lh_tile_days_name">模块 · 日子</string>
+    <string name="lh_tile_days_desc">点一下直达日子</string>
+    <string name="lh_tile_label_days">日子</string>
+    <string name="lh_tile_goals_name">模块 · 目标</string>
+    <string name="lh_tile_goals_desc">点一下直达目标</string>
+    <string name="lh_tile_label_goals">目标</string>
+    <string name="lh_tile_settings_name">模块 · 我的</string>
+    <string name="lh_tile_settings_desc">点一下直达我的</string>
+    <string name="lh_tile_label_settings">我的</string>
+    <string name="lh_tile_care_name">模块 · 呵护</string>
+    <string name="lh_tile_care_desc">点一下直达呵护</string>
+    <string name="lh_tile_label_care">呵护</string>
+    <string name="lh_tile_read_name">模块 · 阅读</string>
+    <string name="lh_tile_read_desc">点一下直达阅读</string>
+    <string name="lh_tile_label_read">阅读</string>
+    <string name="lh_tile_media_name">模块 · 影音</string>
+    <string name="lh_tile_media_desc">点一下直达影音</string>
+    <string name="lh_tile_label_media">影音</string>
+    <string name="lh_tile_health_name">模块 · 健康</string>
+    <string name="lh_tile_health_desc">点一下直达健康</string>
+    <string name="lh_tile_label_health">健康</string>
+    <string name="lh_tile_mindmap_name">模块 · 导图</string>
+    <string name="lh_tile_mindmap_desc">点一下直达导图</string>
+    <string name="lh_tile_label_mindmap">导图</string>
+    <string name="lh_tile_nfc_name">模块 · 卡片</string>
+    <string name="lh_tile_nfc_desc">点一下直达卡片</string>
+    <string name="lh_tile_label_nfc">卡片</string>
+
+    <!-- 配置 Activity（F2-4） -->
+    <string name="lh_widget_cfg_title">选择显示内容</string>
+    <string name="lh_widget_cfg_title_of">配置：%1$s</string>    <string name="lh_widget_cfg_hint">与「设置 › 桌面与快捷方式」共用同一份偏好，改哪边都生效。</string>
+    <string name="lh_widget_cfg_summary">今日概览读数</string>
+    <string name="lh_widget_cfg_quick">快捷记录入口</string>
+    <string name="lh_widget_cfg_todo_list">今日待办清单</string>
+    <string name="lh_widget_cfg_ledger">记账概览</string>
+    <string name="lh_widget_cfg_hide_amount">隐藏金额</string>
+    <string name="lh_widget_cfg_ok">完成</string>
+    <string name="lh_widget_cfg_cancel">取消</string>
+    <string name="lh_widget_cfg_wheres">在哪里改</string>
+    <string name="lh_widget_cfg_wheres_body">设置 › 桌面与快捷方式 › 小组件，改哪边都生效。</string>
+
+    <!-- 设置页「添加到桌面」选择器（批2）：系统没有公开的「打开小部件中心」入口（§4.9 降级矩阵），
+         故用系统对话框选一枚小组件后走 requestPinAppWidget。 -->
+    <string name="lh_widget_add_unsupported">当前桌面不支持自动添加，请长按桌面手动拖出小部件</string>
+</resources>

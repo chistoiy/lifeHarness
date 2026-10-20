@@ -1,0 +1,532 @@
+part of 'reader_page.dart';
+
+// 治理G7c1：顶/底栏与文本构建六件自 _ReaderPageState 移入同库扩展（行为零改动·直访私有字段）。
+extension _ReaderChrome on _ReaderPageState {
+  Widget _topBar(BrBar bar) {
+    final doc = _doc!;
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: KeyedSubtree(
+        key: const ValueKey('br-top'),
+        // 真机反馈（2026-09-28）：不再用 BackdropFilter 毛玻璃——弹层/选区触发
+        // 重合成时会把整页正文卷进模糊（引擎 backdrop 扩散）。底色改不透明（brBarOf）。
+        // R14-6：外包尺寸探针回灌实测高度（选区工具条让位 cT 用）。
+        child: BrSizeProbe(
+          onSize: (s) {
+            // ignore: invalid_use_of_protected_member
+            if (mounted && s.height != _topBarH) setState(() => _topBarH = s.height);
+          },
+          child: Container(
+          key: const ValueKey('brTopBox'),
+          decoration: BoxDecoration(
+            color: bar.bg,
+            border: Border(bottom: BorderSide(color: bar.line)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      key: const ValueKey('br-back'),
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.chevron_left_rounded,
+                        color: bar.fg,
+                        // R14-10：纯图标钮补语义标签（真机 uiautomator 可命中）。
+                        semanticLabel: '返回',
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            _book?.title ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: bar.fg,
+                            ),
+                          ),
+                          Text(
+                            '${doc.chapters[_pos.ci.clamp(0, doc.chapters.length - 1)].title} · ${_cfg.mode == 'page' ? '翻页' : '滚动'}模式',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: bar.fg.withValues(alpha: .6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Container(
+                        key: const ValueKey('br-sess-chip'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bar.chip,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          _clockText,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: bar.fg,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 全书检索入口（双入口之一；另一入口＝抽屉「搜本书」Tab）。
+                    // F3-8：去 compact（默认 48² 热区，紧凑密度会缩到 <44）。
+                    IconButton(
+                      key: const ValueKey('brBtnSearch'),
+                      onPressed: _openSearch,
+                      icon: Icon(
+                        Icons.search_rounded,
+                        size: 17,
+                        color: bar.fg,
+                        semanticLabel: '全书搜索', // R14-10
+                      ),
+                    ),
+                    // 本书操作弹层入口（原型顶栏 ⋯）。F3-8：去 compact＝48² 热区。
+                    IconButton(
+                      key: const ValueKey('brBtnMore'),
+                      onPressed: _openMoreSheet,
+                      icon: Icon(
+                        Icons.more_horiz_rounded,
+                        size: 19,
+                        color: bar.fg,
+                        semanticLabel: '更多操作', // R14-10
+                      ),
+                    ),
+                  ],
+                ),
+                if (_hits.isNotEmpty && _hitI >= 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 2),
+                    child: Row(
+                      key: const ValueKey('brHitsBar'),
+                      children: [
+                        Text(
+                          '${_hitI + 1}/${_hits.length} 处匹配 · “$_hitQ”',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: bar.fg.withValues(alpha: .75),
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          key: const ValueKey('brHitPrev'),
+                          onPressed: () => _hitStep(-1),
+                          child: Text(
+                            '上一处',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: bar.fg,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          key: const ValueKey('brHitNext'),
+                          onPressed: () => _hitStep(1),
+                          child: Text(
+                            '下一处',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: bar.fg,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          key: const ValueKey('brHitClear'),
+                          // ignore: invalid_use_of_protected_member
+                          onPressed: () => setState(() {
+                            _hits = const [];
+                            _hitI = -1;
+                            _hitMark = null;
+                          }),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            size: 14,
+                            color: bar.fg.withValues(alpha: .6),
+                            semanticLabel: '清除搜索', // R14-10
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+          ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomBar(BrBar bar, Size size) {
+    final pag = _pag!;
+    final n = pag.chapterPages(_pos.ci);
+    final gpEst = pag.gPosEst(_pos.ci, _pos.pg);
+    final total = pag.estTotal;
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: KeyedSubtree(
+        key: const ValueKey('br-bottom'),
+        // 同顶栏：去 BackdropFilter，防弹层/选区时整页模糊。
+        // R14-6：外包尺寸探针回灌实测高度（选区工具条让位 cB 用）。
+        child: BrSizeProbe(
+          onSize: (s) {
+            // ignore: invalid_use_of_protected_member
+            if (mounted && s.height != _bottomBarH) setState(() => _bottomBarH = s.height);
+          },
+          child: Container(
+          key: const ValueKey('brBottomBox'),
+          decoration: BoxDecoration(
+            color: bar.bg,
+            border: Border(top: BorderSide(color: bar.line)),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    // 轮5.4 后不再显示内部定位串（原型底栏只有页码标签 · 真机反馈 R14-3）。
+                    Text(
+                      // 全书页码为字符加权估算（约 1500 字/页 · foliate 口径）。
+                      '${_pos.pg + 1}/$n 页 · 约第 ${gpEst + 1}/$total 页 · ${pag.pct(_pos.ci, _pos.pg)}%',
+                      key: const ValueKey('brPgLbl'),
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: bar.fg.withValues(alpha: .7),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+                // 轮5.1：三图标底栏（目录 / 进度 / 外观），主题·亮度·字号并入外观弹层。
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _brIconBtn(bar, 'brBtnToc', '目录', Icons.menu_rounded, () {
+                        // ignore: invalid_use_of_protected_member
+                        setState(() => _drawerOpen = true);
+                      }),
+                      _brIconBtn(
+                        bar,
+                        'brBtnProg',
+                        '进度',
+                        Icons.tune_rounded,
+                        _openProgressSheet,
+                      ),
+                      _brIconBtn(
+                        bar,
+                        'brBtnLook',
+                        '外观',
+                        Icons.palette_outlined,
+                        _openAppearance,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ),
+        ),
+      );
+  }
+
+  Widget _brIconBtn(
+    BrBar bar,
+    String key,
+    String label,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      key: ValueKey(key),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        decoration: BoxDecoration(
+          color: bar.chip.withValues(alpha: .0),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 19, color: bar.fg),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                color: bar.fg.withValues(alpha: .8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 章节名闪现提示（轮5.2 拍板保留）：随主题取色，不再是固定黑底。
+  Widget _flashBar(BrBar bar) {
+    return Positioned(
+      bottom: 120,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          key: const ValueKey('brFlash'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: bar.bg,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: bar.line),
+          ),
+          child: Text(
+            _flash!,
+            style: TextStyle(fontSize: 10, color: bar.fg),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 轮4③：段内子串选中（无链接事件，仅选区底色一段）。
+  /// 批三真机反馈（2026-10-04 图1→图2）：改吃 [paraSelectionSpan]——选中态与正文态
+  /// 共用同一张分段表，一长按选字不再把原书分层色/夹注小字塌回主题黑大字。
+  TextSpan _subSpan(
+    (String, Color, Color) th,
+    EpubPara p,
+    int q0,
+    int q1,
+    int from,
+    int? to, {
+    List<({int a, int b, Color c})> hlSpans = const [],
+  }) => paraSelectionSpan(
+    p,
+    _userText(th),
+    orig: _cfg.orig,
+    pageBg: th.$2,
+    indMode: _cfg.indMode,
+    s2t: _cfg.s2t,
+    a: q0,
+    b: q1,
+    from: from,
+    to: to,
+    hlSpans: hlSpans,
+    selBg: context.tokens.accent.withValues(alpha: .3), // F3-3 收 accent
+  );
+
+  /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
+  /// ① 注释体走正文色小字；④ 只有外链给链接绿。
+  /// 轮4①：已入库划线的**字符区间铺底**——底色与链接/命中样式可叠加
+  /// （背景只加不改字色），旧整段数据不走这里。
+  /// F-13（2026-10-07）：[hlSpans]＝同段**全部**精确划线（createdAt 升序），
+  /// 每条各切起/止两点；重叠字符取**列表靠后**那条的色（＝最新），
+  /// 不许出现「后一条把前一条整段抹掉」。
+  TextSpan _textSpan(
+    (String, Color, Color) th,
+    EpubDoc doc,
+    int ci,
+    EpubPara p,
+    int pi,
+    bool hit, {
+    List<({int a, int b, Color c})> hlSpans = const [],
+    int from = 0,
+    int? to,
+  }) {
+    final user = _userText(th);
+    final base = paraStyle(p, user, orig: _cfg.orig, pageBg: th.$2);
+    final display = paraDisplayText(
+      p,
+      indent: _cfg.indent,
+      indMode: _cfg.indMode,
+      s2t: _cfg.s2t,
+    );
+    // 段首缩进前缀的显示偏移＝显示文本比原文多出来的长度（③ 后不再恒为 2；
+    // R3-6 的简繁转换逐字等长，所以这一差值仍然只反映缩进前缀）。
+    final ind = display.length - p.text.length;
+    // 块窗口（显示坐标）：本块只画 [winLo, winHi)，其余留给相邻页的那一块。
+    // 所有事件（链接/命中/划线/runs 切点）一律**夹进这个窗口**——夹在窗口外的
+    // 起与止会同时落到边界上，状态机一进一出互相抵消，跨页的链接/划线不会漏上色。
+    // 窗口左沿＝**显示坐标 0**（首块要连缩进前缀一起画），只有续排块才从内容处起；
+    // 事件坐标（原文＋ind）落在窗口外的夹到边界——跨块的链接/划线一进一出互相抵消。
+    final winLo = from == 0 ? 0 : ind + from;
+    final winHi = ind + (to ?? p.text.length).clamp(from, p.text.length);
+    // 批三刀3：段内原书区间（分层色·小字·专名线）与 `EpubPager.paraHeight`
+    // 吃**同一张** [paraRunStyles] 分段表——两处各算一份必出空页（预研 §3 同源红线）。
+    final segs = paraRunStyles(p, user, orig: _cfg.orig, pageBg: th.$2);
+    TextStyle segAt(int dispOff) {
+      if (dispOff < ind) return base; // 缩进前缀恒按段级样式（轮4③ 同口径）
+      final o = (dispOff - ind).clamp(0, p.text.length);
+      for (final s in segs) {
+        if (o >= s.start && o < s.end) return s.style;
+      }
+      return base;
+    }
+
+    final markBg = context.tokens.accent.withValues(alpha: .28);
+    // 轮4①：划线底色＝色标 27% 透明（与旧整段 Container 铺底同值，观感连续）。
+    // F-13：逐条各一份底色，重叠处按列表下标取靠后的那条（新线盖旧线，仅重叠区）。
+    final hlBg = [
+      for (final sp in hlSpans) sp.c.withValues(alpha: .27),
+    ];
+    final hlOn = List<bool>.filled(hlSpans.length, false);
+    final children = <InlineSpan>[];
+    // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）+ 划线起/止
+    // ＋原书区间**切点**（kind 6 不改状态，只逼一次 flush，让每一段拿到自己的样式）。
+    // 划线事件（4/5）第四元＝该条在 [hlSpans] 里的下标（F-13 多条并存）。
+    final eventsRaw = <(int, int, EpubLink?, int)>[
+      for (final l in p.links) ...[
+        (l.start + ind, 0, l, 0),
+        (l.end + ind, 1, l, 0),
+      ],
+      // 区间**起与止都要切**：只切起点会让整段一路披成第一个 run 的样式
+      // （真机表现＝注释段之后的正文跟着变绿变小）。
+      if (_cfg.orig && p.runs.isNotEmpty)
+        for (final r in p.runs) ...[
+          (r.start + ind, 6, null, 0),
+          (r.end + ind, 6, null, 0),
+        ],
+      if (hit && _hitQ.isNotEmpty) ...[
+        for (var idx = p.text.indexOf(_hitQ); idx >= 0; idx = p.text.indexOf(_hitQ, idx + 1)) ...[
+          (idx + ind, 2, null, 0),
+          (idx + ind + _hitQ.length, 3, null, 0),
+        ],
+      ],
+      for (var k = 0; k < hlSpans.length; k++)
+        if (hlSpans[k].b > hlSpans[k].a) ...[
+          (hlSpans[k].a + ind, 4, null, k),
+          (hlSpans[k].b + ind, 5, null, k),
+        ],
+    ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
+    // 夹进块窗口后再排序：窗口外的起与止会同时落到边界上，一进一出互相抵消，
+    // 跨页的链接/划线在本块照样能正确上色（工单 §3H-A 拆块）。
+    final events = <(int, int, EpubLink?, int)>[
+      for (final e in eventsRaw) (
+        e.$1.clamp(winLo, winHi),
+        e.$2,
+        e.$3,
+        e.$4,
+      ),
+    ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
+    var cursor = winLo;
+    var inLink = 0;
+    var inMark = 0;
+    void flush(int to) {
+      if (to <= cursor) return;
+      final t = display.substring(cursor.clamp(0, display.length), to.clamp(0, display.length));
+      if (t.isEmpty) {
+        cursor = to;
+        return;
+      }
+      final link = p.links.firstWhere(
+        (l) => l.start + ind == cursor || (cursor >= l.start + ind && cursor < l.end + ind),
+        orElse: () => EpubLink(start: -1, end: -1, href: '', external: false),
+      );
+      // ①④ 上色分派：外链绿 · 站内锚点正文色下划线 · 注释引用正文色小字。
+      // 轮4①：划线底色独立叠加（在链接/命中样式之上 copyWith 背景）。
+      // 批三刀3：底样式取**当前 run 分段**的样式，链接/命中/划线在其上叠。
+      final seg = segAt(cursor);
+      var style = inLink > 0
+          ? linkStyleFor(seg, link, accent: context.tokens.accent) // F3-3
+          : (inMark > 0 ? seg.copyWith(backgroundColor: markBg) : seg);
+      // F-13：重叠时取**下标最大**的活动划线（＝最新那条）；一条都没活动就不叠底。
+      for (var k = hlOn.length - 1; k >= 0; k--) {
+        if (hlOn[k]) {
+          style = style.copyWith(backgroundColor: hlBg[k]);
+          break;
+        }
+      }
+      children.add(
+        TextSpan(
+          text: t,
+          style: style,
+          recognizer: (inLink > 0 && link.start >= 0)
+              ? (TapGestureRecognizer()..onTap = () => _onLink(link))
+              : null,
+        ),
+      );
+      cursor = to;
+    }
+    for (final (at, kind, _, hlIdx) in events) {
+      flush(at);
+      switch (kind) {
+        case 0:
+          inLink++;
+        case 1:
+          inLink = (inLink - 1).clamp(0, 1 << 20);
+        case 2:
+          inMark++;
+        case 3:
+          inMark = (inMark - 1).clamp(0, 1 << 20);
+        case 4:
+          if (hlIdx >= 0 && hlIdx < hlOn.length) hlOn[hlIdx] = true;
+        case 5:
+          if (hlIdx >= 0 && hlIdx < hlOn.length) hlOn[hlIdx] = false;
+        // kind 6＝原书区间切点（批三刀3）：只逼一次 flush，不改任何状态。
+        case 6:
+          break;
+      }
+    }
+    flush(winHi);
+    return TextSpan(style: base, children: children);
+  }
+}
+
+// ---------- ③ 正文沉浸（工单20261001轮2·用户拍板 chrome 收起才隐藏系统栏） ----------
+
+extension _ReaderImmersive on _ReaderPageState {
+  /// 每帧落定后同步：chrome 收起（且用户主动收放过）→ immersiveSticky；
+  /// 点出顶/底栏、开抽屉/面板、选区出现 → 还原。弹层均由展开态 chrome 入口
+  /// 进入（进入前一步已还原），故无需逐弹层埋点；「在当前页」分组等不影响此链。
+  void _syncSysUi() {
+    if (_chrome) _chromeShownOnce = true;
+    final want = _chromeShownOnce &&
+        !_chrome &&
+        !_drawerOpen &&
+        _selController.sel == null;
+    if (want == _sysImmersive) return;
+    _sysImmersive = want;
+    _applySysUi(!want);
+  }
+
+  /// 退出阅读页还原系统栏，不把别的页带成无状态栏。
+  void _sysUiRestore() {
+    if (!_sysImmersive) return;
+    _sysImmersive = false;
+    _applySysUi(true);
+  }
+
+  void _applySysUi(bool visible) {
+    if (visible) {
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.manual,
+        overlays: SystemUiOverlay.values,
+      );
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
+  }
+}

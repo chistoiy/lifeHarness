@@ -1,0 +1,135 @@
+{
+ "file": "index_habitcheck.html",
+ "total": 335630,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-habits",
+   "kind": "screen",
+   "title": "习惯打卡",
+   "role": "home",
+   "size": 3190,
+   "hash": "91762af1"
+  },
+  {
+   "id": "p-habitDetail",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 114,
+   "hash": "8bbeda17"
+  },
+  {
+   "id": "p-habitStat",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 5785,
+   "hash": "ac8434f4"
+  },
+  {
+   "id": "p-habitSet",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 810,
+   "hash": "d9242238"
+  },
+  {
+   "id": "sheetAddHabit",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 3350,
+   "hash": "53ce175b"
+  },
+  {
+   "id": "sheetHabitEdit",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 5038,
+   "hash": "59c7e20e"
+  },
+  {
+   "id": "sheetHabitLog",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1307,
+   "hash": "8989bd5e"
+  },
+  {
+   "id": "sheetHabitBackfill",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 3460,
+   "hash": "78d8cba1"
+  },
+  {
+   "id": "sheetHabitTrigger",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1267,
+   "hash": "c7870a46"
+  },
+  {
+   "id": "sheetHabitOps",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 425,
+   "hash": "52c34708"
+  },
+  {
+   "id": "sheetHabitSrc",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 771,
+   "hash": "ae22eee4"
+  },
+  {
+   "id": "sheetHabitDay",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2047,
+   "hash": "aa087584"
+  },
+  {
+   "id": "sheetHabitMgr",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1159,
+   "hash": "258e788a"
+  },
+  {
+   "id": "sheetHabitPend",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 662,
+   "hash": "25a3614f"
+  },
+  {
+   "id": "sheetHabitTpl",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 663,
+   "hash": "9fb23549"
+  },
+  {
+   "id": "sheetHabitShare",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 889,
+   "hash": "4430718f"
+  }
+ ]
+}

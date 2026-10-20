@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2×2 记账概览小组件（批3 · 产品令「再搞个 2×2 的记账」）· 三行读数：
+    今日支出 / 本月支出 / 本月结余。
+  口径与产品原话逐字一致，顺序＝今日 → 本月 → 结余（结余放最后，因为它最需要核对）。
+  ⚠ 三行**共用**同一个 id 是不行的：RemoteViews 按 id 定位控件，重复 id 只有第一个
+  能setText。这里用三个独立 id，写 Provider 时逐一填（禁在 Provider 里循环套模板）。
+  金额位由 Dart 侧 `widgetAmountCell`/`widgetBalanceCell` 算好（含隐私遮蔽），
+  `¥` 由本布局补；结余可能带负号。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lh_wg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/lh_wg_card"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/lh_wg_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="@string/lh_widget_ledger_name"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="9sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="4dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_label_today_cost"
+                android:textColor="@color/lh_wg_sub"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/lh_wg_today"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/lh_widget_no_data"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_label_month_cost"
+                android:textColor="@color/lh_wg_sub"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/lh_wg_month"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/lh_widget_no_data"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_label_balance"
+                android:textColor="@color/lh_wg_sub"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/lh_wg_balance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/lh_widget_no_data"
+                android:textColor="@color/lh_wg_acc"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/lh_wg_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="10sp" />
+</LinearLayout>

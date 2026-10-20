@@ -1,0 +1,234 @@
+{
+  "cat": "file",
+  "channels": [
+    {
+      "id": "kindle",
+      "cat": "file",
+      "name": "Kindle",
+      "fmt": "My Clippings.txt",
+      "fields": "书名 / 位置 / 批注",
+      "dedupKey": "ISBN + 位置",
+      "parser": "kindle",
+      "sample": "置身事内 (兰小欢) - 位置 1,234-1,240\n划线 · 2024年5月1日\n\n政府是经济发展的参与者，而不只是裁判员。\n\n万历十五年 (黄仁宇) - 页面 88\n批注 · 2024年5月2日\n\n当一个社会以道德代替技术，细节就无人负责。\n批注：细节无人负责。\n\n原子习惯 (詹姆斯克利尔) - 位置 512\n划线 · 2024年5月3日\n\n你并没有 rise to the level of your goals，你只是 fall to the level of your systems。"
+    },
+    {
+      "id": "koreader",
+      "cat": "file",
+      "name": "KOReader",
+      "fmt": "export.csv / json",
+      "fields": "高亮 / 笔记 / 进度",
+      "dedupKey": "ISBN + 页",
+      "parser": "csv",
+      "config": {
+        "alias": {
+          "book": ["书名", "Title", "title"],
+          "author": ["作者", "Author", "author"],
+          "chapter": ["章节", "Chapter", "chapter"],
+          "page": ["页码", "Page", "page"],
+          "body": ["高亮", "Text", "text", "内容"],
+          "thought": ["笔记", "Note", "note", "评论"],
+          "at": ["时间", "Created", "created_at"]
+        }
+      },
+      "sample": "书名,作者,章节,页码,高亮,笔记,时间\n万历十五年,黄仁宇,第一章,88,当一个社会以道德代替技术，细节就无人负责。,细节无人负责,2024-05-01\n置身事内,兰小欢,第五章,188,政府是经济发展的参与者，而不只是裁判员。,,2024-05-02"
+    },
+    {
+      "id": "boox",
+      "cat": "file",
+      "name": "BOOX",
+      "fmt": "note.db / md",
+      "fields": "批注",
+      "dedupKey": "书名 + 页",
+      "parser": "md",
+      "sample": "## 《万历十五年》（黄仁宇）\n\n> 当一个社会以道德代替技术，细节就无人负责。\n\n想法：制度替代技术，细节无人负责。\n页：88 · 2024-05-01"
+    },
+    {
+      "id": "apple",
+      "cat": "file",
+      "name": "Apple Books",
+      "fmt": "ZMetadata.sqlite / 导出 json",
+      "fields": "位置 / 高亮",
+      "dedupKey": "book id",
+      "parser": "json",
+      "config": {
+        "root": "items",
+        "alias": {
+          "book": ["bookTitle"],
+          "chapter": ["chapterTitle"],
+          "loc": ["location"],
+          "page": ["page"],
+          "body": ["selection", "text"],
+          "thought": ["comment"]
+        }
+      },
+      "sample": "{\"items\":[{\"bookTitle\":\"人生算法\",\"chapterTitle\":\"第三章 边界\",\"location\":421.5,\"selection\":\"所谓门槛，能力够了就是门，能力不够就是槛。\"}]}"
+    },
+    {
+      "id": "doubanread",
+      "cat": "file",
+      "name": "豆瓣阅读",
+      "fmt": "导出 zip 内 json",
+      "fields": "划线 / 想法",
+      "dedupKey": "book_id",
+      "parser": "json",
+      "config": {
+        "root": "notes",
+        "alias": {
+          "book": ["title", "bookName"],
+          "author": ["author"],
+          "chapter": ["chapter"],
+          "page": ["page"],
+          "body": ["content"],
+          "thought": ["comment"],
+          "at": ["time"]
+        }
+      },
+      "sample": "{\"notes\":[{\"title\":\"立体几何\",\"author\":\"安意如\",\"chapter\":\"7\",\"content\":\"我们终其一生，不过是要学会与自己相处。\",\"comment\":\"\",\"time\":\"2024-05-01\"}]}"
+    },
+    {
+      "id": "jdread",
+      "cat": "file",
+      "name": "京东读书",
+      "fmt": "csv / 剪贴板",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "csv",
+      "config": {
+        "alias": {
+          "book": ["Book", "书名"],
+          "page": ["Page", "页码"],
+          "body": ["Highlight", "划线", "内容"],
+          "at": ["Date", "时间"]
+        }
+      },
+      "sample": "Book,Page,Highlight,Date\n原则,42,痛苦加反思等于进步。,2024-05-01\n原则,118,极度求真，极度透明。,2024-05-02"
+    },
+    {
+      "id": "zhangyue",
+      "cat": "file",
+      "name": "掌阅",
+      "fmt": "剪贴板",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "none",
+      "hint": "该平台按剪贴板导出 · 请到「剪贴板」分类选「掌阅精选」渠道粘贴解析"
+    },
+    {
+      "id": "ireader",
+      "cat": "file",
+      "name": "iReader",
+      "fmt": "剪贴板",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "none",
+      "hint": "该平台按剪贴板导出 · 请到「剪贴板」分类选对应渠道粘贴解析"
+    },
+    {
+      "id": "neat",
+      "cat": "file",
+      "name": "Neat Reader",
+      "fmt": "clips.json",
+      "fields": "划线 / 笔记",
+      "dedupKey": "book + 页",
+      "parser": "json",
+      "config": {
+        "root": "clips",
+        "alias": {
+          "book": ["bookName", "book"],
+          "chapter": ["chapter"],
+          "page": ["page"],
+          "body": ["text"],
+          "thought": ["note"],
+          "at": ["createTime"]
+        }
+      },
+      "sample": "{\"clips\":[{\"bookName\":\"有限与无限的游戏\",\"page\":12,\"text\":\"世上至少有两种游戏，一种可称为有限游戏，另一种称为无限游戏。\",\"createTime\":\"2024-05-01\"}]}"
+    },
+    {
+      "id": "hanwang",
+      "cat": "file",
+      "name": "汉王阅读器",
+      "fmt": "txt / md",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "md",
+      "sample": "## 《乡土中国》（费孝通）\n\n> 从基层上看去，中国社会是乡土性的。\n\n页：3"
+    },
+    {
+      "id": "dimo",
+      "cat": "file",
+      "name": "滴墨书摘",
+      "fmt": "md / json",
+      "fields": "卡片 / 图片",
+      "dedupKey": "内容哈希",
+      "parser": "md",
+      "sample": "## 《被讨厌的勇气》（岸见一郎）\n\n> 决定我们自身的不是过去的经历，而是我们自己赋予经历的意义。\n\n想法：课题分离的起点。\n页：56 · 2024-05-01"
+    },
+    {
+      "id": "koodo",
+      "cat": "file",
+      "name": "Koodo Reader",
+      "fmt": "export json",
+      "fields": "高亮 / 笔记 / 进度",
+      "dedupKey": "bookId + 页",
+      "parser": "json",
+      "config": {
+        "root": "highlights",
+        "alias": {
+          "book": ["bookName"],
+          "chapter": ["chapter"],
+          "page": ["page"],
+          "body": ["text"],
+          "thought": ["note"]
+        }
+      },
+      "sample": "{\"highlights\":[{\"bookName\":\"黑客与画家\",\"chapter\":\"2\",\"page\":33,\"text\":\"富裕只是指你不需要倾家荡产也能过上好日子。\",\"note\":\"\"}]}"
+    },
+    {
+      "id": "reeden",
+      "cat": "file",
+      "name": "Reeden",
+      "fmt": "csv",
+      "fields": "划线",
+      "dedupKey": "书名 + 页",
+      "parser": "csv",
+      "config": {
+        "alias": {
+          "book": ["书名"],
+          "page": ["页"],
+          "body": ["原文", "划线"],
+          "at": ["时间"]
+        }
+      },
+      "sample": "书名,页,原文,时间\n设计的启示,61,细节不是细节，设计是细节。,2024-05-01"
+    },
+    {
+      "id": "readeast",
+      "cat": "file",
+      "name": "Readeast",
+      "fmt": "md",
+      "fields": "划线",
+      "dedupKey": "内容哈希",
+      "parser": "md",
+      "sample": "## 《思考，快与慢》（丹尼尔卡尼曼）\n\n> 我们对自身相信的东西，依赖于事情讲述的方式，而不是事情本身。\n\n页：102"
+    },
+    {
+      "id": "shaishufang",
+      "cat": "file",
+      "name": "晒书房",
+      "fmt": "csv 书架",
+      "fields": "藏书清单 / 封面",
+      "dedupKey": "ISBN",
+      "parser": "csv",
+      "kind": "booklist",
+      "config": {
+        "alias": {
+          "book": ["书名"],
+          "author": ["作者"],
+          "isbn": ["ISBN", "isbn"]
+        }
+      },
+      "sample": "书名,作者,ISBN\n万历十五年,黄仁宇,9787101055498\n置身事内,兰小欢,9787208171336"
+    }
+  ]
+}

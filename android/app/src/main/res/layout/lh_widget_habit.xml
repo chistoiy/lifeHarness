@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2×2 打卡-单习惯小组件（批A · 渲染层）· 四件套＝标题／习惯名／状态行（点＋副文案）／主按钮。
+
+  与原型 `index-desktop.html` `#dt-widget`「打卡-单习惯 双态」逐件对应：
+    标题     LifeHarness · 打卡（9sp 次文本）
+    习惯名   绑定目标的名字（16sp 加粗主文本，超长省略）
+    状态行   状态点（8dp 圆）＋「连击 12 天 · 今日未打卡」（10sp 次文本）
+    主按钮   未打卡＝强调色实心「打卡」；已打卡＝次文本淡底「已打卡」（不可点）
+
+  ⚠ 三处刻意：
+  ① 失效三态（等待数据／未选择内容／内容已失效）走**同一个** `lh_wg_ph` 占位文本，
+     而不是另画三套布局——文案由 Provider 换，结构不变（一叶日记同款做法，评估件 §5.3-3）。
+  ② 中间那个 weight=1 的 `lh_wg_gap` 是**撑开器**：正常态把按钮压到底部；
+     占位态整块隐藏（否则占位文本会被顶到半空）。
+  ③ RemoteViews 不支持动态 child，四件套全部是固定 id 的静态控件（同待办三行口径）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lh_wg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/lh_wg_card"
+    android:orientation="vertical"
+    android:padding="13dp">
+
+    <TextView
+        android:id="@+id/lh_wg_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="@string/lh_widget_habit_name"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="9sp" />
+
+    <TextView
+        android:id="@+id/lh_wg_habit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/lh_wg_fg"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/lh_wg_status_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/lh_wg_dot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/lh_wg_dot_off"
+            android:contentDescription="@string/lh_widget_a11y_habit" />
+
+        <TextView
+            android:id="@+id/lh_wg_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/lh_wg_sub"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!--
+      吸余高的撑开器。⚠ **必须**用空 LinearLayout，不能写裸 <View>：
+      RemoteViews 只允许白名单类被 inflate，`android.view.View` 不在其中，
+      Launcher 抛 `InflateException: Class not allowed to be inflated android.view.View`
+      ⇒ 整枚显示「载入窗口小部件时出现问题」（2026-10-15 8150 装机实锤）。
+      同理上面那个状态点用 ImageView（白名单内），不用裸 View。
+    -->
+    <!--
+      撑开器（上）＋撑开器（下）＝**把「习惯名＋状态」顶到垂直中段**。
+      2026-10-18 真机反馈「2×2 看起来很空」：原来只有下面一枚 weight=1，名字贴顶、
+      按钮钉底，中间空出一大块。改成一上一下各半 ⇒ 名字落中段，视觉上填满。
+    -->
+    <LinearLayout
+        android:id="@+id/lh_wg_gap_top"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:id="@+id/lh_wg_gap"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/lh_wg_ph"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:maxLines="3"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <!--
+      计数型（记量）习惯的**步进行**（批D · 照原型 `.wg-cnt` 三格）：
+        [−5]  [ 30 ]  [+5]
+      左/右＝按步长调整本次提交量，中间＝**本次要提交的量**（可看不可点）。
+
+      ⚠ 三条硬约束：
+      ① RemoteViews 静态控件——三件套**常驻**、只切 visibility（禁动态 addView）；
+      ② 默认 `gone`：布尔型习惯整行不出现（同一份布局喂两种形态，见 Provider）；
+      ③ ± 只改**本实例显示态草稿**（偏好里的中间值），**不动业务库**；
+         「打卡」才把中间值一次提交（原型口径：不产生半成品数据）。
+
+      尺寸依据（2026-10-18 真机实测 6185 态·`uiautomator` 量得）：2×2 宿主框
+      459×521px ＝ 153×174dp，内容区 443px；四件套＋两段撑开器占 416px，
+      **撑开器共剩 141px（47dp）余量**。本行 32dp＋下留 4dp＝108px 吃掉大头，
+      余 33px 仍分给两段撑开器 ⇒ 不挤压、不溢出。
+    -->
+    <LinearLayout
+        android:id="@+id/lh_wg_cnt"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_marginBottom="4dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/lh_wg_cnt_minus"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/lh_wg_cnt_btn"
+            android:gravity="center"
+            android:textColor="@color/lh_wg_fg"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lh_wg_cnt_val"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1.5"
+            android:background="@drawable/lh_wg_cnt_val"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="@color/lh_wg_fg"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lh_wg_cnt_plus"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/lh_wg_cnt_btn"
+            android:gravity="center"
+            android:textColor="@color/lh_wg_fg"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/lh_wg_btn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="@drawable/lh_wg_habit_btn"
+        android:gravity="center"
+        android:text="@string/lh_widget_habit_btn"
+        android:textColor="@color/lh_wg_btn_fg"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+</LinearLayout>

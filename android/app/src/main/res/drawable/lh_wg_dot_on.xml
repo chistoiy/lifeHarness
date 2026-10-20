@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 打卡状态点·已打卡：强调色实心圆（原型 .wg-dot.on） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/lh_wg_acc" />
+</shape>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  1×1 模块瓦片（批C · 2026-10-18 · 真机二修后版）· 唯一布局，17 枚共用。
+
+  **真机报障两轮 → 本版几何**（2026-10-18）：
+  ① 「高度、宽度都不好，要与正常 App 图标一致」⇒ 图标 55dp 见方（真机 480dpi 下
+     165px，宿主框宽 177px 刚好放得下），整列 `gravity="center"` **在宿主里居中**，
+     不再用 `layout_weight` 撑满——撑满会让图标跟着宿主高度乱变，一换机型就走形。
+  ② 「顶部一致但底部比较高」⇒ **根因是宿主框，不是布局**（真机实测）：MIUI 给 1×1
+     小部件的框只有 177×236px（59×78.7dp）且**顶对齐**格子（格子 282×285＝94×95dp），
+     底部固定空 49px；改 `resizeMode`、杀桌面进程让它重读 provider 都不动它 ⇒
+     属平台上限。布局侧能做的只有两件：把内容排满这个框、让标签看得见（见③）。
+     实测内容带：本瓦片 1629..1837 / 邻座 App 图标 1668..1866（差 39px / 29px，
+     即约 13dp / 10dp），已是该框能做到的最接近值。
+  ③ 标签色**不跟系统深色模式走**：瓦片贴在壁纸上，系统深色 ≠ 壁纸深色（本轮实测
+     深色模式下白字压在浅色壁纸上几乎看不见，标签等于没有 ⇒ 视觉上「底部更高」）。
+     改**固定白字 + 深色阴影**，深浅壁纸都能读。
+
+  ⚠ RemoteViews 白名单：禁裸 `<View>`（撑开器/分隔线一律 ImageView 或空 LinearLayout）。
+  ⚠ 这里**不放任何数据控件**：瓦片零数据零刷新，Provider 只 setImageViewResource ＋
+    setTextViewText ＋ setOnClickPendingIntent 三件事。
+  ⚠ 瓦片**不套卡片底**（读数卡那层 `lh_tile_bg` 已删）：1×1 套上去既不像 App 图标，
+    深色档还会在底部压出一块暗色，MIUI 再叠 widget 阴影就是用户看到的「黑块」。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lh_tile_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="2dp">
+
+    <ImageView
+        android:id="@+id/lh_tile_icon"
+        android:layout_width="55dp"
+        android:layout_height="55dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
+
+    <TextView
+        android:id="@+id/lh_tile_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:shadowColor="#B3000000"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:textColor="#FFFFFF"
+        android:textSize="9sp" />
+</LinearLayout>

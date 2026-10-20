@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面批1 · 快捷方式图标「速记」(inbox)。
+     字形 path 取自原型 prototype/index-desktop.html ACTIONS[].icon（原型即事实源）；
+     底＝品牌主色 #6366F1 圆角方 + 白色描边字形。
+     改配色只动本目录 7 个文件的第一个填充色即可。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#6366F1"
+        android:pathData="M6,1 h12 a5,5 0 0 1 5,5 v12 a5,5 0 0 1 -5,5 h-12 a5,5 0 0 1 -5,-5 v-12 a5,5 0 0 1 5,-5 z" />
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2.4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </group>
+</vector>

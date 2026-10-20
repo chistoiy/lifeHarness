@@ -1,0 +1,3 @@
+        <div class="flex items-center justify-between"><span>回收站自动清理</span>
+          <button class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
+        <div class="text-[11px] text-slate-400">日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按此期限自动彻底删除</div>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2×2 今日概览（F2-1）小组件元数据 · 冻结档 §5.6。
+  updatePeriodMillis=0：App 存活时按需刷新（§6.3 禁轮询/常驻定时器）。
+  **不写 android:configure**（2026-10-15 产品令）：配置页会在「从系统添加小组件」时
+  先弹一次，多一步打扰；而它管的开关（四枚总开关 + 隐藏金额）App 设置页里全都有。
+  代价＝长按菜单不再有系统自动生成的「编辑」项（那是 configure 的副产物，二者绑死）。
+
+  resizeMode（2026-10-15 产品令开启尺寸调节，源自 8147 装机反馈「长按菜单缺尺寸调节」）：
+    原为 none ⇒ 长按菜单没有「尺寸调节」，与用户参照的成熟小组件不一致。
+    现开 horizontal|vertical：窄化时先舍「还差 N 项就全勤」的说明行（见 `lh_widget_overview.xml`），
+    加宽时两读数自动分居两端。minResize 与 min 同值＝下界不失真；
+    `targetCell*` 只影响首次落桌的建议格数。
+  预览图两个都给：previewLayout 走 Android 12+ 标准口径；previewImage 给 MIUI 这类
+  只认图的桌面（实测 MIUI 完全忽略 previewLayout，没图就回落应用图标 ⇒ 四枚长得
+  一模一样，用户分不清 · 2026-10-15 装机实锤）。图由 tools/gen_widget_previews.py
+  按真实布局生成，浅/深两档（drawable-nodpi + drawable-night-nodpi · C6）。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/lh_widget_overview_desc"
+    android:initialLayout="@layout/lh_widget_overview"
+    android:minHeight="110dp"
+    android:minResizeHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minWidth="110dp"
+    android:previewImage="@drawable/lh_widget_overview_preview"
+    android:previewLayout="@layout/lh_widget_overview"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

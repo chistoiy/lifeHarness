@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  待办 2×2 的一行（批3）· 行内两处可点，语义**不同**：
+    左圈＝「勾掉这条」（广播写库，不开App · 产品令「点一下就闭环」）；
+    右文本＝「看这条详情」（走 lh://today 进今天页，C15唯一出口）。
+  ⚠ RemoteViews 不支持 `include` + 动态 child，所以三行是**三份固定布局**由
+    `TodoListWidget` 分别 setTextViewText —— 行数固定（3），多出的待办折叠成
+    「还有 N 条」，不动态增删行（widget 内动态列表在RemoteViews 上不可靠）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@+id/lh_wg_chk"
+        android:layout_width="17dp"
+        android:layout_height="17dp"
+        android:contentDescription="@string/lh_widget_todo_toggle"
+        android:src="@drawable/ic_lh_wg_circle" />
+
+    <TextView
+        android:id="@+id/lh_wg_row_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/lh_wg_fg"
+        android:textSize="12sp" />
+</LinearLayout>

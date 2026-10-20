@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  配置弹窗的勾选框（selector）：勾＝强调色实心＋对勾；未勾＝次文本描边空心。
+  ⚠ 必须自绘而不用 `@android:drawable/checkbox`：系统控件在 Theme.DeviceDefault.Dialog
+  下是 Material 圆角方块，与 App 内的圆形勾选（原型 .wg-chk）完全不是一套语言，
+  这正是「弹窗太丑」的一半来源。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/lh_cfg_check_on" android:state_checked="true" />
+    <item android:drawable="@drawable/lh_cfg_check_off" />
+</selector>

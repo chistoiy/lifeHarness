@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  待办勾圈 · **未完成**态（空心圆，次文本描边）。
+  勾圈是「可点的承诺」，空心＝还没做完；点中后由 Provider 切成 `ic_lh_wg_circle_on`。
+  ⚠ 深浅两档靠 `@color/lh_wg_sub` 自动跟随（C6），故这里不硬编码色值。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M12,2A10,10 0 1,0 22,12A10,10 0 1,0 12,2Z"
+        android:strokeColor="@color/lh_wg_sub"
+        android:strokeWidth="1.8" />
+</vector>

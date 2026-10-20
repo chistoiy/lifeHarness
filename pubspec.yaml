@@ -1,0 +1,114 @@
+name: lifeharness
+description: "LifeHarness —— 纯本地一体式生活记录 App（时间/日记笔记/待办/收集箱等）。"
+publish_to: 'none'
+
+# 语义化版本 V主.次.修；M0 骨架对应 V0.1
+version: 0.2.15+6144
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # 状态管理（编译安全、可测试、DI 清晰）
+  flutter_riverpod: ^2.6.1
+  # 路由（go_router）
+  go_router: ^14.6.2
+  # 本地数据库（决策：直接用 sqflite，Repository 层隔离，见计划书「技术选型」）
+  sqflite: ^2.4.1
+  # 数据库/附件文件路径 + 路径拼接（app_database 直接使用，显式声明避免依赖传递）
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  # 读安装包真实 versionName/versionCode（我的 › 关于 展示装机编号；原为传递依赖，显式声明）
+  package_info_plus: ^9.0.1
+  # 设置项键值存储（主题/导航配置等）
+  shared_preferences: ^2.3.3
+  # 日期/数字格式化
+  intl: ^0.20.2
+  # 通知与定时提醒（M0末A：待办 remind_at / 每日整理与复盘提醒）
+  flutter_local_notifications: ^19.0.0
+  timezone: ^0.10.0
+  # 读取系统 IANA 时区（timezone 包调度需要）
+  flutter_timezone: ^4.1.0
+  markdown: ^7.3.1
+  flutter_math_fork: ^0.7.4
+  image_picker: ^1.2.3
+  flutter_quill: ^11.5.0
+  mobile_scanner: ^7.4.2
+
+  # V1.41 同步与备份：仅用户配置的 WebDAV/S3 同步使用（隐私红线，其余零网络）
+  # HTTP 客户端（WebDAV/S3 REST 请求）
+  http: ^1.2.0
+  # ZIP 归档（备份容器 .lhak 打包/解包）
+  archive: ^3.6.1
+  # 阅读器（V1.50）：EPUB 容器/OPF/NCX/nav 解析（xml 原为 markdown 等的传递依赖·提为直接声明钉版本）
+  xml: ^6.5.0
+  # EPUB 章节正文抽取走宽容 HTML 解析（xhtml 常不严格合法·markdown 传递依赖同上）
+  html: ^0.15.0
+  # firstOrNull 等迭代扩展（flutter_test 钉版本同轨·直接声明防 depend_on_referenced_packages）
+  collection: ^1.19.1
+  # MD5 表校验和（.lhbak manifest；archive/cryptography 的传递依赖，显式声明）
+  crypto: ^3.0.0
+  # 加解密原语（AES-GCM 口令档、SHA-256 校验）
+  cryptography: ^2.7.0
+  # 凭据安全存储（WebDAV/S3 SecretKey 等，Keystore/EncryptedSharedPreferences）
+  flutter_secure_storage: ^9.2.2
+  # 文件选择器（备份导入 picking）
+  file_picker: ^8.1.3
+  # SAF「另存为」改自研 lh/saf 通道（MainActivity.kt）：flutter_file_dialog
+  # 冷启动投递结果时 sourceFile!! NPE 崩溃＋强转 FileOutputStream，2026-10-04 摘除
+  webview_flutter: ^4.14.1
+  webview_flutter_android: ^4.12.0
+  url_launcher: ^6.3.2
+  enough_convert: ^1.6.0
+  spreadsheet_decoder: ^2.3.0
+  wakelock_plus: ^1.5.2
+  home_widget: ^0.10.0
+
+  # NFC 卡片模块批2（冻结档 §6.2）：前台 NDEF 读/写。**只此一套**，禁引第二个 NFC 插件。
+  # ⚠ 4.2.x 要 Dart ^3.11.4（本机 3.10.8 装不上）⇒ 内置 4.1.1 到 third_party 并打上游 4.2.1 同款修复：
+  #   4.1.1 的 onAttachedToActivity 给 registerReceiver 传 null IntentFilter，Android 14+ 冷启动
+  #   必崩（system_server NPE on IntentFilter.actionsIterator）——见 third_party/nfc_manager/LOCAL_PATCH.md。
+  # 零网络、零前台服务（§6.3 功耗：读取只在写卡层打开期间，离开即停）。
+  nfc_manager:
+    path: third_party/nfc_manager
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # sqflite 单元测试的内存库平台适配
+  sqflite_common_ffi: ^2.3.3
+  flutter_lints: ^6.0.0
+  image_picker_platform_interface: ^2.11.1
+  path_provider_platform_interface: ^2.1.3
+
+# sqlite3 原生库：本环境 GitHub 不可达，构建钩子改从 tools/sqlite3/ 本地目录读取
+# 各平台预置产物（Windows DLL + Android arm/arm64 .so，见该目录 README）。
+# 网络恢复后可删除本段回落官方下载。
+hooks:
+  user_defines:
+    sqlite3:
+      source: test-sqlite3
+      directory: tools/sqlite3/
+
+flutter:
+  uses-material-design: true
+
+  # 主题设计令牌配置（与原型 themes/ 同构，运行时热加载换肤）
+  # assets/read_import/：阅读导入渠道数据包（计划 §5 解析器数据包，格式变更不改码）
+  # assets/habit_templates/：习惯模板库资源包（习惯计划 §7，社区扩展不改码）
+  # assets/xray/dicts/：X-Ray 预置词表（需求 V1.54·设计书 §5 八张纯文本表，扩充只加行不改码）
+  # assets/read_s2t/：简繁显示层转换表（R3-6·生成期取自 zhconv 数据，运行时零依赖）
+  # assets/brand/：品牌图（我的 › 关于 卡头像位，取自 android launcher icon 最高密度）
+  assets:
+    - assets/themes/
+    - assets/read_import/
+    - assets/habit_templates/
+    - assets/ai_prompts/
+    - assets/xray/dicts/
+    - assets/read_s2t/
+    - assets/brand/

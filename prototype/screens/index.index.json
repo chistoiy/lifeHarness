@@ -1,0 +1,247 @@
+{
+ "file": "index.html",
+ "total": 314587,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-dashboard",
+   "kind": "screen",
+   "title": "今天",
+   "role": "home",
+   "size": 6113,
+   "hash": "a4c8bb7d"
+  },
+  {
+   "id": "p-todo",
+   "kind": "screen",
+   "title": "待办",
+   "role": "home",
+   "size": 1613,
+   "hash": "165b9332"
+  },
+  {
+   "id": "p-inbox",
+   "kind": "screen",
+   "title": "收集箱",
+   "role": "home",
+   "size": 1374,
+   "hash": "be4e60cc"
+  },
+  {
+   "id": "p-profile",
+   "kind": "screen",
+   "title": "我的",
+   "role": "home",
+   "size": 16706,
+   "hash": "9f2197ab"
+  },
+  {
+   "id": "p-sub-nfc",
+   "kind": "screen",
+   "title": "NFC 卡片",
+   "role": "home",
+   "size": 3360,
+   "hash": "eca80d56"
+  },
+  {
+   "id": "sheetNfcEdit",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2557,
+   "hash": "93a5b8c6"
+  },
+  {
+   "id": "sheetNfcSet",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1689,
+   "hash": "a15147e8"
+  },
+  {
+   "id": "sheetNfcWrite",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2310,
+   "hash": "b4ba48b2"
+  },
+  {
+   "id": "sheetNfcDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 939,
+   "hash": "08dff58e"
+  },
+  {
+   "id": "p-records",
+   "kind": "screen",
+   "title": "记录",
+   "role": "home",
+   "size": 3560,
+   "hash": "e8001677"
+  },
+  {
+   "id": "sheetNoteImport",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1053,
+   "hash": "6b1c0485"
+  },
+  {
+   "id": "sheetNoteOpenHist",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 863,
+   "hash": "f747af09"
+  },
+  {
+   "id": "sheetNoteSrc",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 436,
+   "hash": "5b085e40"
+  },
+  {
+   "id": "sheetNoteMove",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 523,
+   "hash": "79853f35"
+  },
+  {
+   "id": "sheetSearch",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 771,
+   "hash": "92d431cf"
+  },
+  {
+   "id": "sheetAddTask",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 8129,
+   "hash": "49fede77"
+  },
+  {
+   "id": "sheetAddEvent",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2229,
+   "hash": "66a8f615"
+  },
+  {
+   "id": "sheetEventDetail",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 337,
+   "hash": "4eac6fa6"
+  },
+  {
+   "id": "sheetDatePick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1086,
+   "hash": "27e8e5ef"
+  },
+  {
+   "id": "sheetAddMedia",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2280,
+   "hash": "2b57ea42"
+  },
+  {
+   "id": "sheetProfile",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1197,
+   "hash": "0bcf8192"
+  },
+  {
+   "id": "sheetTask",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2083,
+   "hash": "8e65e4ea"
+  },
+  {
+   "id": "sheetAddExcerpt",
+   "kind": "sheet",
+   "title": "",
+   "role": "rep",
+   "size": 1239,
+   "hash": "1ad213c9"
+  },
+  {
+   "id": "sheetAddItem",
+   "kind": "sheet",
+   "title": "",
+   "role": "rep",
+   "size": 1698,
+   "hash": "da9f1430"
+  },
+  {
+   "id": "sheetAddDay",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 925,
+   "hash": "5cbe29ee"
+  },
+  {
+   "id": "sheetSnapshot",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1507,
+   "hash": "ff359f4e"
+  },
+  {
+   "id": "sheetImgSrc",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 682,
+   "hash": "e4eb78ca"
+  },
+  {
+   "id": "sheetProgress",
+   "kind": "sheet",
+   "title": "",
+   "role": "rep",
+   "size": 945,
+   "hash": "b6368a4c"
+  },
+  {
+   "id": "sheetBabyMeasure",
+   "kind": "sheet",
+   "title": "",
+   "role": "rep",
+   "size": 1280,
+   "hash": "1608a18b"
+  },
+  {
+   "id": "sheetAddHabit",
+   "kind": "sheet",
+   "title": "",
+   "role": "rep",
+   "size": 3325,
+   "hash": "8bd4a9a5"
+  }
+ ]
+}
