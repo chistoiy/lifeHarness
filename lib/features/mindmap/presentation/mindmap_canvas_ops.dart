@@ -49,6 +49,75 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
     return origin + local + Offset(s.width * _scale / 2, s.height * _scale);
   }
 
+  /// 画布顶栏（批P4 从主文件抽来还 size 债：登记值 1316 只许减）。
+  ///
+  /// 口径：**标题贴左、不占返回键位**——care/days/goals/items 主屏都这么写，
+  /// 画布原先顶着一个返回箭头是模块内唯一例外。退出走系统返回手势/返回键
+  /// （`PopScope` 侧只做偏移 flush，不拦返回）。
+  PreferredSizeWidget _buildCanvasAppBar() {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      title: Text(
+        _map?.title ?? '',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      actions: [
+        IconButton(
+          key: const ValueKey('mm-undo-btn'),
+          tooltip: '撤销',
+          onPressed: _undo.canUndo ? _undoStep : null,
+          icon: const Icon(Icons.undo_outlined, size: 21),
+        ),
+        IconButton(
+          key: const ValueKey('mm-redo-btn'),
+          tooltip: '重做',
+          onPressed: _undo.canRedo ? _redoStep : null,
+          icon: const Icon(Icons.redo_outlined, size: 21),
+        ),
+        IconButton(
+          key: const ValueKey('mm-export-btn'),
+          tooltip: '导出',
+          onPressed: _exportMap,
+          icon: const Icon(Icons.ios_share_outlined, size: 21),
+        ),
+        IconButton(
+          key: const ValueKey('mm-add-root'),
+          tooltip: '加根节点',
+          onPressed: _addRoot,
+          icon: const Icon(Icons.add_circle_outline, size: 22),
+        ),
+        IconButton(
+          key: const ValueKey('mm-fit-btn'),
+          tooltip: '全图可见',
+          onPressed: _fit,
+          icon: const Icon(Icons.center_focus_weak, size: 22),
+        ),
+      ],
+    );
+  }
+
+  /// 深链定位（批P4 · 搜索命中跳转）：选中该节点并把它摆到视口中心。
+  ///
+  /// 与 [_fit] 的分工：fit 展示整图（进图默认），这里只对准一个节点——搜索
+  /// 命中后用户要的是「那一条在哪儿」，缩到全图反而找不着。
+  void _focusOnNode(int id) {
+    final l = _layout;
+    final n = _byId(id);
+    final b = l?.baseline[id];
+    if (l == null || n == null || b == null) return;
+    final s = l.sizes[id] ?? const Size(120, _nodeH);
+    final center =
+        b + Offset(_dxOf(n), _dyOf(n)) + Offset(s.width / 2, s.height / 2);
+    final box = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    final vp = (box != null && box.hasSize) ? box.size : MediaQuery.sizeOf(context);
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      _selectedId = id;
+      _pan = Offset(vp.width / 2, vp.height / 2) - center * _scale;
+    });
+  }
+
   Future<void> _showNodeMenu(MindmapNode n) async {
     // 批P：连接/摘除两项紧随「加子节点/加同级」（原型同序）；摘除只对
     // 非根节点有意义（根节点没有父，置它就是空操作，直接 disable 并给理由）。

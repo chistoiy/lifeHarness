@@ -91,8 +91,10 @@ void main() {
     final size = tester.getSize(panel);
     expect(size.width, 236, reason: '贴点浮层按内容收口，不铺满屏宽');
     // 浮层必须完整落在屏内（不越过上下沿）。
+    // 批P4 口径调整：顶边下限＝状态栏＋8dp（测试环境无状态栏 ⇒ 8），
+    // 底边仍留 10dp。带状态栏时的硬守护在 `mindmap_p4_shell_test`。
     final rect = tester.getRect(panel);
-    expect(rect.top, greaterThanOrEqualTo(10));
+    expect(rect.top, greaterThanOrEqualTo(8));
     expect(rect.bottom, lessThanOrEqualTo(600 - 10 + .01));
     // 收场：点外部关掉浮层（留着会让下一个用例的 pumpWidget 踩到悬空路由）。
     await tester.tapAt(const Offset(10, 590));

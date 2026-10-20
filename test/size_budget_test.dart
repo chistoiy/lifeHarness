@@ -21,7 +21,9 @@ void main() {
     // 状态、与指针仲裁和 build 主线咬在一起，抽 part 得把十几条参数穿边界
     // （与既有三个 part 不同：那些是现成方法群可整段搬）。
     // 按实测登，此后只许减；下一批发落点＝把「指针仲裁」整段抽 part 还债。
-    'features/mindmap/presentation/mindmap_canvas_page.dart': 1316,
+    // 1316→1292（批P4 · 2026-10-20）：顶栏整段抽去 part（`_buildCanvasAppBar`），
+    // 主文件净减 24 行——本批还的债，登记值随之下调（棘轮只降不升）。
+    'features/mindmap/presentation/mindmap_canvas_page.dart': 1292,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // 1520→1528 存量越线归位（小组件批E · 2026-10-18）：产品令「缺少修改打卡记录」——
     // 流水每行包一层 GestureDetector（key `hd-rec-<日键>`）点开那一天的记录编辑，

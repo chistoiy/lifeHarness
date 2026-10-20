@@ -385,6 +385,18 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
       appBar: AppBar(
         title: const Text('思维导图'),
         actions: [
+          // 批P4 · §5 第 8 条：原型列表态顶栏就有这枚（`#btnSearch`），实现侧一直缺。
+          IconButton(
+            key: const ValueKey('mm-search-btn'),
+            tooltip: '搜索挂载节点',
+            onPressed: () async {
+              final hit = await showMmSearchSheet(context);
+              if (hit == null || !context.mounted) return;
+              // 跳到命中那一行所在的图，并把该节点选中居中。
+              context.push('/mindmap/canvas?id=${hit.mapId}&node=${hit.nodeId}');
+            },
+            icon: const Icon(Icons.search, size: 21),
+          ),
           IconButton(
             key: const ValueKey('mm-folders-btn'),
             tooltip: '文件夹',

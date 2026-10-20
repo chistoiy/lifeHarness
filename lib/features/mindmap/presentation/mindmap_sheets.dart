@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart' show Database;
 
 import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
@@ -264,6 +265,9 @@ Future<String?> showMmMenuAt(
   required List<List<MmMenuItem>> groups,
   String? headline,
 }) {
+  // 批P4：落位要让开状态栏——`showGeneralDialog` 的页面铺满整屏（含状态栏），
+  // 只按 10dp 夹取会把菜单顶边塞到时钟底下（6201 真机抓到：标题行被时间遮）。
+  final topInset = MediaQuery.paddingOf(context).top;
   return showGeneralDialog<String>(
     context: context,
     barrierDismissible: true,
@@ -273,7 +277,7 @@ Future<String?> showMmMenuAt(
     barrierColor: Colors.transparent,
     transitionDuration: const Duration(milliseconds: 140),
     pageBuilder: (ctx, _, _) => CustomSingleChildLayout(
-      delegate: _MmMenuPosition(anchor),
+      delegate: _MmMenuPosition(anchor, topInset: topInset),
       child: _MmMenuPanel(groups: groups, headline: headline),
     ),
     transitionBuilder: (ctx, anim, _, child) =>
@@ -283,9 +287,12 @@ Future<String?> showMmMenuAt(
 
 /// 浮层定位：拿到**实际**子高度再落位（估算高度会在窄屏上忽高忽低）。
 class _MmMenuPosition extends SingleChildLayoutDelegate {
-  const _MmMenuPosition(this.anchor);
+  const _MmMenuPosition(this.anchor, {this.topInset = 0});
 
   final Offset anchor;
+
+  /// 状态栏高度（`showGeneralDialog` 铺满整屏 ⇒ 顶边下限得从它下面算）。
+  final double topInset;
 
   static double _clamp(double v, double lo, double hi) =>
       v < lo ? lo : (v > hi ? hi : v);
@@ -293,25 +300,29 @@ class _MmMenuPosition extends SingleChildLayoutDelegate {
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints c) => BoxConstraints(
         maxWidth: 236,
-        maxHeight: c.maxHeight - 20,
+        // 顶部让开状态栏＋8dp，底部留 10dp；高度不够时面板内部滚动。
+        maxHeight: c.maxHeight - topInset - 8 - 10,
       );
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     final left = _clamp(anchor.dx - childSize.width / 2, 10,
         _clamp(size.width - childSize.width - 10, 10, double.infinity));
+    final minTop = topInset + 8;
     var top = anchor.dy + 14;
     if (top + childSize.height > size.height - 10) {
       top = anchor.dy - childSize.height - 14; // 下沿放不下 ⇒ 上翻
     }
     return Offset(
       left,
-      _clamp(top, 10, _clamp(size.height - childSize.height - 10, 10, double.infinity)),
+      _clamp(top, minTop,
+          _clamp(size.height - childSize.height - 10, minTop, double.infinity)),
     );
   }
 
   @override
-  bool shouldRelayout(covariant _MmMenuPosition old) => old.anchor != anchor;
+  bool shouldRelayout(covariant _MmMenuPosition old) =>
+      old.anchor != anchor || old.topInset != topInset;
 }
 
 class _MmMenuPanel extends StatelessWidget {
@@ -424,6 +435,131 @@ class _MmMenuPanel extends StatelessWidget {
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 4),
         visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
+/// 搜索挂载节点弹层（原型 sheetMm-search · F4-3）：跨图搜节点标题与所挂笔记标题，
+/// 点结果跳对应画布并定位。出口在 `shared/linkage/mindmap_mounts`（本模块不直连 DAO）。
+/// 返回命中的那一行；null＝取消。
+Future<MmSearchHit?> showMmSearchSheet(BuildContext context, {Database? db}) {
+  return showModalBottomSheet<MmSearchHit>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (bc) => _MmSearchSheet(db: db),
+  );
+}
+
+class _MmSearchSheet extends StatefulWidget {
+  const _MmSearchSheet({this.db});
+
+  /// 测试注入缝（生产 null＝走 AppDatabase 单例）。
+  final Database? db;
+
+  @override
+  State<_MmSearchSheet> createState() => _MmSearchSheetState();
+}
+
+class _MmSearchSheetState extends State<_MmSearchSheet> {
+  List<MmSearchHit> _hits = const [];
+  String _q = '';
+  bool _busy = false;
+
+  /// 序号兜住「后发先至」：打字快时旧查询可能比新的晚回来，认序号不认先后。
+  int _seq = 0;
+
+  Future<void> _run(String q) async {
+    final my = ++_seq;
+    setState(() {
+      _q = q;
+      _busy = q.trim().isNotEmpty;
+    });
+    if (q.trim().isEmpty) {
+      setState(() => _hits = const []);
+      return;
+    }
+    final hits = await mmSearchMountedNodes(q, widget.db);
+    if (!mounted || my != _seq) return;
+    setState(() {
+      _hits = hits;
+      _busy = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: SizedBox(
+        key: const ValueKey('mm-search-sheet'),
+        height: MediaQuery.sizeOf(context).height * 0.7,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 14, 20, 8),
+              child: Text('搜索挂载节点',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                key: const ValueKey('mm-search-input'),
+                autofocus: true,
+                onChanged: _run,
+                decoration: const InputDecoration(
+                    hintText: '搜节点标题或所挂笔记标题',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search)),
+              ),
+            ),
+            Expanded(
+              child: _busy
+                  ? const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(strokeWidth: 2)))
+                  : _hits.isEmpty
+                      ? Center(
+                          child: Text(
+                              _q.trim().isEmpty ? '' : '没有匹配的挂载节点',
+                              style: TextStyle(
+                                  fontSize: 13, color: cs.onSurfaceVariant)))
+                      : ListView.builder(
+                          itemCount: _hits.length,
+                          itemBuilder: (bc, i) {
+                            final h = _hits[i];
+                            return ListTile(
+                              key: ValueKey('mm-search-hit-${h.nodeId}'),
+                              dense: true,
+                              leading: Icon(Icons.search,
+                                  size: 20, color: cs.onSurfaceVariant),
+                              title: Text(h.nodeTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13.5)),
+                              subtitle: Text(
+                                  h.noteTitle == null
+                                      ? h.mapTitle
+                                      : '挂载：${h.noteTitle} · ${h.mapTitle}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: cs.onSurfaceVariant)),
+                              trailing: Icon(Icons.chevron_right,
+                                  size: 18, color: cs.onSurfaceVariant),
+                              onTap: () => Navigator.pop(bc, h),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

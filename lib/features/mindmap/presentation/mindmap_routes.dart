@@ -17,6 +17,8 @@ List<GoRoute> mindmapPageRoutes() => [
         path: '/mindmap/canvas',
         builder: (_, s) => MindmapCanvasPage(
           mapId: int.tryParse(s.uri.queryParameters['id'] ?? '') ?? 0,
+          // 批P4：`&node=` 供搜索命中跳转定位（选中并居中该节点）。
+          focusNodeId: int.tryParse(s.uri.queryParameters['node'] ?? ''),
         ),
       ),
     ];

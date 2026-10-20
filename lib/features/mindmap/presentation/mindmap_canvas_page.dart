@@ -91,12 +91,16 @@ class MindmapCanvasPage extends ConsumerStatefulWidget {
   const MindmapCanvasPage({
     super.key,
     required this.mapId,
+    this.focusNodeId,
     this.onOpenNote,
     this.dao,
     this.db,
   });
 
   final int mapId;
+
+  /// 进图后要选中并居中的节点（搜索命中跳转用；null＝按 fit 展示整图）。
+  final int? focusNodeId;
 
   /// 双击进笔记的跳转出口（生产＝[mmOpenNote]；测试注入 fake 断言被调用）。
   final Future<void> Function(BuildContext, int)? onOpenNote;
@@ -265,7 +269,14 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
       _loading = false;
     });
     _relayout();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fit());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final f = widget.focusNodeId;
+      if (f != null) {
+        _focusOnNode(f);
+      } else {
+        _fit();
+      }
+    });
   }
 
   /// 重算布局（不 fit——fit 只在进图/按 fit 钮/切布局时发生）。
@@ -1096,7 +1107,10 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
     if (_loading) {
       // B10 大图加载指示（1000+ 节点开图 ≤1.5s 消失；不阻塞返回）。
       return Scaffold(
-        appBar: AppBar(title: Text(_map?.title ?? '思维导图')),
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text(_map?.title ?? '思维导图'),
+        ),
         body: const Center(
             key: ValueKey('mm-canvas-loading'),
             child: CircularProgressIndicator(strokeWidth: 2)),
@@ -1107,45 +1121,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
     // 批P 三个输入集（聚焦/连接目标/置灰）是状态派生量，改成 State 上的 getter
     // ——绘制 part 直接吃，build 里不再各留一份。
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _map?.title ?? '',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          IconButton(
-            key: const ValueKey('mm-undo-btn'),
-            tooltip: '撤销',
-            onPressed: _undo.canUndo ? _undoStep : null,
-            icon: const Icon(Icons.undo_outlined, size: 21),
-          ),
-          IconButton(
-            key: const ValueKey('mm-redo-btn'),
-            tooltip: '重做',
-            onPressed: _undo.canRedo ? _redoStep : null,
-            icon: const Icon(Icons.redo_outlined, size: 21),
-          ),
-          IconButton(
-            key: const ValueKey('mm-export-btn'),
-            tooltip: '导出',
-            onPressed: _exportMap,
-            icon: const Icon(Icons.ios_share_outlined, size: 21),
-          ),
-          IconButton(
-            key: const ValueKey('mm-add-root'),
-            tooltip: '加根节点',
-            onPressed: _addRoot,
-            icon: const Icon(Icons.add_circle_outline, size: 22),
-          ),
-          IconButton(
-            key: const ValueKey('mm-fit-btn'),
-            tooltip: '全图可见',
-            onPressed: _fit,
-            icon: const Icon(Icons.center_focus_weak, size: 22),
-          ),
-        ],
-      ),
+      appBar: _buildCanvasAppBar(),
       body: Column(
         children: [
           Expanded(
