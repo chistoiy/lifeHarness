@@ -139,28 +139,20 @@ tailwind.config = {
   #mmZoomBar svg{width:18px;height:18px}
   #mmScaleTag{font-size:10px;font-weight:800;opacity:.45;padding:3px 7px;border-radius:7px;background:var(--card);border:1px solid var(--card-bd)}
   /* 画布底部工具条 */
-  /* 批P5 §5 第 7 条：底部只留「挂笔记 / 更多」两项，容器收成贴内容的毛玻璃底衬
-     —— 两枚按钮之间的空隙不再透出画布文字（三项时的老问题被挤小放大）。 */
-  #mmToolbar{position:absolute;left:50%;transform:translateX(-50%);bottom:82px;z-index:15;display:flex;gap:8px;align-items:center;justify-content:center;
-    padding:6px;border-radius:20px;background:rgba(255,255,255,.78);background:color-mix(in srgb,var(--card) 78%,transparent);
-    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 10px 26px rgba(15,23,42,.10)}
-  #mmToolbar .ttb{height:44px;padding:0 14px;border-radius:14px;background:var(--card);border:1px solid var(--card-bd);
-    box-shadow:var(--card-sh);font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:6px;opacity:.92}
-  #mmToolbar .ttb:active{opacity:1;transform:scale(.97)}
-  #mmToolbar .ttb svg{width:16px;height:16px}
-  #mmToolbar .ttb.pri{background:var(--accent);color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(99,102,241,.35)}
-  /* 批P5 §5 第 7 条：选中主操作改「贴节点小气泡」——不再沉在画布底部远离手指。
-     落位＝节点上沿外侧 10px；上方放不下则挪节点右侧→左侧→最后才压下方；左右上下都夹在画布内 10px。
-     颜色一律挂 --accent（先 rgba 回落再 color-mix），不写死靛紫。 */
+  /* 批P5 §5 第 7 条（产品拍板版）：选中主操作整组搬到**贴节点小气泡**——底部工具条整条撤掉，
+     画布不再有任何常驻条挡内容。气泡＝两枚并列（「加子节点」主色在前、「更多」次色在后），
+     落位以整块外框对齐节点中心，四周夹画布内 10dp；颜色全挂 --accent（先 rgba 回落再 color-mix）。 */
   #mmBubble{position:absolute;z-index:16;display:none;pointer-events:none}
   #mmBubble.on{display:block}
-  #mmBubble .bub{pointer-events:auto;height:36px;padding:0 13px;border-radius:12px;border:none;cursor:pointer;
-    display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;font-family:inherit;
-    font-size:12px;font-weight:800;
-    box-shadow:0 6px 18px rgba(99,102,241,.42);box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 42%,transparent);
+  #mmBubble .bubrow{pointer-events:auto;display:flex;align-items:center;gap:4px;
     animation:bubIn .15s ease-out}
+  #mmBubble .bub{height:36px;padding:0 12px;border-radius:12px;cursor:pointer;border:1px solid var(--card-bd);
+    display:inline-flex;align-items:center;gap:5px;background:var(--card);color:inherit;font-family:inherit;
+    font-size:12px;font-weight:800;box-shadow:var(--card-sh);white-space:nowrap}
   #mmBubble .bub:active{transform:scale(.95)}
   #mmBubble .bub svg{width:15px;height:15px}
+  #mmBubble .bub.pri{border-color:transparent;background:var(--accent);color:#fff;
+    box-shadow:0 6px 18px rgba(99,102,241,.42);box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 42%,transparent)}
   @keyframes bubIn{from{opacity:0;transform:translateY(4px) scale(.94)}to{opacity:1;transform:none}}
 
   /* 列表行（导图列表 / 笔记候选 / 收集箱条目共用语言） */
@@ -483,20 +475,8 @@ tailwind.config = {
           <button onclick="mmOpenStyle()" aria-label="样式"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2a8.8 8.8 0 0 0 0 17.6c1.2 0 2-.9 2-2 0-.6-.3-1-.3-1.6 0-.7.6-1.3 1.4-1.3h1.3c2.2 0 3.9-1.7 3.9-3.9C20.3 6.5 16.6 3.2 12 3.2z"/><circle cx="8" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.8" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg></button>
         </div>
 
-        <!-- 画布工具条（选中态才出现的增删改＋挂笔记） -->
-        <div id="mmToolbar" class="hide">
-          <button class="ttb" onclick="mmNodeMenu('bind')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/></svg>
-            挂笔记
-          </button>
-          <button class="ttb" onclick="mmNodeMenu('more')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
-            更多
-          </button>
-        </div>
-
-        <!-- 批P5 §5 第 7 条：选中主操作改贴节点小气泡（底部只留「挂笔记 / 更多」两项） -->
-        <div id="mmBubble"><button class="bub" onclick="mmAddChild()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>加子节点</button></div>
+        <!-- 批P5 §5 第 7 条（产品拍板版）：选中主操作整组＝贴节点小气泡；画布底部不再有常驻工具条 -->
+        <div id="mmBubble"><div class="bubrow"><button class="bub pri" onclick="mmAddChild()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>加子节点</button><button class="bub" onclick="mmNodeMenu('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>更多</button></div></div>
       </div>
 
       <!-- 节点长按操作单（画布内浮层） -->
@@ -1496,7 +1476,6 @@ function mmZoomBy(f){
 function mmSelect(id){
   cur.sel=id;
   renderCanvas();
-  $('#mmToolbar').classList.toggle('hide',!id);
   if(id){const n=cur.nodes.find(x=>x.id===id);
     $('#mmNmWho').textContent=(isRoot(id)?'根节点':'节点')+' · '+(n?n.t:'');}
   else closeNodeMenu();
@@ -1509,18 +1488,38 @@ function mmSyncBubble(){
   const el=n?$('#mmNodes .mm-node.sel'):null;
   if(!n||!el){ b.classList.remove('on'); return; }
   b.classList.add('on');
-  const vp=$('#mmCanvas').getBoundingClientRect();
+  const row=b.querySelector('.bubrow'), vp=$('#mmCanvas').getBoundingClientRect();
+  if(!row)return;
+  /* 两枚按钮的宽度是内容撑出来的，量之前先把上一帧的收窄痕迹清掉，否则量到的是收过的宽。
+     注意：入场动画 bubIn 会覆写 transform（动画优先级高于行内样式且末尾到 none 保持），
+     所以量之前必须把动画也摘掉，量完再补回——否则窄屏缩放比刚写上去就被动画顶掉。 */
+  const needAnim=(b.dataset.shown!==String(cur.sel));
+  if(needAnim)b.dataset.shown=String(cur.sel);
+  row.style.animation='none';
+  row.style.gap='4px'; row.style.transform='';
   const w=el.offsetWidth*cur.scale, h=el.offsetHeight*cur.scale;
   const x=n.x*cur.scale+cur.tx, y=n.y*cur.scale+cur.ty;
-  const bw=b.offsetWidth||108, bh=b.offsetHeight||36;
+  const bw=row.offsetWidth, bh=row.offsetHeight;
   const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
-  let left=clamp(x+w/2-bw/2,10,vp.width-bw-10);
-  let top=y-bh-10;                       /* 首选：节点上沿外侧 10px */
+  let bbw=bw;                            /* 实际占位宽：极窄屏缩放后要跟着缩 */
+  if(bw>vp.width-20){
+    /* 极窄屏兜底（正常手机宽 360~430 走不到这里）：整块比画布还宽时不再试三档，
+       直接按「可用宽 ÷ 实宽」算统一缩放比，间隙一并收成 2px，一次到位。 */
+    row.style.gap='2px';
+    const raw=row.offsetWidth;
+    bbw=(vp.width-20)*0.98;
+    row.style.transform='scale('+(bbw/raw)+')';
+  }
+  /* 居中一律按「实际占位宽」算——缩放后仍用缩放前的 bw，会缩了却横向偏出去。 */
+  let left=clamp(x+w/2-bbw/2,10,vp.width-bbw-10);
+  /* 量完恢复动画：只有「首次出现」才给入场动画，同一节点重复对齐不重放（否则每帧闪一下）。 */
+  if(needAnim)row.style.animation='';
+  let top=y-bh-10;                       /* 首选：节点上沿外侧 10px，水平对齐节点中心 */
   if(top<10){
     /* 上方放不下：先挪到节点右侧（纵向树里右侧通常空着）→ 再左侧 → 最后才压到下方。
        不直接翻到下方，是因为纵向布局里节点下方紧跟着子级，压上去就挡字。 */
-    const rx=x+w+10, lx=x-bw-10;
-    if(rx+bw<=vp.width-10){ left=rx; top=clamp(y+h/2-bh/2,10,vp.height-bh-10); }
+    const rx=x+w+10, lx=x-bbw-10;
+    if(rx+bbw<=vp.width-10){ left=rx; top=clamp(y+h/2-bh/2,10,vp.height-bh-10); }
     else if(lx>=10){ left=lx; top=clamp(y+h/2-bh/2,10,vp.height-bh-10); }
     else { top=y+h+10; }
   }
@@ -1620,7 +1619,7 @@ function mmConnectTo(from,to,mode){
   delete cur.folded[to];
   connect={from:null,mode:'attach'};
   const bar=$('#mmConnectBar'); if(bar)bar.classList.add('hide');
-  cur.sel=from; renderCanvas(); $('#mmToolbar').classList.remove('hide');
+  cur.sel=from; renderCanvas(); 
   mmCenterOn(to);
   toast(mode==='merge'?'已把「'+fn.t+'」整枝并入「'+tn.t+'」':'已把「'+fn.t+'」连接到「'+tn.t+'」');
 }
@@ -1769,7 +1768,7 @@ function mmSaveNode(){
     const n=byId(editingNode);
     if(n){ n.t=v; n.note=note||null; n.tags=tags.length?tags:null; n.task=nodeTaskOn; n.img=nodeImgOn; if(!n.task)n.taskDone=false; }
     closeSheet('sheetMm-node'); cur.sel=editingNode; renderCanvas();
-    $('#mmToolbar').classList.remove('hide');
+    
     toast('已更新「'+v.split('\n')[0]+'」'); return;
   }
   if(cur.nodes.length>=2000){ toast('已达节点上限（2000）'); return; }
@@ -1779,7 +1778,7 @@ function mmSaveNode(){
   /* pendingParent 为空＝加根：不挂到任何父，自然成为一棵新树 */
   if(pendingParent){ (TREE[pendingParent]=TREE[pendingParent]||[]).push(id); }
   closeSheet('sheetMm-node'); cur.sel=id; renderCanvas();
-  $('#mmToolbar').classList.remove('hide');
+  
   toast(nodeMode==='root'?'已加根节点':'已加节点 · 长按可继续操作');
 }
 /* H1 裁定：删节点（含子级）不再「选中即删」，改走二次确认并**列明连带子级数**；
@@ -1801,7 +1800,7 @@ function mmDelNode(){
       mmPushHistory('删除节点');
       kill.forEach(i=>{ delete TREE[i]; cur.nodes=cur.nodes.filter(x=>x.id!==i); });
       if(!cur.nodes.length) cur.nodes.push({id:'r',t:'中心主题',init:true,x:0,y:0});
-      cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
+      cur.sel=null; renderCanvas(); 
       toast('已删除 '+kill.length+' 个节点');
     }
   });
@@ -1811,7 +1810,7 @@ function mmToggleFold(){
   const id=cur.sel; if(!id||!(TREE[id]||[]).length)return;
   mmPushHistory(cur.folded[id]?'展开子节点':'折叠子节点');
   cur.folded[id]=!cur.folded[id];
-  cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
+  cur.sel=null; renderCanvas(); 
   toast(cur.folded[id]?'已折叠':'已展开');
 }
 /* 归位：清掉该节点的拖拽偏移 dx/dy，回到自动布局给的基线坐标。
@@ -2098,7 +2097,7 @@ function mmRestore(s){
   Object.keys(TREE).forEach(k=>delete TREE[k]);
   Object.keys(s.tree).forEach(k=>TREE[k]=s.tree[k]);
   cur.folded=s.folded||{};
-  renderCanvas(); $('#mmToolbar').classList.add('hide'); mmSyncUndo();
+  renderCanvas(); mmSyncUndo();
 }
 function mmSyncUndo(){
   const u=$('#btnUndo'), r=$('#btnRedo');
@@ -2165,7 +2164,7 @@ function mmCutNode(){
   if(par) TREE[par]=(TREE[par]||[]).filter(x=>x!==id);
   ids.forEach(i=>{ delete TREE[i]; cur.nodes=cur.nodes.filter(x=>x.id!==i); });
   if(!cur.nodes.length) cur.nodes.push({id:'r',t:'中心主题',init:true,x:0,y:0});
-  cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
+  cur.sel=null; renderCanvas(); 
   toast('已剪切该枝（'+k+' 个节点）');
 }
 /* 批P3 §5 第 10 条：默认「粘贴为同级」——落到选中节点的父下（选中是根＝新根）；
@@ -2186,7 +2185,7 @@ function mmPasteNode(mode){
   });
   if(p) (TREE[p]=TREE[p]||[]).push(map[clipNode.root]);
   clipNode.nodes.forEach(n=>{ if(clipNode.tree[n.id]) TREE[map[n.id]]=clipNode.tree[n.id].map(k=>map[k]); });
-  cur.sel=map[clipNode.root]; renderCanvas(); $('#mmToolbar').classList.remove('hide');
+  cur.sel=map[clipNode.root]; renderCanvas(); 
   toast('已粘贴 '+clipNode.nodes.length+' 个节点');
 }
 /* 批5 任务勾选：节点上的小方框，点一下即完成/取消（联动待办经 linkage 出口） */
@@ -2592,10 +2591,10 @@ function renderList(){
 function mmOpenMap(id){
   const m=MAPS.find(x=>x.id===id);
   TITLES['mm-canvas']=[m.name,m.nodes+' 个节点 · 自动树布局'];
-  cur.sel=null; $('#mmToolbar').classList.add('hide');
+  cur.sel=null; 
   setPage('mm-canvas');
 }
-document.addEventListener('click',e=>{ if(!e.target.closest('#mmNodeMenu')) closeNodeMenu(); });
+document.addEventListener('click',e=>{ if(!e.target.closest('#mmNodeMenu')&&!e.target.closest('#mmBubble')) closeNodeMenu(); });
 /* 深链入口：壳内宫格点「思维导图」靠 REDIRECTS 落到 index-mindmap.html#mm-list
    （与 index-journal.html / index-media.html 同款口径：hash 决定落地屏）。
    也让校验工装能用 ?shot=xxx 直接落到目标屏，不必跟 DOMContentLoaded 抢时序。*/
