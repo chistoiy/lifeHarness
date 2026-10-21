@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/gestures.dart' show PointerScrollEvent, PointerSignalEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart' show Database;
@@ -37,6 +38,8 @@ part 'mindmap_connect_ops.dart';
 /// 画布绘制面接线（批P 抽出：绘制层那一棵子树＋painter 构造）。
 part 'mindmap_canvas_paint.dart';
 part 'mindmap_canvas_layout.dart';
+/// 画布手势补强（批P6：双击空白回全图 · 滚轮/触控板缩放 · 缩得很小时节点最小可点面）。
+part 'mindmap_canvas_gestures.dart';
 
 /// 选中态贴点气泡（批P5：底部工具条撤掉后，选中主操作整组搬到这里）。
 part 'mindmap_canvas_bubble.dart';
@@ -195,7 +198,13 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
   double _dragStartDx = 0, _dragStartDy = 0;
   Offset _panStart = Offset.zero;
   double _pinchStartDist = 0, _pinchStartScale = 1;
-  Offset _pinchStartMid = Offset.zero, _panAtPinch = Offset.zero;
+  Offset _panAtPinch = Offset.zero;
+
+  /// 双击空白的判定（滚轮/触控板缩放也要它）：位置 + 时刻。
+  /// 「双击空白＝fit 全图」——大图缩到 25% 乱糟糟时，一次双击回到全局。
+  Offset _lastEmptyTapAt = Offset.zero;
+  DateTime _lastEmptyTapTime = DateTime.fromMillisecondsSinceEpoch(0);
+
   Offset _downGlobal = Offset.zero;
   /// 画布区 RenderBox 钥匙：指针事件是全局坐标，_pan/_viewport 是画布局部
   /// 坐标，进 _toCanvas 前必须 globalToLocal（漏转＝命中测试整体错位 AppBar 高）。
@@ -254,6 +263,11 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
     super.didChangeDependencies();
     // 双击进笔记返回：视口与选中态保持（§3.3），但挂载标题可能已改名→刷新映射。
     _refreshMountedTitles();
+    // 系统字号变化**不**触发重排：本模块画布文字走固定字号档（与设计稿对齐，
+    // `mmNodeMeasure` 未接 textScaler），跟随系统字号会让节点盒宽与画布缩放
+    // 互相干扰。无障碍路径走**样式弹层的字号档位**，不是系统档——这条口径
+    // 是批P6 试过后回退的（先加了「字号进量宽键」，实测改变不了盒宽，
+    // 说明真正决定宽度的是画布样式档，那条改动是死代码）。
   }
 
   Future<void> _load() async {
@@ -545,7 +559,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
         _panStart = _pan;
         return;
       }
-      final hit = _hitNode(_toCanvas(local));
+      // 批P6：命中带「最小可点面」——25% 档下行高只剩 10dp，直按盒判点不中。
+      final hit = hitNodeWithMinTouch(_toCanvas(local));
       if (hit != null) {
         _dragNodeId = hit.id;
         _dragStartCanvas = _toCanvas(_localOf(e.position));
@@ -569,8 +584,6 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
       final pts = _pointers.values.toList();
       _pinchStartDist = (pts[0] - pts[1]).distance;
       _pinchStartScale = _scale;
-      _pinchStartMid = _localOf(Offset((pts[0].dx + pts[1].dx) / 2,
-          (pts[0].dy + pts[1].dy) / 2));
       _panAtPinch = _pan;
       _dragNodeId = null;
     }
@@ -615,13 +628,17 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
         final mid = Offset(
             (pts[0].dx + pts[1].dx) / 2, (pts[0].dy + pts[1].dy) / 2);
         final k = _pinchStartDist == 0 ? 1.0 : dist / _pinchStartDist;
-        final newScale =
-            (_pinchStartScale * k).clamp(0.25, 4.0); // 25%~400%（F1-3）
-        // 以捏合中点为锚：锚点画布坐标在缩放前后落在屏幕同一点。
-        final anchor = (_pinchStartMid - _panAtPinch) / _pinchStartScale;
+        // 锚点口径与双击/滚轮/按钮共用 [zoomAround]（先钳后算，免得
+        // 顶到上下限时锚点表达式拿未钳值算出一份假偏移）。
+        final (ns, np) = zoomAround(
+          scale: _pinchStartScale,
+          pan: _panAtPinch,
+          nextScale: _pinchStartScale * k,
+          anchor: mid,
+        );
         setState(() {
-          _scale = newScale;
-          _pan = mid - anchor * newScale;
+          _scale = ns;
+          _pan = np;
         });
       case _MmGestureMode.done:
         break;
@@ -742,11 +759,24 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
       _toggleTaskDone(taskNode);
       return;
     }
-    final hit = _hitNode(canvas);
+    final hit = hitNodeWithMinTouch(canvas);
     if (hit == null) {
+      // 批P6：双击空白＝fit 全图（大图缩下去后一键回全局）。
+      // 第一击照旧只取消选中——没选中时那一下本来就是空操作，双击不会白丢。
+      final now2 = DateTime.now();
+      final doubleEmpty = _selectedId == null &&
+          (local - _lastEmptyTapAt).distance < 32 &&
+          now2.difference(_lastEmptyTapTime).inMilliseconds < 350;
+      _lastEmptyTapAt = local;
+      _lastEmptyTapTime = now2;
+      if (doubleEmpty) {
+        _fit();
+        return;
+      }
       if (_selectedId != null) setState(() => _selectedId = null);
       return;
     }
+    _lastEmptyTapTime = DateTime.fromMillisecondsSinceEpoch(0);
     final now = DateTime.now();
     final isDoubleTap = _lastTapId == hit.id &&
         now.difference(_lastTapAt).inMilliseconds < 300;
@@ -1164,6 +1194,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
                         onPointerMove: _onPointerMove,
                         onPointerUp: _onPointerUp,
                         onPointerCancel: _onPointerCancel,
+                        // 批P6：滚轮/触控板缩放（桌面、投屏、平板外接键鼠）。
+                        onPointerSignal: _onPointerSignal,
                         child: _canvasPaintLayer(painterNodes),
                       ),
                     ),
@@ -1209,17 +1241,14 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage>
                       bottom: 72,
                       child: Column(
                         children: [
-                          _zoomBtn(context, Icons.add_outlined, () {
-                            setState(() {
-                              _scale = (_scale * 1.25).clamp(0.25, 4.0);
-                            });
-                          }),
+                          // 批P6：按钮缩放改以**画布中心**为锚（原型 `mmZoomBy`
+                          // 同口径）。原先只改 `_scale` 不动 `_pan`，观感是从左上角
+                          // 往外撑——连点几次刚看的那一枝就漂出屏了。
+                          _zoomBtn(context, Icons.add_outlined,
+                              () => _zoomCenter(1.25)),
                           const SizedBox(height: 6),
-                          _zoomBtn(context, Icons.remove_outlined, () {
-                            setState(() {
-                              _scale = (_scale / 1.25).clamp(0.25, 4.0);
-                            });
-                          }),
+                          _zoomBtn(context, Icons.remove_outlined,
+                              () => _zoomCenter(1 / 1.25)),
                           const SizedBox(height: 6),
                           _zoomBtn(context, Icons.center_focus_weak, _fit,
                               key: 'mm-layout-open'),

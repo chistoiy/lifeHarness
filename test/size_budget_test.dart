@@ -26,7 +26,14 @@ void main() {
     // 1292→1259（批P5 · 2026-10-20）：底部悬浮工具条整条撤掉（含三枚按钮与其
     // 排布、以及只为它服务的 `selected` 派生），选中主操作搬进贴点气泡的
     // 新 part 件（`mindmap_canvas_bubble.dart`）——主文件再减 33 行，继续下调。
-    'features/mindmap/presentation/mindmap_canvas_page.dart': 1259,
+    // 1259→1288（批P6 · 2026-10-21）：滚轮缩放（Listener 信号通道＋折算）、
+    // 双击空白回全图（含连击判定）、最小可点面命中都抽进了新 part
+    // （`mindmap_canvas_gestures.dart`，91 行），两个缩放钮的四行闭包也换成
+    // 一行调用；但同一批在页内加的手势状态与接线（signal 通道、连击判据、
+    // 命中调用点、注释）**凑巧比搬走的多**，主文件净增 29 行到 1288。
+    // 如实上调登记值（棘轮遇真新增只能重登；下批还债＝把指针三分仲裁整段
+    // 抽 part，那一刀能把这里一次砍到 1100 以下）。
+    'features/mindmap/presentation/mindmap_canvas_page.dart': 1288,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // 1520→1528 存量越线归位（小组件批E · 2026-10-18）：产品令「缺少修改打卡记录」——
     // 流水每行包一层 GestureDetector（key `hd-rec-<日键>`）点开那一天的记录编辑，

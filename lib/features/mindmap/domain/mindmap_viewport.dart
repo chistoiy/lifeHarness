@@ -63,3 +63,24 @@ List<int> cullVisibleNodes({
   );
   return (s, pan);
 }
+
+/// 缩放钳位（F1-3 口径 25%~400%）。三处缩放入口（双击 / 滚轮 / 捏合）共用一份，
+/// 免得各写一遍把上下限写岔。
+const double mmMinScale = 0.25;
+const double mmMaxScale = 4.0;
+
+/// 以画布上某点为锚缩放：该点缩放前后落在屏幕同一点（`screen = canvas*scale + pan`）。
+///
+/// 为什么单拎出来：按钮「放大/缩小」原先只改 `_scale`、不动 `_pan`，观感是
+/// 「从左上角往外撑」——内容中心会往右下飘，连点几次就找不到刚看的那一枝。
+/// 屏中心 / 双指中点 / 鼠标位置都走这一条，只有锚点不同。
+(double, Offset) zoomAround({
+  required double scale,
+  required Offset pan,
+  required double nextScale,
+  required Offset anchor,
+}) {
+  final s = nextScale.clamp(mmMinScale, mmMaxScale);
+  final canvas = (anchor - pan) / scale;
+  return (s, anchor - canvas * s);
+}
