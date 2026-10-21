@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart' show Database;
 import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../data/mindmap_dao.dart';
+import '../domain/mindmap_menu_rank.dart';
 import '../domain/mindmap_models.dart';
 import 'mindmap_node_sheet.dart';
 
@@ -233,6 +234,50 @@ Future<String?> showMmMenu(
 }
 
 
+/// 组内**按频次前移**（批P7）：组数、组序、每组的并排结构一律不动，
+/// 只把组内**非并排**项按点击次数重排一次。
+///
+/// 为什么不用「全局按频次重排整份菜单」：那份菜单的组是有语义的——
+/// 「增 / 连 / 改 / 换 / 剪 / 删」，「删除」跳到第一组顶上会出事，
+/// 「上移/下移」拆开会丢掉「一个上一个下」的对照。所以只做**组内轻排**。
+///
+/// 细节：并排项（`inline`）**当作一个原子**——它自己和它的前驱都留在原位，
+/// 否则「编辑」被前移时会把紧跟的「粘贴两枚」挤散。代价是这些项学不到频次，
+/// 但它们本来就在 [mmSortPinned] 里（不记账）。
+///
+/// [ranks] 为 null → 原样返回（不复制，零分配）。
+List<List<MmMenuItem>> mmRankMenuGroups(
+    List<List<MmMenuItem>> groups, Map<String, int>? ranks) {
+  if (ranks == null) return groups;
+  // 空表也要过一遍判闸（`mmRankKeys` 的语义是「样本不足 ⇒ 回基线序」），
+  // 不在这里短路：短路的收益只是一次遍历，代价是两种来源被混成一条路径。
+  final out = <List<MmMenuItem>>[];
+  for (final g in groups) {
+    // 可排位＝非并排、且后面没跟着并排项（跟着的那个是并排组的头，原子保留）
+    final movable = <int>[];
+    for (var i = 0; i < g.length; i++) {
+      if (g[i].inline) continue;
+      if (i + 1 < g.length && g[i + 1].inline) continue;
+      movable.add(i);
+    }
+    if (movable.length < 2) {
+      out.add(g);
+      continue;
+    }
+    // 候选键取**可排位**的键（`mmRankKeys` 只对自己收到的键求和判门槛）；
+    // 并排项与置顶项在那一层被剔掉，不进候选。
+    final keys = [for (final i in movable) g[i].key];
+    final ordered = mmRankKeys(keys, ranks);
+    final next = List<MmMenuItem>.of(g);
+    // 按**位置**回填（不是按 key 找位）：重排只挪这几格，其余槽位原样不动。
+    for (var k = 0; k < movable.length; k++) {
+      next[movable[k]] = g.firstWhere((x) => x.key == ordered[k]);
+    }
+    out.add(next);
+  }
+  return out;
+}
+
 /// 节点菜单项（贴点浮层用）。
 ///
 /// `inline`＝与**紧随其后的**同族项并排成一行（原型 `.nm-row`：成对或互斥的
@@ -259,11 +304,16 @@ typedef MmMenuItem = ({
 /// [groups]＝**组序列**：组间画分隔线（原型 `.nm-div`），组内按 [MmMenuItem.inline]
 /// 聚行。用「组的列表」而不是「平铺项＋尾部一行」，是因为原型的分隔线穿插在
 /// 中间（增/改/剪贴/删四段），尾部一行表达不了这个次序。
+///
+/// [ranks]＝**点击次数表**（批P7）：给了就按它把组内**非并排**项前移——
+/// 组数、组序、组内并排行一律不动，见 [mmRankMenuGroups]。不给＝完全按传入序
+/// （预览、导出等旁路将来复用时不必记账）。
 Future<String?> showMmMenuAt(
   BuildContext context,
   Offset anchor, {
   required List<List<MmMenuItem>> groups,
   String? headline,
+  Map<String, int>? ranks,
 }) {
   // 批P4：落位要让开状态栏——`showGeneralDialog` 的页面铺满整屏（含状态栏），
   // 只按 10dp 夹取会把菜单顶边塞到时钟底下（6201 真机抓到：标题行被时间遮）。
@@ -278,7 +328,8 @@ Future<String?> showMmMenuAt(
     transitionDuration: const Duration(milliseconds: 140),
     pageBuilder: (ctx, _, _) => CustomSingleChildLayout(
       delegate: _MmMenuPosition(anchor, topInset: topInset),
-      child: _MmMenuPanel(groups: groups, headline: headline),
+      child: _MmMenuPanel(
+          groups: mmRankMenuGroups(groups, ranks), headline: headline),
     ),
     transitionBuilder: (ctx, anim, _, child) =>
         FadeTransition(opacity: anim, child: child),

@@ -16,6 +16,7 @@ import '../domain/mindmap_clipboard.dart';
 import '../domain/mindmap_layout.dart';
 import '../domain/mindmap_layout_preset.dart';
 import '../domain/mindmap_measure.dart';
+import '../domain/mindmap_menu_rank.dart';
 import '../domain/mindmap_models.dart';
 import '../domain/mindmap_node_meta.dart';
 import '../domain/mindmap_style.dart';

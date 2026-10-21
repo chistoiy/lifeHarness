@@ -33,7 +33,10 @@ void main() {
     // 命中调用点、注释）**凑巧比搬走的多**，主文件净增 29 行到 1288。
     // 如实上调登记值（棘轮遇真新增只能重登；下批还债＝把指针三分仲裁整段
     // 抽 part，那一刀能把这里一次砍到 1100 以下）。
-    'features/mindmap/presentation/mindmap_canvas_page.dart': 1288,
+    // 1288→1289（批P7 · 2026-10-21）：本批唯一落在主文件里的行是菜单频次域件的
+    // `import` 一行（记账/读表都在 `mindmap_canvas_ops.dart` 与域件里做）。
+    // 真还债仍是上一批留下的「指针三分仲裁整段抽 part」，未在本批动。
+    'features/mindmap/presentation/mindmap_canvas_page.dart': 1289,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // 1520→1528 存量越线归位（小组件批E · 2026-10-18）：产品令「缺少修改打卡记录」——
     // 流水每行包一层 GestureDetector（key `hd-rec-<日键>`）点开那一天的记录编辑，

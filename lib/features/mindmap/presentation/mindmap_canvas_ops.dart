@@ -136,6 +136,9 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
       context,
       anchor,
       headline: '${n.parentId == null ? '根节点' : '节点'} · ${_displayTitle(n)}',
+      // 批P7：组内次序按用过的次数前移（组序不动、危险/导航项钉死）。
+      // 传 null＝这一版菜单不排序（预览/导出等旁路将来要复用时不必记账）。
+      ranks: MmMenuUsageStore(ref.read(sharedPreferencesProvider)).load(),
       groups: [
         [
           (key: 'child', icon: Icons.account_tree_outlined, label: '添加子节点', enabled: true, inline: false),
@@ -202,6 +205,10 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
       ],
     );
     if (key == null || !mounted) return;
+    // 批P7 记账：放在**分发之前**——动作会改动 `_nodes`（加/删/粘贴）甚至把
+    // 页面推走，放到 switch 之后就得逐分支写一遍，漏一处＝那枚永远学不到。
+    // 未登记键/置顶键在 store 内部直接拒（不写盘、不产生 IO）。
+    unawaited(MmMenuUsageStore(ref.read(sharedPreferencesProvider)).bump(key));
     switch (key) {
       case 'child':
         await _addChild(n.id);
