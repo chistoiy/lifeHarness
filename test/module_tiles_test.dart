@@ -162,6 +162,18 @@ void main() {
       expect(LaunchRoute(action: 'modules/settings').fullScreen, isFalse);
       expect(LaunchRoute(action: 'modules/read').fullScreen, isTrue);
       expect(LaunchRoute(action: 'modules/nfc').fullScreen, isTrue);
+      // 批C-3 加固：5 枚全屏逐枚显式断（原抽样只断 read/nfc，media/health/
+      // mindmap 漏断）。
+      // ⚠ 别改成「for 全表：fullScreen == !t.shell」循环——那是**恒等式**
+      // （LaunchRoute.fullScreen 的判定链吃 kShellLaunchSegs，后者由同表
+      // shell 位派生）：shell 位写反时两边同步翻转，断言永远成立。批C-3 变异刀
+      // 实证：shell false→true 时循环不红、显式样本才红。守护必须打在**显式
+      // 样本**上，shell 位本身由「shell ↔ 路由归属」那条老守护钉。
+      expect(LaunchRoute(action: 'modules/media').fullScreen, isTrue);
+      expect(LaunchRoute(action: 'modules/health').fullScreen, isTrue);
+      expect(LaunchRoute(action: 'modules/mindmap').fullScreen, isTrue);
+      expect(LaunchRoute(action: 'modules/care').fullScreen, isFalse,
+          reason: '呵护是壳内（今天页快捷入口），push 会把底栏顶掉');
       expect(LaunchRoute(action: 'settings/desktop').fullScreen, isTrue);
       // 用户动作仍走动作表（第一级不被新分支吃掉）。
       expect(LaunchRoute(action: 'today').fullScreen, isFalse);
