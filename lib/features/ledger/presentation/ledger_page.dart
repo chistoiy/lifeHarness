@@ -171,7 +171,7 @@ class _HeroCard extends ConsumerWidget {
     final pct = b.total > 0 ? (st.exp * 100 / b.total).clamp(0, 100) : 0.0;
     final over = b.total > 0 && st.exp > b.total;
     final budgetR = over
-        ? '已超支 ${money(st.exp - b.total)}'
+        ? '已超支 ${amtText(st.exp - b.total, hide: d.hideAmounts)}'
         : b.total > 0
         ? '已用 ${pct.round()}% · 日均可用 '
               '${amtText((b.total - st.exp).clamp(0, 1e12) / ctx.leftDays, hide: d.hideAmounts)}'
@@ -413,7 +413,7 @@ class _HeroCard extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '月度预算 ${b.total > 0 ? money(b.total) : '未设置'}',
+                          '月度预算 ${b.total > 0 ? amtText(b.total, hide: d.hideAmounts) : '未设置'}',
                           style: const TextStyle(
                             fontSize: 10,
                             color: Colors.white70,

@@ -164,7 +164,7 @@ class _LedgerAccountDetailPageState
                 const SizedBox(height: 8),
                 Text(
                   '每月 ${a.billDay ?? 1} 日出账 · ${a.repayDay ?? 1} 日还款 · '
-                  '额度 ${money(a.creditLimit ?? 0)} · 可用 ${money((a.creditLimit ?? 0) + bal)}',
+                  '额度 ${amtText(a.creditLimit ?? 0, hide: hide)} · 可用 ${amtText((a.creditLimit ?? 0) + bal, hide: hide)}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 9, color: _slate),
                 ),

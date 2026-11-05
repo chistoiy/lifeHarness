@@ -218,7 +218,7 @@ class _LedgerTxDetailPageState extends ConsumerState<LedgerTxDetailPage> {
                     onTap: () => context.push('/ledger/tx/${rel.id}'),
                     child: Text(
                       '${rel.note.isNotEmpty ? rel.note : d.catOf(rel.catId).name} '
-                      '${money(rel.amt)} ›',
+                      '${amtText(rel.amt, hide: d.hideAmounts)} ›',
                       textAlign: TextAlign.right,
                       style: TextStyle(
                         fontSize: 12,
@@ -234,7 +234,7 @@ class _LedgerTxDetailPageState extends ConsumerState<LedgerTxDetailPage> {
                   InkWell(
                     onTap: () => context.push('/ledger/tx/${refunds.first.id}'),
                     child: Text(
-                      '${money(refunds.fold<double>(0, (a, x) => a + x.amt))} ›',
+                      '${amtText(refunds.fold<double>(0, (a, x) => a + x.amt), hide: d.hideAmounts)} ›',
                       textAlign: TextAlign.right,
                       style: const TextStyle(
                         fontSize: 12,

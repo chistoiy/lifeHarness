@@ -362,8 +362,8 @@ class LedgerAssetsPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '已用 ${money(math.max(0, -bal))} / '
-                        '${money(a.creditLimit ?? 0)}',
+                        '已用 ${amtText(math.max(0, -bal), hide: hide)} / '
+                        '${amtText(a.creditLimit ?? 0, hide: hide)}',
                         style: const TextStyle(fontSize: 9, color: _slate),
                       ),
                     ]

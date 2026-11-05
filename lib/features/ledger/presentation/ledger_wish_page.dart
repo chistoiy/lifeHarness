@@ -289,7 +289,7 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
                           style: const TextStyle(
                               fontSize: 13, fontWeight: FontWeight.w700)),
                       Text(
-                        '目标 ${money(w.target)}${achieved ? ' · 已达成，可兑换' : ''}',
+                        '目标 ${amtText(w.target, hide: d.hideAmounts)}${achieved ? ' · 已达成，可兑换' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 9, color: _slate),

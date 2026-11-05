@@ -105,7 +105,7 @@ Future<int?> showLAcctPick(
                                   ),
                                   Text(
                                     a.isCredit
-                                        ? '可用额度 ${money(a.available)}'
+                                        ? '可用额度 ${amtText(a.available, hide: d.hideAmounts)}'
                                         : '余额',
                                     style: TextStyle(
                                       fontSize: 9,

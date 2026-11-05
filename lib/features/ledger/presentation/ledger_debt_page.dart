@@ -344,7 +344,7 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
                     Text(
                       settled
                           ? '已结清'
-                          : '剩余 ${money(t.left)} 未${lend ? '收' : '还'}',
+                          : '剩余 ${amtText(t.left, hide: d.hideAmounts)} 未${lend ? '收' : '还'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 9, color: _slate),

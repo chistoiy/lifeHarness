@@ -218,7 +218,7 @@ class _LedgerBudgetPageState extends ConsumerState<LedgerBudgetPage> {
           const SizedBox(height: 2),
           Text(
             over
-                ? '已超支 ${money(exp - b.total)} · 建议调整'
+                ? '已超支 ${amtText(exp - b.total, hide: hide)} · 建议调整'
                 : '剩余 ${amtText(math.max(0, b.total - exp), hide: hide)} · '
                       '日均可用 ${amtText(b.total > 0 ? math.max(0, (b.total - exp) / leftDays) : 0, hide: hide)}',
             style: const TextStyle(fontSize: 10, color: _slate),
@@ -282,7 +282,7 @@ class _LedgerBudgetPageState extends ConsumerState<LedgerBudgetPage> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  '立即结转 +${money(carryAmt)}',
+                  '立即结转 +${amtText(carryAmt, hide: hide)}',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -389,7 +389,7 @@ class _LedgerBudgetPageState extends ConsumerState<LedgerBudgetPage> {
                             ),
                             Text(
                               '${amtText(used, hide: hide)} / '
-                              '${lim > 0 ? money(lim) : '未设'}',
+                              '${lim > 0 ? amtText(lim, hide: hide) : '未设'}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: _slate,
@@ -424,7 +424,7 @@ class _LedgerBudgetPageState extends ConsumerState<LedgerBudgetPage> {
                           Padding(
                             padding: const EdgeInsets.only(left: 32, top: 4),
                             child: Text(
-                              '已超支 ${money(used - lim)}',
+                              '已超支 ${amtText(used - lim, hide: hide)}',
                               style: const TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
