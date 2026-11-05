@@ -64,6 +64,9 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
   /// 本次导入的批次 id（R15-1：完成页「撤销本批」按它定位，可撤范围＝仅最近一批）。
   int? _batchId;
 
+  /// 确认导入的 in-flight 锁（查漏补缺 P0：防连点重复落库）。
+  bool _saving = false;
+
   @override
   void dispose() {
     super.dispose();
@@ -81,6 +84,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     _createdAccts = 0;
     _createdNames = '';
     _batchId = null;
+    _saving = false;
     _fileBytes = null;
     _fileName = '';
   });
@@ -164,7 +168,15 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       return;
     }
     if (_step == 4) {
-      await _commit();
+      // 防重入（2026-11-05 · 查漏补缺 P0）：确认钮连点曾让 commitImport 落两批；
+      // in-flight 期间锁死，finally 保证异常路径也解锁。
+      if (_saving) return;
+      setState(() => _saving = true);
+      try {
+        await _commit();
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
     }
   }
 
@@ -336,7 +348,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(14),
-                          onTap: _next,
+                          onTap: _saving ? null : _next,
                           child: Center(
                             child: Text(
                               _step == 4 ? '确认导入 ${_sel.length} 条' : '下一步',

@@ -410,9 +410,21 @@ class LedgerRepository {
       });
 
   /// 编辑流水（patch 为列名→值；调用方组装，同原型 ledgerEdit(id,patch) 口径）。
+  ///
+  /// 溯源列白名单（2026-11-05 · 查漏补缺 P0）：编辑入口整包重建 LedgerTxn 后
+  /// 以 toRow() 全字段覆写，曾把 bill_hash / imp_batch / source / created_at
+  /// 抹成 null/0 ⇒ 同账单可重复导入、整批撤销按 imp_batch 删不到该行。
+  /// 这些是写入时的身份列，编辑表单无权改动，故在统一写路径剔除。
+  static const _kEditImmutable = <String>{
+    'bill_hash', 'imp_batch', 'source', 'created_at',
+    'refund_of', 'link_id', 'recurring_id', 'wish_id', 'debt_id',
+  };
+
   Future<void> editTxn(int id, Map<String, Object?> patch) =>
       db.transaction((txn) async {
-        await txn.update(DbSchema.tLedgerTxns, patch,
+        final safe = Map<String, Object?>.from(patch)
+          ..removeWhere((k, _) => _kEditImmutable.contains(k));
+        await txn.update(DbSchema.tLedgerTxns, safe,
             where: 'id = ?', whereArgs: [id]);
         await _recomputeBalances(txn);
       });
