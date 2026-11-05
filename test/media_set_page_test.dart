@@ -171,7 +171,7 @@ void main() {
     expect(find.textContaining('说明'), findsNothing, reason: '灰态零说明文案');
   });
 
-  testWidgets('speedFold 双向同源：设置翻→统计 chip 翻；chip 翻→设置行翻', (tester) async {
+  testWidgets('speedFold 设置翻＝写库（统计屏下架后不再有 chip 承载面）', (tester) async {
     await useSurface(tester, const Size(420, 1600));
     await pumpSet(tester);
     await tester.tap(find.byKey(const ValueKey('mds-set-tab-timer')));
@@ -179,54 +179,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('mds-set-media.speedFold')));
     await settle5(tester);
     expect(await repo.kv('media.speedFold'), 'true');
-
-    // 同容器切到统计屏＝设置改动与 chip 同帧（同源不各存一份态）。
-    lastContainer!.read(mediaTickProvider.notifier).state++;
-    final router = GoRouter(
-      initialLocation: '/media/stat',
-      routes: mediaPageRoutes(),
-    );
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: lastContainer!,
-      child: MaterialApp.router(routerConfig: router),
-    ));
-    await settle5(tester);
-    expect(chipOn(tester, 'mds-stat-fold-fold'), isTrue,
-        reason: '设置翻＝chip 跟着翻（批7 遗留「设置页开关随设置批接」在此结掉）');
-  });
-
-  testWidgets('timerUI=full：详情计时钮直达沉浸页；capsule 档就地起停', (tester) async {
-    await useSurface(tester, const Size(420, 1600));
-    await addItem('满屏片');
-    await repo.setKv('media.timerUI', 'full');
-    final container = ProviderContainer(
-      overrides: [mediaRepositoryProvider.overrideWithValue(repo)],
-    );
-    lastContainer = container;
-    final router = GoRouter(
-      initialLocation: '/media/item/x_满屏片',
-      routes: mediaPageRoutes(),
-    );
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp.router(routerConfig: router),
-    ));
-    await settle5(tester);
-    await tester.tap(find.byKey(const ValueKey('mds-detail-timerbtn')));
-    await settle5(tester);
-    expect(find.byKey(const ValueKey('mds-timer-toggle')), findsOneWidget,
-        reason: '全屏档＝起停直接进沉浸页（LH-C23 铁口径①两条真路径之一）');
-
-    // 胶囊档＝就地起停，不落沉浸页（悬浮条由 timer_bar_overlay 自理）。
-    await repo.setKv('media.timerUI', 'capsule');
-    container.read(mediaTickProvider.notifier).state++;
-    router.go('/media/item/x_满屏片');
-    await settle5(tester);
-    await tester.tap(find.byKey(const ValueKey('mds-detail-timerbtn')));
-    await settle5(tester);
-    expect(find.byKey(const ValueKey('mds-timer-toggle')), findsNothing);
-    final running = await repo.runningSession();
-    expect(running?.itemId, 'x_满屏片', reason: '胶囊档＝就地起会话');
   });
 
   testWidgets('defaultView/sortDefault 生效：进架口吃 KV（刀3 硬钉 desk/recent 即红）',
@@ -325,8 +277,8 @@ void main() {
     expect(find.byKey(const ValueKey('mds-dailyq-row')), findsNothing,
         reason: '今天已有一条已结算计时＝提示行收掉');
 
-    // 设置直达入口（拍板⑤：图标条第 8 枚的 Flutter 形态＝工作台直达行）。
+    // 设置直达入口（拍板⑤：图标条第 8 枚的 Flutter 形态＝工作台直达行）；
+    // 目标屏已随四屏下架，此处只钉设置入口仍在。
     expect(find.byKey(const ValueKey('media-open-set')), findsOneWidget);
-    expect(find.byKey(const ValueKey('media-open-goal')), findsOneWidget);
   });
 }

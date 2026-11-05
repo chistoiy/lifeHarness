@@ -191,7 +191,7 @@ void main() {
     expect(find.text('未填'), findsNWidgets(3));
   });
 
-  testWidgets('计时明细入口＝直达明细屏；能力未开的转存笔记置灰不隐藏', (tester) async {
+  testWidgets('计时明细屏下架后：入口行置灰不可点，四格读数仍同源', (tester) async {
     await useSurface(tester, const Size(420, 1400));
     final id = await addMovie();
     await seedTwoSessions(id);
@@ -199,16 +199,13 @@ void main() {
 
     expect(find.text('2 条 · 1h'), findsOneWidget,
         reason: '入口行计数与汇总同源（两条 ×30 分钟）');
-    await tester.tap(find.byKey(const ValueKey('mds-info-entry-sessions')));
-    await settle5(tester);
-    expect(find.byKey(const ValueKey('mds-sess-stats')), findsOneWidget,
-        reason: '资料屏的明细入口落在计时明细整屏，不是半屏弹层');
-
-    expect(find.byType(BottomSheet), findsNothing, reason: '明细是整屏，不叠半屏弹层');
-    await tester.pageBack();
-    await settle5(tester);
-    expect(find.byKey(const ValueKey('mds-info-body')), findsOneWidget,
-        reason: '返回只退一层，落回资料屏而不是甩回详情／栈底');
+    final entry = tester.widget<InkWell>(
+        find.byKey(const ValueKey('mds-info-entry-sessions')));
+    expect(entry.onTap, isNull,
+        reason: '明细整屏已下架，入口不得再承诺跳转（不铺跳不过去的假入口）');
+    expect(find.byKey(const ValueKey('mds-info-stats')), findsOneWidget,
+        reason: '资料屏四格数据卡仍在，读数不动');
+    expect(find.byType(BottomSheet), findsNothing, reason: '不叠半屏弹层');
   });
 
   testWidgets('档案只读：外部 ID 用人话标签回显，写入位在编辑弹层而非本屏', (tester) async {

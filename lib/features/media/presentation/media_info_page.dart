@@ -165,7 +165,7 @@ class _MediaInfoPageState extends ConsumerState<MediaInfoPage> {
           ],
         ),
         const SizedBox(height: 14),
-        // ---- 数据卡四格（前两格＝明细屏入口；读数全部现算）----
+        // ---- 数据卡四格（读数全部现算；会话日志屏下架后四格均为纯展示）----
         GridView.count(
           key: const ValueKey('mds-info-stats'),
           shrinkWrap: true,
@@ -175,8 +175,8 @@ class _MediaInfoPageState extends ConsumerState<MediaInfoPage> {
           crossAxisSpacing: 8,
           childAspectRatio: 2.6,
           children: [
-            _tapCell(key: 'mds-info-stat-minutes', label: '${_kindWord(x.kind)}时长', value: _hm(total), onTap: () => context.push('/media/item/${x.id}/sessions')),
-            _tapCell(key: 'mds-info-stat-count', label: c4.countLabel, value: '${closed.length}', onTap: () => context.push('/media/item/${x.id}/sessions')),
+            _cell(label: '${_kindWord(x.kind)}时长', value: _hm(total)),
+            _cell(label: c4.countLabel, value: '${closed.length}'),
             _cell(label: '日均', value: pace == 0 ? '—' : _hm(pace)),
             _cell(label: c4.label, value: c4.value),
           ],
@@ -442,30 +442,6 @@ class _MediaInfoPageState extends ConsumerState<MediaInfoPage> {
           ],
         ),
       );
-
-  Widget _tapCell({required String key, required String label, required String value, required VoidCallback onTap}) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      key: ValueKey(key),
-      borderRadius: BorderRadius.circular(10),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: .45),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(value, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800)),
-            Text(label, style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant)),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _plainChip(BuildContext context, String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),

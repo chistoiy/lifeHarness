@@ -39,9 +39,6 @@ const _baseline = <String, int>{
     // 收掉 1 处（登记值未随增量同步），本批一行未动该文件——按口径调小登记值。
     'lib/features/media/presentation/widgets/media_card.dart': 7,
     'lib/features/media/presentation/media_shelf_page.dart': 1,
-    // 批3 影音沉浸计时页：8 处「白」全是深色渐变底上的半透明白胶囊/钮（白字），
-    // 属深色实态；观感门随复测包 6090 真机复验，不合规再摘模糊/改透明度。
-    'lib/features/media/presentation/media_timer_page.dart': 8,
     // 影音游批5 笔记库＋名录入面各 1 处：命中的都是**前景字/图标**（黑 54 圆钮上的白叉、
     // 红角标上的白读数），底面一律吃 scheme，深色下不产生白底面缺陷——与 media_card 同形态。
     // 登记≠放行：本批两屏的深色观感随其真机复验轮走查（复测包尚未出）。
@@ -83,7 +80,7 @@ const _baseline = <String, int>{
     'lib/features/journal/presentation/widgets/diary_fan_fab.dart': 1,
     // ③ `diary_edit_foot.dart` 1 处＝保存钮上的白字（本批从页面搬到 part，形态未变：字压
     //    品牌渐变底）。同属「前景白、底面走主题」一族。
-    'lib/features/journal/presentation/diary_edit_foot.dart': 1,
+    'lib/features/journal/presentation/diary_edit_foot.dart': 1,
     'lib/features/journal/presentation/widgets/ins_card.dart': 7,
     // 日记改版批2e（2026-10-19）：图墙格由「高饱和实心＋白字」改**淡底＋深字**（原型口径），
     // 本文件近白字面随之归零——死登记已按闸要求删除，之后不许再加回来。
