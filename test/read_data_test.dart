@@ -892,36 +892,32 @@ void main() {
       expect((fee.fee, fee.paid), (0.0, 0));
     });
 
-    test('5-4 购书费用 → 记账流水：入账/差量更新/清零删行/开关关闭不出账',
+    test('5-4 购书费明示不出账：书价字段保留、旧表零新增、feeTxnId 不回写',
         () async {
       var b = await repo.addBook(Book(title: '付费书', fee: 59, createdAt: t0, updatedAt: t0));
       b = (await repo.bookById(b.id))!;
-      expect(b.feeTxnId, isNotNull);
-      var rows = await db.query('finance_txns');
-      expect(rows, hasLength(1));
-      expect(rows.single['amount'], 59);
-      expect(rows.single['direction'], '支出');
-      expect(rows.single['category'], '阅读');
-      expect(rows.single['note'], '《付费书》购书');
-      // 改费用：同一条流水更新，不新建
+      expect(b.fee, 59, reason: '书价字段仍由书架展示，不因不出账而丢');
+      expect(b.feeTxnId, isNull, reason: '不再回写流水 id');
+      expect(await db.query('finance_txns'), isEmpty,
+          reason: '旧表保留留档，但本模块不再写入');
+      // 改费用：只改书价，不动旧表
       await repo.updateBook(b.copyWith(fee: 88));
-      expect(await db.query('finance_txns'), hasLength(1));
-      expect((await db.query('finance_txns')).single['amount'], 88);
-      // 费用清零：删流水并回写 null
-      await repo.updateBook((await repo.bookById(b.id))!.copyWith(fee: 0));
+      expect((await repo.bookById(b.id))!.fee, 88);
       expect(await db.query('finance_txns'), isEmpty);
+      // 费用清零：不删旧表历史行、不回写 id
+      await repo.updateBook((await repo.bookById(b.id))!.copyWith(fee: 0));
+      expect((await repo.bookById(b.id))!.fee, 0);
       expect((await repo.bookById(b.id))!.feeTxnId, isNull);
-      // read.feeTxn=false：只留字段不出账
+      expect(await db.query('finance_txns'), isEmpty);
+      // 旧开关 read.feeTxn 保留兼容，但翻开也不补出账
       await repo.setKv('read.feeTxn', 'false');
       final c = await repo.addBook(Book(title: '免出账书', fee: 30, createdAt: t0, updatedAt: t0));
-      expect((await db.query('finance_txns')), isEmpty);
       expect((await repo.bookById(c.id))!.fee, 30);
-      // 重新打开后编辑该书补出账
+      expect(await db.query('finance_txns'), isEmpty);
       await repo.setKv('read.feeTxn', 'true');
       await repo.updateBook((await repo.bookById(c.id))!);
-      final rows2 = await db.query('finance_txns');
-      expect(rows2, hasLength(1));
-      expect(rows2.single['note'], '《免出账书》购书');
+      expect(await db.query('finance_txns'), isEmpty,
+          reason: '开关翻开也不补出账（产品裁定「明示不做」）');
     });
 
     test('5-5 本月摘录数（L7 第五路）', () async {

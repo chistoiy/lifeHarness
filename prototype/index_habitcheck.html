@@ -2867,7 +2867,7 @@ function hbOpsRun(k){const h=hbH();closeSheet('sheetHabitOps');
  if(k==='编辑习惯')heOpen(h.id);
  else if(k==='复制到新分类'){const c=HABITS.filter(x=>x.n===h.n).length;HABITS.unshift(Object.assign({},h,{id:h.id+'c'+c,n:h.n,arch:false,streak:0,best:h.best,w:[0,0,0,0,0,0,0]}));renderHabits();toast('已复制一份用于新分类')}
  else if(k==='归档 · 不再跟踪'){h.arch=true;renderHabits();toast('已归档 · 纪录保留在详情与纪录墙')}
- else if(k==='导出该习惯数据')toast('已导出 '+h.n+'.json（打卡序列 + 触发记录 · 模拟）')
+ else if(k==='导出该习惯数据')toast('习惯数据导出 · 未上线')
  else if(k==='打卡设置')hbSetOpen();
  else if(k==='删除习惯'){HABITS=HABITS.filter(x=>x.id!==h.id);goBack();renderHabits();toast('已删除习惯 · 历史流水保留在时间账本')}}
 /* 自动达成源 */

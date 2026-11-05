@@ -13,9 +13,9 @@ import '../../features/ledger/presentation/ledger_providers.dart';
 /// - 到期批量生成**不是自动生成**：触发入口 = L1 横幅「去生成 ›」跳 L9 + L9
 ///   到期横幅内手动「生成」钮（`onclick="recGenDue()"`）；无任何启动/零点
 ///   自动调用的原型代码 → UI 侧一律按钮手动触发，逐字保留原型 toast 文案。
-/// - 「续费提醒日程已同步（L8）」在原型中仅为 toast 文案
-///   （`toast('已生成「'+r.n+'」流水 · 续费提醒日程已同步（L8）')`），
-///   不真正写 events 表 → 本挂载按同口径占位（文案常量），不建真实日程行。
+/// - 「续费提醒日程」从未落 events 表：2026-11-05 产品裁定「先明示不做」，
+///   原型 toast 与实现文案同步改为「未开启」，不再向用户声称已同步。
+///   日后真接排程须先过需求门＋原型门，勿只改文案。
 /// - 计划书 §5 批2 另列「周期生成调度（App 启动/每日零点触发）」：
 ///   App 启动扫尾 = [ledgerRecurMountProvider]（静默批量生成，等价 quiet 路径）；
 ///   「每日零点」不挂常驻 Timer（本地 App 跨零点通常已退出进程，下次启动即
@@ -27,7 +27,7 @@ String ledgerRecurBatchGenToast(int n) => '已批量生成 $n 笔到期流水（
 
 /// 单笔生成 + 续费提醒日程占位 toast（原型 recGen 非 quiet 路径文案）。
 String ledgerRecurGenToast(String name) =>
-    '已生成「$name」流水 · 续费提醒日程已同步（L8）';
+    '已生成「$name」流水 · 续费提醒日程未开启';
 
 /// 可注入的到期批量生成纯入口：当前账本 active 且 next≤today 行 → 统一
 /// addTxn 写路径落 source='recurring' 流水并推进 next。返回生成笔数。

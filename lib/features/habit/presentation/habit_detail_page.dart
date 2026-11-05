@@ -141,7 +141,7 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                 ),
                 row('export', '导出该习惯数据', Icons.description_outlined,
                     () => habitToast(
-                        context, '已导出 ${h.name}.json（打卡序列 + 触发记录 · 模拟）')),
+                        context, '习惯数据导出 · 未上线')),
                 row(
                   'del',
                   '删除习惯',

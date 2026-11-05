@@ -1,7 +1,7 @@
 part of 'sync_sheets.dart';
 
 // 治理G7d②：S6 控流弹层自 sync_sheets 整块外提（行为零改动）。
-// 档位常量 + 快照份数滚轮 + 仅Wi-Fi 开关（prefs sync_wifiOnly · T19 消费）。
+// 档位常量 + 快照份数滚轮 + 自动同步未上线明示行（零假开关）。
 // ============================ S6 · 控流弹层 ============================
 
 const List<int> _kThrottleTiers = [150, 300, 800];
@@ -27,7 +27,6 @@ class _ThrottleSheet extends ConsumerStatefulWidget {
 class _ThrottleSheetState extends ConsumerState<_ThrottleSheet> {
   ServiceConfig? _cfg;
   int _keepN = kSyncKeepSnapshotsDefault;
-  bool _wifi = false;
   bool _autoArc = false;
   bool _purge30 = false;
 
@@ -42,7 +41,6 @@ class _ThrottleSheetState extends ConsumerState<_ThrottleSheet> {
     }
     final raw = prefs.getInt(kSyncKeepSnapshotsKey);
     _keepN = (raw == null || raw < 1) ? kSyncKeepSnapshotsDefault : raw;
-    _wifi = prefs.getBool(kSyncWifiOnlyKey) ?? false;
     _autoArc = prefs.getBool(CloudCleanService.kAutoArchive) ?? false;
     _purge30 = prefs.getBool(CloudCleanService.kArchivePurge30) ?? false;
   }
@@ -87,12 +85,8 @@ class _ThrottleSheetState extends ConsumerState<_ThrottleSheet> {
     ref.read(sharedPreferencesProvider).setInt(kSyncKeepSnapshotsKey, n);
   }
 
-  /// T19：自动同步引擎接入后消费 `sync_wifiOnly`——本期自动同步未接，
-  /// 开关先存值（手动同步不受限）。
-  void _setWifi(bool v) {
-    setState(() => _wifi = v);
-    ref.read(sharedPreferencesProvider).setBool(kSyncWifiOnlyKey, v);
-  }
+  /// 自动同步引擎未上线（2026-11-05 产品裁定「明示不做」）：
+  /// 不再提供可拨开关；偏好键仅为兼容旧数据保留，本页无写入方。
 
   @override
   Widget build(BuildContext context) {
@@ -167,17 +161,17 @@ class _ThrottleSheetState extends ConsumerState<_ThrottleSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('仅 Wi-Fi 自动同步',
+                      Text('自动同步 · 未上线',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                      Text('每天节流 · 手动同步不受限',
+                      Text('当前仅支持手动同步',
                           style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
                     ],
                   ),
                 ),
                 Switch(
                   key: const ValueKey('wifi-switch'),
-                  value: _wifi,
-                  onChanged: _setWifi,
+                  value: false,
+                  onChanged: null,
                 ),
               ],
             ),

@@ -245,7 +245,7 @@ class _LedgerTxDetailPageState extends ConsumerState<LedgerTxDetailPage> {
                   ),
                 ),
               if (t.source == LedgerTxn.kSourceRecurring)
-                kvt('来源', '周期账单自动生成 · 已同步续费提醒日程'),
+                kvt('来源', '周期账单自动生成 · 续费提醒日程未开启'),
               if (t.source == LedgerTxn.kSourceBill)
                 kvt('来源', '账单导入 · ${t.note}'),
               if (t.source == LedgerTxn.kSourceWish) kvt('来源', '心愿单兑换'),

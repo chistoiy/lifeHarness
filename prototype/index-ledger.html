@@ -3467,7 +3467,7 @@ function freqNext(d,f){const[y,m,dd]=d.split('-').map(Number);const t=new Date(y
  if(f==='month'){t.setMonth(t.getMonth()+1);const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();if(dd>last)t.setDate(last);else t.setDate(dd)}
  return dstr(t.getFullYear(),t.getMonth()+1,t.getDate())}
 function recGen(r,quiet){ledgerAdd({kind:'expense',cat:r.cat,sub:r.sub||'',n:r.n,amt:r.amt,a:r.acct,d:r.next,tags:[],src:'recurring',recurringId:r.id});
- r.next=freqNext(r.next,r.freq);if(!quiet){toast('已生成「'+r.n+'」流水 · 续费提醒日程已同步（L8）');renderRecur()}}
+ r.next=freqNext(r.next,r.freq);if(!quiet){toast('已生成「'+r.n+'」流水 · 续费提醒日程未开启');renderRecur()}}
 function recGenDue(){const due=L.recur.filter(r=>r.on&&r.next<=TODAY&&r.bk===curBook);due.forEach(r=>recGen(r,true));
  if(due.length){finTouch();renderRecur();toast(`已批量生成 ${due.length} 笔到期流水（L8 日程联动）`)}else toast('今日无到期账单')}
 function renderRecur(){

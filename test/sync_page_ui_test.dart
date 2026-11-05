@@ -779,11 +779,15 @@ void main() {
       await settle5(tester);
       expect(prefs.getInt('sync_keep_snapshots'), 3);
 
-      // 仅Wi-Fi 开关存 prefs sync_wifiOnly（T19 自动同步引擎消费）。
+      // 自动同步引擎未上线（2026-11-05 明示不做）：开关固定禁用，点它不写偏好。
       expect(prefs.getBool('sync_wifiOnly'), isNull);
+      final wifi =
+          tester.widget<Switch>(find.byKey(const ValueKey('wifi-switch')));
+      expect(wifi.onChanged, isNull, reason: '引擎未接前不许留可拨假开关');
       await tester.tap(find.byKey(const ValueKey('wifi-switch')));
       await settle5(tester);
-      expect(prefs.getBool('sync_wifiOnly'), isTrue);
+      expect(prefs.getBool('sync_wifiOnly'), isNull,
+          reason: '禁用态点击不得写入 sync_wifiOnly');
     });
   });
 

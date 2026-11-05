@@ -291,49 +291,9 @@ mixin _RepoBooks on _ReadRepoBase {
 
   // ---- 购书费用 → L4/记账流水（read.feeTxn 默认开 · §9.5 已拍板③）----
 
-  /// 书保存后同步「阅读-购书」支出流水：新增或改费用→同条更新；清零→删行。
-  Future<void> _syncFeeTxn(Book b) async {
-    final enabled = ((await kv('read.feeTxn')) ?? 'true') == 'true';
-    if (b.fee <= 0) {
-      if (b.feeTxnId != null) {
-        await db.delete(
-          DbSchema.tFinance,
-          where: 'id = ?',
-          whereArgs: [b.feeTxnId],
-        );
-        await db.update(
-          DbSchema.tBooks,
-          {'fee_txn_id': null},
-          where: 'id = ?',
-          whereArgs: [b.id],
-        );
-      }
-      return;
-    }
-    final note = '《${b.title}》购书';
-    if (!enabled) return; // 关闭后只保留费用字段不出账
-    if (b.feeTxnId == null) {
-      final id = await db.insert(DbSchema.tFinance, {
-        'amount': b.fee,
-        'direction': '支出',
-        'category': '阅读',
-        'occurred_at': DateTime.now().millisecondsSinceEpoch,
-        'source': 'read',
-        'note': note,
-      });
-      await db.update(
-        DbSchema.tBooks,
-        {'fee_txn_id': id},
-        where: 'id = ?',
-        whereArgs: [b.id],
-      );
-    } else {
-      await db.update(
-        DbSchema.tFinance,
-        {'amount': b.fee, 'note': note},
-        where: 'id = ?',
-        whereArgs: [b.feeTxnId],
-      );
-    }
-  }
+  /// 购书费**明示不出账**（2026-11-05 产品裁定）：旧 `finance_txns` 表连同
+  /// 历史行保留留档（含备份导出登记），本模块不再新增/更新，也不删旧行；
+  /// 书价字段仍由书架自行展示。保留空挂点仅为不改动调用方，
+  /// `read.feeTxn` 旧偏好值不再被消费。日后要真出账须先过需求门＋原型门。
+  Future<void> _syncFeeTxn(Book b) async {}
 }

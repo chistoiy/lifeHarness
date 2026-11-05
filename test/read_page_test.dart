@@ -1151,8 +1151,10 @@ void main() {
       expect(find.textContaining('是否读够'), findsWidgets);
       expect(find.byKey(const ValueKey('rs-fee')), findsOneWidget);
       expect(find.textContaining('¥59'), findsOneWidget);
-      final rows = await db.query('finance_txns');
-      expect(rows, hasLength(1));
+      // 2026-11-05 产品裁定「购书费明示不出账」：¥59 仍由书价字段在 rs-fee 卡展示，
+      // 旧 finance_txns 表保留留档但本模块不再写入。
+      expect(await db.query('finance_txns'), isEmpty,
+          reason: '统计支出卡取书价字段，不依赖账本旧表');
     });
 
     testWidgets('⑦ 按书累计时长卡：时长降序 · 行内摘录/进度 · 点行进书籍资料页',
