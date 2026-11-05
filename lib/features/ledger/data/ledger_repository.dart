@@ -481,15 +481,33 @@ class LedgerRepository {
     ));
   }
 
-  /// 写路径同事务全量重算 balance_cache（余额=base+Σeff 跨账本合并）。
+  /// 写路径同事务重算 balance_cache（余额=base+Σeff 跨账本合并）。
+  ///
+  /// 复杂度治理（2026-11-05 · 查漏补缺 P0）：旧写法对**每个账户**都把全表流水
+  /// fold 一遍＝O(账户数 × 流水数)，每次写事务都跑。eff(aid) 只在该笔的
+  /// accountId / toAccountId 上可能非零（见 LedgerTxn.eff），故改为一次遍历
+  /// 按目标账户累加＝O(N + A)。逐账户仍从 0 起累加、仍按同一个 txns 查询顺序，
+  /// 最后才加 base，浮点结合顺序与旧写法一致，结果逐位相同。
   Future<void> _recomputeBalances(DatabaseExecutor e) async {
     final accts = await e.query(DbSchema.tLedgerAccounts);
     final txns = await e.query(DbSchema.tLedgerTxns);
-    final models = [for (final r in txns) LedgerTxn.fromRow(r)];
+    final sumByAcct = <int, double>{
+      for (final a in accts) a['id']! as int: 0.0,
+    };
+    for (final r in txns) {
+      final t = LedgerTxn.fromRow(r);
+      final from = t.accountId;
+      if (sumByAcct.containsKey(from)) {
+        sumByAcct[from] = sumByAcct[from]! + t.eff(from);
+      }
+      final to = t.toAccountId;
+      if (to != null && to != from && sumByAcct.containsKey(to)) {
+        sumByAcct[to] = sumByAcct[to]! + t.eff(to);
+      }
+    }
     for (final a in accts) {
       final id = a['id']! as int;
-      final bal = (a['base']! as num).toDouble() +
-          models.fold<double>(0, (s, t) => s + t.eff(id));
+      final bal = (a['base']! as num).toDouble() + sumByAcct[id]!;
       await e.update(
         DbSchema.tLedgerAccounts,
         {'balance_cache': double.parse(bal.toStringAsFixed(2))},
