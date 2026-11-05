@@ -51,7 +51,9 @@ mixin _RepoImport on _ReadRepoBase {
 
   /// 整批事务落库：命中已有书补摘录；未建档的按「想读 · 来源=渠道名」自动建档；
   /// origin 记渠道便于二次清洗；导入不改 last_read_at（不挤占「最近阅读」序）。
-  Future<ImportOutcome> commitImport(ImportChannel ch, String raw) async {
+  /// 整批导入。[only] 非空＝只导这些**预览行下标**（导入页逐条勾选）。
+  Future<ImportOutcome> commitImport(ImportChannel ch, String raw,
+      {Set<int>? only}) async {
     final rows = await previewImport(ch, raw);
     var added = 0, skipped = 0;
     final ids = <int>[];
@@ -59,7 +61,9 @@ mixin _RepoImport on _ReadRepoBase {
     final now = DateTime.now().millisecondsSinceEpoch;
     final newBookCache = <String, String>{}; // 批内同书复用新建档
     await db.transaction((txn) async {
-      for (final r in rows) {
+      for (var ri = 0; ri < rows.length; ri++) {
+        if (only != null && !only.contains(ri)) continue;
+        final r = rows[ri];
         if (r.dup) {
           skipped++;
           continue;

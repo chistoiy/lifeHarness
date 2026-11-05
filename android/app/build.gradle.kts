@@ -40,6 +40,16 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    packaging {
+        jniLibs {
+            // 最小体积包（2026-10-29 产品令）：只留 arm64。
+            // 插件 AAR 自带的 lib/x86_64、lib/armeabi-v7a 预编译库（barhopper_v3 /
+            // dartjni / datastore 等）手机上用不到，约占 6MB；Flutter 自身产物
+            // （libapp.so / libflutter.so）本来就只在 arm64。
+            excludes += setOf("lib/x86_64/**", "lib/armeabi-v7a/**")
+        }
+    }
 }
 
 flutter {

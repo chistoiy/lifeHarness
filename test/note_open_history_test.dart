@@ -49,7 +49,8 @@ void main() {
           updatedAt: updatedAt ?? t0);
 
   group('① DB v43（纯加列·两路同段带列·round-trip）', () {
-    test('目标版本＝43', () => expect(DbSchema.version, 43));
+    test('目标版本不早于 43（后续迁移只升不降）',
+        () => expect(DbSchema.version, greaterThanOrEqualTo(43)));
 
     test('42→43 段真含 notes.wb_at 的 ALTER', () {
       expect(DbSchema.migrations[42], isNotNull,
@@ -202,6 +203,7 @@ void main() {
       final src = File(
               'lib/features/journal/presentation/widgets/note_tree_drawer.dart')
           .readAsStringSync()
+          .replaceAll('\r\n', '\n')
           .split('\n')
           .where((l) => !l.trimLeft().startsWith('//'))
           .join('\n');
@@ -210,7 +212,7 @@ void main() {
       expect(src, contains("badgeSource: 'temp'"), reason: '「临时」标不许漏');
       expect(src, contains('count: hist.length'),
           reason: '计数必须来自 openHistFrom(同一份 notesProvider)，另写 SQL＝两处数不一致');
-      expect(src, contains('onTap: () => _openHist(hist)'),
+      expect(src, contains('onTap: _openHist'),
           reason: '点它必须开半屏（原型 nohOpen），不是切目录');
       expect(src, contains('nodes.where((x) => x.name != kSystemOpenFolder)'),
           reason: '不在下方排除＝同一夹出现两处（固定行＋普通节点）＝刀③');

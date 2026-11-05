@@ -222,13 +222,13 @@ class NfcManagerTagIo implements NfcTagIo {
           try {
             onProbe(await probeOf(tag));
           } catch (e) {
-            onError(codeOf(e));
+            onError(codeOf(e)); // catch-ok: 回执状态机（零日志 C11）
           }
         },
       );
       _running = true;
     } catch (e) {
-      onError(codeOf(e));
+      onError(codeOf(e)); // catch-ok: 回执状态机（零日志 C11）
     }
   }
 

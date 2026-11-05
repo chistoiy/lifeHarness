@@ -404,7 +404,7 @@ class TagDao {
         return out;
       }
     } catch (_) {
-      // 老数据/手工改库可能写成逗号串——与 `JournalEntry._decodeTags` 同兜底。
+      // catch-ok: 老数据/手工改库可能写成逗号串——与 `JournalEntry._decodeTags` 同兜底。
     }
     for (final s in raw.split(',')) {
       take(s);

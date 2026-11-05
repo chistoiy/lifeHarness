@@ -217,7 +217,7 @@ class _NfcWriteSheetState extends State<_NfcWriteSheet>
       // 保留不退出（B39：用户可能还没填完名称）。
       _closeTimer = Timer(kNfcWriteDoneHold, () => _close(true));
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return; // catch-ok: 失败落 nfcWriteFailureOf 可见态（零日志 C11）
       // F2-2：以系统报错类别为准（`PlatformException.code`＝原生异常类名）。
       setState(() => _state = nfcWriteFailureOf(codeOf(e)));
     }

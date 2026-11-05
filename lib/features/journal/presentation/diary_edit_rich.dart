@@ -13,7 +13,7 @@ extension _DiaryEditRich on _DiaryEditPageState {
     if (content.trim().isNotEmpty) {
       try {
         final data = jsonDecode(content);
-        if (data is List) return Document.fromJson(data);
+        if (data is List) return Document.fromJson(data); // catch-ok: 非 Delta 旧正文按纯文本回落
       } catch (_) {}
     }
     return Document.fromJson([

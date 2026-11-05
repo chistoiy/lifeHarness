@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 
 /// 扫书脊 ISBN 全屏页（保真批F2 · 原型「扫 ISBN」真机版）。
 /// 命中条码即返回字符串；由调用方（书籍表单）落 ISBN 并按「ISBN 补全」设置决定是否抓取。
+///
+/// 2026-10-29：底层从 `mobile_scanner`（bundled ML Kit，arm64 侧 4.9MB 原生库）
+/// 换成 `flutter_zxing`（zxing-cpp 算法库，约 1/4 体积）。ISBN 是 EAN-13 一维码，
+/// 条空宽度比规则明确，不需要神经网络模型——省下的 3.7MB 是纯冗余。
 class IsbnScanPage extends StatefulWidget {
   const IsbnScanPage({super.key});
 
@@ -25,18 +29,25 @@ class _IsbnScanPageState extends State<IsbnScanPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          MobileScanner(
-            scanWindow: const Rect.fromLTRB(0.08, 0.32, 0.92, 0.52),
-            onDetect: (capture) {
-              if (_done) return;
-              for (final bar in capture.barcodes) {
-                final code = (bar.rawValue ?? '').trim();
-                if (code.length >= 8) {
-                  _done = true;
-                  Navigator.of(context).pop(code);
-                  return;
-                }
-              }
+          ReaderWidget(
+            // 只认一维码：书脊 ISBN 是 EAN-13，不放开二维码＝每帧少算一圈候选，
+            // 也少误命中（读者拍到的封面二维码不该被当成 ISBN）。
+            codeFormat: Format.linearCodes,
+            // 中央裁剪比例：书脊条码窄而高，裁太狠会把两侧校验位切掉。
+            cropPercent: 0.7,
+            // 取景框自己画（下面那层），组件自带的方形框关掉，免得两层叠着。
+            showScannerOverlay: false,
+            showGallery: false,
+            showToggleCamera: false,
+            // 书脊常是曲面 + 反光：多试一轮旋转/反相，识别率比默认高。
+            tryHarder: true,
+            tryRotate: true,
+            onScan: (Code result) async {
+              if (_done || !result.isValid) return;
+              final code = (result.text ?? '').trim();
+              if (code.length < 8) return;
+              _done = true;
+              if (mounted) Navigator.of(context).pop(code);
             },
           ),
           // 取景框。
@@ -55,9 +66,9 @@ class _IsbnScanPageState extends State<IsbnScanPage> {
               ),
             ),
           ),
-          Align(
-            alignment: const Alignment(0, 0.66),
-            child: const Text(
+          const Align(
+            alignment: Alignment(0, 0.66),
+            child: Text(
               '对准书脊条形码 · 命中后自动回填',
               style: TextStyle(fontSize: 11, color: Colors.white70),
             ),

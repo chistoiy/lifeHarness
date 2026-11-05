@@ -4,6 +4,19 @@
 /// > 空行（分段）。**同文档只取一条主通道，不叠加**——既有标题又有缩进的文档
 /// 按标题通道走、缩进信号忽略（常驻用例钉这条优先序，防「三层实现互相矛盾」）。
 ///
+/// **标题通道吃列表项（2026-10-29 补）**：列表项不是层级信号而是**内容**——
+/// 笔记与收集箱里的 md 主体恰恰是 `- ` 列表，忽略它只会导出一排光秃秃的标题
+/// （产品报障「md 导入后正文没进去」）。故标题通道下：标题定主干层级，列表项
+/// 挂到**当前标题**下（缩进每 2 空格再深一层）。缩进通道仍只在**无标题**时启用，
+/// 三通道互斥这条不变。
+///
+/// **标题行允许任意前导空白（2026-10-29 补）**：从别处粘来的 md 常整体带缩进
+/// （2 空格、4 空格、tab 都见过），`  ## 二级` 按顶格匹配会漏识别、整篇掉进
+/// 缩进通道（产品报障原话「二级 head 不是顶格就不会被识别」）。这里**刻意宽于
+/// CommonMark 的 0~3 空格**：放宽只会把「`#` 开头」的行认成标题，正文行不会被
+/// 误判，代价只是 4 空格缩进的「标题」不再按代码块读——在笔记/剪贴板来源的
+/// md 里，那不是代码块，是用户眼里的标题。
+///
 /// **规模上限（B2）**：单次解析节点上限 2000、深度上限 20 层；
 /// 超限截断并置 [MmMdParseResult.truncated]（预览弹层顶部给一行提示）。
 library;
@@ -54,7 +67,8 @@ const int mmMdMaxNodes = 2000;
 /// 深度硬上限（B2；第 20 层以下的子树截断）。
 const int mmMdMaxDepth = 20;
 
-final RegExp _headingRe = RegExp(r'^(#{1,6})\s+(.*)$');
+final RegExp _headingRe = RegExp(r'^[ \t]*(#{1,6})\s+(.*)$');
+final RegExp _bulletRe = RegExp(r'^([ \t]*)(?:[-*+]|\d+[.)])\s+(.*)$');
 final RegExp _indentRe = RegExp(r'^([ \t]+)(\S.*)$');
 
 MmMdParseResult parseMdOutline(String src) {
@@ -98,18 +112,31 @@ MmMdParseResult parseMdOutline(String src) {
   }
 
   if (hasHeading) {
-    // ── 标题通道：# 级定深度；非标题行忽略（不叠加）。层级相对首枚标题归一。
+    // ── 标题通道：# 级定主干深度、列表项挂当前标题下；其余行忽略（不叠加）。
+    // 层级相对首枚标题归一。
     final stack = <MmMdNode?>[];
     final roots = <MmMdNode>[];
     var baseLevel = -1;
+    var headingDepth = 0;
     for (final raw in lines) {
-      final m = _headingRe.firstMatch(raw.trimRight());
-      if (m == null) continue;
-      final level = m.group(1)!.length;
-      if (baseLevel < 0) baseLevel = level;
-      final node = push(stack, roots, level - baseLevel,
-          (m.group(2) ?? '').trim());
-      if (node == null) break; // 截断即停
+      final line = raw.trimRight();
+      final m = _headingRe.firstMatch(line);
+      if (m != null) {
+        final level = m.group(1)!.length;
+        if (baseLevel < 0) baseLevel = level;
+        final depth = level - baseLevel;
+        final node = push(stack, roots, depth, (m.group(2) ?? '').trim());
+        if (node == null) break; // 截断即停
+        headingDepth = depth;
+        continue;
+      }
+      // 列表项＝内容不是层级信号：挂到**当前标题**下，缩进每 2 空格再深一层。
+      final b = _bulletRe.firstMatch(line);
+      if (b == null) continue;
+      final indent = b.group(1)!.replaceAll('\t', '  ').length;
+      final node = push(stack, roots, headingDepth + 1 + indent ~/ 2,
+          (b.group(2) ?? '').trim());
+      if (node == null) break;
     }
     return MmMdParseResult(
         roots: roots, truncated: truncated, singleLevel: mmIsSingleLevel(roots));
@@ -176,3 +203,10 @@ List<(String, int)> flattenMdTree(List<MmMdNode> roots) {
   }
   return out;
 }
+
+/// 一段文本 → 可直接建节点的先序扁平序（解析 + 拍平一步）。
+///
+/// 三处「文本变导图」的入口共用这一条：从笔记导入、收集箱条目转导图、
+/// 画布粘贴系统剪贴板。返回空表＝这段文本解析不出任何节点。
+List<(String, int)> mmOutlineFlat(String src) =>
+    flattenMdTree(parseMdOutline(src).roots);

@@ -19,6 +19,7 @@ import 'note_mount_write.dart';
 import 'note_paper.dart';
 import '../../../shared/widgets/image_attach.dart';
 import 'widgets/md_view.dart';
+import 'widgets/note_md_map.dart';
 import 'widgets/note_sheets.dart';
 
 part 'note_edit_focus.dart';
@@ -29,8 +30,8 @@ part 'note_edit_swipe.dart';
 part 'note_edit_layout.dart';
 
 /// 编辑器模式（原型 p-noteEdit · V1.29轮9e 去分屏 · 轮9o 写作=默认态）：
-/// 专注段落 / MD 源码 / 预览。
-enum NoteEditMode { focus, src, view }
+/// 专注段落 / MD 源码 / 预览 / 导图（md 结构只读视图）。
+enum NoteEditMode { focus, src, view, map }
 
 /// MD 底部主条（原型轮8 renderPwBar · pw-tool 顺序与图形）：
 /// ↺↻ | H#（点开二级 H1~H6）B I S <> ❝ ≡ ☑ ▦ 图片 链接 ƒx ∑ —
@@ -123,7 +124,10 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   double _font = 15;
   // 轮9j补正2：聚焦=纸面默认开（当前段高亮·其余淡出），⋯ 内可关。
   bool _focusOn = true;
-  int _curPara = 0;
+  /// 当前聚焦段索引。**初值 -1＝没有任何段聚焦**：一进编辑页就把第 0 段
+  /// 高亮（`filled` 淡底）＋其余段淡出，看起来像「正文带了一层底纹」
+  /// （2026-10-29 产品报障）。点进某段后才进聚焦态。
+  int _curPara = -1;
 
   // V1.29批B · 富文本（原型 pwRichBar）：kind=rich 时正文=Quill Delta JSON，
   // 编辑即 WYSIWYG，_bodyCtl 仍是持久层单一真源（监听里同步 JSON 文本）。
@@ -156,8 +160,16 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   /// 头部吸顶分隔（原型 `#pwHead.pw-stuck`：滚过 4px 起出现一条下分隔）。
   bool _headStuck = false;
 
+  /// 头部小标题显隐判据。
+  ///
+  /// 除「写作视图下随滚动浮出」外，还有一条兜底：**标题为空时恒显**。
+  /// 理由——空标题时正文标题位是一片空白（无边框、无 placeholder），头部
+  /// 「未命名笔记」是这一屏唯一能看出「这篇叫什么／还没起名」的地方；
+  /// 此时也不违反「同一屏只出现一次标题」（正文里根本没有标题）。
   bool get _headTitleShown =>
-      _mode != NoteEditMode.focus || _headScrolledIn;
+      _mode != NoteEditMode.focus ||
+      _headScrolledIn ||
+      _titleCtl.text.trim().isEmpty;
 
   /// 批3①：正文滚动 → 头部小标题显隐＋吸顶分隔（原型 `pwHeadSync`）。
   bool _onBodyScroll(ScrollNotification n) {
@@ -348,7 +360,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                         ],
                       ),
                     ),
-                    // 轮9h/9o：MD 顶行=写作（默认·无钮）+ 源码/预览纯图标·
+                    // 轮9h/9o：MD 顶行=写作（默认·无钮）+ 源码/预览/导图纯图标·
                     // 再点当前激活项回落写作视图；段落聚焦归 ⋯ 开关。
                     if (_kind == 'md') ...[
                       _modeBtn('note-mode-src', Icons.code, 'MD 源码',
@@ -362,6 +374,15 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                               _mode == NoteEditMode.view
                                   ? NoteEditMode.focus
                                   : NoteEditMode.view)),
+                      const SizedBox(width: 2),
+                      // 导图＝md 结构的只读视图（横向树，与导图模块同一套布局与
+                      // 绘制）。排在最右：三个视图按「由细到粗」读——源码 → 预览
+                      // → 结构，越靠右越是「换一种看法」而非「改内容」。
+                      _modeBtn('note-mode-map', Icons.account_tree_outlined,
+                          '导图', _mode == NoteEditMode.map, () => _setMode(
+                              _mode == NoteEditMode.map
+                                  ? NoteEditMode.focus
+                                  : NoteEditMode.map)),
                       const SizedBox(width: 6),
                     ],
                     // 轮9j/9r：⋯ =「笔记选项」sheetNoteKit（字号/纸色/聚焦/

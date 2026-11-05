@@ -91,6 +91,31 @@ class MmCommands {
     );
   }
 
+  /// 加**一片森林**（系统剪贴板 md 粘贴：一次可能贴进多棵并列根）。
+  ///
+  /// 与 [addSubtree] 同语义，只是根不止一枚——undo 要删**所有根**的当下后代
+  /// 并集；只传第一枚根会把其余几棵留在图上，撤销一次只剩半片（同族坑：
+  /// 同级换序拆成 n 步那条）。
+  static MmCommand addForest(List<MindmapNode> roots, List<MindmapNode> rows) {
+    return MmCommand(
+      label: roots.length == 1
+          ? '添加「${roots.first.title}」'
+          : '粘贴 ${roots.length} 棵大纲',
+      redo: (dao) async {
+        for (final n in rows) {
+          await dao.insertNodeFull(n);
+        }
+      },
+      undo: (dao) async {
+        final doomed = <int>{};
+        for (final r in roots) {
+          doomed.addAll(await dao.descendantIdsOf(r.id!));
+        }
+        await dao.deleteNodeRows(doomed);
+      },
+    );
+  }
+
   /// 删节点（含子级）：`rows` 必须是删除前取好的**完整后代闭包**行集
   ///（undo 整行重插＝级联语义的逆；redo 按行集 DELETE——比按链再推导精确）。
   static MmCommand deleteRows(List<MindmapNode> rows, String label) {

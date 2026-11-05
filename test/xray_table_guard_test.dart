@@ -29,6 +29,9 @@ void main() {
     // B-4 数据库概览：人话词表以表名字面量为键（纯展示词条，零 SQL），
     // 与 db_overview_guard_test 的全覆盖/防残留守护配套。
     'core/backup/db_overview.dart': 'B-4 人话表名词条（不执行 SQL）',
+    // 备份/导出改造（余量批3）：导出单元按表清单列词库表名与时间根，
+    // 纯元数据声明、不执行 SQL；真正的读写仍只走 XrayDao。
+    'shared/linkage/export_units.dart': '导出单元列举表名（元数据，不执行 SQL）',
   };
 
   // 判定式由 `tables` 现拼：以后加第五张表若忘了登记这里，守护会照旧漏网——

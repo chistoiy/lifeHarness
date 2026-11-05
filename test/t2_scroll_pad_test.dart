@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lifeharness/app.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/theme/theme_repository.dart';
+import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart'
+    show calendarTickerProvider;
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:lifeharness/shared/widgets/scroll_pad.dart';
@@ -146,6 +148,8 @@ void main() {
     final container = ProviderContainer(overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       themeRegistryProvider.overrideWithValue(registry),
+      // sysPillSync 的 1s 周期流在 fake_async 里永不排空（全 app 用例同口径）。
+      calendarTickerProvider.overrideWith((ref) => const Stream.empty()),
       todosProvider.overrideWith(
           (ref) => List.generate(80, (i) => Todo(id: i, title: 'T$i'))),
       overdueCountProvider.overrideWith((ref) => 0),

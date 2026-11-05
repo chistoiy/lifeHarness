@@ -156,7 +156,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
       try {
         scope = LhBakRestoreScope.fromManifest(m);
       } on LhBakException catch (e) {
-        scopeError = '${e.code}：${e.message}';
+        scopeError = '${e.code}：${e.message}'; // catch-ok: 转验证卡可见错误
       }
       if (scopeError != null) {
         setState(() {
@@ -186,7 +186,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
         });
       }
     } on LhBakException catch (e) {
-      if (!mounted) return;
+      if (!mounted) return; // catch-ok: 校验失败转可见错误/口令态
       setState(() {
         _manifest = null;
         _scope = null;
@@ -211,7 +211,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
           '${report.isPartial ? ' · 仅覆盖 ${report.scopeModules.map(_unitLabel).join("、")}' : ''}'
           '${report.configRestored ? ' · 口径设置已还原（部分项重启后生效）' : ''}');
     } on LhBakException catch (e) {
-      _toast('恢复失败：${e.code}');
+      _toast('恢复失败：${e.code}'); // catch-ok: toast 人话回执，不静默
     } finally {
       if (mounted) setState(() => _busy = false);
     }

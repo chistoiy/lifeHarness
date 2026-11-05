@@ -38,7 +38,9 @@ dependencies:
   flutter_math_fork: ^0.7.4
   image_picker: ^1.2.3
   flutter_quill: ^11.5.0
-  mobile_scanner: ^7.4.2
+  # 2026-10-29：扫码从 mobile_scanner（bundled ML Kit，arm64 侧 4.9MB 原生库）
+  # 换成 flutter_zxing（zxing-cpp 算法库，EAN-13 足够，体积约 1/4）。
+  flutter_zxing: ^2.2.0
 
   # V1.41 同步与备份：仅用户配置的 WebDAV/S3 同步使用（隐私红线，其余零网络）
   # HTTP 客户端（WebDAV/S3 REST 请求）

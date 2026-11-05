@@ -192,7 +192,7 @@ String? _utf8(List<int> bytes) {
   try {
     return const Utf8Decoder(allowMalformed: false).convert(bytes);
   } on FormatException {
-    return null;
+    return null; // catch-ok: 脏标签非法字节按 null 回落，不炸写卡层
   }
 }
 

@@ -197,7 +197,9 @@ void main() {
   Future<void> deliver(WidgetTester t, String path) async {
     unawaited(handleOpenWithEpub(nav.currentContext!, capRef!, path));
     await t.pump();
-    await t.pump(const Duration(milliseconds: 80));
+    // 弹层入场动画 ~250ms：只推 80ms 时整张 sheet 还在屏下上滑途中，取到的按钮
+    // 中心 y≈2415（超出 2400 视口）⇒ tap 打空（本批三连假红的真根因）。
+    await t.pump(const Duration(milliseconds: 400));
   }
 
   group('⑥ 打开方式接收链（EPUB 支路本体）', () {

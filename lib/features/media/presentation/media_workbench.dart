@@ -213,46 +213,6 @@ class MediaWorkbench extends ConsumerWidget {
             ),
           ),
         ),
-        // 全站统计入口（批7 回灌：原型入口条 m-stat 一枚＝直达行）
-        const SizedBox(height: 14),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            key: const ValueKey('media-open-stat'),
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => context.push('/media/stat'),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.donut_small_outlined,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      '影音统计',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
         // 影音单直达（批8b 回灌成句：列表面＝工作台一行，底稿置顶零落库）
         _EntryRow(
           key: const ValueKey('media-open-lists'),
@@ -261,12 +221,6 @@ class MediaWorkbench extends ConsumerWidget {
           onTap: () => context.push('/media/lists'),
         ),
         // 目标屏直达（批8a：图标条「目标」一枚的 Flutter 形态＝直达行）
-        _EntryRow(
-          key: const ValueKey('media-open-goal'),
-          icon: Icons.track_changes_outlined,
-          title: '影音目标',
-          onTap: () => context.push('/media/goal'),
-        ),
         // 设置屏直达（批8a 拍板⑤：图标条第 8 枚「设置」的 Flutter 形态＝直达行）
         _EntryRow(
           key: const ValueKey('media-open-set'),
@@ -330,7 +284,7 @@ class _RunningRow extends ConsumerWidget {
       child: InkWell(
         key: const ValueKey('media-running-row'),
         borderRadius: BorderRadius.circular(14),
-        onTap: () => context.push('/media/timer/${s.itemId}'),
+        onTap: null,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(

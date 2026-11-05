@@ -191,6 +191,7 @@ List<ParsedClip> parseClips(ImportChannel ch, String raw) {
       'csv' => _parseCsv(ch, text),
       'json' => _parseJson(ch, text),
       'clip' => _parseClip(ch, text),
+      'weread' => _parseWeread(ch, text),
       'md' => _parseMd(text),
       _ => const [],
     };
@@ -200,11 +201,37 @@ List<ParsedClip> parseClips(ImportChannel ch, String raw) {
 }
 
 /// 清单解析（书名 [作者] [ISBN]，`-`/`/`/制表符/多空格分列）。
-List<ParsedBookRow> parseBookList(String raw) {  final isbnRe = RegExp(r'^(97[89]\d{10}|\d{9}[\dX])$');
+List<ParsedBookRow> parseBookList(String raw) {
+  final isbnRe = RegExp(r'^(97[89]\d{10}|\d{9}[\dX])$');
   final out = <ParsedBookRow>[];
+  // 微信读书「整本导出」：全篇只有首行是书名，其余是章节/划线/想法。
+  // 2026-10-29 产品报障：33 条笔记按清单建书被建成 60+ 本——原实现逐行当书名。
+  final wereadExport = raw.contains('个笔记') && raw.contains('◆');
+  String? pendingTitle;
   for (final line in raw.split('\n')) {
     final s = line.trim();
     if (s.isEmpty || s.startsWith('#')) continue;
+    if (wereadExport) {
+      final bm = RegExp(r'^《(.+)》$').firstMatch(s);
+      if (bm != null) {
+        if (pendingTitle != null) out.add(ParsedBookRow(title: pendingTitle));
+        pendingTitle = bm.group(1)!.trim();
+        continue;
+      }
+      if (pendingTitle != null && !RegExp(r'^\d+\s*个笔记$').hasMatch(s)) {
+        out.add(ParsedBookRow(title: pendingTitle, author: s));
+        pendingTitle = null;
+      }
+      continue;
+    }
+    // 非整本导出：也别把划线/想法/页脚行当书名。
+    if (s.startsWith('◆') ||
+        s.startsWith('原文：') ||
+        s.startsWith('原文:') ||
+        s.startsWith('--') ||
+        RegExp(r'^\d+\s*个笔记$').hasMatch(s)) {
+      continue;
+    }
     final parts = s
         .split(RegExp(r'\s*[/|\t]\s*|\s*[-—]+\s*|\s{2,}'))
         .where((p) => p.trim().isNotEmpty)
@@ -224,6 +251,7 @@ List<ParsedBookRow> parseBookList(String raw) {  final isbnRe = RegExp(r'^(97[89
       }
     }
     out.add(ParsedBookRow(title: title, author: author, isbn: isbn));
+  if (pendingTitle != null) out.add(ParsedBookRow(title: pendingTitle));
   }
   return out;
 }
@@ -525,6 +553,100 @@ List<ParsedClip> _parseClip(ImportChannel ch, String text) {
 
 /// MD 卡片：`#`/`##` 行定当前书（可带（作者）），`>` 行为原文，
 /// `想法：`/`— ` 归因行给想法与页码/章节/日期。
+/// 微信读书「整本导出」解析（复制全书笔记 → 剪贴板）。
+///
+/// 格式（2026-10 版）：
+///   《书名》 / 作者行 / `23个笔记` / 章节行 /
+///   `◆ 2026/10/28发表想法` + 想法正文 + `原文：xxx` / `◆ 纯划线` / `-- 来自微信读书`
+///
+/// 不含 `◆`/`个笔记` 的文本回落到旧的单条划线正则（用户只复制一条时是那个格式）。
+List<ParsedClip> _parseWeread(ImportChannel ch, String text) {
+  final src = text.replaceAll('\r\n', '\n');
+  if (!src.contains('◆') && !src.contains('个笔记')) {
+    return _parseClip(ch, src);
+  }
+  final out = <ParsedClip>[];
+  var book = '';
+  var author = '';
+  var expectAuthor = false;
+  String? chapter;
+  final thought = <String>[];
+  DateTime? at;
+  var inThought = false;
+
+  void flush(String body) {
+    final t = thought.join('\n').trim();
+    final b = body.trim();
+    if (b.isEmpty && t.isEmpty) return;
+    out.add(ParsedClip(
+      book: book,
+      author: author,
+      chapter: chapter,
+      body: b,
+      thought: t.isEmpty ? null : t,
+      at: at,
+    ));
+    thought.clear();
+    inThought = false;
+    at = null;
+  }
+
+  for (final raw in src.split('\n')) {
+    final l = raw.trim();
+    if (l.isEmpty) continue;
+    if (l.contains('来自微信读书')) continue;
+
+    final hm = RegExp(r'^《(.+)》$').firstMatch(l);
+    if (hm != null && book.isEmpty) {
+      book = hm.group(1)!.trim();
+      expectAuthor = true;
+      continue;
+    }
+    if (RegExp(r'^\d+\s*个笔记$').hasMatch(l)) {
+      expectAuthor = false;
+      continue;
+    }
+    if (expectAuthor) {
+      expectAuthor = false;
+      if (!l.startsWith('◆') && !l.startsWith('原文')) {
+        author = l;
+        continue;
+      }
+    }
+
+    final dm = RegExp(r'^◆\s*(.*)$').firstMatch(l);
+    if (dm != null) {
+      final c = dm.group(1)!.trim();
+      final md = RegExp(r'^(\d{4})/(\d{1,2})/(\d{1,2})发表想法$').firstMatch(c);
+      if (md != null) {
+        flush('');
+        inThought = true;
+        at = DateTime(int.parse(md.group(1)!), int.parse(md.group(2)!),
+            int.parse(md.group(3)!));
+        continue;
+      }
+      flush(c); // 纯划线：自成一条
+      continue;
+    }
+
+    final om = RegExp(r'^原文[:：]\s*(.*)$').firstMatch(l);
+    if (om != null) {
+      flush(om.group(1)!);
+      continue;
+    }
+
+    if (inThought) {
+      thought.add(l);
+      continue;
+    }
+    // 章节行（`資治通鑑卷第一` 这类）：只更新章节，不产生条目。
+    if (chapter != l) chapter = l;
+  }
+  flush('');
+  return out;
+}
+
+
 List<ParsedClip> _parseMd(String text) {
   final out = <ParsedClip>[];
   var book = '', author = '';

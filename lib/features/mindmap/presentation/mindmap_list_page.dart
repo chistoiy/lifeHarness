@@ -8,6 +8,7 @@ import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../data/mindmap_dao.dart';
 import '../domain/md_parse.dart';
+import '../domain/mindmap_clipboard.dart' show mmSystemClipboardText;
 import '../domain/mindmap_models.dart';
 import 'mindmap_node_sheet.dart' show showMmNodeSheet;
 import 'mindmap_providers.dart';
@@ -136,19 +137,53 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
       if (mounted) context.push('/mindmap/canvas?id=$mapId');
       return;
     }
+    if (origin == 'paste') {
+      // 粘贴 md 初始化（2026-10-29 产品令）：剪贴板里已有大纲就直接带出来，
+      // 没有就给一个空输入框让用户自己贴。
+      final seed = await mmSystemClipboardText();
+      if (!mounted) return;
+      final text = await _showPasteSheet(seed);
+      if (text == null || !mounted) return;
+      final parsed = parseMdOutline(text);
+      final roots = parsed.roots;
+      if (flattenMdTree(roots).isEmpty) {
+        _toast('这段文本没解析出大纲内容');
+        return;
+      }
+      final pick = await showMmFromMdPreview(
+        context,
+        flattenMdTree(roots),
+        truncated: parsed.truncated,
+        singleLevel: parsed.singleLevel,
+      );
+      if (pick == null || !mounted) return;
+      final useRoots = parsed.singleLevel && pick == 'center'
+          ? mmMdJoinUnderCenter(roots, name.isEmpty ? '中心主题' : name)
+          : roots;
+      final mapId = await _dao.createMap(name.isEmpty ? '粘贴的导图' : name);
+      await _insertParsed(mapId, flattenMdTree(useRoots));
+      ref.read(mindmapTickProvider.notifier).state++;
+      await _reload();
+      if (mounted) context.push('/mindmap/canvas?id=$mapId');
+      return;
+    }
     if (origin == 'inbox') {
       final items = await mmPendingInbox();
       if (!mounted) return;
       final picked = await _showInboxPick(items);
       if (picked == null || picked.isEmpty) return;
       final mapId = await _dao.createMap(name.isEmpty ? '收集箱整理' : name);
-      // 收集箱起点＝每条目一枚根节点，多根各自成树（C6），不补「中心主题」根。
+      // 收集箱起点＝每条目一棵树，多根各自成树（C6），不补「中心主题」根。
+      // 2026-10-29：条目内容是 md 时按大纲展开——原实现只取首行，收集箱里的
+      // md 文本进导图只剩一行（产品报障「无法正常渲染」）。单行纯文本走空行
+      // 通道仍是一枚节点，行为不变。
       for (final (_, text) in picked) {
-        await _dao.addNode(
-            mapId: mapId,
-            parentId: null,
-            title:
-                text.trim().isEmpty ? '（空条目）' : text.trim().split('\n').first);
+        final flat = flattenMdTree(parseMdOutline(text).roots);
+        if (flat.isEmpty) {
+          await _dao.addNode(mapId: mapId, parentId: null, title: '（空条目）');
+        } else {
+          await _insertParsed(mapId, flat);
+        }
       }
       await mmRouteInboxToMindmap(picked.map((e) => e.$1).toList(), mapId);
       if (mounted) {
@@ -217,6 +252,7 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
                     ('blank', Icons.account_tree_outlined, '空白'),
                     ('md', Icons.article_outlined, '从 md 笔记解析'),
                     ('inbox', Icons.inbox_outlined, '从收集箱条目'),
+                    ('paste', Icons.content_paste, '粘贴 md 文本'),
                   ])
                     ListTile(
                       key: ValueKey('mm-new-$k'),
@@ -233,6 +269,67 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
           ),
         );
       },
+    );
+  }
+
+  /// 粘贴 md 弹层：多行输入＋「解析」。剪贴板里有文本时预填（用户可直接改）。
+  Future<String?> _showPasteSheet(String seed) {
+    final ctrl = TextEditingController(text: seed);
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bc) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(bc).bottom),
+        child: SafeArea(
+          child: Padding(
+            key: const ValueKey('mm-paste-sheet'),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('粘贴 md 大纲',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  key: const ValueKey('mm-paste-text'),
+                  controller: ctrl,
+                  minLines: 5,
+                  maxLines: 9,
+                  autofocus: seed.trim().isEmpty,
+                  decoration: const InputDecoration(
+                    hintText: '把 md 大纲粘到这里（# 标题 / - 列表项）',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(bc),
+                      child: const Text('取消'),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      key: const ValueKey('mm-paste-go'),
+                      onPressed: () => Navigator.pop(bc, ctrl.text),
+                      child: const Text('解析'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

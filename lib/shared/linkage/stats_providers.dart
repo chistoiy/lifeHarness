@@ -53,7 +53,11 @@ final inboxPendingCountProvider = FutureProvider<int>((ref) async {
 /// B10：events 行已并入 time_blocks 并删行退役，活动面改算块表。
 final streakDaysProvider = FutureProvider<int>((ref) async {
   ref.watch(todosProvider);
-  ref.watch(dayBlocksProvider(DateTime.now()));
+  // ⚠ 族键必须是**当日起点**：`dayBlocksProvider(DateTime.now())` 会把时分秒微秒
+  // 也带进 key ⇒ 每帧一个新族元素，未来值回来又触发重建，形成「每帧建元素＋查库」
+  // 的死循环（pumpAndSettle 永不收敛、真机持续空转）。此处今天块变动即重算即可。
+  final today = DateTime.now();
+  ref.watch(dayBlocksProvider(DateTime(today.year, today.month, today.day)));
   final db = AppDatabase.instance.db;
   final rows = await db.rawQuery('''
     SELECT COUNT(DISTINCT (created_at / 86400000)) c FROM (

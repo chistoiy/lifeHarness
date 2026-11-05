@@ -156,6 +156,8 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
       },
       openLog: (h) => showHabitLogSheet(context, ref, h),
       dotTap: (h, day) => _dotTap(h, day, d),
+      // 长按卡片＝编辑（改/删习惯都在这个弹层里；不必先进详情页）。
+      edit: (h) => showHabitEditSheet(context, ref, h),
     );
 
     // 筛选（§3.2 状态×分类双下拉 · 计数进钮面）

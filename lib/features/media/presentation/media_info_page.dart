@@ -7,7 +7,6 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/media_item.dart';
 import '../domain/media_session.dart';
 import '../domain/media_summary.dart';
-import 'media_actions.dart';
 import 'media_ops_sheet.dart';
 import 'media_progress_sheet.dart';
 import 'media_providers.dart';
@@ -74,12 +73,6 @@ class _MediaInfoPageState extends ConsumerState<MediaInfoPage> {
       appBar: AppBar(
         title: const Text('条目资料'),
         actions: [
-          IconButton(
-            key: const ValueKey('mds-info-sessions'),
-            tooltip: '计时明细',
-            icon: const Icon(Icons.history),
-            onPressed: () => context.push('/media/item/${widget.itemId}/sessions'),
-          ),
           IconButton(
             key: const ValueKey('mds-info-ops'),
             tooltip: '编辑信息',
@@ -319,7 +312,7 @@ class _MediaInfoPageState extends ConsumerState<MediaInfoPage> {
         InkWell(
           key: const ValueKey('mds-info-entry-sessions'),
           borderRadius: BorderRadius.circular(12),
-          onTap: () => context.push('/media/item/${x.id}/sessions'),
+          onTap: null,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(
@@ -349,10 +342,10 @@ class _MediaInfoPageState extends ConsumerState<MediaInfoPage> {
             const SizedBox(width: 8),
             Expanded(
               child: FilledButton.icon(
-                key: const ValueKey('mds-info-timer'),
-                onPressed: () => mediaTimerTap(context, ref, x),
-                icon: const Icon(Icons.timer_outlined, size: 18),
-                label: const Text('计时'),
+                key: const ValueKey('mds-info-progress'),
+                onPressed: () => showMediaProgressSheet(context, ref, x),
+                icon: const Icon(Icons.edit_note, size: 18),
+                label: const Text('记录进度'),
               ),
             ),
           ],

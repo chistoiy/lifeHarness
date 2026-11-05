@@ -125,4 +125,26 @@ void main() {
     final n = nodes.firstWhere((x) => x.title == '第一行是标题');
     expect(n.note, contains('第二行是细节'), reason: '正文不丢，落在备注');
   });
+
+  // 2026-10-29 补（产品报障「收集箱里的 md 无法正常渲染」）：条目是 md 大纲时
+  // 按结构展开成子树；无结构的纯文本仍走「首行进标题、全文进备注」（上一条）。
+  testWidgets('md 条目：按结构展开成子树（不是只取首行）', (tester) async {
+    final dao = MindmapDao(db);
+    final mapId = await dao.createMap('资料整理');
+    final root =
+        await dao.addNode(mapId: mapId, parentId: null, title: '中心主题');
+    await seedItem(tester, '## 一\n- 甲\n- 乙\n');
+    await pumpInbox(tester);
+    await tapConvert(tester);
+    await tester.tap(find.byKey(ValueKey('ibk-mm-$mapId')));
+    await tester.pumpAndSettle();
+
+    final nodes = await dao.nodesOf(mapId);
+    final a = nodes.firstWhere((n) => n.title == '一');
+    final jia = nodes.firstWhere((n) => n.title == '甲');
+    final yi = nodes.firstWhere((n) => n.title == '乙');
+    expect(a.parentId, root.id, reason: '一级标题挂到图根下');
+    expect(jia.parentId, a.id, reason: '列表项挂标题下（原实现只剩一行「## 一」）');
+    expect(yi.parentId, a.id);
+  });
 }

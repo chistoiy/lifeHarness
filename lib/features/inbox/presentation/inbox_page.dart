@@ -11,6 +11,7 @@ import '../../../shared/linkage/stats_providers.dart';
 // UIUX批（2026-10-12）：搜索钮接全局搜索半屏（守 R1：经 shared/linkage 出口）。
 import '../../../shared/linkage/search_mounts.dart';
 import '../../mindmap/data/mindmap_dao.dart';
+import '../../mindmap/domain/md_parse.dart' show mmOutlineFlat;
 import '../domain/inbox_item.dart';
 import 'inbox_providers.dart';
 
@@ -144,13 +145,31 @@ class _InboxPageState extends ConsumerState<InboxPage> {
       parentId = roots.first.id;
     }
     final text = item.rawText.trim();
-    final title = text.split('\n').first;
-    await dao.addNode(
-      mapId: picked,
-      parentId: parentId,
-      title: title.isEmpty ? '（空条目）' : title,
-      note: text.contains('\n') ? text : '',
-    );
+    // 2026-10-29：条目是 md 大纲（解析出 ≥2 个节点）时**按结构展开成子树**——
+    // 原实现一律只取首行当标题、全文塞备注，收集箱里的 md 进导图看不出层级
+    // （产品报障「收集箱里的 md 无法正常渲染」）。单行/无结构的纯文本仍走
+    // 「首行进标题、全文进备注」（批P2 口径不变）。
+    final flat = mmOutlineFlat(text);
+    if (flat.length > 1) {
+      final stack = <int?>[];
+      for (final (title, depth) in flat) {
+        final pid = depth == 0
+            ? parentId
+            : (depth - 1 < stack.length ? stack[depth - 1] : parentId);
+        final n =
+            await dao.addNode(mapId: picked, parentId: pid, title: title);
+        if (stack.length <= depth) stack.length = depth + 1;
+        stack[depth] = n.id;
+      }
+    } else {
+      final title = text.split('\n').first;
+      await dao.addNode(
+        mapId: picked,
+        parentId: parentId,
+        title: title.isEmpty ? '（空条目）' : title,
+        note: text.contains('\n') ? text : '',
+      );
+    }
     await ref.read(inboxDaoProvider).route(item.id!, 'mindmap', picked);
     ref.invalidate(inboxItemsProvider);
     AppLog.addKey(

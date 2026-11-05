@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/media_item.dart';
@@ -195,32 +194,6 @@ class _TrackSheet extends ConsumerWidget {
                       ),
                     ),
                 const SizedBox(height: 6),
-                // 改与删一律在明细整屏（批4 拍板①）——这里只给一条去路。
-                InkWell(
-                  key: const ValueKey('mds-track-sesslog'),
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    context.push('/media/item/${item.id}/sessions');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withValues(alpha: .45),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                            child: Text('计时明细',
-                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800))),
-                        Text('${rows.length} 条 · 真实 ${mdsHm(total)}',
-                            style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
-                        Icon(Icons.chevron_right, size: 16, color: scheme.onSurfaceVariant),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ],
           ),

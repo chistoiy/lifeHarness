@@ -8,7 +8,7 @@
       "fmt": "自动识别",
       "fields": "复制即得划线与书名",
       "dedupKey": "书名 + 页",
-      "parser": "clip",
+      "parser": "weread",
       "config": {
         "pattern": "(?<body>[^\\n]+(?:\\n(?!——)[^\\n]+)*)\\n+——《(?<book>[^》\\n]+)》[^\\n]*"
       },

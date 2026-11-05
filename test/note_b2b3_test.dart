@@ -163,6 +163,29 @@ void main() {
     await drainLogTimer(t);
   });
 
+  testWidgets('批3①补 空标题：切预览再回写作，头部小标题仍在（原掉回隐藏）', (t) async {
+    await t.pumpWidget(scope(const NoteEditPage(initialKind: 'md')));
+    await t.pumpAndSettle();
+    double headOpacity() => t
+        .widget<AnimatedOpacity>(
+            find.byKey(const ValueKey('note-head-title')))
+        .opacity;
+
+    expect(headOpacity(), 1,
+        reason: '标题为空 ⇒ 头部常显「未命名笔记」（正文标题位是一片空白，'
+            '头部是这一屏唯一的身份标识）');
+
+    await t.enterText(find.byKey(const ValueKey('note-para-0')), '- 甲');
+    await t.pump();
+    await t.tap(find.byKey(const ValueKey('note-mode-view')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('note-mode-view')));
+    await t.pumpAndSettle();
+    expect(headOpacity(), 1,
+        reason: '预览→回写作后仍显（原实现只认「滚动浮出」，这里会掉回 0）');
+    await drainLogTimer(t);
+  });
+
   testWidgets('批3① src/预览视图标题常显（这两个视图没有体部标题位）', (t) async {
     final n =
         await dao.save(note('MD 标题', content: '# 标题\n\n正文', kind: 'md'));

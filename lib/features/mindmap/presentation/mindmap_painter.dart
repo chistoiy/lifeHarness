@@ -42,6 +42,7 @@ class MmCanvasPainter extends CustomPainter {
     this.linkKnobId,
     this.linkFrom,
     this.linkTo,
+    this.frameless = false,
   });
 
   final List<MindmapNode> nodes;
@@ -92,6 +93,11 @@ class MmCanvasPainter extends CustomPainter {
   /// `linkTo` 为 null＝指针还在空白处（画一根短「拖尾＋松手取消」提示）。
   final Offset? linkFrom;
   final Offset? linkTo;
+
+  /// 无框模式（笔记「导图」视图用）：节点**只画文字**，不画圆角盒与描边，
+  /// 连线改走两端切线水平的 S 形（`stair` 点列）——父右缘到子左缘，不穿文字。
+  /// 默认 false＝导图模块既有视觉，逐像素不变。
+  final bool frameless;
 
   /// 勾选框边长（原型 `.mm-task` 15px）。
   static const double taskBox = 15;
@@ -152,7 +158,7 @@ class MmCanvasPainter extends CustomPainter {
     var hasRootEdge = false;
     for (final route in mmEdgeRoutes(
       nodes: nodes,
-      edgeKind: l.edgeKind,
+      edgeKind: frameless ? MmEdgeKind.stair : l.edgeKind,
       assignedSides: l.assignedSides,
       rectOf: _nodeRect,
     )) {
@@ -202,20 +208,22 @@ class MmCanvasPainter extends CustomPainter {
       };
       final bw = sel ? 1.6 : (tier == 0 ? 2.0 : 0.8);
       final radius = Radius.circular((10 * scale.clamp(0.6, 1.4)).toDouble());
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0), radius),
-          Paint()..color = fill);
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0), radius),
-          Paint()
-            ..color = sel ? accent : baseBorder
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = bw);
-      if (sel) {
+      if (!frameless) {
         canvas.drawRRect(
-            RRect.fromRectAndRadius(
-                r.inflate(2), const Radius.circular(10)),
-            Paint()..color = accentSoft);
+            RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0), radius),
+            Paint()..color = fill);
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0), radius),
+            Paint()
+              ..color = sel ? accent : baseBorder
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = bw);
+        if (sel) {
+          canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                  r.inflate(2), const Radius.circular(10)),
+              Paint()..color = accentSoft);
+        }
       }
       // 标题（TextPainter 缓存量宽在 build 侧已算好尺寸；此处重排文本本身
       // 的成本由裁剪兜住——视口外节点不进本循环）。批2 F4-6：多行
@@ -224,9 +232,11 @@ class MmCanvasPainter extends CustomPainter {
       // 与度量 `mmNodeMeasure` 同源——档位改字号时盒宽随之重算）。
       // **批5**：标题左侧留出三段占位（勾选框/缩略块），右侧留出标签 chip；
       // 三段的横向排布从左到右＝任务框 → 图片 → 标题 → 标签（原型同款顺序）。
-      final boxW = taskBox * scale.clamp(0.6, 1.4);
-      final thumbW =
-          imageIds.contains(n.id) ? thumbBox * scale.clamp(0.6, 1.4) : 0.0;
+      // 角标与字号同吃**同一个 scale**（不再夹取）：字号夹住而盒子宽跟着缩，
+      // 缩小到 0.5 以下就会「字不缩、可用宽继续缩」⇒ 文字莫名换行（2026-10-29
+      // 产品报障「缩小内容就自动换行」）。
+      final boxW = taskBox * scale;
+      final thumbW = imageIds.contains(n.id) ? thumbBox * scale : 0.0;
       final leadW = (taskIds.contains(n.id) ? boxW + 3 : 0.0) +
           (imageIds.contains(n.id) ? thumbW + 3 : 0.0);
       final tags = tagsOf[n.id] ?? const <String>[];
@@ -234,12 +244,12 @@ class MmCanvasPainter extends CustomPainter {
         text: TextSpan(
           text: nodeTitles[n.id] ?? n.title,
           style: TextStyle(
-              fontSize: style.fontSize * scale.clamp(0.5, 1.6),
+              fontSize: style.fontSize * scale,
               fontWeight: tier == 0 ? FontWeight.w800 : FontWeight.w600,
               color: nodeText),
         ),
         textDirection: TextDirection.ltr,
-      )..layout(maxWidth: math.max(20, r.width - 12 - leadW));
+      )..layout(maxWidth: math.max(20, r.width - 12 * scale - leadW));
       // **默认态零视觉变化**（同批3/批4 口径）：**无任何批5 角标**的节点仍走
       // 批2 的标题水平居中；一旦有勾选框/缩略块/标签，才改为左起顺排
       // （原型是 flex 行内顺排，居中会让标题压在角标上）。
@@ -458,7 +468,8 @@ class MmCanvasPainter extends CustomPainter {
       // 批P2：连接点/拖线漏比＝按下没反馈、松手残影（同 dx/dy 漏比家族）。
       old.linkKnobId != linkKnobId ||
       old.linkFrom != linkFrom ||
-      old.linkTo != linkTo;
+      old.linkTo != linkTo ||
+      old.frameless != frameless;
 }
 
 /// 一条连线的路由点列（[MmEdgeRoutes] 的元素）。

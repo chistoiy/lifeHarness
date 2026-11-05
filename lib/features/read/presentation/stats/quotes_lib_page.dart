@@ -35,7 +35,9 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
   String _kw = '';
   String? _tg; // 划线颜色分类（全部＝null）
   String _scope = 'all'; // all / cur / fav
-  int _view = 0;
+  // 默认「按章节」（chap）——书摘天然按卷/章组织，平铺视图看不出结构。
+  // 2026-10-29 产品报障：导入微信读书整本笔记后「不能按章节、卷显示」。
+  int _view = 2;
   // 批4-C「AI 感想生成」：页面原无多选态 → 新增长按多选（偏差已登记）。
   final Set<int> _sel = {};
 

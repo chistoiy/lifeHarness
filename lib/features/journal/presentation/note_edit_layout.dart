@@ -239,6 +239,16 @@ extension _NoteLayout on _NoteEditPageState {
         return KeyedSubtree(
             key: const ValueKey('body-view'),
             child: _preview(fontSize: _font));
+      case NoteEditMode.map:
+        // 导图＝全幅画布（不套 20 边距：fit 自己留 22 的边，再加一层等于白缩一档）。
+        return KeyedSubtree(
+            key: const ValueKey('body-map'),
+            child: NoteMdMapView(
+              source: _bodyCtl.text,
+              title: _titleCtl.text,
+              fg: _fg,
+              bg: _bg,
+            ));
     }
   }
 }

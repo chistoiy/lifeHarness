@@ -22,6 +22,10 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
   String _chId = 'kindle';
   final _text = TextEditingController();
   List<ImportRow>? _rows;
+
+  /// 逐条勾选（预览行下标）。解析完默认全选「非重复」项——用户要的是
+  /// 「先看再挑」，不是「要么全导要么别导」（2026-10-29 产品报障）。
+  Set<int> _picked = <int>{};
   List<int>? _lastBatch; // 撤销本批的摘录 id
   bool _busy = false;
 
@@ -65,6 +69,10 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     if (mounted) {
       setState(() {
         _rows = rows;
+        _picked = {
+          for (var i = 0; i < rows.length; i++)
+            if (!rows[i].dup) i,
+        };
         _busy = false;
       });
     }
@@ -76,7 +84,7 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     setState(() => _busy = true);
     final out = await ref
         .read(readRepositoryProvider)
-        .commitImport(ch, _text.text);
+        .commitImport(ch, _text.text, only: _picked);
     if (!mounted) return;
     setState(() {
       _lastBatch = out.ids;
@@ -332,7 +340,6 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     List<ImportRow> rows,
   ) {
     final dup = rows.where((r) => r.dup).length;
-    final fresh = rows.where((r) => r.bookId == null && !r.dup).length;
     return _card(
       cs,
       tokens,
@@ -356,7 +363,71 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
             style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
-          for (var i = 0; i < rows.length; i++)
+          Row(
+            children: [
+              Text(
+                '已选 ${_picked.length}/${rows.where((r) => !r.dup).length}',
+                key: const ValueKey('imp-picked'),
+                style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
+              ),
+              const Spacer(),
+              TextButton(
+                key: const ValueKey('imp-pick-all'),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 28),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: () => setState(() {
+                  final all = <int>{
+                    for (var i = 0; i < rows.length; i++)
+                      if (!rows[i].dup) i,
+                  };
+                  _picked = _picked.length == all.length ? <int>{} : all;
+                }),
+                child: Text(
+                  _picked.length == rows.where((r) => !r.dup).length
+                      ? '全不选'
+                      : '全选',
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          for (var i = 0; i < rows.length; i++) ...[
+            // 章节/卷分隔：连续同章节只出一枚标题。**顺序不动**——勾选用行下标，
+            // 重排会让「第 i 行」与用户的点选对不上。
+            if (i == 0 || rows[i].clip.chapter != rows[i - 1].clip.chapter)
+              if ((rows[i].clip.chapter ?? '').isNotEmpty)
+                Padding(
+                  key: ValueKey('imp-ch-$i'),
+                  padding: const EdgeInsets.only(top: 6, bottom: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 3,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: tokens.accent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          rows[i].clip.chapter!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             Container(
               key: ValueKey('imp-row-$i'),
               margin: const EdgeInsets.only(bottom: 8),
@@ -370,6 +441,22 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
                 children: [
                   Row(
                     children: [
+                      Checkbox(
+                        key: ValueKey('imp-check-$i'),
+                        value: _picked.contains(i),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        onChanged: rows[i].dup
+                            ? null
+                            : (v) => setState(() {
+                                  if (v == true) {
+                                    _picked.add(i);
+                                  } else {
+                                    _picked.remove(i);
+                                  }
+                                }),
+                      ),
+                      const SizedBox(width: 2),
                       Flexible(
                         child: Text(
                           rows[i].clip.book,
@@ -431,17 +518,14 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
                 ],
               ),
             ),
+          ],
           if (rows.isNotEmpty)
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 key: const ValueKey('imp-run'),
-                onPressed: _busy
-                    ? null
-                    : (rows.length - dup > 0 || fresh > 0)
-                    ? _run
-                    : null,
-                child: Text('导入 ${rows.length - dup} 条'),
+                onPressed: _busy || _picked.isEmpty ? null : _run,
+                child: Text('导入 ${_picked.length} 条'),
               ),
             ),
         ],

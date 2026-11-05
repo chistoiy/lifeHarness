@@ -85,7 +85,7 @@ void main() {
 
   group('① schema v42（挂载三列＋内容哈希列）', () {
     test('版本 42·41→42 段真含四列 ALTER＋索引·基础 DDL 同段带列', () {
-      expect(DbSchema.version, 43,
+      expect(DbSchema.version, greaterThanOrEqualTo(43),
           reason: '批4（notes.wb_at）又升一级；41→42 段必须仍在册');
       expect(DbSchema.migrations.containsKey(41), isTrue,
           reason: '缺这段＝老库升级没有挂载列（新装有、老库没有）');
@@ -291,8 +291,10 @@ void main() {
     });
 
     test('树抽屉接线在场（源码守护·代码行原文）：导入入口＋长按分派＋角标', () async {
+      // 归一 CRLF：源码在 Windows 上按 \r\n 落盘，保留 \r 会让多行 `contains` 恒失配。
       final src = File('lib/features/journal/presentation/widgets/note_tree_drawer.dart')
           .readAsStringSync()
+          .replaceAll('\r\n', '\n')
           .split('\n')
           .where((l) => !l.trimLeft().startsWith('//'))
           .join('\n');

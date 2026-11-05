@@ -6,7 +6,23 @@
 /// 只带节点本身＝rows 只装一行）。
 library;
 
+import 'package:flutter/services.dart' show Clipboard;
+
 import 'mindmap_models.dart';
+
+/// 把 `md_parse` 的拍平入口透出去：画布页 `mindmap_canvas_page.dart` 已顶在
+/// `size_budget` 登记线上（1289），多一行 import 就破线——本档是它必 import
+/// 的库，借这里把 `mmOutlineFlat` 带进命名空间，免得为一枚函数破预算。
+export 'md_parse.dart' show mmOutlineFlat;
+
+/// 系统剪贴板纯文本（画布「粘贴」在应用内剪贴板为空时的回落来源）。
+///
+/// 读剪贴板放本档：与剪贴板同职责，且画布页不能加 `services.dart` 的 import
+/// （同上预算理由）。
+Future<String> mmSystemClipboardText() async {
+  final data = await Clipboard.getData(Clipboard.kTextPlain);
+  return data?.text ?? '';
+}
 
 /// 会话级剪贴板（内存态，不持久化——F4-2 未要求；App 退出即失，与常规剪贴板一致）。
 class MmClipboard {

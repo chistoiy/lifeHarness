@@ -497,6 +497,9 @@ Future<bool> nfcToggleTimer(
   final dao = ref.read(timeBlockDaoProvider);
   final running = await dao.activeTiming();
   final now = DateTime.now();
+  // 块族的键是**当日起点**（各读者都按 day0 取）；传 `now` 会 invalidate 一个
+  // 没人订阅的时分秒键，等于什么都没刷——NFC 开始/结束后日历与仪表盘不更新。
+  final day0 = DateTime(now.year, now.month, now.day);
   final nowMin = now.hour * 60 + now.minute;
 
   final action =
@@ -505,7 +508,7 @@ Future<bool> nfcToggleTimer(
     // 该分类正在计时 ⇒ 结束。
     await dao.endTiming(running!.id, nowMin);
     ref.invalidate(timingBlockProvider);
-    ref.invalidate(dayBlocksProvider(now));
+    ref.invalidate(dayBlocksProvider(day0));
     ref.invalidate(monthTimingDaysProvider((now.year, now.month)));
     final mins = (nowMin - running.startMin) < 0
         ? (1440 - running.startMin + nowMin)
@@ -522,7 +525,7 @@ Future<bool> nfcToggleTimer(
   // 未在跑（或跑的是别的分类）⇒ 开始；`startTiming` 自带「先收口上一段」（B20）。
   await dao.startTiming(now, nowMin, catId: id, catName: catName, note: catName);
   ref.invalidate(timingBlockProvider);
-  ref.invalidate(dayBlocksProvider(now));
+  ref.invalidate(dayBlocksProvider(day0));
   ref.invalidate(monthTimingDaysProvider((now.year, now.month)));
   if (host.mounted) {
     nfcReceipt(host, '开始「$catName」计时');

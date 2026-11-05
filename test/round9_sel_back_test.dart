@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/app.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/theme/theme_repository.dart';
+import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart'
+    show calendarTickerProvider;
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,6 +19,9 @@ void main() {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         themeRegistryProvider.overrideWithValue(registry),
+        // 全 app 必带：sysPillSync 挂的 1s 周期流在 fake_async 里永不排空，
+        // 收尾会判「A Timer is still pending」（与本仓其余全 app 用例同口径）。
+        calendarTickerProvider.overrideWith((ref) => const Stream.empty()),
       ],
       child: const LifeHarnessApp(),
     ));

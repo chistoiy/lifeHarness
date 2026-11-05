@@ -67,15 +67,19 @@ void main() {
     });
 
     test('新行落盘带来源段，回填后来源不丢', () async {
-      FileLogSink.write(
-          LhLogLine(DateTime(2026, 9, 26, 8, 30, 4), LhLevel.warn, '429 退避',
-              src: '同步'));
+      // 日期相对构造：init 会按 14 天保留期清过期文件，写死过去日期会随时间变成空读
+      // （本用例曾钉 2026-09-26，2026-10 起被保留期清掉而假红）。
+      final now = DateTime.now();
+      final at = DateTime(now.year, now.month, now.day, 8, 30, 4);
+      String two(int n) => n.toString().padLeft(2, '0');
+      final dayTag = '${now.year}${two(now.month)}${two(now.day)}';
+      FileLogSink.write(LhLogLine(at, LhLevel.warn, '429 退避', src: '同步'));
       await FileLogSink.flush();
-      final raw = File(
-              '$dir${Platform.pathSeparator}lh-20260926.log')
+      final raw = File('$dir${Platform.pathSeparator}lh-$dayTag.log')
           .readAsLinesSync();
       // 落盘行与 `formatted` 同源：V1.50批3.6 起带 `MM-dd ` 段（跨启动分不清哪天）。
-      expect(raw.single, '09-26 08:30:04.000 [W] [同步] 429 退避');
+      expect(raw.single,
+          '${two(at.month)}-${two(at.day)} 08:30:04.000 [W] [同步] 429 退避');
 
       await FileLogSink.dispose();
       AppLog.reset();
@@ -86,7 +90,7 @@ void main() {
       // 反解必须吃掉日期段：日期以文件名日期为准，文本只留正文
       // （回归点：`_linePattern` 漏了这段时整行会被当裸文本按 info 收进缓冲）。
       expect(AppLog.lines.single.text, '429 退避');
-      expect(AppLog.lines.single.time, DateTime(2026, 9, 26, 8, 30, 4));
+      expect(AppLog.lines.single.time, at);
     });
 
     test('旧格式行（无来源段）照旧回填，归「系统」', () async {

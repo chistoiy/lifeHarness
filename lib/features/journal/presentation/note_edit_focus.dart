@@ -172,7 +172,9 @@ extension _NoteFocusMode on _NoteEditPageState {
     final img = _imgPara.firstMatch(_paras[i].text.trim());
     final body = img != null
         ? _paraImage(i, img.group(1)!)
-        : _paraInput(i, dimmed: _focusOn && _curPara != i,
+        // `_curPara < 0`＝还没点进任何段：不做淡出也不做高亮，全文正常显示
+        //（一进页就聚焦第 0 段会让正文看起来蒙了一层底纹）。
+        : _paraInput(i, dimmed: _focusOn && _curPara >= 0 && _curPara != i,
             highlight: _curPara == i);
     // 轮9p：行号=段左序号（仅纯文本·开关在 ⋯）。
     if (!lineNum) return body;

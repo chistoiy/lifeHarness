@@ -287,7 +287,7 @@ Future<NfcTriggerOutcome> _execute(
       );
       return done ? NfcTriggerOutcome.executedSilent : NfcTriggerOutcome.silent;
     } catch (_) {
-      // 有状态卡 toggle 抛异常 ⇒ 静默不打断（C11：NFC 模块内零日志，卡号/指纹敏感）。
+      // catch-ok: toggle 抛异常 ⇒ 静默不打断（C11：模块内零日志·卡号/指纹敏感）。
       return NfcTriggerOutcome.silent;
     }
   }

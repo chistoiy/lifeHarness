@@ -635,7 +635,7 @@ class _MediaPill extends ConsumerWidget {
       bar: bar,
       barKey: const ValueKey('media-bar'),
       fabKey: const ValueKey('media-fab'),
-      onBarTap: () => context.push('/media/timer/${s.itemId}'),
+      onBarTap: () {},
     );
   }
 }

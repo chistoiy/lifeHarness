@@ -29,11 +29,17 @@ void main() {
     await tester.tap(find.text('我的').last);
     await settle(tester);
 
-    final btn = find.textContaining('主页编排直达');
-    for (var i = 0; i < 12 && btn.evaluate().isEmpty; i++) {
+    // 底栏自定义卡默认折叠，「主页编排直达」只在展开后才建树 ⇒ 先点开折叠头。
+    final toggle = find.byKey(const ValueKey('nav-customize-toggle'));
+    for (var i = 0; i < 12 && toggle.evaluate().isEmpty; i++) {
       await tester.drag(find.byType(Scrollable).last, const Offset(0, -200));
       await tester.pump(const Duration(milliseconds: 100));
     }
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final btn = find.textContaining('主页编排直达');
     await tester.ensureVisible(btn);
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(btn);

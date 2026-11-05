@@ -16,6 +16,7 @@ class HabitActions {
     required this.archiveToggle,
     required this.openLog,
     required this.dotTap,
+    required this.edit,
   });
 
   /// 点卡片本体 → 详情。
@@ -39,6 +40,13 @@ class HabitActions {
 
   /// 方块视图 7 日格就地打卡/撤销该日（§3.2）。
   final void Function(Habit h, DateTime day) dotTap;
+
+  /// 长按卡片＝直接开「编辑习惯」弹层（改/删都在这）。
+  ///
+  /// 2026-10-29 产品报障「今天没打卡的习惯没办法编辑」：卡片底部的大按钮
+  /// 是打卡/撤销，点卡片本体虽进详情页，但用户按的是按钮区，等于**没有任何
+  /// 一眼可见的编辑入口**。长按是不与打卡抢点击的兜底通道。
+  final void Function(Habit h) edit;
 }
 
 /// 卡片通用描边底（原型 .card）见 habit_kit.hCardDeco。
@@ -71,9 +79,12 @@ class HabitCardView extends StatelessWidget {
     final rate = info.rate;
     final hasVal = habit.hasVal;
 
-    return Container(
-      decoration: hCardDeco(context),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return GestureDetector(
+      // 长按＝编辑（短按仍归内部打卡/详情，互不抢竞技场）。
+      onLongPress: () => actions.edit(habit),
+      child: Container(
+        decoration: hCardDeco(context),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -220,6 +231,7 @@ class HabitCardView extends StatelessWidget {
           const SizedBox(height: 10),
           _actions(context, ok, hasVal),
         ],
+      ),
       ),
     );
   }

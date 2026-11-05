@@ -88,11 +88,21 @@ void main() {
   }
 
   /// 行间发丝计数（`_EntryRow` 底部的 Border）——用于区分「去发丝」的 minimal。
+  ///
+  /// 只数**单边底发丝**：设置页里主题预览卡/主题色圆钮用的是 `Border.all`（四边全描边，
+  /// 与版式无关），按「有 border 就计数」会把它们混进来，minimal 被误判成 2 条。
   int hairlines(WidgetTester t) => t
       .widgetList<Container>(find.byType(Container))
-      .where((w) =>
-          w.decoration is BoxDecoration &&
-          (w.decoration! as BoxDecoration).border != null)
+      .where((w) {
+        final d = w.decoration;
+        if (d is! BoxDecoration) return false;
+        final b = d.border;
+        return b is Border &&
+            b.top == BorderSide.none &&
+            b.left == BorderSide.none &&
+            b.right == BorderSide.none &&
+            b.bottom != BorderSide.none;
+      })
       .length;
 
   testWidgets('① 默认 hero：连击环在册、无组标题编号', (t) async {

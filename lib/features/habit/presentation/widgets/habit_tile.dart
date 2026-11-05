@@ -33,6 +33,8 @@ class HabitTile extends StatelessWidget {
     final rate = info.rate;
     final ringColor = habit.isPos ? HK.brand : HK.teal400;
     return GestureDetector(
+      // 长按＝编辑（方块视图同样要有入口，2026-10-29 产品报障）。
+      onLongPress: () => actions.edit(habit),
       onTap: () {
         // 原型 hbTileTap：正向未达成→打卡；其余进详情。
         if (habit.isPos && !ok && enabled) {

@@ -37,14 +37,6 @@ class MediaDetailPage extends ConsumerWidget {
         title: Text(item.valueOrNull?.title ?? '条目'),
         actions: [
           IconButton(
-            key: const ValueKey('mds-detail-timer'),
-            tooltip: '计时',
-            icon: const Icon(Icons.timer_outlined),
-            onPressed: item.valueOrNull == null
-                ? null
-                : () => mediaTimerTap(context, ref, item.valueOrNull!),
-          ),
-          IconButton(
             key: const ValueKey('mds-detail-info'),
             tooltip: '条目资料',
             icon: const Icon(Icons.info_outline),
@@ -208,19 +200,10 @@ class MediaDetailPage extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: FilledButton.icon(
-                key: const ValueKey('mds-detail-timerbtn'),
-                onPressed: () => mediaTimerTap(context, ref, x),
-                icon: Icon(on ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 18),
-                label: Text(on ? '■ 结束' : '▶ 计时'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton(
+              child: FilledButton(
                 key: const ValueKey('mds-detail-progress'),
                 onPressed: () => showMediaProgressSheet(context, ref, x),
-                child: const Text('＋ 记进度'),
+                child: const Text('＋ 记录进度'),
               ),
             ),
             const SizedBox(width: 8),

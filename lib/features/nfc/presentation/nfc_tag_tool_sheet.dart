@@ -131,7 +131,7 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
             _error = null;
           });
         } catch (e) {
-          if (!mounted) return;
+          if (!mounted) return; // catch-ok: 失败落 _error 可见态（零日志 C11）
           setState(() {
             _stage = _Stage.waiting;
             _error = _writeErrorText(e);

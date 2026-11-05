@@ -35,6 +35,8 @@ class HabitTileRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: InkWell(
         onTap: () => actions.open(habit),
+        // 长按＝编辑（紧凑视图同样要有入口，2026-10-29 产品报障）。
+        onLongPress: () => actions.edit(habit),
         child: Row(
           children: [
             HabitIconTile(

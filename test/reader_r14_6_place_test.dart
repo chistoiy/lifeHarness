@@ -139,7 +139,7 @@ void main() {
   }
 
   group('R14-6 · 让位三规则（原型 brSelBarPlace）', () {
-    testWidgets('① 首选上贴：条在选区上方 · 白卡底衬描边投影 · 箭头朝下 · 手柄 31×48', (t) async {
+    testWidgets('① 首选上贴：条在选区上方 · 白卡底衬描边投影 · 箭头朝下 · 手柄 44×48', (t) async {
       await openReader(t, 'p1');
       final r = t.getRect(find.byKey(const ValueKey('brpTap-0-2')));
       await t.longPressAt(Offset(r.left + 12, r.top + 5));
@@ -182,10 +182,11 @@ void main() {
             .color,
         const Color(0xFF334155),
       );
-      // 首尾手柄：命中 31×48 · 茎 2.5×18 · 圆钮 15×15（旧 11/2×15 本批放大）。
+      // 首尾手柄：命中 44×48 · 茎 2.5×18 · 圆钮 15×15（R14-6 初版 31 宽，F3-8
+      // 按「手指可拖动」把命中簇外扩到 44，视觉圆钮/茎居中不变）。
       for (final k in ['brHStart', 'brHEnd']) {
         final hr = t.getRect(find.byKey(ValueKey(k)));
-        expect(hr.width, closeTo(31, .5), reason: k);
+        expect(hr.width, closeTo(44, .5), reason: k);
         expect(hr.height, closeTo(48, .5), reason: k);
         final boxes = find.descendant(
           of: find.byKey(ValueKey(k)),

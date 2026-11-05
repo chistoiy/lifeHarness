@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/nav/nav_module.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/settings/settings_controller.dart'
-    show NavToggleResult, settingsControllerProvider;
+    show NavToggleResult;
 import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/core/settings/user_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';

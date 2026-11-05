@@ -4,6 +4,8 @@ import 'package:lifeharness/app.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/router/app_router.dart' show shellBottomSlack;
 import 'package:lifeharness/core/theme/theme_repository.dart';
+import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart'
+    show calendarTickerProvider;
 import 'package:lifeharness/shared/linkage/timer_bar_overlay.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,6 +36,9 @@ void main() {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         themeRegistryProvider.overrideWithValue(registry),
+        // sysPillSync 会 watch 秒级心跳；真实 Stream.periodic 在 fake_async 里
+        // 永不排空 ⇒ 收尾判「A Timer is still pending」。换成空流（全 app 同口径）。
+        calendarTickerProvider.overrideWith((ref) => const Stream.empty()),
       ],
       child: const LifeHarnessApp(),
     ));

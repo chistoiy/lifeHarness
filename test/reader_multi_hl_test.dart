@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart' show sharedPreferencesProvider;
+import 'package:lifeharness/core/theme/app_theme.dart' show AppTokensContext;
 import 'package:lifeharness/features/read/data/epub_doc.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
@@ -62,6 +63,14 @@ EpubDoc _longDoc() => _doc([_p(_long)]);
 Color _bg(String tag) =>
     Color(0xFF000000 | (BookQuote.hexToInt(BookQuote.colorHex[tag]) ?? 0))
         .withValues(alpha: .27);
+
+/// 选区底色期望值：F3-3 起吃主题 accent·.3（旧写死 0x4D6366F1 已作废）。
+/// 必须按源码现算：`withValues` 存的是浮点 alpha 0.3，与 `0x4D/255` 并不等值。
+Color _selBg(WidgetTester t) => t
+    .element(find.byKey(const ValueKey('brSelBar')))
+    .tokens
+    .accent
+    .withValues(alpha: .3);
 
 void main() {
   sqfliteFfiInit();
@@ -314,7 +323,7 @@ void main() {
           isNotEmpty,
           reason: '长按期间后划的那条也必须照旧铺着');
       expect(
-        ps.where((e) => e.c == const Color(0x4D6366F1)).map((e) => e.t).join(),
+        ps.where((e) => e.c == _selBg(t)).map((e) => e.t).join(),
         isNotEmpty,
         reason: '选区那一截仍要吃选区色（划线不许把选区盖掉）');
       await clearToasts(t);

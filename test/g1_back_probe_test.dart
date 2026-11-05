@@ -34,5 +34,7 @@ void main() {
     // ignore: avoid_print
     print('G1PROBE popResult=$popResult snack=$snackFound');
     expect(snackFound, isTrue, reason: '首次返回应提醒而非直接退出');
+    // SnackBar 的自动消失是驻留 Timer；用例结束前排空，否则 FakeAsync 判 pending timer。
+    await clearToasts(tester);
   });
 }

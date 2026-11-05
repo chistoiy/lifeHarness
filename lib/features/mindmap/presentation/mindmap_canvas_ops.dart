@@ -121,14 +121,15 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
   Future<void> _showNodeMenu(MindmapNode n) async {
     // 批P：连接/摘除两项紧随「加子节点/加同级」（原型同序）；摘除只对
     // 非根节点有意义（根节点没有父，置它就是空操作，直接 disable 并给理由）。
-    // 批P3：换序与剪贴板五枚接进同一份菜单——上移/下移按同级位次置灰，
-    // 粘贴按剪贴板态置灰（没有内容时点它只会得到一句「剪贴板为空」）。
+    // 批P3：换序与剪贴板五枚接进同一份菜单——上移/下移按同级位次置灰。
+    // 粘贴**不再按应用内剪贴板置灰**（2026-10-29）：应用内为空时会回落系统
+    // 剪贴板文本按 md 大纲展开，而系统剪贴板有没有内容要点击时才读得到——
+    // 置灰等于把「粘贴 md」这条路堵死（产品报障原话）。
     final id = n.id;
     final sibs = _siblingsOf(n);
     final i = id == null ? -1 : sibs.indexWhere((x) => x.id == id);
     final canUp = i > 0;
     final canDown = i >= 0 && i < sibs.length - 1;
-    final canPaste = MmClipboard.hasContent;
     final anchor = _menuAnchorOf(n) ??
         Offset(MediaQuery.sizeOf(context).width / 2,
             MediaQuery.sizeOf(context).height * .32);
@@ -196,8 +197,8 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
         [
           (key: 'copy', icon: Icons.content_copy, label: '复制（含子级）', enabled: true, inline: false),
           (key: 'cut', icon: Icons.content_cut, label: '剪切（含子级）', enabled: true, inline: false),
-          (key: 'pasteSib', icon: Icons.content_paste, label: '粘贴同级', enabled: canPaste, inline: true),
-          (key: 'pasteChild', icon: Icons.content_paste_go, label: '粘贴子级', enabled: canPaste, inline: true),
+          (key: 'pasteSib', icon: Icons.content_paste, label: '粘贴同级', enabled: true, inline: true),
+          (key: 'pasteChild', icon: Icons.content_paste_go, label: '粘贴子级', enabled: true, inline: true),
         ],
         [
           (key: 'del', icon: Icons.delete_outlined, label: '删除节点', enabled: true, inline: false),
@@ -342,7 +343,10 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
   Future<void> _pasteBranch(MindmapNode n, {required bool asChild}) async {
     final rows = MmClipboard.peek();
     if (rows == null || rows.isEmpty) {
-      _toast('剪贴板为空');
+      // 应用内剪贴板空 ⇒ 回落**系统剪贴板文本**，按 md 大纲展开成子树。
+      // 2026-10-29 补：原来只认应用内剪贴板（复制/剪切节点），从别处复制的
+      // md 粘贴不进来（产品报障「不支持直接粘贴 md 内容渲染」）。
+      await _pasteMdFromSystem(n, asChild: asChild);
       return;
     }
     if (_nodes.length + rows.length > mmMaxNodes) {
@@ -383,6 +387,63 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
     _textSizeCache.clear();
     _relayout();
     _toast('已粘贴 ${out.length} 个节点');
+  }
+
+  /// 系统剪贴板文本 → md 大纲 → 子树（贴成目标同级或子级）。
+  ///
+  /// 与 [_pasteBranch] 的分工：那条走应用内剪贴板（整行快照，保留备注/标签/
+  /// 任务态等列），这条只吃**纯文本大纲**——md 解析出来的新节点没有元数据可搬，
+  /// 一律走 `addNode` 的默认列。解析口径与「从笔记/收集箱导入」同源
+  /// （`parseMdOutline`），三处不各写一套。
+  Future<void> _pasteMdFromSystem(MindmapNode n,
+      {required bool asChild}) async {
+    final text = await mmSystemClipboardText();
+    if (text.trim().isEmpty) {
+      _toast('剪贴板为空');
+      return;
+    }
+    final flat = mmOutlineFlat(text);
+    if (flat.isEmpty) {
+      _toast('剪贴板里没有可解析的大纲内容');
+      return;
+    }
+    if (_nodes.length + flat.length > mmMaxNodes) {
+      _toast('已达节点上限（$mmMaxNodes）');
+      return;
+    }
+    final parentId = asChild ? n.id : n.parentId;
+    if (asChild && parentId == null) {
+      _toast('先选中要粘贴到的节点');
+      return;
+    }
+    // 先序扁平序按 depth 弹栈挂父；兄弟序交给 `addNode`（同父末尾 +1）。
+    final stack = <int?>[];
+    final inserted = <MindmapNode>[];
+    for (final (title, depth) in flat) {
+      final pid = depth == 0
+          ? parentId
+          : (depth - 1 < stack.length ? stack[depth - 1] : parentId);
+      final node = await _dao.addNode(
+          mapId: widget.mapId, parentId: pid, title: title);
+      if (stack.length <= depth) stack.length = depth + 1;
+      stack[depth] = node.id;
+      inserted.add(node);
+    }
+    final rootCount = flat.where((e) => e.$2 == 0).length;
+    // 根不止一枚时按森林入栈（`addSubtree` 只删第一棵，撤销会留半片）。
+    _undo.push(rootCount > 1
+        ? MmCommands.addForest(
+            [for (final x in inserted) if (x.parentId == parentId) x], inserted)
+        : MmCommands.addSubtree(inserted.first, inserted));
+    if (!mounted) return;
+    // ignore: invalid_use_of_protected_member — extension 不在 State 子类体内
+    setState(() {
+      _nodes = [..._nodes, ...inserted];
+      _selectedId = inserted.first.id;
+    });
+    _textSizeCache.clear();
+    _relayout();
+    _toast('已粘贴 ${inserted.length} 个节点');
   }
 
 

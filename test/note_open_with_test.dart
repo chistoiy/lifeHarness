@@ -41,7 +41,7 @@ void main() {
 
   group('① schema v41（notes 来源四列）', () {
     test('版本 41·40→41 段真含四列 ALTER·基础 DDL 新装也带列', () {
-      expect(DbSchema.version, 43,
+      expect(DbSchema.version, greaterThanOrEqualTo(43),
           reason: '批2（挂载三列＋src_hash）与批4（wb_at）各升一级；40→41 段必须仍在册');
       expect(DbSchema.migrations.containsKey(40), isTrue,
           reason: '缺这段＝老库升级没有来源列（新装有老库没有）');

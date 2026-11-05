@@ -64,4 +64,41 @@ void main() {
       expect(flattenMdTree(r.roots), [('甲', 0), ('乙', 0)]);
     });
   });
+
+  // 2026-10-29 补（产品报障两条）：
+  // ①「二级 head 不是顶格就不被识别」——标题正则改为允许 0~3 前导空格；
+  // ②「md 导入后正文没进去」——标题通道改吃列表项（列表是内容不是层级信号）。
+  group('缩进标题与列表（2026-10-29）', () {
+    test('前导空白的标题仍是标题（2 空格/4 空格都认·原整篇掉进缩进通道）', () {
+      final r = parseMdOutline('# 一\n  ## 一·甲\n');
+      expect(r.roots.map((n) => n.title), ['一']);
+      expect(r.roots.single.children.map((n) => n.title), ['一·甲'],
+          reason: '前导 2 空格的标题仍是标题，不是缩进行');
+      // 4 空格：CommonMark 会当代码块，但笔记/剪贴板来源的 md 里它就是标题
+      // （刻意宽于规范，见 `md_parse.dart` 头注）。
+      final deep = parseMdOutline('# 一\n    ## 一·乙\n');
+      expect(deep.roots.single.children.map((n) => n.title), ['一·乙']);
+    });
+
+    test('整体带缩进的文档照样分得出层级', () {
+      final r = parseMdOutline('  ## 甲\n  - 甲一\n  ## 乙\n');
+      expect(r.roots.map((n) => n.title), ['甲', '乙']);
+      expect(r.roots.first.children.map((n) => n.title), ['甲一'],
+          reason: '列表项挂当前标题下（缩进只决定它在标题下的第几层）');
+    });
+
+    test('标题通道吃列表项：笔记/收集箱 md 的主体形态', () {
+      final r = parseMdOutline('## 一\n- 甲\n- 乙\n## 二\n- 丙\n');
+      expect(r.roots.map((n) => n.title), ['一', '二']);
+      expect(r.roots[0].children.map((n) => n.title), ['甲', '乙']);
+      expect(r.roots[1].children.map((n) => n.title), ['丙']);
+    });
+
+    test('列表缩进每 2 空格再深一层', () {
+      final r = parseMdOutline('## 一\n- 甲\n  - 甲一\n');
+      final a = r.roots.single.children;
+      expect(a.map((n) => n.title), ['甲']);
+      expect(a.single.children.map((n) => n.title), ['甲一']);
+    });
+  });
 }

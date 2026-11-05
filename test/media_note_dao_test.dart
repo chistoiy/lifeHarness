@@ -82,7 +82,9 @@ void main() {
       (await db.query(md.tMediaNotes, where: 'id = ?', whereArgs: [id])).single;
 
   test('版本 39：38→39 段存在且就是复习三列＋到期索引（老库不升就没这列）', () {
-    expect(DbSchema.version, 39);
+    // 只断「不早于本段」：后续迁移会继续升版（当前 v50），钉死等于每次加表都误报；
+    // 本段是否存在由下面的 migrations[38] 守。
+    expect(DbSchema.version, greaterThanOrEqualTo(39));
     expect(DbSchema.migrations.containsKey(38), isTrue);
     final sql = DbSchema.migrations[38]!.join(' ');
     for (final col in ['review_stage', 'reviewed_at', 'next_review_at']) {

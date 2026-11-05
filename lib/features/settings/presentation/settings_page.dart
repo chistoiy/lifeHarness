@@ -210,7 +210,7 @@ class SettingsPage extends ConsumerWidget {
               title: '外观与交互',
               index: showIndex ? '03' : null,
               dim: dimLabel),
-          buildDesktopEntryGroup(context, flat: flat), // 桌面批1＋NFC 批1 F1-6 入口行（口径见 part 件）
+          buildDesktopEntryGroup(context, flat: flat, divider: hairline), // 桌面批1＋NFC 批1 F1-6 入口行（口径见 part 件）
           const SizedBox(height: 12),
           // 底部导航自定义卡（原型「外观与交互」组内独立卡）
           // 2026-10-15 产品改口：11 枚开关铺开太占屏 ⇒ 整卡**默认折叠**，点标题行展开。
