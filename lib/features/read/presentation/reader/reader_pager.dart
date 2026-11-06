@@ -725,20 +725,144 @@ class PagPiece {
 typedef PagPage = List<PagPiece>;
 typedef PagChapter = List<PagPage>;
 
+/// 段级测量缓存的键（F5-2 · 二期批5）。
+///
+/// **key 必须覆盖全部布局维度**：漏一维＝「按 A 量、按 B 画」＝页底裁字或空页，
+/// 而缓存会把错误读数重复用下去。所以维度只在本类里列一次（[dims]），
+/// 用例逐维改一处逐维断言「键必须变」——少一维那条用例先红。
+class PieceMeasureKey {
+  PieceMeasureKey(this.dims) : _h = Object.hashAll(dims);
+
+  /// 维度表（顺序固定；每项都是影响 TextPainter 结果的输入）。
+  final List<Object?> dims;
+  final int _h;
+
+  @override
+  int get hashCode => _h;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PieceMeasureKey || other._h != _h) return false;
+    final a = dims, b = other.dims;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+}
+
+/// 段级测量 LRU（F5-2）：容量有界，命中刷新使用序，超界淘汰**最久未用**。
+class PieceMeasureCache {
+  PieceMeasureCache({this.cap = 4096});
+
+  final int cap;
+
+  /// Dart 的 Map 保持插入序：命中时 remove+重插＝把该键挪到队尾（MRU）。
+  final Map<PieceMeasureKey, double> _m = {};
+
+  /// 切点缓存（块键 + 当时可用高）→ 切点原文偏移。没有它，第二次排同一章时
+  /// 「高度全命中」仍要为每个溢出块重新布局一次求行切点。
+  final Map<(PieceMeasureKey, int), int> _cuts = {};
+
+  int hits = 0, misses = 0;
+
+  double? get(PieceMeasureKey k) {
+    final v = _m.remove(k);
+    if (v == null) {
+      misses++;
+      return null;
+    }
+    _m[k] = v;
+    hits++;
+    return v;
+  }
+
+  void put(PieceMeasureKey k, double v) {
+    _m.remove(k);
+    _m[k] = v;
+    while (_m.length > cap) {
+      _m.remove(_m.keys.first);
+    }
+  }
+
+  int? getCut(PieceMeasureKey k, int avail) => _cuts[(k, avail)];
+
+  void putCut(PieceMeasureKey k, int avail, int cut) {
+    final key = (k, avail);
+    _cuts.remove(key);
+    _cuts[key] = cut;
+    while (_cuts.length > cap) {
+      _cuts.remove(_cuts.keys.first);
+    }
+  }
+
+  void clear() {
+    _m.clear();
+    _cuts.clear();
+    hits = 0;
+    misses = 0;
+  }
+
+  int get size => _m.length;
+}
+
 /// 分页引擎：TextPainter 真实测量（字号/行距/字距/边距变化 → 页数即时重排），
 /// 非字符数估算（V1.50 硬约束「分页引擎实算」）。
 class EpubPager {
   const EpubPager._();
 
-  /// 段内一块 `[from,to)` 的**上屏高度**＝文字本体 ＋ 该型段的段外距（[paraOuter]）。
-  /// 批三刀3：吃 [paraRunStyles] 的分段表——em 字号进 span 之后，
-  /// 「按平文本量、按 span 树画」必出空页，两边走一张表才叫同源（预研 §3 红线）。
-  /// §3H-A 同源补刀：宽度按 [paraMeasureW]（扣容器内边距）、外距按 [paraOuter]、
-  /// 行盒走 [_flattenLineHeight]（§3H-B 行距拉平）——**装箱、拆分、上屏三处唯一的数**。
-  static double pieceHeight(EpubPara p, ReaderLayout l, int from, int to) {
-    // 插图＝固定 190 估计（真图高按宽高比浮动＝§3H 已知挂账，另批处理）；
-    // 数值维持旧口径，这一批不同时改两处语义。
-    if (p.kind == EpubParaKind.image) return kBrImageBoxH;
+  /// 段级测量缓存（F5-2）：同一段在「翻章重入 / 换页重试 / 同书两台宽一致的重排」
+  /// 里只测一次。清空入口=[debugResetMeasure]。
+  static final PieceMeasureCache measureCache = PieceMeasureCache();
+
+  /// 取证读数：真正发生的 TextPainter 布局次数（缓存命中不计）。
+  static int debugMeasureCount = 0;
+
+  /// 用例入口：清空缓存并把布局计数归零。
+  @visibleForTesting
+  static void debugResetMeasure() {
+    measureCache.clear();
+    debugMeasureCount = 0;
+  }
+
+  /// 用例入口：段级键（逐维守 key 完整性时用它比对）。
+  @visibleForTesting
+  static PieceMeasureKey debugPieceKey(
+    EpubPara p,
+    ReaderLayout l,
+    int from,
+    int to,
+  ) => _pieceKey(p, l, from, to);
+
+  /// 段级键的**唯一出口**：维度只在这里列（见 [PieceMeasureKey]）。
+  static PieceMeasureKey _pieceKey(
+    EpubPara p,
+    ReaderLayout l,
+    int from,
+    int to,
+  ) => PieceMeasureKey([
+    p.text,
+    p.kind,
+    p.headingLevel,
+    p.annotation,
+    p.ownIndent,
+    p.style,
+    p.runs,
+    l.orig,
+    l.indMode,
+    l.s2t,
+    paraMeasureW(l, p.kind),
+    l.fs,
+    l.lh,
+    l.ls,
+    l.font,
+    from,
+    to,
+  ]);
+
+  static TextPainter _tpOf(EpubPara p, ReaderLayout l, int from, int to) {
     final tp = TextPainter(
       // 测量路径不传 pageBg＝原书色不参与调和（色不影响度量），
       // 但**分段表与上屏同一张**（字号比会改行高，两边必须一致）。
@@ -753,7 +877,27 @@ class EpubPager {
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: paraMeasureW(l, p.kind));
-    return tp.height + paraOuter(p.kind);
+    debugMeasureCount++;
+    return tp;
+  }
+
+  /// 段内一块 `[from,to)` 的**上屏高度**＝文字本体 ＋ 该型段的段外距（[paraOuter]）。
+  /// 批三刀3：吃 [paraRunStyles] 的分段表——em 字号进 span 之后，
+  /// 「按平文本量、按 span 树画」必出空页，两边走一张表才叫同源（预研 §3 红线）。
+  /// §3H-A 同源补刀：宽度按 [paraMeasureW]（扣容器内边距）、外距按 [paraOuter]、
+  /// 行盒走 [_flattenLineHeight]（§3H-B 行距拉平）——**装箱、拆分、上屏三处唯一的数**。
+  static double pieceHeight(EpubPara p, ReaderLayout l, int from, int to) {
+    // 插图＝固定 190 估计（真图高按宽高比浮动＝§3H 已知挂账，另批处理）；
+    // 数值维持旧口径，这一批不同时改两处语义。
+    if (p.kind == EpubParaKind.image) return kBrImageBoxH;
+    final k = _pieceKey(p, l, from, to);
+    final hit = measureCache.get(k);
+    if (hit != null) return hit;
+    final tp = _tpOf(p, l, from, to);
+    final h = tp.height + paraOuter(p.kind);
+    tp.dispose();
+    measureCache.put(k, h);
+    return h;
   }
 
   /// 单段块高（整段）。
@@ -765,19 +909,24 @@ class EpubPager {
   static int cutAfterLine(EpubPara p, ReaderLayout l, int from, double avail) {
     final n = p.text.length;
     if (from >= n) return n;
+    final tp = _tpOf(p, l, from, n);
+    final cut = _cutOf(tp, p, l, from, n, avail);
+    tp.dispose();
+    return cut;
+  }
+
+  /// 已在布局好的 [tp] 上找切点（与 [cutAfterLine] 同算法）。
+  /// 抽出来是为了**溢出段一次布局同时得高度与切点**——旧写法先 pieceHeight
+  /// 排一遍、再 cutAfterLine 排一遍，同一块测两次（F5-2 要销的就是这笔）。
+  static int _cutOf(
+    TextPainter tp,
+    EpubPara p,
+    ReaderLayout l,
+    int from,
+    int n,
+    double avail,
+  ) {
     final ind = from == 0 && paraIndented(p, l.indMode) ? kParaIndent.length : 0;
-    final tp = TextPainter(
-      text: paraSpan(
-        p,
-        l.base,
-        orig: l.orig,
-        indMode: l.indMode,
-        s2t: l.s2t,
-        from: from,
-        to: n,
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: paraMeasureW(l, p.kind));
     final budget = avail - paraOuter(p.kind);
     var top = 0.0, cutDisp = 0;
     for (final m in tp.computeLineMetrics()) {
@@ -786,7 +935,6 @@ class EpubPager {
       // 下一行的行首（显示坐标）；末行时取到段尾，调用方按 from 兜底推进。
       cutDisp = tp.getPositionForOffset(Offset(0, top + 0.5)).offset;
     }
-    tp.dispose();
     if (cutDisp < ind) cutDisp = ind; // 绝不在缩进前缀里切
     final body = (cutDisp - ind) + from;
     return body <= from ? from + 1 : body.clamp(from + 1, n);
@@ -810,21 +958,51 @@ class EpubPager {
     for (var i = 0; i < paras.length; i++) {
       final p = paras[i];
       final n = p.text.length;
+      final isImg = p.kind == EpubParaKind.image;
       var from = 0;
       while (true) {
-        final rest = pieceHeight(p, l, from, n);
         final avail = l.contentH - h;
+        if (isImg) {
+          // 插图＝固定估高：放不下先换页；空页也放不下就直接占一页（旧口径）。
+          if (cur.isNotEmpty && kBrImageBoxH > avail) {
+            flush();
+            continue;
+          }
+          cur.add(PagPiece(i, from, n));
+          h += kBrImageBoxH;
+          break;
+        }
+        final key = _pieceKey(p, l, from, n);
+        final known = measureCache.get(key);
+        // 高度未知＝先测出「整块高」；溢出时这次布局顺手给出切点（不再测第二遍）。
+        var rest = known;
+        TextPainter? tp;
+        if (rest == null) {
+          tp = _tpOf(p, l, from, n);
+          rest = tp.height + paraOuter(p.kind);
+          measureCache.put(key, rest);
+        }
         if (cur.isNotEmpty && rest > avail) {
-          flush(); // 先换页，再在整页高度上重试这一块
+          tp?.dispose();
+          flush(); // 先换页，再在整页高度上重试这一块（高度已在缓存里，不重量）
           continue;
         }
-        if (rest <= avail || p.kind == EpubParaKind.image) {
+        if (rest <= avail) {
+          tp?.dispose();
           cur.add(PagPiece(i, from, n));
           h += rest;
           break;
         }
         // 空页也装不下＝这段本身超一页：切一块上本页，剩下的续排（不许裁半字）。
-        final cut = cutAfterLine(p, l, from, avail);
+        final availKey = avail.round();
+        var cut = measureCache.getCut(key, availKey);
+        if (cut == null) {
+          cut = tp == null
+              ? cutAfterLine(p, l, from, avail)
+              : _cutOf(tp, p, l, from, n, avail);
+          measureCache.putCut(key, availKey, cut);
+        }
+        tp?.dispose();
         final end = cut > n ? n : cut;
         cur.add(PagPiece(i, from, end));
         flush();

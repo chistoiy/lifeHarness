@@ -5,8 +5,14 @@ part of 'reader_page.dart';
 
 /// 阅读位置（brPos[bid]：{ci,pg} + 书签 bm=[ci,pg,ts]）。
 class _Pos {
-  _Pos({this.ci = 0, this.pg = 0, this.bm});
+  _Pos({this.ci = 0, this.pg = 0, this.pi, this.bm});
   int ci, pg;
+
+  /// 段号（二期批5 · F5-3）：滚动模式的**原文锚点**＝当前可见首段。
+  /// 页码粒度只有一屏，滚动侧要「回到同一段」就必须记到段；翻页模式忽略它。
+  /// 老数据没有这个键＝null（按页码回落），不破坏既有进度。
+  int? pi;
+
   List<int>? bm;
 
   factory _Pos.decode(String? raw) {
@@ -16,6 +22,7 @@ class _Pos {
       return _Pos(
         ci: (v['ci'] as num?)?.toInt() ?? 0,
         pg: (v['pg'] as num?)?.toInt() ?? 0,
+        pi: (v['pi'] as num?)?.toInt(),
         bm: (v['bm'] as List?)?.map((e) => (e as num).toInt()).toList(),
       );
     } catch (_) {
@@ -23,7 +30,12 @@ class _Pos {
     }
   }
 
-  String encode() => jsonEncode({'ci': ci, 'pg': pg, if (bm != null) 'bm': bm});
+  String encode() => jsonEncode({
+    'ci': ci,
+    'pg': pg,
+    if (pi != null) 'pi': pi,
+    if (bm != null) 'bm': bm,
+  });
 }
 
 /// F-13（2026-10-07）：段生效划线的一条——同段可以有多条，渲染层按 createdAt

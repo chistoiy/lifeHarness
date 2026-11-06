@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import '../domain/book.dart';
 import '../presentation/reader/reader_pager.dart';
 import 'epub_css.dart';
 import 'epub_doc.dart';
+import 'epub_snap_io.dart';
 import 'epub_first_img.dart';
 import 'read_repository.dart';
 
@@ -481,6 +483,11 @@ class DocStore {
   }
 
   /// 保存快照（覆盖式）。data.bin＝各章段落 JSON 的 UTF-8 拼接。
+  ///
+  /// F5-4（二期批5）：**编码与写盘整段进 isolate**。旧写法在预载期把
+  /// `jsonEncode(全书)` + utf8.encode + 逐章写盘全压在主线程上，大书一秒级卡顿；
+  /// 现在主线程只做「拍平成可发送的行」（[_snapshotPayload]），编码/写入/索引
+  /// 组装都在另一个 isolate 里跑完。落盘字节口径不变（同一份 jsonEncode）。
   static Future<void> save(
     String docsPath,
     String bookId,
@@ -488,73 +495,69 @@ class DocStore {
     EpubDoc doc,
   ) async {
     if (fp.isEmpty) return;
-    final dir = Directory(dirFor(docsPath, bookId));
-    await dir.create(recursive: true);
-    final spine = <Map<String, Object>>[];
-    final raf =
-        await File(p.join(dir.path, 'data.bin')).open(mode: FileMode.write);
-    var off = 0;
-    try {
-      for (final c in doc.chapters) {
-        // 章级样式字典：同风格只存一份，段与 runs 存下标。
-        final styles = <List>[];
-        final ids = <EpubStyle, int>{};
-        int idOf(EpubStyle st) => ids.putIfAbsent(st, () {
-              styles.add(_styleJson(st));
-              return styles.length - 1;
-            });
-        final b = utf8.encode(
-          jsonEncode([
-            styles,
-            [for (final x in c.paras) _paraJson(x, idOf)],
-          ]),
-        );
-        spine.add({
-          'href': c.href,
-          'title': c.title,
-          'n': c.paras.length,
-          'chars': c.charCount,
-          'off': off,
-          'len': b.length,
-        });
-        await raf.writeFrom(b);
-        off += b.length;
-      }
-    } finally {
-      await raf.close();
+    final payload = _snapshotPayload(docsPath, bookId, fp, doc);
+    final r = await Isolate.run(() => writeDocSnapshot(payload));
+    debugLastSaveOffMain = r.offMain;
+    debugLastSaveBytes = r.bytes;
+  }
+
+  /// 用例入口：上一次 save 是否真的跑在别的 isolate、落盘字节数。
+  @visibleForTesting
+  static bool debugLastSaveOffMain = false;
+  @visibleForTesting
+  static int debugLastSaveBytes = 0;
+
+  /// 主线程只做这一步：把章节拍平成可跨 isolate 发送的纯数据（无 jsonEncode）。
+  static DocSnapPayload _snapshotPayload(
+    String docsPath,
+    String bookId,
+    String fp,
+    EpubDoc doc,
+  ) {
+    final chapters = <List<Object?>>[];
+    for (final c in doc.chapters) {
+      // 章级样式字典：同风格只存一份，段与 runs 存下标。
+      final styles = <List>[];
+      final ids = <EpubStyle, int>{};
+      int idOf(EpubStyle st) => ids.putIfAbsent(st, () {
+        styles.add(_styleJson(st));
+        return styles.length - 1;
+      });
+      chapters.add([
+        styles,
+        [for (final x in c.paras) _paraJson(x, idOf)],
+      ]);
     }
-    final idx = <String, Object?>{
-      'v': snapVersion,
-      'fp': fp,
-      'format': doc.format,
-      'title': doc.title,
-      'author': doc.author,
-      'pub': doc.publisher,
-      'date': doc.pubDate,
-      'lang': doc.language,
-      'desc': doc.description,
-      'covN': doc.coverName,
-      'imgC': doc.imageCount,
-      'chars': doc.totalChars,
-      'fontC': doc.fontCount,
-      'bmC': doc.bookmarkCount,
-      // 批三刀2：包内声明了我们表达不了的排版项（竖排/多栏/浮动/表格/行内留白…），
-      // 随快照落盘，重开也还在——刀3 用它落日志＋该书外观页提示行（不许静默降级）。
-      'uns': [
-        for (final u in doc.unsupported)
-          [u.kind.index, u.property, u.value, u.count],
+    return (
+      dir: dirFor(docsPath, bookId),
+      fp: fp,
+      format: doc.format,
+      title: doc.title,
+      author: doc.author,
+      pub: doc.publisher,
+      date: doc.pubDate,
+      lang: doc.language,
+      desc: doc.description,
+      covN: doc.coverName,
+      imgC: doc.imageCount,
+      chars: doc.totalChars,
+      fontC: doc.fontCount,
+      bmC: doc.bookmarkCount,
+      uns: [
+        for (final u in doc.unsupported) [u.kind.index, u.property, u.value, u.count],
       ],
-      'toc': [
+      toc: [
         for (final t in doc.toc) [t.label, t.href, t.level],
       ],
-      'spine': spine,
-    };
-    await File(p.join(dir.path, 'index.json'))
-        .writeAsString(jsonEncode(idx));
-    final cov = doc.coverBytes;
-    if (cov != null) {
-      await File(p.join(dir.path, 'cover.bin')).writeAsBytes(cov);
-    }
+      hrefs: [for (final c in doc.chapters) c.href],
+      titles: [for (final c in doc.chapters) c.title],
+      paraN: [for (final c in doc.chapters) c.paras.length],
+      charN: [for (final c in doc.chapters) c.charCount],
+      chapters: chapters,
+      cover: doc.coverBytes,
+      mainPort: Isolate.current.controlPort,
+      version: snapVersion,
+    );
   }
 
   /// 指纹相符才载入；否则 null（调用方走解析）。[srcPath] 给出时重挂懒归档
@@ -644,7 +647,7 @@ class DocStore {
       coverBytes: cover,
       coverName: m['covN'] as String?,
       toc: toc,
-      chapters: _LazyChapterList(dir, refs),
+      chapters: LazyChapterList(dir, refs),
       imageCount: (m['imgC'] as int?) ?? 0,
       totalChars: (m['chars'] as int?) ?? 0,
       fontCount: (m['fontC'] as int?) ?? 0,
@@ -678,6 +681,7 @@ class DocStore {
 class _ChRef {
   const _ChRef(this.href, this.title, this.n, this.chars, this.off, this.len);
   final String href;
+
   final String title;
   final int n;
 
@@ -690,11 +694,19 @@ class _ChRef {
 /// 章粒度懒读列表：只有被访问的章才 readSync+decode（打开＝只读当前章）。
 /// 每次读独立开合文件句柄（章级几十 KB，毫秒级），不做跨页常驻。
 /// 标题/字符数走 [_refs] 索引直读（[ChapterMetaSource]），全量遍历不再 materialize。
-class _LazyChapterList extends ListBase<EpubChapter> implements ChapterMetaSource {
-  _LazyChapterList(this._dir, this._refs);
+///
+/// F5-2/F5-5（二期批5）：章缓存**有上界**并淘汰最久未用——旧版无界，一本 2409 章
+/// 的书翻到底就把整本 materialize 回内存（滚动卡顿的另一半根因）。
+class LazyChapterList extends ListBase<EpubChapter> implements ChapterMetaSource {
+  LazyChapterList(this._dir, this._refs);
+
+  /// 章缓存上界（章是几十 KB 级，64 章≈数 MB；超界淘汰最久未用）。
+  static const int cacheCap = 64;
 
   final String _dir;
   final List<_ChRef> _refs;
+
+  /// Map 保持插入序：命中时 remove+重插＝挪到队尾（MRU），队首即最久未用。
   final Map<int, EpubChapter> _cache = {};
 
   @override
@@ -715,8 +727,11 @@ class _LazyChapterList extends ListBase<EpubChapter> implements ChapterMetaSourc
 
   @override
   EpubChapter operator [](int i) {
-    final hit = _cache[i];
-    if (hit != null) return hit;
+    final hit = _cache.remove(i);
+    if (hit != null) {
+      _cache[i] = hit; // 刷新使用序（MRU 归位）
+      return hit;
+    }
     final r = _refs[i];
     var paras = const <EpubPara>[];
     try {
@@ -743,8 +758,20 @@ class _LazyChapterList extends ListBase<EpubChapter> implements ChapterMetaSourc
     }
     final c = EpubChapter(href: r.href, title: r.title, paras: paras);
     _cache[i] = c;
+    // 加界：超界淘汰**最久未用**（队首）——与被逐章重读的代价相比，内存优先。
+    while (_cache.length > cacheCap) {
+      _cache.remove(_cache.keys.first);
+    }
     return c;
   }
+
+  /// 用例入口：当前缓存章数（守「上界生效」）。
+  @visibleForTesting
+  int get debugCacheSize => _cache.length;
+
+  /// 用例入口：缓存里的章号（按使用序，队首＝最久未用）。
+  @visibleForTesting
+  List<int> get debugCacheOrder => _cache.keys.toList();
 }
 
 
@@ -756,7 +783,14 @@ class EpubDocCache {
   final int maxLive;
   final LinkedHashMap<String, EpubDoc> _m = LinkedHashMap();
 
-  EpubDoc? get(String bookId) => _m[bookId];
+  /// F5-5（二期批5）：命中要**刷新使用序**——旧版只读不挪位，淘汰的是「最早放进
+  /// 来的」而不是「最久没用的」：热点书 A 与偶然翻开的 B 交替时，A 会被误逐、
+  /// 下次开书白跑一遍懒归档。
+  EpubDoc? get(String bookId) {
+    final d = _m.remove(bookId);
+    if (d != null) _m[bookId] = d;
+    return d;
+  }
 
   void put(String bookId, EpubDoc doc) {
     _m[bookId] = doc;

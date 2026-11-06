@@ -68,17 +68,38 @@ extension _ReaderStage on _ReaderPageState {
           flat.add((ci, pi));
         }
       }
-      return ListView.builder(
-        key: const ValueKey('br-scroll'),
-        controller: _scrollCtrl,
-        padding: EdgeInsets.fromLTRB(_cfg.mar, _cfg.mar + 30, _cfg.mar, _cfg.mar + 56),
-        itemCount: flat.length,
-        itemBuilder: (_, k) {
-          final (ci, pi) = flat[k];
-          // 滚动模式不分页＝整段一块（区间给 0..段长，与翻页模式走同一个 _para）。
-          final pp = doc.chapters[ci].paras[pi];
-          return _para(th, doc, ci, pp, pi, 0, pp.text.length);
-        },
+      // F5-3：登记窗口序列（真实位置换算要用行号），并在本轮首次进入滚动模式时
+      // 帧后定位到「当前页首段」——旧版切过来永远停在列表顶端（或瞎估的位置）。
+      _scrPrepare(flat);
+      if (!_scr.entered) {
+        _scr.entered = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _scrEnter();
+        });
+      }
+      return NotificationListener<ScrollNotification>(
+        onNotification: _scrOnScroll,
+        child: ListView.builder(
+          key: const ValueKey('br-scroll'),
+          controller: _scrollCtrl,
+          padding: EdgeInsets.fromLTRB(
+            _cfg.mar,
+            _cfg.mar + 30,
+            _cfg.mar,
+            _cfg.mar + 56,
+          ),
+          itemCount: flat.length,
+          itemBuilder: (_, k) {
+            final (ci, pi) = flat[k];
+            // 滚动模式不分页＝整段一块（区间给 0..段长，与翻页模式走同一个 _para）。
+            final pp = doc.chapters[ci].paras[pi];
+            return KeyedSubtree(
+              key: _scrKey(ci, pi),
+              child: _para(th, doc, ci, pp, pi, 0, pp.text.length),
+            );
+          },
+        ),
       );
     }
     final pages = pag.pages[_pos.ci] ?? const <PagPage>[<PagPiece>[]];

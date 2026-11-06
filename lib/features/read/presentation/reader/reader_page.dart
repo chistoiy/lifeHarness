@@ -7,7 +7,8 @@ import 'dart:ui' as ui; // V1.53.2 放大镜抓帧
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderParagraph, RenderRepaintBoundary;
+import 'package:flutter/rendering.dart'
+    show RenderAbstractViewport, RenderParagraph, RenderRepaintBoundary;
 import 'package:flutter/services.dart'
     show
         Clipboard,
@@ -57,6 +58,7 @@ part 'reader_links.dart';
 part 'reader_xray.dart';
 part 'reader_page_pag.dart';
 part 'reader_page_boot.dart';
+part 'reader_page_scroll.dart';
 
 /// 阅读主屏（V1.50 · 事实源 `#p-readerPage` BR-2 + V1.51 目录侧边抽屉）。
 ///
@@ -173,6 +175,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
 
   final _scrollCtrl = ScrollController();
 
+  /// 二期批5（F5-3）：滚动模式的位置状态（行键/节流定时器/真实锚点）。
+  final _scr = _ScrState();
+
   String get _clockText {
     final m = _sessSecs ~/ 60;
     final s = _sessSecs % 60;
@@ -265,6 +270,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       unawaited(_wake(false));
     }
     _loupeImage?.dispose();
+    _scr.tick?.cancel();
     _scrollCtrl.dispose();
     _sysUiRestore(); // ③：退出阅读页还原系统栏
     super.dispose();
@@ -276,6 +282,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   /// （不记时长、不入明细），但进度仍然保存。
   void _leave() {
     _clock?.cancel();
+    // F5-3：退出前先把滚动模式的真实位置落定——会话起止/进度都按它记，禁再用旧 _pos。
+    if (_cfg.mode == 'scroll') _scrFlushPos();
     final own = _ownTimer;
     final repo = ref.read(readRepositoryProvider);
     final doc = _doc;
@@ -338,11 +346,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final pag = _pag;
     if (doc == null || pag == null) return;
     if (_cfg.mode == 'scroll') {
-      // 滚动模式：翻≈一屏。
-      final vp = _viewport.height - 120;
-      _scrollCtrl.jumpTo(
-        (_scrollCtrl.hasClients ? _scrollCtrl.offset : 0) + d * vp,
-      );
+      // 滚动模式：翻≈一屏。F5-6：与自动翻页同一条动效（不再 jumpTo 硬跳）。
+      _scrByScreen(d);
       return;
     }
     final n = pag.chapterPages(_pos.ci);
@@ -353,7 +358,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         return;
       }
       _pos.ci++;
-      _ensureCur(); // 跨章＝按需实算新章（毫秒级）
+      // F5-1：向前翻撞未排章＝不占本帧（插队后台＋帧后补），邻近章已由 ±3 预排备好。
+      _ensureSoft(_pos.ci);
       setState(() {
         _pos.pg = 0;
         _flash = doc.chapters[_pos.ci].title;
@@ -569,11 +575,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   }
 
   /// 阅读模式（翻页⇄滚动）：写全局默认（原型 brCfg.mode + brPersist）。
+  /// F5-3：切模式前先把滚动侧真实位置 flush 掉；切回翻页则按锚点换算页码
+  /// （否则「滚动读到的位置」会以旧页码写进进度，重进回到更早的页）。
   void _setMode(String m) {
+    if (_cfg.mode == 'scroll') _scrFlushPos();
+    final a = _scr.anchor;
     setState(() {
       _global = _global.copyWith(mode: m);
       _applyMerged();
     });
+    if (m == 'page') {
+      final pag = _pag;
+      if (a != null && pag != null && pag.laidOut(a.$1)) {
+        _pos.ci = a.$1;
+        _pos.pg = pag.pageOfPara(a.$1, a.$2);
+      }
+    } else {
+      _scr.entered = false; // 进滚动模式后由 stage 帧后定位到真实位置
+    }
     _savePos();
     unawaited(_persistGlobal());
     _rebuildPag();
@@ -596,21 +615,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   }
 
   void _scrollToPara(int ci, int pi) {
-    // 滚动模式：按段落序号近似定位。V1.53.1 轮4：只累加当前渲染窗口
-    // （前 8 章起）内的段落，避免为算偏移 materialize 前面所有章。
-    final doc = _doc;
-    if (doc == null || !_scrollCtrl.hasClients) return;
-    final lo = ci - 8 < 0 ? 0 : ci - 8;
-    var idx = 0;
-    for (var c = lo; c < ci; c++) {
-      idx += doc.chapters[c].paras.length + 1;
-    }
-    idx += 1 + pi;
-    final est = (idx * _cfg.fs * _cfg.lh * 3).clamp(
-      0.0,
-      _scrollCtrl.position.maxScrollExtent,
-    );
-    _scrollCtrl.jumpTo(est.toDouble());
+    // 滚动模式定位到「某章某段」。F5-3：改成真实定位——
+    // 旧写法累加前面章的段数 ×(字号×行距×3) 硬估偏移，段高一变（标题/引文/插图/
+    // 长段折行）就落在几百像素之外。现在先记锚点，帧后用真行偏移逐轮校正。
+    _scr.anchor = (ci, pi);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _cfg.mode != 'scroll') return;
+      unawaited(_scrJumpTo(ci, pi));
+    });
   }
 
   // ---------- 外观（批4：A± 逐书 · 主题/模式全局 · 草稿制面板 · 常亮 · 自动翻页） ----------
@@ -733,17 +745,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     _autoT = Timer.periodic(Duration(seconds: _cfg.autoSecs.clamp(3, 60)), (_) {
       if (!mounted || _selController.sel != null || _drawerOpen || _doc == null) return;
       if (_cfg.mode == 'scroll') {
-        final h = _viewport.height - 60;
-        final cur = _scrollCtrl.hasClients ? _scrollCtrl.offset : 0.0;
-        unawaited(
-          _scrollCtrl.hasClients
-              ? _scrollCtrl.animateTo(
-                  cur + h,
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOut,
-                )
-              : Future<void>.value(),
-        );
+        // F5-6：手动/自动翻页同一条动效，只有让开的呼吸量不同。
+        _scrByScreen(1, inset: 60);
       } else {
         _flip(1);
       }
@@ -753,6 +756,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   int _pagGen = 0;
   /// V1.60 后台全书续算循环票据（推进＝停旧循环；替代已退役的整本防抖写表 _pagSaveT）。
   int _bgTicket = 0;
+  /// F5-1（二期批5）：翻页撞上未排章时的插队队列——后台循环先补这些章。
+  final List<int> _bgWant = [];
 
 
 

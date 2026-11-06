@@ -6,6 +6,30 @@ part of 'reader_page.dart';
 // 外观页 unsupported 两行后顶破线）；拆完删掉 size_budget 登记项，归还默认 1200 面。
 // V1.60（§3G）：_pagSaveTick（整本防抖写表）退役——表按章分片读写；新增
 // _startBgPaginate「首次开书全书续算」（空闲让帧补齐，导入/预载链已摘表）。
+
+/// 后台预排顺序（F5-1）：**邻近章优先**——当前章前后各 3 章按
+/// +1/−1/+2/−2/+3/−3 交错补齐，再环形扫尾。
+/// 纯函数（不碰状态），用例直接守「远端章一定排在 ±3 之后」这条口径。
+@visibleForTesting
+List<int> bgPrefetchOrder(int n, int cur) {
+  if (n <= 1) return const [];
+  final c = cur.clamp(0, n - 1);
+  final seen = <int>{c};
+  final out = <int>[];
+  void add(int ci) {
+    if (ci < 0 || ci >= n) return;
+    if (seen.add(ci)) out.add(ci);
+  }
+
+  for (var d = 1; d <= 3; d++) {
+    add(c + d);
+    add(c - d);
+  }
+  for (var k = 1; k < n; k++) {
+    add((c + k) % n);
+  }
+  return out;
+}
 extension _ReaderPag on _ReaderPageState {
   void _rebuildPag() {
     final doc = _doc;
@@ -68,6 +92,25 @@ extension _ReaderPag on _ReaderPageState {
     }
   }
 
+  /// 翻页撞到未排章时**不在本帧同步排版**（F5-1）：该章插队给后台循环，
+  /// 同时排到帧后再补——手势与翻页动效先走完，worst-chapter（旧基线 399ms）
+  /// 不再压在手势帧上。邻近章正常已由 ±3 预排补好，这条只是兜底。
+  void _ensureSoft(int ci) {
+    final doc = _doc, pag = _pag;
+    if (doc == null || pag == null) return;
+    if (ci < 0 || ci >= doc.chapters.length || pag.laidOut(ci)) return;
+    if (!_bgWant.contains(ci)) _bgWant.add(ci);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final d = _doc, p = _pag;
+      if (d == null || p == null || p.laidOut(ci)) return;
+      _ensure(p, d, _layout(), ci);
+      if (!mounted) return;
+      // ignore: invalid_use_of_protected_member // 同库扩展里调 State.setState（note_edit_* 先例）
+      setState(() {});
+    });
+  }
+
   /// 确保当前章已排版（翻页/跳章/ seek 落章后统一走这里）。
   void _ensureCur() {
     final doc = _doc, pag = _pag;
@@ -75,10 +118,15 @@ extension _ReaderPag on _ReaderPageState {
     _ensure(pag, doc, _layout(), _pos.ci.clamp(0, doc.chapters.length - 1));
   }
 
-  /// V1.60 §3G「首次开书后台续算全书分页」：从当前章起环形补齐——分片命中
-  /// 直接采用，否则实算＋落分片。**只在空闲间隙干活**（有在跑帧就让 120ms、
+  /// V1.60 §3G「首次开书后台续算全书分页」。
+  ///
+  /// F5-1（二期批5）：**邻近章优先**——先补当前章前后各 3 章（+1/−1/+2/−2/+3/−3），
+  /// 再环形扫尾。旧版从当前章一路向前环形跑：读得快的人往前翻两章就撞上未排章，
+  /// 反过来回翻上一章也必然未排（它排在整条环的末尾）。
+  /// 分片命中直接采用，否则实算＋落分片。**只在空闲间隙干活**（有在跑帧就让 120ms、
   /// 章间让 60ms），「第一次加载耗时不限、加载完开书必须秒开」的账在这里付清。
   /// 工单闸：页面销毁 / 外观重排（gen 变）/ 再次开书（票据推进）立刻停。
+  /// 翻页插队（[_bgWant]）优先于既有顺序——只在真的撞上未排章时才会入队。
   void _startBgPaginate(EpubDoc doc, ReaderLayout l, int gen) {
     final svc = ref.read(epubPreloadProvider);
     if (svc.docsPath == null) return;
@@ -89,12 +137,22 @@ extension _ReaderPag on _ReaderPageState {
       if (n <= 1) return;
       bool alive() =>
           mounted && my == _bgTicket && gen == _pagGen && _doc == doc;
-      var ci = _pos.ci.clamp(0, n - 1);
+      final order = bgPrefetchOrder(n, _pos.ci.clamp(0, n - 1));
+      var k = 0;
       // 开书动作落定再开工：首帧排版/进度恢复先跑完。
       await Future<void>.delayed(const Duration(milliseconds: 1500));
-      for (var k = 0; k < n - 1; k++) {
-        ci = (ci + 1) % n;
+      while (true) {
         if (!alive()) return;
+        // 插队章（翻页撞上未排）优先，其次按「邻近优先→环形扫尾」顺序。
+        final int ci;
+        if (_bgWant.isNotEmpty) {
+          ci = _bgWant.removeAt(0);
+        } else if (k < order.length) {
+          ci = order[k++];
+        } else {
+          break;
+        }
+        if (ci < 0 || ci >= n) continue;
         final pag = _pag;
         if (pag == null || pag.chapterCount != n) return;
         if (pag.laidOut(ci)) continue;

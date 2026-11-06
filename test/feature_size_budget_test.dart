@@ -39,7 +39,12 @@ void main() {
     // `book_detail` 的原生 `FloatingActionButton`（M3 默认 16px 圆角方块底 +
     // `primaryContainer` 实心）换 `GradFab` 圆球＋import 与口径注释，净 +6 行。
     // 无功能分支增减，属观感统一。按实测登，此后只许减。
-    'read': 49026,
+    // 49026→49829（阅读二期批5 · 2026-11-07 · 工单 §2.1 F5-1~F5-6）：真新增功能
+    // ＝邻近章预排＋段级测量缓存/切点缓存（reader_pager）＋快照保存入 isolate
+    // （新件 epub_snap_io 98 行）＋真 LRU 与懒章缓存上界（epub_cache）＋滚动模式
+    // 真实位置与手感统一（新 part reader_page_scroll 223 行）。无一次性壳层，
+    // 按实测登，此后只许减。
+    'read': 49829,
     // ledger 18045→18132（小组件批A·工单 §7.1 记一笔弹窗·2026-10-18）：记账页加
     // dialogMode 外壳（_dialogShell／_leave／参数与文档注释）净 +90 行（含琥珀色收敛常量 3 行）——同一份表单
     // 换容器、无第二套 UI；属产品拍板需求增长，按实测登，此后只许减。
