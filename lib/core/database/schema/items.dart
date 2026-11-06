@@ -39,6 +39,9 @@
       unit TEXT,
       stop_pct INTEGER DEFAULT 30,
       photo TEXT,
+      brand TEXT,
+      serial TEXT,
+      note TEXT,
       source TEXT NOT NULL DEFAULT 'manual',
       source_txn_id INTEGER,
       created_at INTEGER NOT NULL,
@@ -96,5 +99,14 @@ final Map<int, List<String>> mig = {
     // 列不进基础 DDL（mediaReviewStatements 段注同款理由）。
     50: [
       'ALTER TABLE $tItemEvents ADD COLUMN txn_id INTEGER',
+    ],
+    // 51→52（物品批A · I03 档案三字段）：item_profiles 加 brand / serial / note。
+    // 三列全可空、纯加列零搬数据；老档案三列为 NULL（UI 当空串处理）。
+    // note 是档案层备注：可随时改，不进成本时间轴、不参与任何金额计算。
+    // 与 v51 不同：这三列同时写进基础 DDL（新装库 onCreate 不走 migrations，缺列即崩）。
+    51: [
+      'ALTER TABLE $tItemProfiles ADD COLUMN brand TEXT',
+      'ALTER TABLE $tItemProfiles ADD COLUMN serial TEXT',
+      'ALTER TABLE $tItemProfiles ADD COLUMN note TEXT',
     ]
 };

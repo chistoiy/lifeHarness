@@ -10,6 +10,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/items_repository.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
+import '../domain/items_filter.dart';
 import 'item_edit_page.dart';
 import 'items_kit.dart';
 import 'items_providers.dart';
@@ -29,6 +30,10 @@ class ItemsPage extends ConsumerStatefulWidget {
 class _ItemsPageState extends ConsumerState<ItemsPage> {
   String _cat = '全部';
 
+  /// 搜索 / 状态·价位筛选 / 排序（I02＋I04）；空值＝不限，默认日均↓。
+  ItemFilter _filter = ItemFilter.empty;
+  final TextEditingController _qCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +44,12 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
     });
   }
 
+
+  @override
+  void dispose() {
+    _qCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +92,9 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
       ..sort((a, b) =>
           (costPerDay(b, now) ?? 0).compareTo(costPerDay(a, now) ?? 0));
     final top3 = top.take(3).toList();
-    final list = itemsByCat(d, _cat);
+    final catList = itemsByCat(d, _cat);
+    // 三道闸＋排序只作用在列表上；hero 与 seg 计数始终按全量（筛选不改口径）。
+    final list = filterItems(catList, _filter, now);
     final maxC =
         bill.isEmpty ? 0.0 : bill.map((x) => costPerDay(x, now) ?? 0).reduce(
             (a, b) => a > b ? a : b);
@@ -91,18 +104,15 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
       children: [
         _hero(total, cnt, top3, now),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        _searchRow(),
+        const SizedBox(height: 12),
         _segRow(bill, d.items.length - bill.length),
         const SizedBox(height: 12),
         _entryRow(),
         const SizedBox(height: 12),
         if (list.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('该分类下暂无物品 · 可切换分类或录入新物品',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: kItemMuted)),
-          )
+          _emptyHint(hasFilter: _filter.hasQuery || _filter.activeCount > 0)
         else
           for (final it in list)
             Padding(
@@ -112,6 +122,328 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
       ],
     );
   }
+
+/// 搜索框 + 筛选入口（原型 p-items：hero 之下、分类胶囊之上）。
+  Widget _searchRow() {
+    final tokens = context.tokens;
+    final n = _filter.activeCount;
+    final onSurface = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: tokens.cardBorder.withValues(alpha: .45),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, size: 15, color: kItemMuted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('i-search'),
+                    controller: _qCtrl,
+                    style: const TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w600),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      hintText: '搜名称 / 品牌 / 序列号 / 状态',
+                      hintStyle: TextStyle(
+                          fontSize: 12.5,
+                          color: kItemMuted,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    onChanged: (v) => setState(() =>
+                        _filter = _filter.copyWith(
+                            keyword: normalizeItemKeyword(v))),
+                  ),
+                ),
+                if (_filter.hasQuery)
+                  GestureDetector(
+                    key: const ValueKey('i-search-clear'),
+                    onTap: () {
+                      _qCtrl.clear();
+                      setState(() => _filter = _filter.copyWith(keyword: ''));
+                    },
+                    child: Text('清除',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: tokens.accent)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          key: const ValueKey('i-filter-btn'),
+          onTap: _openFilterSheet,
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: n > 0 ? tokens.accent.withValues(alpha: .10) : tokens.card,
+              border: Border.all(
+                  color: n > 0 ? tokens.accent : tokens.cardBorder),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.tune,
+                    size: 14, color: n > 0 ? tokens.accent : kItemMuted),
+                const SizedBox(width: 5),
+                Text('筛选',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: n > 0 ? tokens.accent : onSurface)),
+                if (n > 0)
+                  Container(
+                    key: const ValueKey('i-filter-badge'),
+                    margin: const EdgeInsets.only(left: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                        color: tokens.accent,
+                        borderRadius: BorderRadius.circular(999)),
+                    child: Text('$n',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 筛选与排序弹层（草稿态：改动只在点「应用」后落到列表，与原型同口径）。
+  Future<void> _openFilterSheet() async {
+    final tokens = context.tokens;
+    final onSurface = Theme.of(context).colorScheme.onSurfaceVariant;
+    var draft = _filter;
+
+    Widget label(String t) => Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 8),
+          child: Text(t,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+        );
+
+    Widget pill(String text, bool on, VoidCallback tap, {Key? key}) =>
+        GestureDetector(
+          key: key,
+          onTap: tap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: on ? tokens.accent : tokens.cardBorder,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(text,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: on ? Colors.white : kItemMuted)),
+          ),
+        );
+
+    final r = await showModalBottomSheet<ItemFilter>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bc) => StatefulBuilder(
+        builder: (bc, setSheet) {
+          final n = draft.activeCount;
+          return Container(
+            decoration: BoxDecoration(
+                color: tokens.card,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24))),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: tokens.cardBorder,
+                          borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('筛选与排序',
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  const Text('条件作用在分类胶囊之后的列表上 · 顶部合计不受影响',
+                      style: TextStyle(fontSize: 10.5, color: kItemMuted)),
+                  label('状态'),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: [
+                      for (final s in kItemFilterStatuses)
+                        pill(
+                          s,
+                          draft.statuses.contains(s),
+                          () => setSheet(() {
+                            final set = {...draft.statuses};
+                            set.contains(s) ? set.remove(s) : set.add(s);
+                            draft = draft.copyWith(statuses: set);
+                          }),
+                          key: ValueKey('i-fst-$s'),
+                        ),
+                    ],
+                  ),
+                  label('成本池价位'),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: [
+                      for (final b in ItemPoolBand.values)
+                        pill(
+                          b.label,
+                          draft.band == b,
+                          () => setSheet(
+                              () => draft = draft.copyWith(band: b)),
+                          key: ValueKey('i-fband-${b.name}'),
+                        ),
+                    ],
+                  ),
+                  label('排序'),
+                  Container(
+                    decoration: BoxDecoration(
+                        border: Border.all(color: tokens.cardBorder),
+                        borderRadius: BorderRadius.circular(14)),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < ItemSort.values.length; i++)
+                          Builder(builder: (_) {
+                            final s = ItemSort.values[i];
+                            final on = draft.sort == s;
+                            return InkWell(
+                              key: ValueKey('i-fsort-${s.name}'),
+                              onTap: () =>
+                                  setSheet(() => draft = draft.copyWith(sort: s)),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 11),
+                                decoration: BoxDecoration(
+                                  color: on
+                                      ? tokens.accent.withValues(alpha: .08)
+                                      : null,
+                                  border: i == 0
+                                      ? null
+                                      : Border(
+                                          top: BorderSide(
+                                              color: tokens.cardBorder)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(s.label,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: on
+                                                  ? FontWeight.w800
+                                                  : FontWeight.w600,
+                                              color: on
+                                                  ? tokens.accent
+                                                  : onSurface)),
+                                    ),
+                                    Container(
+                                      width: 15,
+                                      height: 15,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: on
+                                              ? tokens.accent
+                                              : tokens.cardBorder,
+                                          width: on ? 4.5 : 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          key: const ValueKey('i-filter-reset'),
+                          onPressed: () => setSheet(() => draft =
+                              draft.copyWith(
+                                  statuses: {},
+                                  band: ItemPoolBand.all,
+                                  sort: ItemSort.dailyCostDesc)),
+                          child: const Text('重置'),
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: FilledButton(
+                          key: const ValueKey('i-filter-apply'),
+                          onPressed: () => Navigator.pop(bc, draft),
+                          child: Text(n > 0 ? '应用（$n 个条件）' : '应用'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    if (r != null && mounted) setState(() => _filter = r);
+  }
+
+  /// 空列表提示：无条件走分类空态；有条件时给「清除」出口，不留死胡同。
+  Widget _emptyHint({required bool hasFilter}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          children: [
+            Text(
+              hasFilter ? '没有匹配的物品' : '该分类下暂无物品 · 可切换分类或录入新物品',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: kItemMuted),
+            ),
+            if (hasFilter) ...[
+              const SizedBox(height: 10),
+              TextButton(
+                key: const ValueKey('i-filter-clear-all'),
+                onPressed: () {
+                  _qCtrl.clear();
+                  setState(() => _filter = ItemFilter.empty);
+                },
+                child: const Text('清除搜索与筛选',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ],
+        ),
+      );
 
   /// 深色 hero 控制盘（HG-G1）。
   Widget _hero(

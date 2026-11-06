@@ -80,8 +80,10 @@ class DbSchema {
   // 的名字由 `TagDao.seedFromJournalTags` 懒导入，不在 SQL 里解析 JSON）。
   // 51：物品模块排障批（2026-11-06）——migrations[50]（50→51）给 item_events 加
   // txn_id（事件级记账流水关联·二次付费删记录同删联动流水；纯加列零搬数据）。
+  // 52：物品批A（2026-11-06）——migrations[51]（51→52）给 item_profiles 加
+  // brand / serial / note 三列（I03 档案三字段；全可空、纯加列）。
   // 同 v49 教训：版本常量与 migrations 最高键必须同批同步。
-  static const int version = 51;
+  static const int version = 52;
  
 
   

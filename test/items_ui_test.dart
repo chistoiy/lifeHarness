@@ -620,4 +620,117 @@ void main() {
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
+  group('P7 列表搜索 / 筛选 / 空态（物品批A I02+I04）', () {
+    testWidgets('搜索命中名称与品牌，清除后恢复全量', (tester) async {
+      await useSurface(tester);
+      final mac = await seedMacbook();
+      final kb = await repo.addItem(const ItemProfile(
+          name: '机械键盘',
+          category: '数码',
+          buyDate: '2026-01-10',
+          price: 899,
+          brand: 'Keychron',
+          serial: 'K8-PRO-77'));
+      final shoes = await seedShoes();
+      await pump(tester, const ItemsPage());
+
+      expect(find.byKey(ValueKey('i-item-row-$mac')), findsOneWidget);
+      expect(find.byKey(ValueKey('i-item-row-$kb')), findsOneWidget);
+      expect(find.byKey(ValueKey('i-item-row-$shoes')), findsOneWidget);
+
+      // 名称子串（大小写不敏感）
+      await tester.enterText(find.byKey(const ValueKey('i-search')), 'nike');
+      await tester.pump();
+      expect(find.byKey(ValueKey('i-item-row-$shoes')), findsOneWidget);
+      expect(find.byKey(ValueKey('i-item-row-$mac')), findsNothing);
+
+      // 品牌也进 haystack（I03 加列后并入同一处）
+      await tester.enterText(find.byKey(const ValueKey('i-search')), 'keychron');
+      await tester.pump();
+      expect(find.byKey(ValueKey('i-item-row-$kb')), findsOneWidget);
+      expect(find.byKey(ValueKey('i-item-row-$shoes')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('i-search-clear')));
+      await tester.pump();
+      expect(find.byKey(ValueKey('i-item-row-$mac')), findsOneWidget);
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('状态筛选：应用后只留该状态 + 角标计数', (tester) async {
+      await useSurface(tester);
+      final mac = await seedMacbook();
+      final cam = await seedCamera(); // 闲置
+      await pump(tester, const ItemsPage());
+
+      expect(find.byKey(const ValueKey('i-filter-badge')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('i-filter-btn')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('i-fst-闲置')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('i-filter-apply')));
+      await settle5(tester);
+
+      expect(find.byKey(ValueKey('i-item-row-$cam')), findsOneWidget);
+      expect(find.byKey(ValueKey('i-item-row-$mac')), findsNothing);
+      expect(find.byKey(const ValueKey('i-filter-badge')), findsOneWidget);
+      // hero 仍按全量：两件都在计费池里，合计不为 0
+      expect(find.textContaining('¥ '), findsWidgets);
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('空结果给出口：清除搜索与筛选后回到全量', (tester) async {
+      await useSurface(tester);
+      final mac = await seedMacbook();
+      await pump(tester, const ItemsPage());
+
+      await tester.enterText(find.byKey(const ValueKey('i-search')), 'zzz-不存在');
+      await tester.pump();
+      expect(find.text('没有匹配的物品'), findsOneWidget);
+      expect(find.byKey(ValueKey('i-item-row-$mac')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('i-filter-clear-all')));
+      await tester.pump();
+      expect(find.byKey(ValueKey('i-item-row-$mac')), findsOneWidget);
+      await drainLogTimer(tester);
+    });
+  });
+
+  group('P7b 建档三字段与照片入口（物品批A I01+I03）', () {
+    testWidgets('品牌/序列号/备注落库；照片空态给拍照与相册两入口', (tester) async {
+      await useSurface(tester);
+      await pump(tester, const ItemsPage());
+      await tester.tap(find.byKey(const ValueKey('i-add-item')));
+      await settle5(tester);
+
+      // 照片空态：两个入口都在（真选图要平台通道，单测只钉入口与落库）
+      expect(find.byKey(const ValueKey('i-edit-photo-cam')), findsOneWidget);
+      expect(find.byKey(const ValueKey('i-edit-photo-lib')), findsOneWidget);
+
+      await tester.enterText(
+          find.byKey(const ValueKey('i-edit-name')), '测试相机');
+      await tester.enterText(
+          find.byKey(const ValueKey('i-edit-price')), '2200');
+      await tester.enterText(
+          find.byKey(const ValueKey('i-edit-brand')), 'Sony');
+      await tester.enterText(
+          find.byKey(const ValueKey('i-edit-serial')), 'SN-8899');
+      await tester.enterText(
+          find.byKey(const ValueKey('i-edit-note')), '配 28-70 镜头 · 防潮箱');
+      await tester.ensureVisible(find.byKey(const ValueKey('i-edit-save')));
+      await tester.tap(find.byKey(const ValueKey('i-edit-save')));
+      await settle5(tester);
+
+      final it = (await repo.loadAll())
+          .items
+          .firstWhere((x) => x.name == '测试相机');
+      expect(it.brand, 'Sony');
+      expect(it.serial, 'SN-8899');
+      expect(it.note, '配 28-70 镜头 · 防潮箱');
+      // 备注是档案层：不生成任何事件（时间轴只有购入那一条）
+      expect(it.events.length, 1);
+      expect(it.events.first.kind, kEvBuy);
+      await drainLogTimer(tester);
+    });
+  });
+
 }

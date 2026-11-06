@@ -96,12 +96,13 @@ class ItemFilter {
 /// 关键词归一化（搜索框输入 → 判定用；去首尾空白 + 小写）。
 String normalizeItemKeyword(String raw) => raw.trim().toLowerCase();
 
-/// 命中文本（I02 口径：名称 / 分类 / 状态三处）。
+/// 命中文本（I02 口径：名称 / 分类 / 状态；I03 加列后并入品牌 / 序列号 / 物品备注）。
 ///
-/// I03 落地加列后把品牌/序列号/物品级备注拼进这里即可——只有这一处要改，
-/// 搜索框与判定不必各改一遍。
+/// 集中在这一处：搜索框、判定、将来的「相关档案」检索都吃同一条 haystack，
+/// 加字段只改这里，不必每个调用方各改一遍。
 String itemHaystack(ItemProfile it) =>
-    '${it.name}\n${it.category}\n${it.status}'.toLowerCase();
+    '${it.name}\n${it.category}\n${it.status}\n${it.brand ?? ''}\n${it.serial ?? ''}\n${it.note ?? ''}'
+        .toLowerCase();
 
 bool _hitStatus(ItemProfile it, Set<String> statuses) {
   if (statuses.isEmpty) return true;

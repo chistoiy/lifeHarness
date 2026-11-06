@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/item_mounts.dart';
+import '../../../shared/widgets/image_attach.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/items_repository.dart';
 import '../domain/item_calc.dart';
@@ -49,6 +53,14 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   final _planCtl = TextEditingController(text: '300');
   final _stopPctCtl = TextEditingController(text: '30');
 
+  /// I03 档案三字段（品牌 / 序列号 / 物品级备注）。
+  final _brandCtl = TextEditingController();
+  final _serialCtl = TextEditingController();
+  final _noteCtl = TextEditingController();
+
+  /// I01 照片：存本机 note_images 的完整路径；空串＝无照片（可清空）。
+  String _photo = '';
+
   late DateTime _buy;
   DateTime? _warranty;
   String _cat = '数码';
@@ -82,6 +94,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _stopPctCtl.text = '${o.stopPct}';
       _stopYears = o.expectedYears ?? 5;
       _status = o.status;
+      _brandCtl.text = o.brand ?? '';
+      _serialCtl.text = o.serial ?? '';
+      _noteCtl.text = o.note ?? '';
+      _photo = o.photo ?? '';
     } else if (p != null) {
       _nameCtl.text = p.title;
       _priceCtl.text =
@@ -96,6 +112,9 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _priceCtl.dispose();
     _planCtl.dispose();
     _stopPctCtl.dispose();
+    _brandCtl.dispose();
+    _serialCtl.dispose();
+    _noteCtl.dispose();
     super.dispose();
   }
 
@@ -146,6 +165,26 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             controller: _nameCtl,
             textCapitalization: TextCapitalization.none,
             decoration: _inp('名称 · 品牌型号，如 MacBook Air M3'),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('i-edit-brand'),
+                  controller: _brandCtl,
+                  decoration: _inp('品牌'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('i-edit-serial'),
+                  controller: _serialCtl,
+                  decoration: _inp('序列号'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Row(
@@ -228,6 +267,14 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
               ),
             ),
           ],
+          const _Lbl('物品备注'),
+          TextField(
+            key: const ValueKey('i-edit-note'),
+            controller: _noteCtl,
+            maxLines: 3,
+            minLines: 2,
+            decoration: _inp('配件、来源、存放注意…（属档案层，不进成本时间轴）'),
+          ),
           const _Lbl('计费方式'),
           Wrap(
             spacing: 8,
@@ -322,23 +369,66 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         _ => '不设预期',
       };
 
+  /// 照片位：空态＝虚线框＋拍照/相册两入口；有图＝缩略图＋右上替换/删除。
+  /// 落盘复用 `pickAndStoreImage`（内容寻址去重、存 note_images），
+  /// 返回的完整路径写 photo 列——该列已登记进媒体引用表，不会被孤儿清理误删。
   Widget _photoRow() {
     final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      key: const ValueKey('i-edit-photo'),
-      onTap: () => AppToast.show(context, '拍照 / 相册（本地存储）'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 26),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: scheme.outlineVariant, style: BorderStyle.solid),
-        ),
-        child: Column(
-          children: [
-            Icon(itemCatIcon(_cat), size: 30, color: kItemMuted),
-            const SizedBox(height: 6),
-            Text(
+    final tokens = context.tokens;
+    if (_photo.isNotEmpty) {
+      final f = File(_photo);
+      return Column(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                Container(
+                  key: const ValueKey('i-edit-photo-img'),
+                  height: 168,
+                  width: double.infinity,
+                  color: kItemHeroBg,
+                  child: f.existsSync()
+                      ? Image.file(f, fit: BoxFit.cover)
+                      : const Center(
+                          child: Icon(Icons.broken_image_outlined,
+                              size: 28, color: kItemMuted)),
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Row(
+                    children: [
+                      _photoTool('替换', () => _pickPhoto()),
+                      const SizedBox(width: 6),
+                      _photoTool('删除', () => setState(() => _photo = '')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text('照片存本机应用目录，随整包备份带走，不进云端',
+              style: TextStyle(fontSize: 10, color: kItemMuted)),
+        ],
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: tokens.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.photo_camera_outlined, size: 26, color: kItemMuted),
+          const SizedBox(height: 6),
+          GestureDetector(
+            key: const ValueKey('i-edit-photo'),
+            onTap: () => _pickPhoto(),
+            child: Text(
               widget.origin != null
                   ? '点击更换照片'
                   : widget.prefill != null
@@ -346,10 +436,56 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                       : '添加物品照片（点击拍摄/选择）',
               style: const TextStyle(fontSize: 11, color: kItemMuted),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              MiniBtn(
+                key: const ValueKey('i-edit-photo-cam'),
+                icon: Icons.photo_camera_outlined,
+                label: '拍照',
+                onTap: () => _pickPhoto(camera: true),
+              ),
+              const SizedBox(width: 8),
+              MiniBtn(
+                key: const ValueKey('i-edit-photo-lib'),
+                icon: Icons.photo_library_outlined,
+                label: '相册',
+                onTap: () => _pickPhoto(),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _photoTool(String label, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: .60),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(label,
+              style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white)),
+        ),
+      );
+
+  /// [camera]=true 直取相机，否则走「相册/拍照」选择弹层。
+  Future<void> _pickPhoto({bool camera = false}) async {
+    final v = await pickAndStoreImage(
+      context,
+      bg: context.tokens.card,
+      fg: Theme.of(context).colorScheme.onSurface,
+      direct: camera ? ImageSource.camera : null,
+    );
+    if (v != null && mounted) setState(() => _photo = v);
   }
 
   Widget _warrantyButton() {
@@ -516,6 +652,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         planUnits: _mode == ItemMode.times ? (plan ?? 100) : null,
         unit: _mode == ItemMode.times ? _unit : '次',
         stopPct: _mode == ItemMode.stop ? stopPct : 30,
+        brand: _brandCtl.text.trim(),
+        serial: _serialCtl.text.trim(),
+        note: _noteCtl.text.trim(),
+        photo: _photo.isEmpty ? null : _photo,
         source: 'manual',
       );
       final id = await itemCreate(
@@ -548,6 +688,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         planUnits: _mode == ItemMode.times ? (plan ?? editing.planUnits) : null,
         unit: _mode == ItemMode.times ? _unit : editing.unit,
         stopPct: _mode == ItemMode.stop ? stopPct : editing.stopPct,
+        brand: _brandCtl.text.trim(),
+        serial: _serialCtl.text.trim(),
+        note: _noteCtl.text.trim(),
+        photo: _photo.isEmpty ? '' : _photo,
       );
       await ref.read(itemsRepositoryProvider).updateItem(updated);
       if (!mounted) return;

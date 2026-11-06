@@ -106,6 +106,9 @@ class ItemProfile {
     this.unit = '次',
     this.stopPct = 30,
     this.photo,
+    this.brand,
+    this.serial,
+    this.note,
     this.source = 'manual',
     this.sourceTxnId,
     this.deletedAt,
@@ -130,6 +133,12 @@ class ItemProfile {
   final String unit;
   final int stopPct;
   final String? photo;
+
+  /// 品牌 / 序列号 / 物品级备注（I03 档案三字段，2026-11-06 加）。三列均可空。
+  /// note 属档案层：可随时改，不进成本时间轴、不参与任何金额计算。
+  final String? brand;
+  final String? serial;
+  final String? note;
 
   /// manual 手动建档 · ledger 记账流水升级建档（来源徽标）。
   final String source;
@@ -162,6 +171,9 @@ class ItemProfile {
     String? unit,
     int? stopPct,
     String? photo,
+    String? brand,
+    String? serial,
+    String? note,
     String? source,
     int? sourceTxnId,
     int? deletedAt,
@@ -184,6 +196,9 @@ class ItemProfile {
         unit: unit ?? this.unit,
         stopPct: stopPct ?? this.stopPct,
         photo: photo ?? this.photo,
+        brand: brand ?? this.brand,
+        serial: serial ?? this.serial,
+        note: note ?? this.note,
         source: source ?? this.source,
         sourceTxnId: sourceTxnId ?? this.sourceTxnId,
         // 漏带 deletedAt 会把回收站里的档案洗成在册态（习惯模块踩过，这里显式带上）；
@@ -209,6 +224,9 @@ class ItemProfile {
         unit: r['unit'] as String? ?? '次',
         stopPct: r['stop_pct'] as int? ?? 30,
         photo: r['photo'] as String?,
+        brand: r['brand'] as String?,
+        serial: r['serial'] as String?,
+        note: r['note'] as String?,
         source: r['source'] as String,
         sourceTxnId: r['source_txn_id'] as int?,
         deletedAt: r['deleted_at'] as int?,
