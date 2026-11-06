@@ -8,6 +8,8 @@ import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
 import '../../domain/book_toc.dart';
 import '../../../../core/theme/app_theme.dart';
+// F6-1（批6）：抽屉 12 处裸 GestureDetector 收进按压原语（LH-K00）。
+import '../../../../shared/widgets/ui_kit.dart' show Pressable;
 import '../read_providers.dart';
 import './reader_pager.dart';
 import './reader_xray_panel.dart';
@@ -169,16 +171,41 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
 
   // ---------- 头部三态（xrfrag/hdr.frag 1:1） ----------
 
+  /// F6-1（批6）：抽屉内可点物统一原语＝`Pressable`(scale .96) ＋ `InkWell` 命中。
+  ///
+  /// 为什么不是裸 `GestureDetector`：那条路按下毫无反馈（抽屉 12 处全是这毛病）。
+  /// 为什么关 splash：同 `Pressable` 口径——阅读器是浮层叠浮层，水波要 Material
+  /// 祖先且会在面板上留一圈残影（毛玻璃教训同族），反馈只给缩放＋按压底色。
+  /// 命中行为：`InkWell` 内部即 `HitTestBehavior.opaque`，行内空白区照旧整行可点。
+  Widget _tap({
+    required Key key,
+    required VoidCallback? onTap,
+    required Widget child,
+    BorderRadius? radius,
+  }) =>
+      // onTap 为空＝该行此刻不可点（如无返回态）：原样挂子树，不挂假反馈。
+      onTap == null
+          ? KeyedSubtree(key: key, child: child)
+          : Pressable(
+              child: InkWell(
+                key: key,
+                onTap: onTap,
+                borderRadius: radius,
+                splashFactory: NoSplash.splashFactory,
+                child: child,
+              ),
+            );
+
   /// 常态行：[搜本书伪输入｜目录｜X-Ray｜收起]。
   Widget _hdrRowNormal(ColorScheme cs) {
     final st = widget.state;
     return Row(
       children: [
         Expanded(
-          child: GestureDetector(
+          child: _tap(
             key: const ValueKey('xrSearchPill'),
-            behavior: HitTestBehavior.opaque,
             onTap: _searchEnter,
+            radius: BorderRadius.circular(12),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -257,7 +284,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                   ),
                 ),
                 if (_q.text.isNotEmpty)
-                  GestureDetector(
+                  _tap(
                     key: const ValueKey('xrHdrClr'),
                     onTap: () {
                       _q.clear();
@@ -273,9 +300,8 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
           ),
         ),
         const SizedBox(width: 10),
-        GestureDetector(
+        _tap(
           key: const ValueKey('xrHdrCancel'),
-          behavior: HitTestBehavior.opaque,
           onTap: _searchExit,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -284,8 +310,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _muted),
             ),
           ),
-        ),
-      ],
+        ),      ],
     );
   }
 
@@ -310,9 +335,10 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   }
 
   Widget _seg(String key, String label, bool on, VoidCallback onTap) {
-    return GestureDetector(
+    return _tap(
       key: ValueKey(key),
       onTap: onTap,
+      radius: BorderRadius.circular(10),
       child: SizedBox(
         // F3-8：命中槽高 44（胶囊视觉 32 垂直居中不变）。
         height: 44,
@@ -356,10 +382,14 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     return Stack(
       children: [
         // 遮罩（面板外顶部条）：点按收起（Escape/返回键由父层处理）。
+        // 遮罩层不用 `Pressable`：整屏缩放会在一帧里露出四边缝隙（它不是「可点物」，
+        // 是命中面），只借 `InkWell` 的命中与语义——F6-1 的「零裸 GestureDetector」照旧。
         Positioned.fill(
-          child: GestureDetector(
+          child: InkWell(
             key: const ValueKey('brDrScrim'),
             onTap: widget.onClose,
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
             child: Container(color: Colors.black.withValues(alpha: .45)),
           ),
         ),
@@ -434,10 +464,10 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   /// 打开任一抽屉段都应看到「回到刚才在读」。
   Widget _backRow() => Padding(
     padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-    child: GestureDetector(
+    child: _tap(
       key: const ValueKey('brDrBack'),
-      behavior: HitTestBehavior.opaque,
       onTap: widget.onBackJump,
+      radius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: 10,
@@ -502,9 +532,8 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                 child: Row(
                   children: [
                     const Spacer(),
-                    GestureDetector(
+                    _tap(
                       key: const ValueKey('brDrFoldAll'),
-                      behavior: HitTestBehavior.opaque,
                       onTap: () => setState(() {
                         if (_allFolded) {
                           widget.state.folded.clear();
@@ -553,7 +582,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
           child: searching
               ? const SizedBox.shrink()
               : Center(
-                  child: GestureDetector(
+                  child: _tap(
                     key: const ValueKey('brDrPill'),
                     onTap: () {
                       if (!_scroll.hasClients) return;
@@ -642,7 +671,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   }
 
   Widget _hdrRow(ColorScheme cs, _DrHdr h) {
-    return GestureDetector(
+    return _tap(
       key: ValueKey('brDrFold-${h.gi}'),
       onTap: () => setState(() {
         widget.state.folded.contains(h.gi)
@@ -710,9 +739,8 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
               ),
             ),
           ),
-        GestureDetector(
+        _tap(
           key: ValueKey('brDrCh-$ci'),
-          behavior: HitTestBehavior.opaque,
           onTap: () {
             widget.onGoto(ci);
             setState(() {});
@@ -786,12 +814,13 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        GestureDetector(
+                        _tap(
                           key: const ValueKey('brDrBm'),
                           onTap: () {
                             widget.onAddBookmark();
                             setState(() {});
                           },
+                          radius: BorderRadius.circular(6),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
@@ -846,7 +875,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
             ),
           ),
         for (var i = 0; i < _hits.length && i < 50; i++)
-          GestureDetector(
+          _tap(
             key: ValueKey('brDrHit-$i'),
             onTap: () => widget.onSearchJump?.call(
               [
@@ -855,6 +884,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
               i,
               _q.text.trim(),
             ),
+            radius: BorderRadius.circular(14),
             child: Container(
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(10),

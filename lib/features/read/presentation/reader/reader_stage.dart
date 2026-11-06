@@ -105,23 +105,36 @@ extension _ReaderStage on _ReaderPageState {
     final pages = pag.pages[_pos.ci] ?? const <PagPage>[<PagPiece>[]];
     final pg = _pos.pg.clamp(0, pages.length - 1);
     final isLast = _pos.ci == doc.chapters.length - 1 && pg == pages.length - 1;
+    // F6-2（批6）：页动效＝**按方向**。旧实现恒 `Offset(.06,0)`（从右进），回翻时
+    // 页仍从右侧滑进来（像又往前走一步）。现在入场侧由 `_turn` 定，**出场页朝
+    // 入场侧的反面退**（前进＝新页从右进、旧页往左退；回翻镜像），读起来才有
+    // 「翻过去／翻回来」的方向感。时长 160ms（方案 §4.5 区间 120~180）＋easeOut。
+    final pageKey = ValueKey('page-${_pos.ci}-$pg');
+    final dir = _turn >= 0 ? 1.0 : -1.0;
     return AnimatedSwitcher(
       key: const ValueKey('br-pageflip'),
-      duration: const Duration(milliseconds: 220),
-      transitionBuilder: (child, anim) => FadeTransition(
-        opacity: anim,
-        child: SlideTransition(
-          position: Tween(begin: const Offset(.06, 0), end: Offset.zero)
-              .chain(CurveTween(curve: Curves.easeOut))
-              .animate(anim),
-          child: child,
-        ),
-      ),
+      duration: const Duration(milliseconds: 160),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      transitionBuilder: (child, anim) {
+        // 入场的那个 child 的键就是本帧的 pageKey；其余是正在退场的旧页。
+        final entering = child.key == pageKey;
+        return FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween(
+              begin: Offset(.06 * dir * (entering ? 1 : -1), 0),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOut)).animate(anim),
+            child: child,
+          ),
+        );
+      },
       child: Container(
         // 键里必须是**插值后的章号**：`'page-$_pos.ci-$pg'` 取的是 `_pos` 的
         // toString＋字面量 ".ci"（探针按键找页容器时实测拿到
         // `page-Instance of '_Pos'.ci-11`）。
-        key: ValueKey('page-${_pos.ci}-$pg'),
+        key: pageKey,
         alignment: Alignment.center,
         padding: EdgeInsets.fromLTRB(
           _cfg.mar,

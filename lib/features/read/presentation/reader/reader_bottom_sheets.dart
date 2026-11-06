@@ -122,12 +122,19 @@ class _ProgSheetState extends State<_ProgSheet> {
               value: (_frac * 1000).clamp(0, 1000).toDouble(),
               min: 0,
               max: 1000,
+              // F6-4（批6）：拖动中**只更滑条**，不回头重排整章（旧实现每个
+              // onChanged 都 `_ensureCur`→同步 layoutChapter＋写库，长书一拖一顿）。
+              // 松手（onChangeEnd）才回排，落点＝最终值实算，误差 ≤1 页。
               onChanged: (v) {
                 setState(() {
                   _frac = v / 1000;
-                  _home = widget.homeProbe();
                 });
+              },
+              onChangeEnd: (v) {
                 widget.onSeek(v / 1000);
+                // 回排后顺带刷新「回到进书位置」入口：宿主 _backPill 由这次 seek 定，
+                // 弹层自己 setState 才看得见（宿主 setState 不会重建本路由）。
+                setState(() => _home = widget.homeProbe());
               },
             ),
             Center(

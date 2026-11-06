@@ -9,6 +9,8 @@ import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
 import '../widgets/bs_cover.dart' show BsIcons;
 import '../../../../shared/widgets/ui_kit.dart' show EmptyDashRow;
+// F6-8（批6）：日期三列滚轮收敛到共享原语 LHWheel。
+import '../../../../shared/widgets/lh_wheel.dart';
 
 /// 阅读记录页（真机验收轮1e · 原型 p-readlog/renderReadLog）：
 /// 单条时间线卡（日期周几/时间段·止页/分钟渐变条 · 点卡就地展开改日期时长页码/删除）
@@ -1027,29 +1029,18 @@ class _WheelCol extends StatefulWidget {
 }
 
 class _WheelColState extends State<_WheelCol> {
-  late final FixedExtentScrollController _ctl = FixedExtentScrollController(
-    initialItem: widget.initialIndex.clamp(0, widget.items.length - 1),
-  );
-
   @override
   Widget build(BuildContext context) {
-    return ListWheelScrollView.useDelegate(
+    // F6-8（批6）：本处原注释写「与摘录表单 _ColWheel 同规格 · 跨文件独立一份」——
+    // 那份「独立一份」就是本次要收敛的东西：改用共享 `LHWheel`，几何照旧。
+    return LHWheel(
       key: ValueKey<String>(widget.keyName),
-      controller: _ctl,
+      keyPrefix: widget.keyName,
+      labels: widget.items,
+      initialIndex: widget.initialIndex,
+      height: 92,
       itemExtent: 30,
-      squeeze: 1.05,
-      diameterRatio: 2.4,
-      physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: widget.onChanged,
-      childDelegate: ListWheelChildBuilderDelegate(
-        childCount: widget.items.length,
-        builder: (context, i) => Center(
-          child: Text(
-            widget.items[i],
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-          ),
-        ),
-      ),
+      onSelect: widget.onChanged,
     );
   }
 }

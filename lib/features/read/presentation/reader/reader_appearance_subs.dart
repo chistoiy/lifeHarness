@@ -64,7 +64,8 @@ extension _ApSheetSubs on _ApSheetState {
     const SizedBox(height: 6),
     Expanded(
       child: ListView(
-        controller: widget.scrollCtl,
+        // F6-7：子页用自己的控制器（不复用宿主滚动位），主面板偏移与子页偏移互不干扰。
+        controller: _subCtl,
         children: [
           switch (_sub) {
             'font' => _fontSub(cs),

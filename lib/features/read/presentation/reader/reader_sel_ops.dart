@@ -179,6 +179,10 @@ extension _ReaderSelOps on _ReaderPageState {
   /// V1.53.2 选区放大镜：抓正文快照 + 记录手指落点（Stack 局部坐标）。
   void _setLoupe(Offset? global) {
     if (global == null) {
+      // 收起＝连带清掉节流待抓（否则拖尾定时器会在放大镜退场后再抓一帧）。
+      _loupeT?.cancel();
+      _loupeT = null;
+      _loupePend = null;
       _loupeImage?.dispose();
       _loupeImage = null;
       // ignore: invalid_use_of_protected_member
@@ -198,8 +202,27 @@ extension _ReaderSelOps on _ReaderPageState {
     _loupeAtFocal(anchor);
   }
 
-  /// 抓帧 + 落焦（focal 为 Stack 局部坐标）。
+  /// 抓帧 + 落焦（focal 为 Stack 局部坐标）。F6-3：**60ms 节流**——
+  /// 窗口内的焦点只盖写 `_loupePend`，到点再抓一帧（拖尾帧＝手指停住时的那一帧）。
   void _loupeAtFocal(Offset local) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final gap = now - _loupeAt;
+    if (gap >= kBrLoupeThrottleMs) {
+      _grabLoupe(local, now);
+      return;
+    }
+    _loupePend = local;
+    _loupeT ??= Timer(Duration(milliseconds: kBrLoupeThrottleMs - gap), () {
+      _loupeT = null;
+      final p = _loupePend;
+      _loupePend = null;
+      if (p == null || !mounted || _loupeFocal == null) return;
+      _grabLoupe(p, DateTime.now().millisecondsSinceEpoch);
+    });
+  }
+
+  /// 真抓一帧（唯一的 `toImageSync` 出口）。
+  void _grabLoupe(Offset local, int now) {
     final bo = _contentBoundaryKey.currentContext?.findRenderObject();
     ui.Image? img;
     if (bo is RenderRepaintBoundary) {
@@ -209,6 +232,7 @@ extension _ReaderSelOps on _ReaderPageState {
     }
     _loupeImage?.dispose();
     _loupeImage = img;
+    _loupeAt = now;
     // ignore: invalid_use_of_protected_member
     setState(() => _loupeFocal = local);
   }
@@ -249,6 +273,9 @@ extension _ReaderSelOps on _ReaderPageState {
     _lpCi = -1;
     _lpPi = -1;
     // 关闭选区时一并收起放大镜，避免残留。
+    _loupeT?.cancel();
+    _loupeT = null;
+    _loupePend = null;
     _loupeImage?.dispose();
     _loupeImage = null;
     _loupeFocal = null;
@@ -335,52 +362,115 @@ extension _ReaderSelOps on _ReaderPageState {
       o1: sel.o1,
     );
     final rid = 'r${DateTime.now().millisecondsSinceEpoch}';
-    var flash = '已划线（$tg）· 同步进本书书摘';
-    if (_brSync) {
-      // 硬约束①：划线即一条「划线」型书摘直接进既有摘录表，携带 cf+rid。
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final ch = doc.chapters[sel.ci].title;
-      final pg = pag == null ? null : pag.gPosEst(sel.ci, 0) + 1;
-      final id = await repo.addQuote(
-        BookQuote(
-          bookId: widget.bookId,
-          kind: BookQuote.kKindMark,
-          tag: tg,
-          body: body,
-          chapter: ch,
-          page: pg,
-          cf: cf,
-          rid: rid,
-          origin: '阅读器',
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
-      if (id == null) {
-        // 真机反馈⑤：同键在库行（手抄摘录无 cf）撞车——旧实现静默丢划线致
-        // 「正文不上色、书摘里却有」；现在给命中行补 cf/rid/色类，划线定位到该行。
-        final hit = await repo.attachCfOnDup(
-            widget.bookId, ch, pg, body, cf, rid, tg);
-        if (hit) flash = '已在书摘中，已定位（$tg）';
-      }
-    } else {
-      // brSync 关：暂存本地全量 kv，开库后由渲染层按 cf 生效（原型 BR_LOCAL_HL）。
-      final next = [
+    final sync = _brSync;
+    // F6-5（批6）：**先上色、后落库**。旧实现 `await addQuote` → `await _reloadHls()`
+    // 才 setState，长书里这两跳要几十到几百毫秒，手指抬起后底色迟迟不出现（读作「没划上」，
+    // 用户会再划一次＝重复书摘）。现在这条先按暂存行即刻进渲染层：`_hlsAt` 按 rid 去重，
+    // 落库后库内行接住同一 rid，不会铺两层色（F-13 既有口径）。
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      _localHl = [
         ..._localHl,
         _LocalHl(id: rid, bookId: widget.bookId, cf: cf, tg: tg),
       ];
-      await repo.setKv('reader.hl', _LocalHl.encodeAll(next));
-    }
-    await _reloadHls();
-    if (!mounted) return;
-    // ignore: invalid_use_of_protected_member
-    setState(() {
       _selController.clear();
       _hlPop = false;
     });
+    void rollback() {
+      if (!mounted) return;
+      // ignore: invalid_use_of_protected_member
+      setState(() => _localHl =
+          _localHl.where((h) => h.id != rid).toList(growable: false));
+    }
+
+    var flash = '已划线（$tg）· 同步进本书书摘';
+    int? quoteId;
+    try {
+      if (sync) {
+        // 硬约束①：划线即一条「划线」型书摘直接进既有摘录表，携带 cf+rid。
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final ch = doc.chapters[sel.ci].title;
+        final pg = pag == null ? null : pag.gPosEst(sel.ci, 0) + 1;
+        quoteId = await repo.addQuote(
+          BookQuote(
+            bookId: widget.bookId,
+            kind: BookQuote.kKindMark,
+            tag: tg,
+            body: body,
+            chapter: ch,
+            page: pg,
+            cf: cf,
+            rid: rid,
+            origin: '阅读器',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        if (quoteId == null) {
+          // 真机反馈⑤：同键在库行（手抄摘录无 cf）撞车——旧实现静默丢划线致
+          // 「正文不上色、书摘里却有」；现在给命中行补 cf/rid/色类，划线定位到该行。
+          final hit = await repo.attachCfOnDup(
+              widget.bookId, ch, pg, body, cf, rid, tg);
+          if (hit) flash = '已在书摘中，已定位（$tg）';
+        }
+      } else {
+        // brSync 关：暂存本地全量 kv，开库后由渲染层按 cf 生效（原型 BR_LOCAL_HL）。
+        final next = [
+          ..._localHl.where((h) => h.id != rid),
+          _LocalHl(id: rid, bookId: widget.bookId, cf: cf, tg: tg),
+        ];
+        await repo.setKv('reader.hl', _LocalHl.encodeAll(next));
+      }
+      // 库内行接管暂存行（同 rid 去重），此后再改配色/想法都走库。
+      await _reloadHls();
+    } catch (e) {
+      // B-5：落库失败回滚＋提示，不静默留一条假色块。
+      // catch-ok: 这里不直接写 AppLog —— `AppToast.showError` 本身就是双通道出口
+      // （人话提示＋按 `prefix：$e` 记一条日志页条目），再记一行会同一失败刷两行。
+      rollback();
+      if (!mounted) return;
+      AppToast.showError(context, e, prefix: '划线保存失败，已撤回这次上色');
+      return;
+    }
+    if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
     _showFlash(flash);
-    readToast(context, '高亮即一条划线书摘 · 笔记库可查（联动 L5）');
+    // F6-5 undo：撤销窗口只给「这次真新落下的那条」——撞车复用既有书摘时不给，
+    // 否则一撤就把用户早就有的书摘删掉（B-5「撤销只撤已落库那条」）。
+    if (quoteId != null) {
+      final qid = quoteId;
+      AppToast.showUndo(context, '已划线 · 书摘已同步', onUndo: () {
+        unawaited(_undoHl(qid, rid));
+      });
+    } else if (!sync) {
+      AppToast.showUndo(context, '已划线 · 暂存本机', onUndo: () {
+        unawaited(_undoHlLocal(rid));
+      });
+    } else {
+      readToast(context, '高亮即一条划线书摘 · 笔记库可查（联动 L5）');
+    }
+  }
+
+  /// F6-5 撤销（已落库那条）：删书摘行＝划线同删（与 `_delHl` 的 LH-S31 确认不冲突：
+  /// 这里撤的是「刚做错」的即时窗口，事后再删照旧走确认）。
+  Future<void> _undoHl(int quoteId, String rid) async {
+    final repo = ref.read(readRepositoryProvider);
+    await repo.softDeleteQuote(quoteId);
+    await _reloadHls();
+    if (!mounted) return;
+    ref.read(readTickProvider.notifier).state++;
+    readToast(context, '已撤销这次划线');
+  }
+
+  /// F6-5 撤销（brSync 关·暂存行）：只从本机暂存 kv 里摘掉这条。
+  Future<void> _undoHlLocal(String rid) async {
+    final repo = ref.read(readRepositoryProvider);
+    final keep = _localHl.where((h) => h.id != rid).toList();
+    await repo.setKv('reader.hl', _LocalHl.encodeAll(keep));
+    await _reloadHls();
+    if (!mounted) return;
+    ref.read(readTickProvider.notifier).state++;
+    readToast(context, '已撤销这次划线');
   }
 
   /// F-15（2026-10-07 真机反馈·产品「删划线会把同段几条一起删掉」）：删除口必须按

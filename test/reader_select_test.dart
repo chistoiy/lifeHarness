@@ -387,7 +387,9 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       await t.tap(find.byKey(const ValueKey('brColor-共鸣')));
       await step(t, ms: 300);
       expect(find.textContaining('已划线（共鸣）'), findsOne);
-      expect(find.textContaining('高亮即一条划线书摘'), findsOne);
+      // 批6 F6-5：划线后给的是**带撤销**的提示条（旧实现只给一句普通 toast，
+      // 划错了只能去笔记库找回来）。
+      expect(find.textContaining('已划线 · 书摘已同步'), findsOne);
       final qs = await repo.quotesOf('s3');
       expect(qs, hasLength(1));
       final q = qs.first;

@@ -74,35 +74,18 @@ class _ColWheel extends StatefulWidget {
 }
 
 class _ColWheelState extends State<_ColWheel> {
-  late final FixedExtentScrollController _ctl = FixedExtentScrollController(
-    initialItem: widget.initialIndex.clamp(0, widget.items.length - 1),
-  );
-
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    // F6-8（批6）：裸 `ListWheelScrollView` → 共享原语 `LHWheel`（吸中震动＋等值守卫
+    // 由原语统一给）。几何按原样（高 92 / 项高 30），调用方键名与回调签名不变。
+    return LHWheel(
+      key: widget.keyName == null ? null : ValueKey<String>(widget.keyName!),
+      keyPrefix: widget.keyName,
+      labels: widget.items,
+      initialIndex: widget.initialIndex,
       height: 92,
-      child: ListWheelScrollView.useDelegate(
-        key: widget.keyName == null ? null : ValueKey<String>(widget.keyName!),
-        controller: _ctl,
-        itemExtent: 30,
-        squeeze: 1.05,
-        diameterRatio: 2.4,
-        physics: const FixedExtentScrollPhysics(),
-        onSelectedItemChanged: widget.onChanged,
-        childDelegate: ListWheelChildBuilderDelegate(
-          childCount: widget.items.length,
-          builder: (context, i) => Center(
-            child: Text(
-              widget.items[i],
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-      ),
+      itemExtent: 30,
+      onSelect: widget.onChanged,
     );
   }
 }

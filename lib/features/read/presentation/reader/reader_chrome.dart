@@ -251,6 +251,11 @@ extension _ReaderChrome on _ReaderPageState {
       );
   }
 
+  /// F6-1（批6）：底栏图标钮＝`Pressable`(scale .96)＋`InkWell` 命中。
+  /// 旧实现是裸 `GestureDetector` 外挂 `AnimatedContainer(alpha: .0)`——那个「空动画」
+  /// 只有时长没有终值，按下去纹丝不动（无任何反馈）。现在按压走共享原语 LH-K00，
+  /// splash 关掉（同 `Pressable` 口径：阅读器浮层不留水波残影）。键仍在钮自身，
+  /// 探针/用例的 `find.byKey` 口径不变。
   Widget _brIconBtn(
     BrBar bar,
     String key,
@@ -258,31 +263,30 @@ extension _ReaderChrome on _ReaderPageState {
     IconData icon,
     VoidCallback onTap,
   ) {
-    return GestureDetector(
-      key: ValueKey(key),
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-        decoration: BoxDecoration(
-          color: bar.chip.withValues(alpha: .0),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 19, color: bar.fg),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                color: bar.fg.withValues(alpha: .8),
+    return Pressable(
+      child: InkWell(
+        key: ValueKey(key),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: bar.chip.withValues(alpha: .12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 19, color: bar.fg),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: bar.fg.withValues(alpha: .8),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -325,7 +325,9 @@ void main() {
       await openReader(t, 'r2');
       await openAp(t);
       await t.tap(find.byKey(const ValueKey('brApSubBtn-font')));
-      await step(t);
+      // 批6 F6-7：主↔子改 150ms 淡入淡出，过渡期间两侧同时在树上（主面板入口卡
+      // 与子页标题都叫「字体样式」）——多走一帧等转场收尾再断言。
+      await step(t, times: 2);
       expect(find.byKey(const ValueKey('brApFontCats')), findsOne);
       expect(find.text('字体样式'), findsOne);
       // 全部分类下 4 张字卡在场；点「衬线」只剩宋体一张。

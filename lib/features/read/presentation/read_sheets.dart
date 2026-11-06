@@ -11,6 +11,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/image_attach.dart';
 import '../../../shared/widgets/ui_kit.dart' show FieldError;
+// F6-8（批6）：滚轮统一走共享原语 LHWheel（摘录表单三列＋页码列）。
+import '../../../shared/widgets/lh_wheel.dart';
 import '../data/isbn_enrich.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
@@ -432,31 +434,21 @@ class _NumWheel extends StatefulWidget {
 }
 
 class _NumWheelState extends State<_NumWheel> {
-  late final FixedExtentScrollController _ctl = FixedExtentScrollController(
-    initialItem: ((widget.value ~/ 5) - 1).clamp(0, widget.max ~/ 5 - 1),
-  );
-
   @override
   Widget build(BuildContext context) {
-    return ListWheelScrollView(
+    final n = (widget.max ~/ 5).clamp(1, 100000);
+    // F6-8（批6）：裸 `ListWheelScrollView` → 共享原语 `LHWheel`。
+    // 标签仍是 5/10/…（步长 5），下标→值的换算留在本层，调用方口径不变。
+    return LHWheel(
       // 显式 ValueKey<String>：字段访问不经提升会推成 ValueKey<String?>，与 finder 的
       // ValueKey<String> runtimeType 不同 → == 恒 false（Dart 泛型陷阱）。
       key: widget.keyName == null ? null : ValueKey<String>(widget.keyName!),
-      controller: _ctl,
+      keyPrefix: widget.keyName,
+      labels: [for (var i = 1; i <= n; i++) '${i * 5}'],
+      initialIndex: ((widget.value ~/ 5) - 1).clamp(0, n - 1),
+      height: 92,
       itemExtent: 30,
-      squeeze: 1.05,
-      diameterRatio: 2.4,
-      physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: (i) => widget.onChanged((i + 1) * 5),
-      children: [
-        for (var i = 0; i < widget.max ~/ 5; i++)
-          Center(
-            child: Text(
-              '${(i + 1) * 5}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-            ),
-          ),
-      ],
+      onSelect: (i) => widget.onChanged((i + 1) * 5),
     );
   }
 }

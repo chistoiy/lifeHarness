@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/logging/app_log.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
+// F6-8（批6）：滚轮统一走共享原语 LHWheel（全仓唯一滚轮）。
+import '../../../../shared/widgets/lh_wheel.dart';
 import '../../data/epub_css.dart';
 import '../../domain/reader_cfg.dart';
 import './reader_bg.dart';
@@ -185,6 +187,18 @@ class _ApSheetState extends State<_ApSheet> {
   /// R3-7 二级页栈（同一弹层内部）：null＝主面板；否则 font/ind/turn/theme/bg/s2t。
   String? _sub;
 
+  /// F6-7（批6）：二级页自己的滚动控制器。旧实现主/子共用 `widget.scrollCtl`
+  /// （DraggableScrollableSheet 的控制器）——主面板滚到中段再点进二级页，子页
+  /// 会接着那个偏移打开，标题行直接滚出视野。现在各用各的：主面板守住宿主控制器
+  /// （拖拽吸附靠它），子页自己的偏移各自保持。
+  final ScrollController _subCtl = ScrollController();
+
+  @override
+  void dispose() {
+    _subCtl.dispose();
+    super.dispose();
+  }
+
   /// 字体二级页当前分类 chip（原型 brApFontCat，'全部' 起）。
   String _fontCat = '全部';
 
@@ -278,13 +292,40 @@ class _ApSheetState extends State<_ApSheet> {
     final tokens = context.tokens;
     // T14：面板的每次重建都把草稿态登记给宿主（取消之外的两条离场路径没有回调）。
     _reportExit();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-      child: Column(
-        key: const ValueKey('sheetBrAppearance'),
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: _sub == null ? _apMain(cs, tokens) : _apSub(cs),
+    final sub = _sub;
+    return PopScope(
+      // F6-7（批6）：二级页在场时，系统返回键**先退一级**回主面板，而不是把整个
+      // 外观面板关掉（旧行为＝一按返回全没了，用户选的纸色也跟着丢）。
+      // 主面板时 `canPop: true`＝返回键照旧关面板（下滑/点遮罩两条路不受影响）。
+      canPop: sub == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _sub == null) return;
+        _closeSub();
+      },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Column(
+          key: const ValueKey('sheetBrAppearance'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              // 主↔子切换 150ms 淡入淡出（方案 §4.5 区间 120~180）：
+              // 旧实现是同一帧里整块内容被换掉，读起来像「闪一下」。
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 150),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeOut,
+                child: Column(
+                  key: ValueKey('brApBody-${sub ?? 'main'}'),
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: sub == null ? _apMain(cs, tokens) : _apSub(cs),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -794,29 +835,17 @@ class _AutoPageSheetState extends State<_AutoPageSheet> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            SizedBox(
+            // F6-8（批6）：四处裸 `ListWheelScrollView` 收敛到共享原语 `LHWheel`
+            // （吸中 `selectionClick` ＋等值守卫由原语统一给，本地不再各写一份）。
+            // 几何按原样传：高 92 / 项高 30，观感不动。
+            LHWheel(
+              key: const ValueKey('wBrAuto'),
+              keyPrefix: 'wBrAuto',
+              labels: [for (final s in kBrAutos) '$s 秒'],
+              initialIndex: _i,
               height: 92,
-              child: ListWheelScrollView.useDelegate(
-                key: const ValueKey('wBrAuto'),
-                controller: FixedExtentScrollController(initialItem: _i),
-                itemExtent: 30,
-                squeeze: 1.05,
-                diameterRatio: 2.4,
-                physics: const FixedExtentScrollPhysics(),
-                onSelectedItemChanged: (i) => setState(() => _i = i),
-                childDelegate: ListWheelChildBuilderDelegate(
-                  childCount: kBrAutos.length,
-                  builder: (_, i) => Center(
-                    child: Text(
-                      '${kBrAutos[i]} 秒',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              itemExtent: 30,
+              onSelect: (i) => setState(() => _i = i),
             ),
             const SizedBox(height: 4),
             Text(

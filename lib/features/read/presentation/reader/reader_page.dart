@@ -29,6 +29,8 @@ import '../../../../core/logging/app_log.dart';
 import '../../../../core/theme/app_theme.dart'; // F3-3：context.tokens（顶栏划线兜底色收 accent）
 import '../../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
 import '../../../../shared/widgets/load_error_state.dart' show LoadErrorBanner;
+// F6-1（批6）：底栏/抽屉可点物换共享按压原语 LH-K00。
+import '../../../../shared/widgets/ui_kit.dart' show AppToast, Pressable;
 import '../../data/xray/xray_dao.dart' show XrayEntityRow;
 import '../../data/epub_doc.dart';
 import '../../domain/book.dart';
@@ -59,6 +61,10 @@ part 'reader_xray.dart';
 part 'reader_page_pag.dart';
 part 'reader_page_boot.dart';
 part 'reader_page_scroll.dart';
+
+/// F6-3（批6）：放大镜抓帧节流窗口。拖动一秒里的几十个指针事件只抓 ~16 帧，
+/// 窗口末尾补抓＝手指停住时的那帧清晰图（方案 §4.2「60ms 节流抓帧」）。
+const int kBrLoupeThrottleMs = 60;
 
 /// 阅读主屏（V1.50 · 事实源 `#p-readerPage` BR-2 + V1.51 目录侧边抽屉）。
 ///
@@ -145,6 +151,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   Offset? _loupeFocal;
   ui.Image? _loupeImage;
 
+  // F6-3（批6）：放大镜抓帧节流。旧实现每个指针事件都 `toImageSync` 抓整页
+  // （拖动一秒几十帧＝几十次全页栅格化）。现在 60ms 一抓，被吞掉的焦点留
+  // `_loupePend`，窗口到点补抓——「停笔补一帧清晰帧」由这枚拖尾定时器兑现。
+  Timer? _loupeT;
+  int _loupeAt = 0; // 上次抓帧时刻（ms）
+  Offset? _loupePend; // 节流窗口内的最新焦点（窗口末尾补抓）
+
 
   // 命中导航（搜本书/全书检索共用）
   List<({int ci, int pi, String text})> _hits = const [];
@@ -152,6 +165,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   String _hitQ = '';
   /// 当前高亮段（`from`＝块起点：段跨页续排后同段有两块，只按 pi 会两块同时点亮）。
   ({int ci, int pg, int pi, int from})? _hitMark;
+
+  /// F6-2（批6）：本次翻页方向（+1 前进 · -1 回翻）。舞台拿它决定页从哪侧滑入——
+  /// 旧实现只有单向（`Offset(.06, 0)` 恒为「从右进」），回翻时页仍从右边滑进来，
+  /// 读起来像又往前走了一步。跳章/seek 也按目标与当前的大小关系给方向。
+  int _turn = 1;
 
   // 批3 划词/划线（原型 brV.sel + BS_QUOTES.cf + BR_LOCAL_HL）。
   // 轮4③：同章闭区间 + 首/尾段内字符偏移（长按默认命中一句 · 轮5① 扩选改为首尾手柄拖动）。
@@ -269,6 +287,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       _brightOwned = false;
       unawaited(_wake(false));
     }
+    _loupeT?.cancel();
     _loupeImage?.dispose();
     _scr.tick?.cancel();
     _scrollCtrl.dispose();
@@ -345,6 +364,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final doc = _doc;
     final pag = _pag;
     if (doc == null || pag == null) return;
+    // F6-2：方向随本次翻页走（含跨章——进章/回章同向于翻页方向）。
+    _turn = d < 0 ? -1 : 1;
     if (_cfg.mode == 'scroll') {
       // 滚动模式：翻≈一屏。F5-6：与自动翻页同一条动效（不再 jumpTo 硬跳）。
       _scrByScreen(d);
@@ -416,6 +437,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
           );
     setState(() {
       if (from != null && from.ci != ci) _jumpFrom = from;
+      // F6-2：跳章＝按章号大小给方向（往后跳＝前进）。
+      _turn = ci >= _pos.ci ? 1 : -1;
       _pos.ci = ci;
       _pos.pg = 0;
       _drawerOpen = false;
@@ -436,6 +459,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (f == null) return;
     setState(() {
       _jumpFrom = null;
+      _turn = (f.ci != _pos.ci ? f.ci > _pos.ci : f.pg >= _pos.pg) ? 1 : -1;
       _pos.ci = f.ci;
       _pos.pg = f.pg;
       _drawerOpen = false;
@@ -456,6 +480,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final doc = _doc;
     if (pag == null || doc == null) return;
     final p = pag.fracTo(f);
+    // F6-2：seek 落点可能跨章，方向按「目标相对当前」定，与新页面滑入侧一致。
+    _turn = (p.ci != _pos.ci ? p.ci > _pos.ci : p.pg >= _pos.pg) ? 1 : -1;
     setState(() {
       _pos.ci = p.ci;
       _pos.pg = p.pg;
@@ -472,6 +498,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final h = _homePos;
     if (h == null) return;
     setState(() {
+      _turn = (h.ci != _pos.ci ? h.ci > _pos.ci : h.pg >= _pos.pg) ? 1 : -1;
       _pos.ci = h.ci;
       _pos.pg = h.pg;
       _backPill = false;
