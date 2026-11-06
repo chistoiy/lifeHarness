@@ -3,12 +3,12 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径：硬闸＝`python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤9,950 字节·叙事只留「本批／上一批」两级且各 ≤400 字符）；**黄线＝上限 90%（8,955 字节），到线即当轮瘦身，上限随瘦身棘轮只降不升**（细则＝`AGENTS.md`「文档体量治理」）。收尾改本文件一律走 `status_set.py`（`--rotate`→`--set`），禁止同行追加历史；溢出留工单、历史沉 `docs/archive/`。
 
-- **上一批＝** 第六批死键清理（`0495081a`·14 文件）：产品令「无用的都移除掉」——先核消费方再删：`media.timerUI` 确为死键全链路删（provider／设置页行／原型 MSET 同步）；`media.speedFold` 有消费方保留；`read.timerUI` 属另键不动；购书费入账功能层清零；DB 物理层保留不 DROP（免不可逆迁移，概览与备份导出登记保留）。新守护 4 例·变异两刀红其位。
-- **本批＝** 竞品补全批0＋批1（11-06·纯 dart＋三处 UI 接线）：第0批＝C13 需求口径修正（阅读只落 EPUB）＋C01 AI 发送前脱敏＋仅摘要发送（五条拍板口径·renderForSend 唯一出口·默认开）；批1＝三领域层 merchant_suggest／ics_export（农历逐年展开）／wiki_links＋C03 导入商户分类预填直接接线＋子批 B 三处 UI（ICS 导出档、MdView 双链与反链面板、AI 隐私两开关）＋原型三专版回灌过门（注册表 --write 后 CLEAN）。波次全绿·变异刀各红其位·analyze 45 存量零 error·doclint PASS；未出包（攒批）；留白四条见工单 §6。
+- **本批＝** 竞品补全批2（11-06·批1 留白收尾·零 UI 结构新增）：①挂载目录笔记改名时引用方挂载文件当场回写（回写失败退回原行为不反噬保存）＋③导出弹层 ics 档汇总行改「日历项·时间范围」口径（不再沿用模块数·体积、不假话「暂无数据」）；②外链跳转（须网络白名单需求门）④反链扩源（改变已过门样张行语义·须回原型门）仍挂账。批内四波全绿·变异两刀红其位·doclint PASS；未出包（攒批）。
+- **上一批＝** 竞品补全批0＋批1（11-06·纯 dart＋三处 UI 接线）：第0批＝C13 需求口径修正（阅读只落 EPUB）＋C01 AI 发送前脱敏＋仅摘要发送（五条拍板口径·默认开）；批1＝merchant_suggest／ics_export（农历逐年展开）／wiki_links 三领域层＋C03 导入预填接线＋三处 UI（ICS 导出档、MdView 双链与反链面板、AI 隐私开关）＋原型三专版回灌过门。波次全绿·变异刀红其位；留白四条见工单 §6（①③已由批2 清）。
 
 ## 基线（八项，其余不写）
 
-**未推＝4**（第六批 `0495081a`＋上轮收尾状态 `21b9cbf8`＋本批功能 `87b6bc49`＋本枚收尾提交待推；六枚功能批已于 11-06 双端推齐并 `fetch` 回读核验；读数 `git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
+**未推＝6**（第六批 `0495081a`＋上轮收尾状态 `21b9cbf8`＋批0+1 功能 `87b6bc49`＋批1 收尾 `8d3908a5`＋批2 功能 `df6c5e1e`＋本枚收尾提交待推；六枚功能批已于 11-06 双端推齐并 `fetch` 回读核验；读数 `git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
 - 最新预发布＝**`v0.2.15-mm-p7`**（钉版 `afae47d2`·装机 **8202**·arm64 单包 53,359,829 B·**双端挂齐＝GitHub `v0.2.15-mm-p7`＋Gitee `1225157`**·附件名 `lifeHarness-8202-arm64.apk`）／`v0.2.15-nfc`（钉版 `38d355a7`·发版件 **6173**·arm64 单包 42,224,880 B·**双端挂齐＝GitHub `415828988`＋Gitee `1213591`**）／`v0.2.15-desktop-b1`（钉版 `0807a971`·发版件 6144·双端挂齐＝GitHub `413683416`＋Gitee `1207740`）／`-time-b2`／`-journal`／`-nav-collapse`（6106·真机门 31 条）。⚠ 发版口径＝只挂 arm64 瘦身包禁 ≥100MB·Gitee 匿名直链被拦·⚠ 勿卸载＝清库；逐枚钉版/双端 id/md5＝`docs/archive/复测包与发版台账.md`§A
 - 再前预发布＝`v0.2.15-tree-swipe`／`tree-follow`／`note-mount`／`note-local`（**DB v39→v42 首枚**）／`v0.2.14-health-media`／`v0.2.13-media`（三包 6089/5089/8089）——台账＝同档 §A。
 - DB＝`DbSchema.version=50`（v50＝**日记批2b 建 `tags`＋`tag_links`**（语句表 `lib/core/database/schema/tag.dart`·聚合 `...tg.mig`；`version` 与 `migrations` **必须同批改**——S6 抓过漏改 version ⇒ 真机 onUpgrade 不触发）；v49＝NFC 批1b 给 `nfc_cards` 加三列、v48＝NFC 批1 建表、v47＝思维导图批5 加四列、v46＝建 `mindmap_folders`、v45＝思维导图批1 双写 DDL，逐版细节＝沉各归档工单）
