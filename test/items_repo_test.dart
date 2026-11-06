@@ -29,10 +29,8 @@ void main() {
     for (final sql in DbSchema.itemSchemaStatements) {
       await db.execute(sql);
     }
-    // 排障批：migrations[50]（50→51）item_events 加 txn_id（二次付费删记录链路）。
-    for (final sql in DbSchema.migrations[50]!) {
-      await db.execute(sql);
-    }
+    // 排障批 50→51 的 txn_id 现已并入基础 DDL（item_events.txn_id），
+    // 不再在此补跑 ALTER（否则 duplicate column）；本批 brand/serial/note 同理走 DDL。
     repo = ItemsRepository(db);
   });
 

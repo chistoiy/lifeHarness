@@ -61,7 +61,8 @@
       amount REAL NOT NULL DEFAULT 0,
       note TEXT,
       event_date TEXT NOT NULL,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      txn_id INTEGER
     )
     ''',
     '''
