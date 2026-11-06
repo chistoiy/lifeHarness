@@ -193,7 +193,7 @@ _gate("守护十一", "AGENTS.md", os.path.getsize("AGENTS.md"), AGENTS_BYTES_MA
 # 十二) 交接文档（2026-10-14 首次瘦身＝正文变更日志改滚动窗口只留近 7 天：203140→149674 字节；
 #       2026-10-16 治理五轮T2 二次瘦身＝「附」段被当成第二面变更日志，164 条流水 137 KB 整段沉档：161031→21540 字节；
 #       2026-11-06 三次瘦身＝滚动窗口沉档 10-17~10-26 条目：22152→15921 字节）
-JIAOJIE_BYTES_MAX = 18309            # 17.9 KiB（棘轮＝瘦身后实测 15921 × 1.15 取整；上一档 24289·只降不升）
+JIAOJIE_BYTES_MAX = 17868            # 17.4 KiB（棘轮＝瘦身后实测 15538 × 1.15 取整；上一档 18309·只降不升）
 _gate("守护十二", "docs/交接文档.md", os.path.getsize("docs/交接文档.md"), JIAOJIE_BYTES_MAX)
 # 十二B) 交接文档「唯一活体变更日志面」内容型闸（2026-10-16 治理五轮T2 新增·守护十二只卡总字节看不见病根）
 #        病灶＝「附·本机未入库资产清单」标题之下被当成第二面变更日志，逐轮流水堆到 137 KB／全文 87%，
@@ -324,6 +324,23 @@ for _u in _unlisted:
               "仍活跃请把文件名加进 doclint 守护十九 ACTIVE_TICKETS19" % _u)
 for _m in _missing:
     g.append("守护十九：活单名单里的 %s 不在 docs/handoff/——已归档请从名单摘掉；否则红" % _m)
+# ---- 守护二十三：STATUS「DB＝」读数须与 schema.dart 同源（2026-11-06 排障批3 收尾漏改后立）----
+# 起因：批3 落 v51 迁移，`version` 与 `migrations` 同批改了，但 STATUS 基线「DB＝」行仍写 v50 ——
+# 收尾仪式里没有任何一条闸比这两处，下次会话按 STATUS 读 DB 版本会读到旧值（事实源静默漂移）。
+# 复发后果：备份/恢复批次按旧版本号判断兼容性、发版台账记错 DB 版本、迁移批误判「本批零迁移」。
+# 判据：STATUS 出现 `DbSchema.version=N` 就必须等于 schema.dart 的 `static const int version = M;`。
+_sm = os.path.join("lib", "core", "database", "schema.dart")
+try:
+    _sv = re.search(r"static const int version = (\d+);", open(_sm, encoding="utf-8").read())
+    _sd = re.search(r"DbSchema\.version=(\d+)", open(os.path.join("docs", "STATUS.md"), encoding="utf-8").read())
+    if _sv and not _sd:
+        g.append("守护二十三：docs/STATUS.md 缺 `DbSchema.version=N` 读数（DB 行被改写/删）")
+    elif _sv and _sd and _sv.group(1) != _sd.group(1):
+        g.append("守护二十三：STATUS「DB＝」写 v%s，而 %s 实为 v%s——DB 迁移批必同改三处："
+                 "schema.dart 的 version／migrations 最高键／STATUS 的 DB 行"
+                 % (_sd.group(1), _sm, _sv.group(1)))
+except FileNotFoundError:
+    g.append("守护二十三：找不到 %s 或 docs/STATUS.md（提错工作目录？）" % _sm)
 for x in y:
     print("体量黄灯（达上限 90%）: " + x)
 if g:
