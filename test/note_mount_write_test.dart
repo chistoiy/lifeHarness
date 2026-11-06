@@ -277,8 +277,10 @@ void main() {
               .readAsStringSync()
               .split('\n')
               .where((l) => !l.trimLeft().startsWith('//'));
-      expect(lines.where((l) => l.contains('syncNoteToMount(')), hasLength(1),
-          reason: '摘掉这行＝「在已导入目录下建的笔记文件管理器看不到」原样复发');
+      expect(lines.where((l) => l.contains('syncNoteToMount(')), hasLength(2),
+          reason: '两处＝①保存落库口（摘掉＝「在已导入目录下建的笔记文件管理器'
+              '看不到」原样复发）＋②批2 留白①改名跟随口（摘掉＝挂载引用方被'
+              '改名跟随后文件里残留旧标题，要等它下次自身保存才对齐）');
     });
 
     test('原生与 Dart 缝一一对应：createInTree＋读|写授权', () {

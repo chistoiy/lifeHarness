@@ -260,6 +260,23 @@ void main() {
     expect(find.byKey(const ValueKey('ex-ics-done-tgl')), findsNothing);
   });
 
+  testWidgets('批2留白③：ics 档汇总行按日历项口径，不因模块空灰显「暂无数据」',
+      (tester) async {
+    await pumpSheet(tester);
+    await flush(tester);
+    // lhbak＋全部数据档：模块口径照旧（汇总行与范围 chip 同文案）。
+    final lhbakLine =
+        tester.widget<Text>(find.byKey(const ValueKey('ex-summary')));
+    expect(lhbakLine.data, startsWith('全部数据'));
+    // 切 ics：汇总行换日历项口径，不再说「暂无数据」（按钮本就放行）。
+    await tester.tap(find.byKey(const ValueKey('ex-fmt-ics')));
+    await settle5(tester);
+    final icsLine =
+        tester.widget<Text>(find.byKey(const ValueKey('ex-summary'))).data!;
+    expect(icsLine, startsWith('日历项'));
+    expect(icsLine.contains('暂无数据'), isFalse);
+  });
+
   group('② 时间维度（余量批3）', () {
     testWidgets('默认＝「全部」：timeRange 透传 null，摘要行不带时间字样',
         (tester) async {

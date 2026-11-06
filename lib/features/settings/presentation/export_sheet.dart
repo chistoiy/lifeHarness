@@ -690,14 +690,20 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
               children: [
                 Expanded(
                   child: Text(
+                    // 批2（批1 留白③）：ics 档导出的是日历项（时间块/待办/重要
+                    // 日子），底部汇总行不再沿用「模块数·体积」口径——那与实际
+                    // 导出内容不同源，也不因模块行空而灰显「暂无数据」。
                     _busy
                         ? '正在导出…'
-                        : empty
-                            ? '所选范围暂无数据'
-                            : '$_summaryLabel${_timeLabel.isEmpty ? '' : ' · $_timeLabel'}$_sizeLine',
+                        : _fmt == 'ics'
+                            ? '日历项${_timeLabel.isEmpty ? '' : ' · $_timeLabel'}'
+                            : empty
+                                ? '所选范围暂无数据'
+                                : '$_summaryLabel${_timeLabel.isEmpty ? '' : ' · $_timeLabel'}$_sizeLine',
+                    key: const ValueKey('ex-summary'),
                     style: TextStyle(
                         fontSize: 12,
-                        color: empty ? Colors.grey : null,
+                        color: empty && _fmt != 'ics' ? Colors.grey : null,
                         fontWeight: FontWeight.w700),
                   ),
                 ),

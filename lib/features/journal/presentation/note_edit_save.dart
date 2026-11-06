@@ -18,17 +18,25 @@ extension _NoteSave on _NoteEditPageState {
   }
 
   /// C02：本篇改名 → 其他笔记正文里 `[[旧标题]]` 批量跟随（只动双链内的
-  /// 标题，不动正文同名词）。挂载目录的回写在被改笔记下次自身保存时对齐。
+  /// 标题，不动正文同名词）。批2（批1 留白①）：引用方若挂在「本地导入
+  /// 目录夹」，跟随后**当场回写**其挂载文件（原留白＝等它下次自身保存才
+  /// 对齐）；open_with 来源不在此口，仍走它自身保存的回写缝。
   Future<void> _renameWikiRefs(String oldTitle, String newTitle) async {
     try {
       final dao = ref.read(noteDaoProvider);
+      final folders = ref.read(noteFolderDaoProvider);
       for (final n in await dao.list()) {
         if (n.id == _existing?.id) continue;
         if (!parseWikiLinks(n.content).any((r) => r.title == oldTitle)) {
           continue;
         }
-        await dao.save(n.copyWith(
-            content: renameWikiLinks(n.content, oldTitle, newTitle)));
+        final saved = await dao.save(
+            n.copyWith(content: renameWikiLinks(n.content, oldTitle, newTitle)));
+        // 挂载即双向（工单 交棒话术-20261011 §4 同一口径的延伸）：跟随改动
+        // 也应落进挂载文件；失败由外层 catch 兜住＝退回「下次自身保存对齐」。
+        if (await noteWritesBackToMount(saved: saved, folders: folders)) {
+          await syncNoteToMount(saved: saved, notes: dao, folders: folders);
+        }
       }
     } catch (_) {
       // catch-ok：改名跟随失败只影响旧引用显示为占位，不反噬保存。

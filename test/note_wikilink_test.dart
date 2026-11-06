@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/platform/open_intent.dart' show noteWriteBack;
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/data/note_folder_dao.dart';
@@ -125,5 +126,40 @@ void main() {
     final rows = await dao.list();
     final changed = rows.firstWhere((n) => n.id == other.id);
     expect(changed.content, '见 [[新名]]，普通词 旧名 不动。');
+  });
+
+  testWidgets('批2留白①：引用方挂在本地导入目录 → 改名跟随当场回写挂载文件',
+      (tester) async {
+    await NoteFolderDao(db).create('vault',
+        source: 'local_dir', originUri: 'content://tree/v1');
+    final me = await dao.save(note('旧名', '正文'));
+    final other = await dao.save(Note(
+        title: '引用方',
+        content: '见 [[旧名]]',
+        kind: 'md',
+        folder: 'vault',
+        originUri: 'content://doc/e1',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now()));
+    // 挂载回写走全局缝（默认实现依赖原生通道，测试替换为捕获表）。
+    final written = <String, String>{};
+    final orig = noteWriteBack;
+    noteWriteBack = (uri, content) async {
+      written[uri] = content;
+      return 'ok';
+    };
+    addTearDown(() => noteWriteBack = orig);
+    await tester.pumpWidget(scope(NoteEditPage(noteId: me.id)));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('note-title')), '新名');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('note-back')));
+    await tester.pumpAndSettle();
+    // 挂载文件当场落新正文（原留白＝要等引用方下次自身保存才对齐）。
+    expect(written['content://doc/e1'], '见 [[新名]]');
+    // 库内正文同批跟随（回写与落库同源）。
+    final rows = await dao.list();
+    expect(rows.firstWhere((n) => n.id == other.id).content, '见 [[新名]]');
   });
 }
