@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/providers.dart';
 import '../../../core/platform/open_intent.dart' show noteWriteBackGuard;
@@ -14,6 +15,7 @@ import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/md_shortcut.dart';
 import '../domain/note_folder.dart' show kDefaultNoteFolder;
+import '../domain/wiki_links.dart';
 import 'journal_providers.dart';
 import 'note_mount_write.dart';
 import 'note_paper.dart';
@@ -104,6 +106,8 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   final List<FocusNode> _paraNodes = [];
 
   Note? _existing;
+  // C02 子批B：双链解析池（活跃笔记的 title→id / 反链扫描用；进页加载、保存后刷新）。
+  List<Note> _linkPool = const [];
   String _folder = '';
   bool _pinned = false;
   String _kind = 'plain';
@@ -201,6 +205,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     _resetParas('');
     _richCtl = _newRich('');
     _load();
+    _loadLinkPool();
     // 轮9d：新建笔记=纸面直接闪光标（原型 newNote 无灰盒输入·无教学 hint）。
     if (widget.noteId == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

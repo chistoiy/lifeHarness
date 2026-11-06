@@ -75,7 +75,32 @@ extension _NoteLayout on _NoteEditPageState {
 
   /// 渲染预览（批1c · MdView：GFM + flutter_math_fork 公式；
   /// 轮9k：LaTeX 渲染由记录管理开关门控·默认关=公式按原文显示）。
+  /// C02 子批B：md 预览先过 [renderWikiLinks]（[[标题]]→lh://note/<id>，
+  /// 已删除的留占位不生成死链），链接点击跳笔记详情；底部「被引用」面板
+  /// 列出正文引用本篇标题的笔记（源文件仍是纯 Markdown，导入导出无损）。
   Widget _preview({double fontSize = 14}) {
+    final isMd = _kind == 'md';
+    // 双链按标题解析（resolve 期望字符串 id）：同名取先见者，不做歧义消解。
+    final byTitle = <String, String>{};
+    final myId = _existing?.id;
+    for (final n in _linkPool) {
+      final t = n.title.trim();
+      if (n.id == null || t.isEmpty || n.id == myId) continue;
+      byTitle.putIfAbsent(t, () => '${n.id}');
+    }
+    final myTitle = _titleCtl.text.trim();
+    final backlinks = isMd && myTitle.isNotEmpty
+        ? _linkPool
+            .where((n) =>
+                n.id != myId &&
+                n.kind == 'md' &&
+                parseWikiLinks(n.content)
+                    .any((r) => r.title == myTitle))
+            .toList(growable: false)
+        : const <Note>[];
+    final src = isMd
+        ? renderWikiLinks(_bodyCtl.text, resolve: (t) => byTitle[t])
+        : _bodyCtl.text;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
       child: Column(
@@ -83,12 +108,88 @@ extension _NoteLayout on _NoteEditPageState {
         children: [
           MdView(
             key: const ValueKey('md-view'),
-            source: _bodyCtl.text,
+            source: src,
             fg: _fg,
             fontSize: fontSize,
             onToggleTask: _toggleTask,
+            onLinkTap: _onMdLink,
             enableLatex: ref.watch(settingsControllerProvider).noteLatex,
           ),
+          if (backlinks.isNotEmpty) _backlinkPanel(backlinks),
+        ],
+      ),
+    );
+  }
+
+  /// C02：`lh://note/<id>` → 笔记详情；其余 href 忽略（外链不在本批接线）。
+  void _onMdLink(String href) {
+    if (!href.startsWith('lh://note/')) return;
+    final id = int.tryParse(href.substring('lh://note/'.length));
+    if (id == null) return;
+    context.push('/note/edit', extra: id);
+  }
+
+  /// C02：「被引用」面板（原型 pwViewWrap 底部 · 样张 02）：行=引用方笔记，
+  /// 点击跳转；右缘显示相对更新时间。
+  Widget _backlinkPanel(List<Note> refs) {
+    String ago(DateTime t) {
+      final d = DateTime.now().difference(t);
+      if (d.inDays >= 1) return '${d.inDays} 天前';
+      if (d.inHours >= 1) return '${d.inHours} 小时前';
+      return '今天';
+    }
+    return Container(
+      key: const ValueKey('note-backlinks'),
+      margin: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: _fg.withValues(alpha: .15)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('被引用',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+                Text('${refs.length} 处',
+                    style: TextStyle(fontSize: 10.5, color: _fg.withValues(alpha: .55))),
+              ],
+            ),
+          ),
+          for (final n in refs)
+            GestureDetector(
+              key: ValueKey('note-backlink-${n.id}'),
+              onTap: () => context.push('/note/edit', extra: n.id),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+                decoration: BoxDecoration(
+                  border: Border(
+                      top: BorderSide(color: _fg.withValues(alpha: .08))),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text('笔记 · ${n.title}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12.5)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(ago(n.updatedAt),
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            color: _fg.withValues(alpha: .55))),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

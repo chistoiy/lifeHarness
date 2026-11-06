@@ -14,15 +14,23 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/backup/lh_bak.dart' show LhBakException;
 import '../../../core/logging/app_log.dart';
+import '../../../core/platform/saf.dart';
 import '../../../core/platform/saf_tree.dart';
 import '../../../core/providers.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../calendar/domain/ics_export.dart';
+import '../../calendar/presentation/calendar_providers.dart'
+    show timeBlockDaoProvider;
+import '../../days/presentation/days_providers.dart' show daysRepositoryProvider;
+import '../../todo/presentation/todo_providers.dart' show todoRepositoryProvider;
 import '../../../shared/linkage/backup_read_export.dart';
 import '../../../shared/linkage/export_units.dart';
+import '../../../shared/linkage/ics_collect.dart';
 import '../../../shared/widgets/lh_wheel.dart';
 import '../../../shared/widgets/ui_kit.dart';
 
@@ -56,6 +64,9 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
   bool _md = true;
   String _fmt = 'lhbak';
   bool _busy = false;
+
+  /// C04 子批B：日历 .ics 档的「包含已完成待办」（样张 01 默认开）。
+  bool _icsDone = true;
 
   // ---- 余量批3 · 时间维度（产品拍板 2026-10-15 A2 四档）----
   /// `all` / `y1` / `y3` / `custom`；`all` 不筛也不写 manifest.scope。
@@ -344,12 +355,45 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
     if (mounted) setState(() {});
   }
 
+  /// C04 子批B：日历 .ics 单向导出——时间块 + 待办 + 重要日子 → 临时文件 →
+  /// `safSaveAs`（与导图导出同款零新增原生通道）。农历重复在 buildIcs 内逐年
+  /// 展开为公历实例；只导出、不做云端同步。
+  Future<void> _doExportIcs() async {
+    final range = _range;
+    final from = range?.from ?? DateTime(1970);
+    final to = range?.to ?? DateTime(2100);
+    final blocks = await ref
+        .read(timeBlockDaoProvider)
+        .listInRange(from, to);
+    final todos = await ref.read(todoRepositoryProvider).list();
+    final daysData = await ref.read(daysRepositoryProvider).loadAll();
+    final items = [
+      ...icsOfTimeBlocks(blocks, range: range),
+      ...icsOfTodos(todos, includeDone: _icsDone, range: range),
+      ...icsOfDays(daysData.days, range: range),
+    ];
+    if (items.isEmpty) {
+      if (mounted) AppToast.show(context, '所选时间范围暂无可导出的日历项');
+      return;
+    }
+    final tmp = await getTemporaryDirectory();
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final f = p.join(tmp.path, 'lifeharness-$stamp.ics');
+    File(f).writeAsStringSync(buildIcs(items, now: DateTime.now()));
+    final savedName = await safSaveAs(f);
+    if (mounted) {
+      AppToast.show(context, savedName == null ? '已取消' : '已导出为 $savedName');
+    }
+  }
+
   Future<void> _doExport() async {
     if (_busy) return;
     setState(() => _busy = true);
     final svc = ref.read(backupServiceProvider);
     try {
-      if (_fmt == 'lhbak') {
+      if (_fmt == 'ics') {
+        await _doExportIcs();
+      } else if (_fmt == 'lhbak') {
         final res = await svc.exportBackup(
           withLogs: widget.withLogs,
           withAttachments: _assets,
@@ -562,12 +606,32 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
               items: const [
                 (id: 'lhbak', label: '.lhbak 可恢复'),
                 (id: 'dir', label: '可读目录 md+csv+json'),
+                (id: 'ics', label: '日历 .ics'),
               ],
               value: _fmt,
               onChanged: _busy
                   ? null
                   : (v) => setState(() => _fmt = v),
             ),
+            if (_fmt == 'ics') ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  key: const ValueKey('ex-ics-note'),
+                  '导出时间块、待办与重要日子（RFC5545）；农历重复按年展开为公历'
+                  '实例；只导出、不做云端同步，不受模块范围影响。',
+                  style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                ),
+              ),
+              SwitchListTile(
+                key: const ValueKey('ex-ics-done-tgl'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: _icsDone,
+                onChanged: _busy ? null : (v) => setState(() => _icsDone = v),
+                title: const Text('包含已完成待办', style: TextStyle(fontSize: 13)),
+              ),
+            ],
             if (warn)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -639,7 +703,10 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                 ),
                 FilledButton(
                   key: const ValueKey('ex-go'),
-                  onPressed: _busy || empty || _timeBlocked ? null : _doExport,
+                  // ics 档不受模块「暂无数据」判定阻塞（口径不同：日历项≠模块表行）。
+                  onPressed: _busy || _timeBlocked || (empty && _fmt != 'ics')
+                      ? null
+                      : _doExport,
                   child: Text(_busy
                       ? '正在导出…'
                       : _timeBlocked

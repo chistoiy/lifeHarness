@@ -10,6 +10,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/bill_parser.dart';
 import '../data/ledger_repository.dart';
 import '../domain/ledger_calc.dart';
+import '../domain/merchant_suggest.dart';
 import '../domain/ledger_models.dart';
 import '../domain/ledger_txn.dart';
 import 'ledger_import_batches_sheet.dart';
@@ -50,6 +51,9 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
 
   List<_PRow> _rows = [];
   Set<int> _sel = {};
+
+  /// C03：从既有流水学到的「商户名 → 分类」，只在导入预览里作预填建议。
+  Map<String, int> _merchantHints = const <String, int>{};
   bool _foldN = true;
   bool _foldD = false;
 
@@ -89,7 +93,31 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     _fileName = '';
   });
 
-  int _catOf(_PRow p) => p.catOverride ?? mapBillCat(p.r);
+  /// C03：用户点改的分类永远优先；其次是从历史流水学到的商户建议；
+  /// 都没命中才回落既有 `mapBillCat`。预填不是定案，预览行仍可逐笔覆盖。
+  int _catOf(_PRow p) =>
+      p.catOverride ??
+      suggestCategory(p.r.counterparty, _merchantHints) ??
+      mapBillCat(p.r);
+
+  /// 只读历史、不回写，故规则随用户后续分类自然演进且不回溯历史。
+  /// 读库失败一律回落到既有自动映射，绝不因建议阻塞导入。
+  Future<void> _loadMerchantHints() async {
+    try {
+      final repo = ref.read(ledgerRepositoryProvider);
+      final bk = ref.read(ledgerDataProvider).valueOrNull?.curBook.id ?? 1;
+      final txns = await repo.bookTxns(bk);
+      _merchantHints = learnMerchantRules(txns.map((t) {
+        final m = t.merchant;
+        return MerchantSample(
+            (m == null || m.isEmpty) ? t.note : m, t.catId);
+      }));
+    } catch (e) {
+      _merchantHints = const <String, int>{};
+      AppLog.add('商户分类建议读取失败（回落自动映射）：$e',
+          level: LhLevel.warn);
+    }
+  }
 
   String _appBarTitle() => switch (_step) {
         1 => '账单导入与导出',
@@ -149,6 +177,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
         ..addAll([
           for (final (src, _, _) in _agg) _pickFor(d, src),
         ]);
+      await _loadMerchantHints();
       setState(() {
         _rows = rows;
         _sel = {

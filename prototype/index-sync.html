@@ -591,10 +591,15 @@ html.dark #shl .sel{background:#0f172a;border-color:#334155;color:#e2e8f0}
               <div class="flex items-center justify-between" id="exMdRow"><span>附可读 Markdown <span class="text-[10px] text-slate-400">笔记 / 书摘 / 导图投影</span></span><span class="toggle" id="exMdTgl" onclick="exTglMd(this)"></span></div>
             </div>
             <div class="text-[11px] font-bold text-slate-400 mt-3">④ 格式</div>
-            <div class="grid grid-cols-2 gap-2 mt-1.5">
+            <!-- C04 ICS 单向导出（竞品补全批1 子批B·2026-11-06 过门样张01）：第三档「日历 .ics」；
+                 农历重复按年展开、只导出不同步、不受模块范围影响；选 ics 时出说明行与「包含已完成待办」开关 -->
+            <div class="grid grid-cols-3 gap-2 mt-1.5">
               <button id="exFmtLhbak" onclick="exSetFmt('lhbak')">.lhbak 可恢复包</button>
               <button id="exFmtDir" onclick="exSetFmt('dir')">可读目录 md+csv+json</button>
+              <button id="exFmtIcs" onclick="exSetFmt('ics')">日历 .ics</button>
             </div>
+            <div class="text-[10.5px] text-slate-400 mt-1.5 leading-4 hidden" id="exIcsNote">导出时间块、待办与重要日子（RFC5545）；农历重复按年展开为公历实例；只导出、不做云端同步，不受模块范围影响。</div>
+            <div class="mt-1.5 flex items-center justify-between text-xs hidden" id="exIcsDoneRow"><span>包含已完成待办</span><span class="toggle on" id="exIcsDoneTgl" onclick="tgl(this)"></span></div>
             <div class="text-[10.5px] text-amber-600 dark:text-amber-400 mt-1.5 leading-4 hidden" id="exScopeWarn">子集包暂不能直接恢复，仅作数据出口</div>
             <div class="text-[11px] font-bold text-slate-400 mt-3">⑤ 导出位置</div>
             <div class="mt-1.5 flex items-center justify-between text-xs" onclick="toast('选择导出位置（系统目录树·模拟）')">
@@ -1766,6 +1771,9 @@ function exRender(){
         off='py-2 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300';
   $('#exFmtLhbak').className=exp.fmt==='lhbak'?on:off;
   $('#exFmtDir').className=exp.fmt==='dir'?on:off;
+  $('#exFmtIcs').className=exp.fmt==='ics'?on:off;
+  $('#exIcsNote').classList.toggle('hidden',exp.fmt!=='ics');
+  $('#exIcsDoneRow').classList.toggle('hidden',exp.fmt!=='ics');
   const hasData=!exAll()&&exp.modules.length>0||exAll();
   const parts=[];if(hasData)parts.push(exAll()?'全部数据':exp.modules.length+' 模块');
   const tl=exTimeLabel();if(hasData&&tl)parts.push(tl);

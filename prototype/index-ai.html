@@ -511,7 +511,15 @@ tailwind.config = {
           <div class="flex items-center justify-between"><span>呵护：周期趋势解读（仅聚合统计·原始记录不出本机）</span><span class="toggle" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between opacity-50"><span>记账/物品智能归类（V2）</span><span class="toggle" onclick="tgl(this)"></span></div>
         </div>
-        <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：每次调用前弹层展示完整发送内容可审阅；敏感模块支持「仅摘要发送」；AI 结果带标识，写入前需确认。</div>
+        <!-- C01 仅摘要发送（竞品补全批1 子批B·2026-11-06 过门样张03）：隐私发送两开关。
+             摘要＝只压缩变量值不动模板、>120 字才摘要、取前 3 行前 40 字＋字数回执（不做生成式摘要、不二次出网）；
+             审阅所见＝实际所发＝使用记录所记，三者同源。 -->
+        <div class="mt-2 text-[11px] font-bold text-slate-500">隐私发送</div>
+        <div class="mt-1 text-xs space-y-2">
+          <div class="flex items-center justify-between"><span>仅摘要发送 <span class="text-[10px] text-slate-400">长文本只发开头与字数回执</span></span><span class="toggle on" onclick="tgl(this);toast(this.classList.contains('on')?'长文本按摘要发送，审阅与实际所发同源':'关闭后恢复全文发送')"></span></div>
+          <div class="flex items-center justify-between"><span>身份串脱敏 <span class="text-[10px] text-slate-400">手机号 / 邮箱 / 证件号 / 密钥</span></span><span class="toggle on" onclick="tgl(this)"></span></div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：每次调用前弹层展示完整发送内容可审阅；审阅所见＝实际所发＝使用记录所记；AI 结果带标识，写入前需确认。</div>
       </div>
       <div class="card mt-3">
         <div class="flex items-center justify-between"><div class="row-title">AI 使用记录</div><button class="mini-btn" onclick="navTo('p-aiUsage');auRender()">查看全部 ›</button></div>

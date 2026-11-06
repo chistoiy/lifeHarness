@@ -135,6 +135,31 @@ void main() {
     expect(caps['todo.subtask'], true);
   });
 
+  testWidgets('C01 子批B 隐私发送：两开关默认开，拨动写盘（summary_only/redact_idents）',
+      (tester) async {
+    await useSurface(tester);
+    await pumpPage(tester);
+    expect(find.text('隐私发送'), findsOneWidget);
+    expect(find.text('仅摘要发送'), findsOneWidget);
+    expect(find.text('身份串脱敏'), findsOneWidget);
+    expect(
+        tester
+            .widget<Switch>(find.byKey(const ValueKey('ai-summary-tgl')))
+            .value,
+        isTrue,
+        reason: '样张 03：默认开');
+    expect(
+        tester.widget<Switch>(find.byKey(const ValueKey('ai-redact-tgl'))).value,
+        isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('ai-summary-tgl')));
+    await tester.pumpAndSettle();
+    expect(prefs.getBool('ai.summary_only'), isFalse);
+    await tester.tap(find.byKey(const ValueKey('ai-redact-tgl')));
+    await tester.pumpAndSettle();
+    expect(prefs.getBool('ai.redact_idents'), isFalse);
+  });
+
   testWidgets('提示词管理：列表→编辑→保存覆盖→徽章与 prefs', (tester) async {
     await useSurface(tester);
     await pumpPage(tester);

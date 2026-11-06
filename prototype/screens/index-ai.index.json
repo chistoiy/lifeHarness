@@ -1,6 +1,6 @@
 {
  "file": "index-ai.html",
- "total": 93456,
+ "total": 94239,
  "cut": 0,
  "screens": [
   {
@@ -8,8 +8,8 @@
    "kind": "screen",
    "title": "AI 增强",
    "role": "home",
-   "size": 4194,
-   "hash": "349c6722"
+   "size": 4977,
+   "hash": "2da20821"
   },
   {
    "id": "p-sub-aiVerify",

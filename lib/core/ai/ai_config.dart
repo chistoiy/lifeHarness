@@ -128,6 +128,8 @@ class AiConfig {
     this.verifyLatencyMs,
     this.verifyReason,
     this.recordBody = true,
+    this.summaryOnly = true,
+    this.redactIdents = true,
     this.callKeepDays = 30,
   });
 
@@ -154,6 +156,14 @@ class AiConfig {
 
   /// V1.53 使用记录：**是否留存发送与返回正文**（关掉只记 能力点·状态·token·耗时）。
   final bool recordBody;
+
+  /// C01「仅摘要发送」：默认开。白名单能力点只发长文本的摘要（见 `ai_summary.dart`）；
+  /// 关闭后恢复全文发送。审阅层始终展示**实际将发出**的内容，不展示被省略的原文。
+  final bool summaryOnly;
+
+  /// C01 子批B「身份串脱敏」：默认开。手机号/邮箱/证件号/密钥打码后再发送
+  /// （`ai_redaction.dart`）；关闭后原样发送（用户知情选择）。
+  final bool redactIdents;
 
   /// V1.53 使用记录保留天数（0=不限；超期整批丢弃）。
   final int callKeepDays;
@@ -200,6 +210,9 @@ class AiConfigRepository {
   static const _kVerify = 'ai.verify'; // {atMs,ok,ms,reason}
   // V1.53 使用记录设置（缺省：记正文 + 保留 30 天）
   static const _kRecordBody = 'ai.record_body';
+  // C01 仅摘要发送（缺省：开）
+  static const _kSummaryOnly = 'ai.summary_only';
+  static const _kRedactIdents = 'ai.redact_idents';
   static const _kCallKeepDays = 'ai.call_keep_days';
   // 旧版单值键（只读迁移来源，V1.53.1 起不再写入）
   static const _kBaseUrl = 'ai.base_url';
@@ -238,6 +251,8 @@ class AiConfigRepository {
         verifyLatencyMs: (v['ms'] as num?)?.toInt(),
         verifyReason: v['reason'] as String?,
         recordBody: _prefs.getBool(_kRecordBody) ?? true,
+        summaryOnly: _prefs.getBool(_kSummaryOnly) ?? true,
+        redactIdents: _prefs.getBool(_kRedactIdents) ?? true,
         callKeepDays: _prefs.getInt(_kCallKeepDays) ?? kAiCallDefaultKeepDays,
       );
     }
@@ -280,11 +295,20 @@ class AiConfigRepository {
       verifyLatencyMs: (v['ms'] as num?)?.toInt(),
       verifyReason: v['reason'] as String?,
       recordBody: _prefs.getBool(_kRecordBody) ?? true,
+      summaryOnly: _prefs.getBool(_kSummaryOnly) ?? true,
+      redactIdents: _prefs.getBool(_kRedactIdents) ?? true,
       callKeepDays: _prefs.getInt(_kCallKeepDays) ?? kAiCallDefaultKeepDays,
     );
   }
 
   Future<void> setMaster(bool on) => _prefs.setBool(_kMaster, on);
+
+  /// C01：AI 增强页「仅摘要发送」开关（样张过门后接线）。
+  Future<void> setSummaryOnly(bool on) => _prefs.setBool(_kSummaryOnly, on);
+
+  /// C01 子批B：AI 增强页「身份串脱敏」开关。
+  Future<void> setRedactIdents(bool on) =>
+      _prefs.setBool(_kRedactIdents, on);
 
   /// 增/改一条服务商（按 id 覆盖；整表落盘即完成 providers 迁移）。
   Future<void> saveProvider(AiProvider p) async {

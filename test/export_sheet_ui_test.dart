@@ -226,6 +226,40 @@ void main() {
     expect(find.byKey(const ValueKey('ex-scope-warn')), findsNothing);
   });
 
+  testWidgets('C04 子批B：切「日历 .ics」档 → 说明行与「包含已完成待办」随显随隐',
+      (tester) async {
+    await pumpSheet(tester);
+    // 默认 lhbak：ics 专属控件不显。
+    expect(find.byKey(const ValueKey('ex-ics-note')), findsNothing);
+    expect(find.byKey(const ValueKey('ex-ics-done-tgl')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('ex-fmt-ics')));
+    await settle5(tester);
+    expect(find.byKey(const ValueKey('ex-ics-note')), findsOneWidget);
+    expect(
+        find.textContaining('农历重复按年展开为公历实例'), findsOneWidget);
+    expect(
+        tester
+            .widget<SwitchListTile>(
+                find.byKey(const ValueKey('ex-ics-done-tgl')))
+            .value,
+        isTrue,
+        reason: '样张 01：默认开');
+    // 拨动只改本档状态，不落任何持久化键。
+    await tester.tap(find.byKey(const ValueKey('ex-ics-done-tgl')));
+    await settle5(tester);
+    expect(
+        tester
+            .widget<SwitchListTile>(
+                find.byKey(const ValueKey('ex-ics-done-tgl')))
+            .value,
+        isFalse);
+    // 切回 lhbak：ics 专属控件收起。
+    await tester.tap(find.byKey(const ValueKey('ex-fmt-lhbak')));
+    await settle5(tester);
+    expect(find.byKey(const ValueKey('ex-ics-note')), findsNothing);
+    expect(find.byKey(const ValueKey('ex-ics-done-tgl')), findsNothing);
+  });
+
   group('② 时间维度（余量批3）', () {
     testWidgets('默认＝「全部」：timeRange 透传 null，摘要行不带时间字样',
         (tester) async {

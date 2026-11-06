@@ -279,6 +279,9 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
           _FoldSection(
             key: const ValueKey('ai-review-usr'),
             title: 'User · 本次内容',
+            // C01 子批B（样张 03）：摘要模式开 → User 段标徽标；正文本身就是
+            // 实际将发出的摘要（三者同源），徽标只说明「这不是全文」。
+            badge: ref.watch(aiConfigProvider).summaryOnly ? '摘要模式' : null,
             peek: _peek(widget.user),
             open: _usrOpen,
             onToggle: () => setState(() => _usrOpen = !_usrOpen),
@@ -316,6 +319,7 @@ class _FoldSection extends StatelessWidget {
     required this.open,
     required this.onToggle,
     required this.body,
+    this.badge,
   });
 
   final String title;
@@ -323,6 +327,9 @@ class _FoldSection extends StatelessWidget {
   final bool open;
   final VoidCallback onToggle;
   final String body;
+
+  /// C01 子批B：标题行右侧小徽标（如「摘要模式」）；null＝不显。
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -345,6 +352,24 @@ class _FoldSection extends StatelessWidget {
                   Text(title,
                       style: const TextStyle(
                           fontSize: 11.5, fontWeight: FontWeight.w800)),
+                  if (badge != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      key: const ValueKey('ai-review-badge'),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        // 主题色淡底（同语义同源；不引新字面色值＝color_ratchet）。
+                        color: cs.primary.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(badge!,
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: cs.primary)),
+                    ),
+                  ],
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

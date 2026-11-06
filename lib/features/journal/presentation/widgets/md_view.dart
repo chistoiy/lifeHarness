@@ -1,11 +1,15 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:markdown/markdown.dart' as md;
 
 /// 预览内 ☑ 勾选回调：第 index 个任务行 → 新勾选态。
 typedef MdTaskToggle = void Function(int index, bool nowChecked);
+
+/// C02 子批B：行内链接点击回调（href 原样透传，`lh://note/<id>` 由调用方分发）。
+typedef MdLinkTap = void Function(String href);
 
 /// 公式/代码整体摘除用的私有区占位符（正文渲染时回插）。
 const _mark = '\uE000';
@@ -27,6 +31,7 @@ class MdView extends StatelessWidget {
     required this.fg,
     this.fontSize = 14,
     this.onToggleTask,
+    this.onLinkTap,
     this.enableLatex = false,
   });
 
@@ -34,6 +39,9 @@ class MdView extends StatelessWidget {
   final Color fg;
   final double fontSize;
   final MdTaskToggle? onToggleTask;
+
+  /// C02 子批B：行内 `[文字](href)` 点击回调；null＝纯展示（旧调用点零改动）。
+  final MdLinkTap? onLinkTap;
 
   /// V1.29轮9k：LaTeX 公式渲染开关（记录管理·默认关=按原文显示 $..$/$$..$$）。
   final bool enableLatex;
@@ -74,7 +82,7 @@ class MdView extends StatelessWidget {
     final nodes = md
         .Document(extensionSet: md.ExtensionSet.gitHubFlavored)
         .parseLines(const LineSplitter().convert(src));
-    final c = _Ctx(fg, fontSize, toks, onToggleTask);
+    final c = _Ctx(fg, fontSize, toks, onToggleTask, onLinkTap);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [for (final n in nodes) ...c.block(n)],
@@ -83,12 +91,42 @@ class MdView extends StatelessWidget {
 }
 
 class _Ctx {
-  _Ctx(this.fg, this.fs, this.toks, this.onToggleTask);
+  _Ctx(this.fg, this.fs, this.toks, this.onToggleTask, this.onLinkTap);
   final Color fg;
   final double fs;
   final List<_Tok> toks;
   final MdTaskToggle? onToggleTask;
+  final MdLinkTap? onLinkTap;
   int taskCount = 0;
+
+  /// C02：链接色（品牌紫 + 下划线）。
+  TextStyle _linkStyle(TextStyle base) => base.copyWith(
+      color: MdView._brand, decoration: TextDecoration.underline);
+
+  /// C02：`a` 节点 → 链接样式的行内 span 群。**recognizer 只挂在含文本的
+  /// 叶子 span 上**——RenderParagraph 的命中判定只取最深 span（本机实测），
+  /// 挂在包装层 span 上点击收不到。无回调时零 recognizer（纯展示旧行为）。
+  List<InlineSpan> _linkSpans(md.Element e, TextStyle base) {
+    final href = e.attributes['href'] ?? '';
+    final tap = onLinkTap == null
+        ? null
+        : (TapGestureRecognizer()..onTap = () => onLinkTap!(href));
+    List<InlineSpan> mark(List<InlineSpan> spans) => [
+          for (final s in spans)
+            if (s is TextSpan)
+              TextSpan(
+                text: s.text,
+                style: s.style,
+                recognizer: tap,
+                children: s.children == null || s.children!.isEmpty
+                    ? null
+                    : mark(s.children!),
+              )
+            else
+              s,
+        ];
+    return mark(inlineWith(e, _linkStyle(base)));
+  }
 
   TextStyle get base => TextStyle(color: fg, fontSize: fs, height: 1.85);
   Color get dim => fg.withValues(alpha: .55);
@@ -350,13 +388,7 @@ class _Ctx {
                   n, base.copyWith(decoration: TextDecoration.lineThrough)),
               'code' => [TextSpan(text: _plain(n.children ?? []))],
               'br' => const [TextSpan(text: '\n')],
-              'a' => [
-                TextSpan(
-                    style: base.copyWith(
-                        color: MdView._brand,
-                        decoration: TextDecoration.underline),
-                    children: inline(n.children ?? const [])),
-              ],
+              'a' => _linkSpans(n, base),
               'img' => [
                 TextSpan(
                     text: '🖼 ${n.attributes['alt'] ?? '图片'}',
@@ -385,13 +417,7 @@ class _Ctx {
                         fontSize: style.fontSize! - 1,
                         backgroundColor: fg.withValues(alpha: .08))),
               ],
-              'a' => [
-                TextSpan(
-                    style: style.copyWith(
-                        color: MdView._brand,
-                        decoration: TextDecoration.underline),
-                    children: inline(n.children ?? const [])),
-              ],
+              'a' => _linkSpans(n, style),
               'br' => const [TextSpan(text: '\n')],
               _ => inlineWith(n, style),
             },

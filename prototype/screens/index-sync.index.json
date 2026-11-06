@@ -1,6 +1,6 @@
 {
  "file": "index-sync.html",
- "total": 144241,
+ "total": 145002,
  "cut": 0,
  "screens": [
   {
@@ -24,8 +24,8 @@
    "kind": "screen",
    "title": "数据与同步",
    "role": "home",
-   "size": 12398,
-   "hash": "a49d0061"
+   "size": 12978,
+   "hash": "68307eb4"
   },
   {
    "id": "sheetSyncDiff",
@@ -40,8 +40,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 4957,
-   "hash": "67ecdb51"
+   "size": 5537,
+   "hash": "27c52d5c"
   },
   {
    "id": "p-sub-backup",

@@ -390,8 +390,64 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                       ),
                     ],
                   ),
-                const Text('隐私：每次调用前弹层展示完整发送内容可审阅；AI 结果带标识，'
-                    '写入前需确认。',
+                const Text('隐私发送',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey)),
+                const SizedBox(height: 4),
+                // C01 子批B（样张 03 过门接线）：两开关都默认开；关闭＝用户知情
+                // 选择恢复全文/原样发送。审阅所见＝实际所发＝使用记录所记。
+                Row(
+                  children: [
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                          Text('仅摘要发送',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text('长文本只发开头与字数回执 · 不做生成式摘要',
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.grey)),
+                        ])),
+                    Switch(
+                      key: const ValueKey('ai-summary-tgl'),
+                      value: cfg.summaryOnly,
+                      onChanged: (v) async {
+                        await ref
+                            .read(aiConfigProvider.notifier)
+                            .setSummaryOnly(v);
+                      },
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                          Text('身份串脱敏',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text('手机号 / 邮箱 / 证件号 / 密钥打码后发送',
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.grey)),
+                        ])),
+                    Switch(
+                      key: const ValueKey('ai-redact-tgl'),
+                      value: cfg.redactIdents,
+                      onChanged: (v) async {
+                        await ref
+                            .read(aiConfigProvider.notifier)
+                            .setRedactIdents(v);
+                      },
+                    ),
+                  ],
+                ),
+                const Text('隐私：每次调用前弹层展示完整发送内容可审阅；审阅所见＝实际所发＝'
+                    '使用记录所记；AI 结果带标识，写入前需确认。',
                     style: TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
               ],
             ),

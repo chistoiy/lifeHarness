@@ -8,6 +8,8 @@ import 'ai_call_store.dart';
 import 'ai_client.dart';
 import 'ai_config.dart';
 import 'ai_prompt_pack.dart';
+import 'ai_redaction.dart';
+import 'ai_summary.dart';
 import 'ai_validate.dart';
 import 'ai_vault.dart';
 
@@ -167,12 +169,30 @@ class AiService {
 
   List<AiPromptTask> get tasks => _pack.tasks;
 
-  /// 渲染审阅文本：(system, user) 两段完整内容。
-  (String system, String user) renderForReview(
+  /// C01：**审阅 / 请求 / 留痕的唯一渲染出口**。
+  /// 三者取同一份 [redactForSend] 结果，避免「审阅看到全文、实际发出脱敏文、
+  /// 使用记录又记第三份」的口径漂移（需求 §六 原则 4「发送前可审阅」的前提
+  /// 是审阅所见即所发）。
+  (String system, String user) renderForSend(
       String taskId, Map<String, String> vars) {
     final t = effectiveTask(taskId);
-    return (t.system, renderTemplate(t.user, vars));
+    // C01：先按策略压缩**变量值**（不动提示词模板，否则会截掉输出格式约定），
+    // 再渲染、再脱敏。审阅／请求／留痕三者都取这里的同一份结果。
+    // 子批B：两道隐私开关（摘要/身份串脱敏）都由配置门控，关闭即恢复旧行为。
+    final cfg = _repo.load();
+    final sendVars =
+        applySummaryPolicy(taskId, vars, enabled: cfg.summaryOnly);
+    final rawUser = renderTemplate(t.user, sendVars);
+    return (
+      cfg.redactIdents ? redactForSend(t.system) : t.system,
+      cfg.redactIdents ? redactForSend(rawUser) : rawUser,
+    );
   }
+
+  /// 渲染审阅文本：(system, user) 两段**实际将发出**的内容。
+  (String system, String user) renderForReview(
+      String taskId, Map<String, String> vars) =>
+      renderForSend(taskId, vars);
 
   /// 三重门控预检（总开关×能力授权×Key）：返回拒绝原因，null=可发起。
   /// UI 入口在弹「发送审阅」前先调它——未授权即刻 toast，不进审阅流程。
@@ -211,7 +231,9 @@ class AiService {
     final provider = _repo.load().active;
     final key = (await _vault.read(provider.id))!.trim();
     final t = effectiveTask(taskId);
-    final userText = renderTemplate(t.user, vars);
+    // C01：请求正文与审阅层同源，且只发脱敏后的文本；_record 复用同一份，
+    // 使用记录里查到的就是真正发出去的内容。
+    final (systemText, userText) = renderForSend(taskId, vars);
     final sw = Stopwatch()..start();
     final AiReply reply;
     try {
@@ -222,7 +244,7 @@ class AiService {
         protocol: provider.protocol,
         temperature: temperature ?? (t.expect == AiExpect.text ? 0.7 : 0.2),
         messages: [
-          {'role': 'system', 'content': t.system},
+          {'role': 'system', 'content': systemText},
           {'role': 'user', 'content': userText},
         ],
       );
@@ -237,7 +259,7 @@ class AiService {
         name: t.name,
         status: AiCallStore.statusFail,
         ms: sw.elapsedMilliseconds,
-        sys: t.system,
+        sys: systemText,
         usr: userText,
         err: '${e.userMessage} ${e.detail}',
       );

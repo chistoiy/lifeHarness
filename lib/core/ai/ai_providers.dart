@@ -79,6 +79,17 @@ class AiConfigNotifier extends Notifier<AiConfig> {
     ref.invalidateSelf();
   }
 
+  /// C01 子批B：隐私发送两开关（仅摘要 / 身份串脱敏）。
+  Future<void> setSummaryOnly(bool on) async {
+    await _repo.setSummaryOnly(on);
+    ref.invalidateSelf();
+  }
+
+  Future<void> setRedactIdents(bool on) async {
+    await _repo.setRedactIdents(on);
+    ref.invalidateSelf();
+  }
+
   Future<void> setEndpoint(String baseUrl, String model,
       {String? protocol}) async {
     await _repo.setEndpoint(baseUrl: baseUrl, model: model, protocol: protocol);

@@ -5,6 +5,35 @@ part of 'note_edit_page.dart';
 extension _NoteSave on _NoteEditPageState {
   // ---------- 保存 ----------
 
+  /// C02 子批B：双链解析池（活跃笔记全量）。读库失败＝双链退化为占位文本，
+  /// 不阻塞编辑（与账单导入的历史建议回落同款口径）。
+  Future<void> _loadLinkPool() async {
+    try {
+      final pool = await ref.read(noteDaoProvider).list();
+      // ignore: invalid_use_of_protected_member
+      if (mounted) setState(() => _linkPool = pool);
+    } catch (_) {
+      // catch-ok：见上——链接池只是预览增强，挂了不拦正事。
+    }
+  }
+
+  /// C02：本篇改名 → 其他笔记正文里 `[[旧标题]]` 批量跟随（只动双链内的
+  /// 标题，不动正文同名词）。挂载目录的回写在被改笔记下次自身保存时对齐。
+  Future<void> _renameWikiRefs(String oldTitle, String newTitle) async {
+    try {
+      final dao = ref.read(noteDaoProvider);
+      for (final n in await dao.list()) {
+        if (n.id == _existing?.id) continue;
+        if (!parseWikiLinks(n.content).any((r) => r.title == oldTitle)) {
+          continue;
+        }
+        await dao.save(n.copyWith(
+            content: renameWikiLinks(n.content, oldTitle, newTitle)));
+      }
+    } catch (_) {
+      // catch-ok：改名跟随失败只影响旧引用显示为占位，不反噬保存。
+    }
+  }
   void _onChanged(String _) {
     // ignore: invalid_use_of_protected_member
     setState(() {
@@ -34,6 +63,8 @@ extension _NoteSave on _NoteEditPageState {
   Future<Note> _persist() async {
     final now = DateTime.now();
     final dao = ref.read(noteDaoProvider);
+    // C02：改名跟随要在落库前取旧标题（_existing 落库后被覆盖）。
+    final oldTitle = _existing?.title.trim();
     // V1.67：所有笔记必须有目录归属——未选夹＝归「默认」（夹不存在则建·幂等）。
     if (_folder.isEmpty) {
       await ref.read(noteFolderDaoProvider).ensureDefaultFolder();
@@ -84,6 +115,14 @@ extension _NoteSave on _NoteEditPageState {
         folders: ref.read(noteFolderDaoProvider));
     if (ms.note != null && ms.note!.id == saved.id) _existing = ms.note;
     if (ms.toastLine.isNotEmpty && mounted) AppToast.show(context, ms.toastLine);
+    // C02：md 笔记改名 → 其他笔记的 [[旧标题]] 跟随（幂等：标题没变不触发）。
+    if (_kind == 'md' &&
+        oldTitle != null &&
+        oldTitle.isNotEmpty &&
+        oldTitle != saved.title.trim()) {
+      await _renameWikiRefs(oldTitle, saved.title.trim());
+    }
+    await _loadLinkPool(); // 反链面板与新双链立即取新口径
     ref.invalidate(notesProvider);
     ref.invalidate(noteFoldersProvider);
     return saved;
