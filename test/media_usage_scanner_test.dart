@@ -69,6 +69,19 @@ void main() {
     expect(r.orphans, isEmpty, reason: 'basename 命中即算引用，路径前缀换了也认');
   });
 
+  test('物品照片列也算引用：item_profiles.photo 漏登记就在档照片被当孤儿删', () async {
+    // 物品批A I01 起建档照片落进 note_images/：引用清单少这一列，
+    // 用户拍了照片、档案里路径写着，清理扫描仍会把原图删掉。
+    await db.execute(
+        'CREATE TABLE item_profiles (id INTEGER PRIMARY KEY, photo TEXT)');
+    File(p.join(imgDir, 'item.jpg')).writeAsBytesSync([1]);
+    await db.insert('item_profiles', {'photo': '/data/x/item.jpg'});
+
+    final r = await scanner().scan();
+    expect(r.totalFiles, 1);
+    expect(r.orphans, isEmpty, reason: '在档物品照片必须算引用');
+  });
+
   test('空目录/无表 → 零孤儿不抛', () async {
     final r = await scanner().scan();
     expect(r.orphans, isEmpty);
