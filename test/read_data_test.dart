@@ -909,15 +909,10 @@ void main() {
       expect((await repo.bookById(b.id))!.fee, 0);
       expect((await repo.bookById(b.id))!.feeTxnId, isNull);
       expect(await db.query('finance_txns'), isEmpty);
-      // 旧开关 read.feeTxn 保留兼容，但翻开也不补出账
-      await repo.setKv('read.feeTxn', 'false');
+      // 旧 read.feeTxn 开关已移除，第二本书同样不出账。
       final c = await repo.addBook(Book(title: '免出账书', fee: 30, createdAt: t0, updatedAt: t0));
       expect((await repo.bookById(c.id))!.fee, 30);
       expect(await db.query('finance_txns'), isEmpty);
-      await repo.setKv('read.feeTxn', 'true');
-      await repo.updateBook((await repo.bookById(c.id))!);
-      expect(await db.query('finance_txns'), isEmpty,
-          reason: '开关翻开也不补出账（产品裁定「明示不做」）');
     });
 
     test('5-5 本月摘录数（L7 第五路）', () async {

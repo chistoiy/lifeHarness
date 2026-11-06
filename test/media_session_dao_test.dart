@@ -250,10 +250,10 @@ void main() {
     expect(await repo.minutesOfItem(id), 42);
   });
 
-  test('settings 表 media.* 键读写（计划 §七：不散落 SharedPreferences）', () async {
-    expect(await repo.kv('media.timerUI'), isNull);
-    await repo.setKv('media.timerUI', 'full');
-    expect(await repo.kv('media.timerUI'), 'full');
+  test('settings 表 media.* 键读写（不散落 SharedPreferences）', () async {
+    expect(await repo.kv('media.floatBar'), isNull);
+    await repo.setKv('media.floatBar', 'false');
+    expect(await repo.kv('media.floatBar'), 'false');
   });
 
   test('ETA 三件：有 pace 才算，没总时长/没会话就整行隐藏（不编数）', () {

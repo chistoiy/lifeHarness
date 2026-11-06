@@ -87,11 +87,6 @@ final mediaKvProvider =
   return raw ?? arg.$2;
 });
 
-/// 计时形态（§七 media.timerUI＝capsule；full＝起停直接进沉浸页）。
-final mediaTimerUIProvider = FutureProvider<String>(
-  (ref) => ref.watch(mediaKvProvider(('media.timerUI', 'capsule')).future),
-);
-
 /// 悬浮计时条开关（media.floatBar，默认开）。
 final mediaFloatBarProvider = FutureProvider<bool>(
   (ref) async =>

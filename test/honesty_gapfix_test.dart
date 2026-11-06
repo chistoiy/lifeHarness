@@ -52,15 +52,26 @@ void main() {
           reason: '原型侧同一句谎报文案须同步下架');
     });
 
-    test('G3 购书费明示不出账；旧表保留留档', () {
+    test('G3 购书费不出账；旧表仅作老库兼容，功能层零引用', () {
       final repo = _read('lib/features/read/data/read_repo_book.dart');
-      expect(repo.contains('DbSchema.tFinance'), isFalse,
-          reason: '不得再向账本侧零消费的 finance_txns 新增/更新行（不依赖换行形态）');
-      expect(repo.contains('保留留档'), isTrue,
-          reason: '旧表与历史行的留档口径必须写在代码里，防止后人误删');
+      expect(repo.contains('DbSchema.tFinance'), isFalse);
+      expect(repo.contains('_syncFeeTxn'), isFalse,
+          reason: '同步挂点已随设置项移除');
+      expect(repo.contains('老库兼容保留'), isTrue,
+          reason: '保留 DB 兼容层的原因必须写在代码里，防止后人误 DROP');
+      // 只查功能层；概览词条与备份单元属 DB 兼容层（表还在，必须覆盖）。
+      for (final rel in [
+        'lib/features/read/presentation/read_settings_page.dart',
+      ]) {
+        final src = _read(rel);
+        expect(src.contains('feeTxn') ||
+            src.contains('finance_txns') ||
+            src.contains('tFinance'), isFalse,
+            reason: '$rel 仍引用已移除的购书费入账口径');
+      }
       expect(_read('lib/core/database/schema/ledger.dart').contains('finance_txns'),
           isTrue,
-          reason: '旧表 DDL 保留＝历史数据留档，不是删表');
+          reason: 'DB 兼容层保留（不升版本、不 DROP 表）');
     });
   });
 }

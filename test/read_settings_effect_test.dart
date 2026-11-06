@@ -9,7 +9,7 @@ import 'package:lifeharness/features/read/domain/book_session.dart';
 /// 阅读模块批1 · F1-5 设置项生效 + tlRange 口径统一（doc 冻结方案 §2.1 F1-5 · §6.4）。
 ///
 /// 覆盖：
-/// - `floatBar`/`speedFold`/`dailyQ`/`clipAuto`/`feeTxn` 各至少 1 个真实生效点；
+/// - `floatBar`/`speedFold`/`dailyQ`/`clipAuto` 各至少 1 个真实生效点（feeTxn 已随购书费入账下架移除）；
 /// - `tlRange` **存英文枚举**（month/half/year）非中文串；
 /// - `brRate` 有声书倍速：`startSession` 落 `speed` 快照 → `billedMinutes` 真折算。
 void main() {
@@ -37,12 +37,6 @@ void main() {
     expect(await repo.kv('read.tlRange'), 'year');
     // 不带中文分支（口径统一后写侧只落英文）
     expect(await repo.kv('read.tlRange'), isNot(contains('月')));
-  });
-
-  test('F1-5b feeTxn 生效点：开关值随 KV 落库可读', () async {
-    expect(await repo.kv('read.feeTxn'), isNull); // 未设置＝默认开（读侧兜底 true）
-    await repo.setKv('read.feeTxn', 'false');
-    expect(await repo.kv('read.feeTxn'), 'false');
   });
 
   test('F1-5c brRate 生效点：有声书 startSession 落 speed 快照', () async {

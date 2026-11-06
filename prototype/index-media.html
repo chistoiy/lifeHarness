@@ -2949,7 +2949,7 @@ function mRenderHub(){
   const desk=$('#mdsHubDesk');if(desk){const picks=['movie','series','music','game'].map(k=>MDEMO.find(x=>x.kind===k)).filter(Boolean);desk.innerHTML=picks.map(mCardHTML).join('')}
   const ring=$('#mdsTodayRing');if(ring){const g0=MGOALS[0];const rd=mGoalRead('movieMin');const den=(g0.target!=null&&g0.target>0)?g0.target:60;const pct=Math.min(1,rd/den);ring.setAttribute('stroke-dasharray',(pct*106).toFixed(1)+' 106')}
 }
-function mStartTimerFor(){const x=MDEMO.find(i=>['在看','在追','在玩','在听','循环中'].includes(i.state))||MDEMO[0];mOpen(x.id);if(MSET.timerUI==='full')navTo('m-timer');else mTimerBegin(x)}
+function mStartTimerFor(){const x=MDEMO.find(i=>['在看','在追','在玩','在听','循环中'].includes(i.state))||MDEMO[0];mOpen(x.id);mTimerBegin(x)}
 function mTimerTap(){toast('计时起停（演示 · 悬浮计时条按 kind 切换文案）')}
 function mFlipReview(){mReviewFlipped=!mReviewFlipped;const el=$('#mdsRevCard');if(el)el.classList.toggle('flipped',mReviewFlipped)}
 const MNOTE_KINDTXT={movie:'电影',series:'剧集',music:'音乐',game:'游戏'};
@@ -3540,12 +3540,12 @@ h+='<div id="mgW_'+g.k+'" style="max-width:140px"></div></div>';}
 return h+'</div>'}).join('');
 if(mGoalOpen){const g=MGOALS.find(x=>x.k===mGoalOpen);if(g)wReg('mgW_'+g.k,mGoalItems(g),mGoalIdx(g),function(){const w=WHEELS['mgW_'+g.k];mGoalPick(g.k,+w.items[w.i])})}}
 /* ---- 影音游批8a · 设置屏：media.* 键读写与当场生效（死键 deskTexture/cardLiftPx/spineCols/longPress 已作废＝工单 §0.5） ---- */
-const MSET={defaultView:'desk',wallCols:2,sortDefault:'recent',newPos:'head',ocr:true,autoPos:true,clipAuto:true,timerUI:'capsule',floatBar:true,speedFold:false,autoAsk:true,dailyQ:true};
+const MSET={defaultView:'desk',wallCols:2,sortDefault:'recent',newPos:'head',ocr:true,autoPos:true,clipAuto:true,floatBar:true,speedFold:false,autoAsk:true,dailyQ:true};
 const MSET_GROUPS=[
 ['shelf','架面',[['defaultView','默认视图','seg',[['desk','桌面'],['spine','脊'],['list','列表']]],['wallCols','桌面列数','seg',[['2','2 列'],['3','3 列']]]]],
 ['sort','排序',[['sortDefault','默认排序','seg',MSRT.map(k=>[k,{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]])],['newPos','新增插入','seg',[['head','置顶'],['tail','置底']]]]],
 ['note','笔记',[['ocr','识图取文','off'],['autoPos','默认带时间点','bool'],['clipAuto','剪贴板识别','bool']]],
-['timer','计时',[['timerUI','计时形态','seg',[['capsule','胶囊'],['full','全屏']]],['floatBar','悬浮计时条','bool'],['speedFold','倍速折算','bool'],['autoAsk','结束即弹记进度','bool'],['dailyQ','晚间补记提醒','bool']]],
+['timer','计时',[['floatBar','悬浮计时条','bool'],['speedFold','倍速折算','bool'],['autoAsk','结束即弹记进度','bool'],['dailyQ','晚间补记提醒','bool']]],
 ['notify','更新提醒',[['notifyNewEpisode','新集上线','off'],['notifyNewAlbum','新专上线','off'],['notifySequel','续作与 DLC','off']]],
 ['data','数据',[['goImport','导入向导','go'],['expMd','导出 MD','off'],['expJson','导出 JSON','off']]]
 ];
@@ -3567,11 +3567,11 @@ if(type==='bool')return '<div class="mset-row flex items-center justify-between 
 if(type==='go')return '<div class="mset-row flex items-center justify-between py-2.5 px-1" data-k="'+k+'" style="border-bottom:1px solid rgba(0,0,0,.08);cursor:pointer" onclick="navTo(\'m-import\')"><span class="text-[12px]">'+lab+'</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6"><path d="m9 18 6-6-6-6"/></svg></div>';
 return '<div class="mset-row mset-off flex items-center justify-between py-2.5 px-1" data-k="'+k+'" style="border-bottom:1px solid rgba(0,0,0,.08);opacity:.45"><span class="text-[12px]">'+lab+'</span>'+(type==='off'&&(k==='ocr'||/^notify/.test(k))?'<span class="toggle'+(MSET[k]?' on':'')+' mset-tgl"></span>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.35"><path d="m9 18 6-6-6-6"/></svg>')+'</div>';
 }).join('')}
-/* ---- 批8a · 计时状态机（设置生效面：timerUI 两条路径／floatBar 控显隐／autoAsk 控结束弹层） ---- */
+/* ---- 计时状态机（全屏计时档随沉浸屏下架已移除；floatBar 控显隐／autoAsk 控结束弹层） ---- */
 let mTimerOn=null;
 function mTimerWord(k){return{movie:'观影中',series:'追剧中',music:'聆听中',game:'游玩中'}[k]||'计时中'}
 function mTimerBarSync(){const b=$('#mdsTimerBar');if(!b)return;if(b&&b.dataset && b.classList){b.querySelector('#mdsTimerKind').textContent=mTimerOn?mTimerWord(mTimerOn.kind):'计时';b.querySelector('#mdsTimerTitle').textContent=mTimerOn?('《'+mTimerOn.title+'》'):'';b.classList.toggle('hidden',!(mTimerOn&&MSET.floatBar));b.classList.toggle('flex',!!(mTimerOn&&MSET.floatBar))}}
-function mTimerTap(){if(mTimerOn){mTimerEnd();return}if(MSET.timerUI==='full'){navTo('m-timer');mTimerBegin(mCurDetail||MDEMO[0]);return}mTimerBegin(mCurDetail||MDEMO[0])}
+function mTimerTap(){if(mTimerOn){mTimerEnd();return}mTimerBegin(mCurDetail||MDEMO[0])}
 function mTimerBegin(x){mTimerOn=x;mTimerBarSync();mTimerGoBtnSync()}
 function mTimerEnd(){if(!mTimerOn)return;const x=mTimerOn;mTimerOn=null;mTimerBarSync();mTimerGoBtnSync();toast('「'+x.title+'」计时已结束');if(MSET.autoAsk)openSheet('m-sheet-progress')}
 function mTimerScreenTap(){if(mTimerOn){mTimerEnd()}else{mTimerBegin(mCurDetail||MDEMO[0])}mTimerGoBtnSync()}

@@ -111,11 +111,11 @@ void main() {
       expect(find.byKey(ValueKey('mds-set-row-$dead')), findsNothing,
           reason: '$dead 已作废（工单 §0.5），设置屏不许复活');
     }
-    // 其余组的行不在架面 tab 里（分组装载）。
+    // timerUI 全屏档随沉浸屏下架已移除（2026-11-06），两个 tab 都不许复活。
     expect(find.byKey(const ValueKey('mds-set-row-media.timerUI')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('mds-set-tab-timer')));
     await settle5(tester);
-    expect(find.byKey(const ValueKey('mds-set-row-media.timerUI')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mds-set-row-media.timerUI')), findsNothing);
     expect(find.byKey(const ValueKey('mds-set-row-media.speedFold')), findsOneWidget);
     expect(find.byKey(const ValueKey('mds-set-row-media.dailyQ')), findsOneWidget);
   });

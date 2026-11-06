@@ -77,7 +77,6 @@ final List<({String id, String label, List<MdsSetRowDef> rows})> kMdsSetGroups =
     id: 'timer',
     label: '计时',
     rows: [
-      _seg('media.timerUI', '计时形态', [('capsule', '胶囊'), ('full', '全屏')]),
       _bool('media.floatBar', '悬浮计时条'),
       _bool('media.speedFold', '倍速折算'),
       _bool('media.autoAsk', '结束即弹记进度'),
@@ -110,7 +109,6 @@ const Map<String, String> kMdsPreset = {
   'media.wallCols': '2',
   'media.sortDefault': 'recent',
   'media.newPos': 'head',
-  'media.timerUI': 'capsule',
   'media.floatBar': 'true',
   'media.speedFold': 'false',
   'media.autoAsk': 'true',

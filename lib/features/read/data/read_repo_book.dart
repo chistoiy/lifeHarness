@@ -25,7 +25,6 @@ mixin _RepoBooks on _ReadRepoBase {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     await _registerDictFor(book);
-    await _syncFeeTxn(book);
     return book;
   }
 
@@ -37,7 +36,6 @@ mixin _RepoBooks on _ReadRepoBase {
       whereArgs: [b.id],
     );
     await _registerDictFor(b);
-    await _syncFeeTxn(b);
   }
 
   /// 分区流转落库值（单本与批量共用同一语义）。
@@ -289,11 +287,7 @@ mixin _RepoBooks on _ReadRepoBase {
     return n;
   }
 
-  // ---- 购书费用 → L4/记账流水（read.feeTxn 默认开 · §9.5 已拍板③）----
-
-  /// 购书费**明示不出账**（2026-11-05 产品裁定）：旧 `finance_txns` 表连同
-  /// 历史行保留留档（含备份导出登记），本模块不再新增/更新，也不删旧行；
-  /// 书价字段仍由书架自行展示。保留空挂点仅为不改动调用方，
-  /// `read.feeTxn` 旧偏好值不再被消费。日后要真出账须先过需求门＋原型门。
-  Future<void> _syncFeeTxn(Book b) async {}
+  // ---- 购书费不出账（2026-11-06）：设置项、同步挂点、导出与概览登记已移除。
+  // 旧购书费流水表仅作老库兼容保留；新装仍建空表，代码侧零功能引用。
+  // 日后要真出账须另过需求门＋原型门，勿在本书库里偷偷接回写。----
 }

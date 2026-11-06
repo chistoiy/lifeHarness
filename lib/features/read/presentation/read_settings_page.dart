@@ -96,8 +96,6 @@ const _secs = [
     _Row('dailyQ', '每天提醒补记', _T.bool, desc: '晚间未计时时提醒'),
   ]),
   _Sec('数据与存储', [
-    _Row('feeTxn', '购书费用记入账本', _T.bool,
-        desc: '新增或修改费用时同步生成/更新一笔「阅读-购书」支出'),
     _Row('isbnFill', 'ISBN 补全', _T.chips,
         opts: ['仅填 ISBN', '抓豆瓣数据'],
         desc: '扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'),
@@ -174,7 +172,6 @@ const _boolLabel = {
   'clipAuto': '剪贴板识别',
   'simple': '简洁浏览',
   'fullCh': '完整章节名',
-  'feeTxn': '购书费用入账',
   'brSync': '划线自动存书摘',
   'brBright': '阅读常亮',
 };
