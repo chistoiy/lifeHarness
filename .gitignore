@@ -1,5 +1,8 @@
 # Flutter/Dart
 .dart_tool/
+# flutter 工具在工程根留的空标记目录（20261107 发现未跟踪，纯可变状态）
+.flutter
+.flutter_tool_state
 .flutter-plugins
 .flutter-plugins-dependencies
 packages/
