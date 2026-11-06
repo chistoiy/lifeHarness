@@ -132,6 +132,9 @@ extension _ReaderPag on _ReaderPageState {
     if (svc.docsPath == null) return;
     final my = ++_bgTicket;
     final swAll = Stopwatch()..start();
+    // F7-1（批7）：续算期间对 X-Ray 调度器报「忙」——它原来只看服务层预热，
+    // 漏了阅读器这条循环，两条同时在跑会互抢 CPU（翻页与解析一起变粘）。
+    _setBgBusy(true);
     unawaited(() async {
       final n = doc.chapters.length;
       if (n <= 1) return;
@@ -190,7 +193,16 @@ extension _ReaderPag on _ReaderPageState {
           '${swAll.elapsedMilliseconds}ms',
         );
       }
-    }());
+    }().whenComplete(() => _setBgBusy(false)));
+  }
+
+  /// F7-1：续算忙标——只管本页自己的书；页已卸载就不再碰 provider。
+  void _setBgBusy(bool on) {
+    if (!mounted) return;
+    final notifier = ref.read(bgPaginatingProvider.notifier);
+    final next = {...ref.read(bgPaginatingProvider)};
+    on ? next.add(widget.bookId) : next.remove(widget.bookId);
+    notifier.state = next;
   }
 
   /// 分页布局（R3-2 起与整本预载共用 [ReaderLayout.of]：indMode 三档进指纹后，

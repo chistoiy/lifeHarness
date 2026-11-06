@@ -187,11 +187,16 @@ class XrayEngine {
   final int maxNgramSampleChars;
 
   final Map<String, XrayEntity> _ents = {};
-  final Map<String, int> _df = {};
   final Map<String, int> _gram = {};
-  final Set<String> _chGrams = {};
   int _chapters = 0;
   int _sampled = 0;
+
+  /// F7-1（批7）：采样计数读数（用例守「闸门卡在上限内」，不外泄生产语义）。
+  int get debugSampledChars => _sampled;
+
+  /// F7-1（批7）：非汉字切分正则提到 `static`——旧写法每个段落都新建一个
+  /// `RegExp`（一本书几万段＝几万次编译），这是纯白烧。
+  static final RegExp _nonHan = RegExp('[^\u4e00-\u9fa5]+');
 
   // ---------- 通道正则（逐条对照 xray_extract.py 的 pat_*）----------
 
@@ -235,7 +240,6 @@ class XrayEngine {
   /// 跑一章：正则通道 + gazetteer + n-gram 计数（章内低频剪枝在末尾做）。
   void runChapter(XrayChapter ch) {
     _chapters++;
-    _chGrams.clear();
     final chapterGram = <String, int>{};
 
     for (var pi = 0; pi < ch.paras.length; pi++) {
@@ -288,27 +292,28 @@ class XrayEngine {
       }
 
       // 通道 2：n-gram 计数（2~5 字·首尾虚词字过滤）
+      // F7-1（批7）：采样闸门**下到段内**——旧写法只在段前判一次，一旦放行就整段
+      // 照加，`_sampled` 会一路冲过上限（大书实测多算数倍，纯白烧 CPU）。
       if (_sampled < maxNgramSampleChars) {
-        for (final seg in text.split(RegExp('[^\u4e00-\u9fa5]+'))) {
-          _sampled += seg.length;
+        for (final seg in text.split(_nonHan)) {
+          if (_sampled >= maxNgramSampleChars) break;
+          final room = maxNgramSampleChars - _sampled;
+          final cut = seg.length <= room ? seg : seg.substring(0, room);
+          _sampled += cut.length;
           for (var len = 2; len <= 5; len++) {
-            for (var i = 0; i + len <= seg.length; i++) {
-              final g = seg.substring(i, i + len);
+            for (var i = 0; i + len <= cut.length; i++) {
+              final g = cut.substring(i, i + len);
               if (bank.funcWords.contains(g[0]) ||
                   bank.funcWords.contains(g[g.length - 1])) {
                 continue;
               }
               chapterGram[g] = (chapterGram[g] ?? 0) + 1;
-              _chGrams.add(g);
             }
           }
         }
       }
     }
 
-    for (final g in _chGrams) {
-      _df[g] = (_df[g] ?? 0) + 1;
-    }
     // §8 内存护栏：章内只出现一次的候选不并入全局（跨章复现才有术语资格）
     for (final e in chapterGram.entries) {
       if (e.value < 2) continue;

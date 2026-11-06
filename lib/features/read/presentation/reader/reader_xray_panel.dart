@@ -25,6 +25,7 @@ import './reader_xray_refine.dart' show XrRefineCard;
 import './reader_xray_sheets.dart';
 
 part 'reader_xray_panel_learn.dart';
+part 'reader_xray_panel_list.dart';
 
 const List<(String, String)> kXrTypes = [
   ('per', '人名'),
@@ -103,6 +104,14 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
 
   double get _confTop => _topScore;
   double _topScore = 1;
+
+  // F7-6（批7）：作用域过滤与排序的**记忆**。旧实现每次 build 都跑两遍
+  // `_scoped`（类型 tab 行一次、列表一次），再把 hi/lo 各排一遍——2000 词条档
+  // 每帧白扫两次全表。两个签名一换才重算，滚动/勾选不再触发全量重扫。
+  int _scopeSig = 0;
+  List<XrayEntityRow> _scopeCache = const [];
+  int _listSig = 0;
+  ({List<XrayEntityRow> hi, List<XrayEntityRow> lo, double top})? _listCache;
 
   @override
   void didUpdateWidget(covariant ReaderXrayPanel old) {
@@ -255,7 +264,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-          child: _typeRow(_scoped(snap.entities, snap.anchors)),
+          child: _typeRow(_scopedOf(snap)),
         ),
         if (sched.suggestion(widget.book.id) case final sug?)
           Padding(
@@ -561,259 +570,6 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
       child: ListView(scrollDirection: Axis.horizontal, children: visible),
     );
   }
-
-  // ---------- 列表（xrListHtml：高/低置信 + 排序 pill · ④全书态不置顶「在当前页」分组） ----------
-
-  Widget _list(XrayPanelData snap, String md5) {
-    var pool = _scoped(snap.entities, snap.anchors);
-    if (_type != 'all') pool = pool.where((e) => e.type == _type).toList();
-    final kw = widget.kw.trim();
-    if (kw.isNotEmpty) pool = pool.where((e) => e.name.contains(kw)).toList();
-    // 批2修③：选区未命中带入的搜索词（空态给「加为词条」入口）。
-    final skw = _selKw?.trim() ?? '';
-    if (skw.isNotEmpty) {
-      pool = pool.where((e) => e.name.contains(skw)).toList();
-    }
-    _topScore =
-        pool.isEmpty ? 1 : pool.map((e) => e.score).reduce((a, b) => a > b ? a : b);
-    if (_topScore <= 0) _topScore = 1;
-    final cut = _topScore * _kLowRatio;
-    final hi = _sorted(pool.where((e) => e.score >= cut).toList());
-    final lo = _sorted(pool.where((e) => e.score < cut).toList());
-
-    if (pool.isEmpty) {
-      return ListView(
-        key: const ValueKey('xrList'),
-        children: [
-          if (skw.isNotEmpty) _kwBanner(),
-          if (skw.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Column(
-                children: [
-                  Text('没有找到「$skw」',
-                      key: const ValueKey('xrMissLbl'),
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 10, color: _XrStyle.muted(context))),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    key: const ValueKey('xrKwAdd'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _openAdd(md5, prefill: skw),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: _XrStyle.accent(context),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text('＋ 加为词条',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white)),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 48),
-              child: Text(
-                snap.entities.isEmpty ? '还没有词条 · 点「重新解析」生成全书索引' : '该范围没有词条',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 10, color: _XrStyle.muted(context)),
-              ),
-            ),
-        ],
-      );
-    }
-
-    final rows = <Widget>[
-      // 批2修③：选区搜索横幅（列表态任意时刻可清）。
-      if (skw.isNotEmpty) _kwBanner(),
-    ];
-    // ④（工单20261001轮2·用户拍板）：全书范围不显示「在当前页」分组，
-    // 当前页只由范围段选「当前页」表达（_scoped 过滤），与原型同步摘组。
-    rows.addAll(hi.map((e) => _row(e, snap.anchors[e.id])));
-    if (lo.isNotEmpty) {
-      rows.add(GestureDetector(
-        key: const ValueKey('xr-lowmore'),
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _lowOpen = !_lowOpen),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 10, 2, 4),
-          child: Text(
-            _lowOpen ? '收起低置信' : '低置信 · ${lo.length} · 展开',
-            style: TextStyle(
-                fontSize: 10, fontWeight: FontWeight.w900, color: _XrStyle.muted(context)),
-          ),
-        ),
-      ));
-      if (_lowOpen) rows.addAll(lo.map((e) => _row(e, snap.anchors[e.id])));
-    }
-    rows.add(Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Center(
-        child: GestureDetector(
-          key: const ValueKey('xrSortBtn'),
-          behavior: HitTestBehavior.opaque,
-          onTap: () => setState(() => _sort = const ['score', 'n', 'name'][(_sort == 'score') ? 1 : (_sort == 'n') ? 2 : 0]),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '${const {'score': '按相关度', 'n': '按出场', 'name': '按名称'}[_sort]} ▾',
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ),
-    ));
-    rows.add(Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Text(
-        '${snap.entities.length} 个词条 · 出场锚点全量 · 上下文截断',
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 9, color: _XrStyle.muted(context)),
-      ),
-    ));
-    return ListView(key: const ValueKey('xrList'), children: rows);
-  }
-
-  /// 批2修③：选区搜索横幅（列表/空态两分支共用；清除钮任意时刻可关）。
-  Widget _kwBanner() {
-    final skw = _selKw?.trim() ?? '';
-    return Padding(
-      key: const ValueKey('xrKwBar'),
-      padding: const EdgeInsets.fromLTRB(2, 2, 2, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text('搜索「$skw」',
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: _XrStyle.muted(context))),
-          ),
-          GestureDetector(
-            key: const ValueKey('xrKwClr'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _selKw = null),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              child: Text('清除',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: _XrStyle.accent(context))),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(XrayEntityRow e, List<XrayAnchorRow>? ms) {
-    final cs = Theme.of(context).colorScheme;
-    final sel = _sel.contains(e.id);
-    return GestureDetector(
-      key: ValueKey('xrRow-${e.id}'),
-      behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() {
-        if (_org) {
-          sel ? _sel.remove(e.id) : _sel.add(e.id);
-        } else {
-          _curId = e.id;
-        }
-      }),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: cs.outlineVariant.withValues(alpha: .5)),
-        ),
-        foregroundDecoration: _org && sel
-            ? BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _XrStyle.accent(context), width: 2),
-              )
-            : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (_org)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Container(
-                      key: ValueKey('xr-ck-${e.id}'),
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: sel ? _XrStyle.accent(context) : Color(0xFFE2E8F0),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: sel
-                          ? const Icon(Icons.check_rounded,
-                              size: 12, color: Colors.white)
-                          : null,
-                    ),
-                  ),
-                Flexible(
-                  child: Text(
-                    e.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text('${e.n}次',
-                    style: TextStyle(fontSize: 9, color: _XrStyle.muted(context))),
-                if (e.tocFlag) ...[
-                  const SizedBox(width: 4),
-                  const _Badge('目录词', outline: true),
-                ],
-                if (e.userAdded) ...[
-                  const SizedBox(width: 4),
-                  const _Badge('我的词条', violet: true),
-                ],
-                const Spacer(),
-                _XrBar(
-                  mentions: [
-                    for (final m in ms ?? const <XrayAnchorRow>[]) m.ch,
-                  ],
-                  totalCh: widget.doc.chapters.length,
-                  curCh: widget.ci,
-                ),
-              ],
-            ),
-            if ((e.aiDesc ?? '').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  e.aiDesc!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 9.5, color: _XrStyle.muted(context), height: 1.4),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------- 详情子页（xrDetailHtml + F12 剧透保护） ----------
 
   Widget _detail(XrayPanelData snap, String md5, int id) {
     final e = snap.entities.where((x) => x.id == id).firstOrNull;

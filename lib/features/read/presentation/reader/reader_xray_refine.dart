@@ -93,6 +93,13 @@ Future<void> showXrRefineEntry(
     readToast(context, '本书还没有已解析词条，先跑一次 X-Ray 解析');
     return;
   }
+  // F7-5（批7）：精化是**精修定位**，不是全量重解析——候选只取低置信带
+  // （口径同面板 `_kLowRatio`＝本书最高分×0.7），高置信词条按现有结果保留。
+  final lowCut = rows.map((e) => e.score).reduce((a, b) => a > b ? a : b) * .7;
+  if (!rows.any((e) => e.score < lowCut)) {
+    readToast(context, '没有低置信词条需要精修');
+    return;
+  }
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -102,6 +109,7 @@ Future<void> showXrRefineEntry(
         bookId: book.id,
         bookTitle: book.title,
         rows: rows,
+        lowCut: lowCut,
         budget: budget,
         hostRef: ref),
   );
@@ -113,6 +121,7 @@ class _XrRefinePreSheet extends ConsumerStatefulWidget {
     required this.bookId,
     required this.bookTitle,
     required this.rows,
+    required this.lowCut,
     required this.budget,
     required this.hostRef,
   });
@@ -123,6 +132,9 @@ class _XrRefinePreSheet extends ConsumerStatefulWidget {
   final String bookId;
   final String bookTitle;
   final List<XrayEntityRow> rows;
+
+  /// F7-5：低置信带分界线（= 本书最高分×0.7）；只有分线以下的词条进精修。
+  final double lowCut;
   final int budget;
 
   /// 宿主页面（阅读页）的 ref：跑批比弹层活得久，别用弹层自己的 ref。
@@ -136,9 +148,10 @@ class _XrRefinePreSheetState extends ConsumerState<_XrRefinePreSheet> {
   late int _budget = widget.budget;
 
   List<XrRefineCandidate> get _cands => [
+        // F7-5：只精修低置信带——高置信词条已经是「定得住的」，重跑只会烧 token。
         for (final XrayEntityRow e in widget.rows)
-          XrRefineCandidate(
-              name: e.name, type: e.type, n: e.n, chs: e.chs)
+          if (e.score < widget.lowCut)
+            XrRefineCandidate(name: e.name, type: e.type, n: e.n, chs: e.chs)
       ];
 
   Future<void> _setBudget(int v) async {
@@ -182,7 +195,7 @@ class _XrRefinePreSheetState extends ConsumerState<_XrRefinePreSheet> {
         children: [
           Row(
             children: [
-              const Text('AI 精化',
+              const Text('AI 精化 · 精修定位',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
               const Spacer(),
               Text(kXrRefineTask,
@@ -214,6 +227,10 @@ class _XrRefinePreSheetState extends ConsumerState<_XrRefinePreSheet> {
                   const TextSpan(text: ' tokens'),
                 ])),
           ),
+          const SizedBox(height: 6),
+          Text('只精修低置信词条 · 高置信按现有结果保留',
+              key: const ValueKey('xrAiPreScope'),
+              style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant)),
           const SizedBox(height: 12),
           Text('单请求字符预算',
               style: TextStyle(

@@ -137,6 +137,13 @@ final speedFoldProvider = FutureProvider<bool>((ref) async {
 /// 全局读书计时条在其上属重复信息 → 进页挂起、退页恢复）。
 final readerOpenProvider = StateProvider<int>((_) => 0);
 
+/// F7-1（批7）：正在**后台续算全书分页**的书（阅读器侧 `_startBgPaginate` 循环）。
+///
+/// 为什么需要它：X-Ray 调度器的 `busyProbe` 原来只看「预热/预载」（服务层
+/// `warming`），漏了阅读器自己那条续算循环——两者同时在跑时会互抢 CPU，
+/// 表现为翻页与解析都变粘。现在续算在跑＝X-Ray 让路（与 §8 优先级同口径）。
+final bgPaginatingProvider = StateProvider<Set<String>>((_) => const <String>{});
+
 /// 顶部长胶囊是否可见：有在跑会话 && 计时形态为顶部胶囊 && read.floatBar 开
 /// && 不在阅读页内（轮5.4 UI 统一）。
 /// （全屏形态下计时走沉浸页，顶栏不再挂胶囊。）
@@ -415,8 +422,10 @@ final xraySchedulerProvider = ChangeNotifierProvider<XrayScheduler>((ref) {
       d ??= await EpubDoc.openFileDetached(ep.path);
       return d;
     },
-    // 全局单飞优先级：开书（预热）在跑时 X-Ray 让路（§8）。
-    busyProbe: (bookId) => svc.warming(bookId) != null,
+    // 全局单飞优先级：开书（预热）或**阅读器后台续算分页**在跑时，X-Ray 让路（§8）。
+    busyProbe: (bookId) =>
+        svc.warming(bookId) != null ||
+        ref.read(bgPaginatingProvider).contains(bookId),
     // 批2 养词库开关：默认开；关＝解析/补扫不叠加用户层（纯预置视角）。
     userDictOn: () async =>
         ((await ref.read(readRepositoryProvider).kv('read.xrUserDict')) ??
