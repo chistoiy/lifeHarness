@@ -17,9 +17,9 @@ class _SlowLedgerRepo extends LedgerRepository {
   _SlowLedgerRepo(super.db);
 
   @override
-  Future<int> addTxn(LedgerTxn t) async {
+  Future<int> addTxn(LedgerTxn t, {bool recompute = true}) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    return super.addTxn(t);
+    return super.addTxn(t, recompute: recompute);
   }
 }
 

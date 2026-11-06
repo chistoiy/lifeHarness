@@ -284,32 +284,44 @@ class LedgerRepository {
       db.delete(DbSchema.tLedgerRecur, where: 'id = ?', whereArgs: [id]);
 
   /// 到期批量生成（原型 recGenDue → 逐条 recGen）：每行经统一 [addTxn] 写路径
-  /// 落 expense 流水（source='recurring' + recurring_id，日期=next，备注=名称，
-  /// 同事务回算余额），随后 next=recurNext(next, freq) 推进一个周期。
+  /// 落 expense 流水（source='recurring' + recurring_id，日期=next，备注=名称），
+  /// 随后 next=recurNext(next, freq) 推进一个周期。
   /// 返回生成笔数；行内逐条原子（多行非单事务：与逐条点击生成语义一致）。
+  ///
+  /// 复杂度治理（2026-11-06 · 查漏补缺 P0）：旧写法逐条 addTxn 各触发一次
+  /// 余额重算＝O(N²)；现关闭逐条重算，循环后 finally 统一重算一次＝O(N+A)。
+  /// finally 保证异常路径余额同样不滞后，逐条原子语义不变。
   Future<int> genDueRecur(int bk, String today) async {
     final due = await dueRecurs(bk, today);
-    for (final r in due) {
-      await addTxn(LedgerTxn(
-        kind: LedgerTxn.kExpense,
-        amt: r.amt,
-        catId: r.catId,
-        sub: r.sub,
-        accountId: r.accountId,
-        date: r.nextDate,
-        note: r.name,
-        source: LedgerTxn.kSourceRecurring,
-        recurringId: r.id,
-        bk: r.bk,
-      ));
-      await db.update(
-        DbSchema.tLedgerRecur,
-        {'next_date': recurNext(r.nextDate, r.freq)},
-        where: 'id = ?',
-        whereArgs: [r.id],
-      );
+    if (due.isEmpty) return 0;
+    try {
+      for (final r in due) {
+        await addTxn(
+          LedgerTxn(
+            kind: LedgerTxn.kExpense,
+            amt: r.amt,
+            catId: r.catId,
+            sub: r.sub,
+            accountId: r.accountId,
+            date: r.nextDate,
+            note: r.name,
+            source: LedgerTxn.kSourceRecurring,
+            recurringId: r.id,
+            bk: r.bk,
+          ),
+          recompute: false,
+        );
+        await db.update(
+          DbSchema.tLedgerRecur,
+          {'next_date': recurNext(r.nextDate, r.freq)},
+          where: 'id = ?',
+          whereArgs: [r.id],
+        );
+      }
+      return due.length;
+    } finally {
+      await _recomputeBalances(db);
     }
-    return due.length;
   }
 
   // ==================== 账户（全局共用，不带 bk） ====================
@@ -401,11 +413,16 @@ class LedgerRepository {
   // ==================== 流水统一写路径（finTouch 等价物） ====================
 
   /// 记一笔/生成流水。返回新行 id。
-  Future<int> addTxn(LedgerTxn t) => db.transaction((txn) async {
+  ///
+  /// [recompute] 仅供批量路径（见 [genDueRecur]）关闭逐条余额重算；调用方
+  /// **必须**在批量结束后自行触发一次 `_recomputeBalances`，且用 try/finally
+  /// 保证异常路径也重算，否则余额会滞后。
+  Future<int> addTxn(LedgerTxn t, {bool recompute = true}) =>
+      db.transaction((txn) async {
         final row = t.toRow();
         row['created_at'] = DateTime.now().millisecondsSinceEpoch;
         final id = await txn.insert(DbSchema.tLedgerTxns, row);
-        await _recomputeBalances(txn);
+        if (recompute) await _recomputeBalances(txn);
         return id;
       });
 
