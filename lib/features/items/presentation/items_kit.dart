@@ -483,9 +483,14 @@ Future<bool> itemsConfirm(BuildContext context, String message,
 
 /// 成本流水时间轴（详情/决算共用；竖线 + 色点 + 金额/标签/日期/note，仅追加展示）。
 class ItemTimeline extends StatelessWidget {
-  const ItemTimeline({super.key, required this.events});
+  const ItemTimeline({super.key, required this.events, this.onDeleteExtra});
 
   final List<ItemEvent> events;
+
+  /// 非空时二次付费（extra）行可长按触发删除确认（详情页用）；
+  /// 结算页等只读场景不传＝维持纯展示。购入/回收/报废行永不响应——
+  /// 它们是状态变迁审计，删行不解锁状态。
+  final void Function(ItemEvent)? onDeleteExtra;
 
   @override
   Widget build(BuildContext context) {
@@ -517,39 +522,50 @@ class ItemTimeline extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 2, bottom: i == events.length - 1 ? 0 : 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text.rich(
-                            TextSpan(children: [
-                              TextSpan(
-                                  text: itemEvAmountText(events[i]),
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: kItemMuted)),
-                              TextSpan(
-                                  text: ' ${events[i].label} ',
-                                  style: const TextStyle(
-                                      fontSize: 12, fontWeight: FontWeight.w700)),
-                              TextSpan(
-                                  text: events[i].date,
-                                  style: TextStyle(
-                                      fontSize: 11, color: scheme.onSurfaceVariant)),
-                            ]),
-                          ),
-                          if ((events[i].note ?? '').isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(events[i].note!,
-                                  style: TextStyle(
-                                      fontSize: 10,
-                                      height: 1.5,
-                                      color: scheme.onSurfaceVariant)),
+                    child: GestureDetector(
+                      key: ValueKey('i-tl-row-${events[i].id ?? i}'),
+                      // 排障批：二次付费行长按删除（仅 extra·回调在册时）。
+                      onLongPress:
+                          (onDeleteExtra != null && events[i].kind == kEvExtra)
+                              ? () => onDeleteExtra!(events[i])
+                              : null,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                            top: 2, bottom: i == events.length - 1 ? 0 : 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text.rich(
+                              TextSpan(children: [
+                                TextSpan(
+                                    text: itemEvAmountText(events[i]),
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: kItemMuted)),
+                                TextSpan(
+                                    text: ' ${events[i].label} ',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700)),
+                                TextSpan(
+                                    text: events[i].date,
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: scheme.onSurfaceVariant)),
+                              ]),
                             ),
-                        ],
+                            if ((events[i].note ?? '').isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(events[i].note!,
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        height: 1.5,
+                                        color: scheme.onSurfaceVariant)),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

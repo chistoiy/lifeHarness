@@ -5,7 +5,12 @@ import '../../../core/logging/app_log.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
 
-/// 物品价值仓储（仿 care/days 范式；审计时间轴仅追加＝本类不暴露 events 改删口）。
+/// 物品价值仓储（仿 care/days 范式）。
+///
+/// 审计口径（排障批 2026-11-06 修订）：购入/回收/报废**仅追加不改删**——
+/// 它们承载资产状态变迁（计费/决算冻结），删行不会解锁状态＝假修复；
+/// **二次付费（extra）可删**——记错金额的唯一正道是删记录，联动流水由
+/// item_mounts 同删（本类只管事件行，R1 不碰 ledger）。
 ///
 /// 与记账（L12）联动：建档同步生成支出流水、二次付费=支出、回收=收入——
 /// 流水写入统一走 shared/linkage/item_mounts.dart（R1 守护，items 不 import ledger）；
@@ -199,7 +204,7 @@ class ItemsRepository {
 
   // ==================== 生命周期三操作（全部仅追加 + 实时重算在引擎侧） ====
 
-  Future<void> _appendEvent(int itemId, ItemEvent e) =>
+  Future<int> _appendEvent(int itemId, ItemEvent e) =>
       db.insert(DbSchema.tItemEvents, {
         'item_id': itemId,
         'kind': e.kind,
@@ -211,10 +216,11 @@ class ItemsRepository {
       });
 
   /// 二次付费：计入成本池，摊回全周期（日均回升由引擎实算）。
-  Future<void> addExtraPay(int itemId, double amount, String desc,
-          {String? note, String? date}) async {
+  /// 返回新事件 id（联动方 item_mounts 拿它回填 txn_id）。
+  Future<int> addExtraPay(int itemId, double amount, String desc,
+      {String? note, String? date}) async {
     final d = date ?? fmtYmd(DateTime.now());
-    await _appendEvent(
+    final id = await _appendEvent(
         itemId,
         ItemEvent(
             itemId: itemId,
@@ -224,6 +230,28 @@ class ItemsRepository {
             note: note,
             date: d));
     AppLog.addKey('物品二次付费：#$itemId +$amount · $desc · $d（摊回全周期）');
+    return id;
+  }
+
+  /// 读单条事件（删除确认前取 txn_id 用）。
+  Future<ItemEvent?> eventById(int id) async {
+    final rows = await db.query(DbSchema.tItemEvents,
+        where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : ItemEvent.fromRow(rows.first);
+  }
+
+  /// 二次付费事件回填联动流水 id（迁移 50 起新事件走此口）。
+  Future<void> backfillEventTxn(int eventId, int txnId) => db.update(
+      DbSchema.tItemEvents, {'txn_id': txnId},
+      where: 'id = ?', whereArgs: [eventId]);
+
+  /// 删除二次付费事件（仅放行 extra 类：购入/回收/报废是状态变迁审计，不开放）。
+  /// 返回实际删除行数（0＝不是 extra 或已不存在）。
+  Future<int> deleteExtraEvent(int eventId) {
+    final n = db.delete(DbSchema.tItemEvents,
+        where: 'id = ? AND kind = ?', whereArgs: [eventId, kEvExtra]);
+    AppLog.addKey('物品二次付费删除：事件 #$eventId（联动流水由 item_mounts 处置）');
+    return n;
   }
 
   /// 回收/出售：残值扣减。keep=true 抵扣留用（继续计费）；

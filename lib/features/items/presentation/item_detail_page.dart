@@ -607,13 +607,33 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           const Text('成本流水时间轴（审计记录）',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          ItemTimeline(events: it.events),
+          ItemTimeline(
+              events: it.events, onDeleteExtra: (e) => _confirmExtraDelete(it, e)),
           const SizedBox(height: 10),
-          const Text('时间轴仅追加不删除 · 每次二次付费/回收实时重算日均（联动 L12）',
+          const Text(
+              '二次付费长按可删（联动流水同删）· 购入/回收/报废仅追加 · 实时重算日均（联动 L12）',
               style: TextStyle(fontSize: 10, color: kItemMuted)),
         ],
       ),
     );
+  }
+
+  /// 二次付费删除＝LH-S31 二次确认 → itemExtraPayDelete（联动流水同删）→
+  /// 全量重算（itemsTick 驱动，日均/成本池由引擎实算回落）。
+  /// 本路径页面不离场（对比 _confirmDelete 的 pop），State 的 ref 安全。
+  Future<void> _confirmExtraDelete(ItemProfile it, ItemEvent e) async {
+    final ok = await lhConfirm(
+        context,
+        '删除这条二次付费「${e.label.replaceFirst('二次付费：', '')} '
+        '${itemEvAmountText(e)}」？\n'
+        '· 联动生成的记账流水一并删除（物品删除的「流水保留」口径不适用于此——\n'
+        '  这笔流水本就是本条记录自动生成的）\n'
+        '· 成本池/日均随之回落，动作不可撤销',
+        okLabel: '删除');
+    if (!ok || !mounted) return;
+    await itemExtraPayDelete(ref, it, e);
+    if (!mounted) return;
+    AppToast.show(context, '二次付费已删除 · 成本池已回落');
   }
 
   /// 关联卡（保修→日子提醒中心 L10；流水徽标说明 L12）。

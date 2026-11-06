@@ -89,5 +89,12 @@ final Map<int, List<String>> mig = {
     35: [
       'ALTER TABLE $tItemProfiles ADD COLUMN deleted_at INTEGER',
       'CREATE INDEX IF NOT EXISTS idx_item_profiles_deleted ON $tItemProfiles(deleted_at)',
+    ],
+    // 50→51（物品模块排障批）：item_events 加 txn_id＝事件级记账流水关联
+    // （L12 二次付费删记录时要精确找到联动流水同删）。纯加列零搬数据；
+    // 老事件 txn_id=NULL，删除路径走 item_mounts 的同日同额兜底匹配。
+    // 列不进基础 DDL（mediaReviewStatements 段注同款理由）。
+    50: [
+      'ALTER TABLE $tItemEvents ADD COLUMN txn_id INTEGER',
     ]
 };

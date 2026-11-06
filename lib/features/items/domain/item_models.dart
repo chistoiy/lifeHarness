@@ -48,6 +48,7 @@ class ItemEvent {
     this.amount = 0,
     this.note,
     required this.date,
+    this.txnId,
   });
 
   final int? id;
@@ -57,6 +58,9 @@ class ItemEvent {
   final double amount;
   final String? note;
   final String date; // YYYY-MM-DD
+  /// 联动记账流水 id（L12；迁移 50 起新事件回填）。老事件为 NULL，
+  /// 删除时按「物品链＋同日同额同备注」兜底匹配（item_mounts）。
+  final int? txnId;
 
   static ItemEvent fromRow(Map<String, Object?> r) => ItemEvent(
         id: r['id'] as int,
@@ -66,6 +70,7 @@ class ItemEvent {
         amount: (r['amount'] as num?)?.toDouble() ?? 0,
         note: r['note'] as String?,
         date: r['event_date'] as String,
+        txnId: r['txn_id'] as int?,
       );
 }
 

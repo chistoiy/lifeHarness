@@ -29,6 +29,10 @@ void main() {
     for (final sql in DbSchema.itemSchemaStatements) {
       await db.execute(sql);
     }
+    // 排障批：migrations[50]（50→51）item_events 加 txn_id（二次付费删记录链路）。
+    for (final sql in DbSchema.migrations[50]!) {
+      await db.execute(sql);
+    }
     repo = ItemsRepository(db);
   });
 
@@ -81,6 +85,26 @@ void main() {
       expect(it.events.last.label, '二次付费：Type-C 扩展坞');
       // 购入首审计原样保留（不可改删）
       expect(it.events.first.kind, kEvBuy);
+    });
+
+    test('二次付费可删（排障批）：addExtraPay 返回 id · backfill txn_id · '
+        'deleteExtraEvent 只删 extra·购入行拒绝', () async {
+      final id = await repo.addItem(sample);
+      final evId =
+          await repo.addExtraPay(id, 399, 'Type-C 扩展坞', date: '2025-06-02');
+      final e = (await repo.eventById(evId))!;
+      expect(e.kind, kEvExtra);
+      expect(e.txnId, isNull); // 未回填前为空（老事件同形态）
+      await repo.backfillEventTxn(evId, 777);
+      expect((await repo.eventById(evId))!.txnId, 777);
+      // 购入行是状态变迁审计：deleteExtraEvent 守卫拒绝（影响行数 0）
+      final buyId = (await reload(id)).events.firstWhere((e) => e.kind == kEvBuy).id!;
+      expect(await repo.deleteExtraEvent(buyId), 0);
+      expect((await reload(id)).events.length, 2);
+      // 删 extra：行数 1，成本池实算回落 399
+      expect(await repo.deleteExtraEvent(evId), 1);
+      expect(await repo.eventById(evId), isNull);
+      expect(poolOf(await reload(id)), 9999);
     });
   });
 

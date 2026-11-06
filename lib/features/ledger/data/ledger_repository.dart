@@ -459,6 +459,26 @@ class LedgerRepository {
     return rows.isEmpty ? null : LedgerTxn.fromRow(rows.first);
   }
 
+  /// 物品链流水兜底查找（物品模块排障批 2026-11-06）：迁移 50 之前的二次付费
+  /// 事件没有 txn_id 回填，删除时按「物品链＋同日同额同备注」精确匹配；
+  /// 多条命中取最新（max id）——同日同额同说明的重复付费本就应逐条删，
+  /// 取最新与用户「删刚才那笔」的意图一致。仅供 item_mounts 联动删除调用。
+  Future<int?> findItemLinkedTxn(
+      {required int itemId,
+      required String kind,
+      required double amt,
+      required String date,
+      required String note}) async {
+    final rows = await db.query(DbSchema.tLedgerTxns,
+        columns: ['id'],
+        where: "source = 'item' AND link_id = ? AND kind = ? AND amt = ? "
+            'AND date = ? AND note = ?',
+        whereArgs: ['$itemId', kind, amt, date, note],
+        orderBy: 'id DESC',
+        limit: 1);
+    return rows.isEmpty ? null : rows.first['id'] as int;
+  }
+
   /// 生成退款冲抵流水：仅 expense 且未被退过，一笔仅退一次（§4 退款口径）。
   /// 返回新流水 id；不可退时返回 null。
   Future<int?> refundTxn(int originalId, {String? date}) async {

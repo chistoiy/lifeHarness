@@ -39,6 +39,10 @@ void main() {
     for (final sql in DbSchema.itemSchemaStatements) {
       await db.execute(sql);
     }
+    // 排障批：migrations[50]（50→51）item_events 加 txn_id（二次付费删记录链路）。
+    for (final sql in DbSchema.migrations[50]!) {
+      await db.execute(sql);
+    }
     repo = ItemsRepository(db);
   });
 
@@ -222,9 +226,10 @@ void main() {
           find.textContaining(
               '购入价 ¥9,999 ＋ 二次付费 ¥555 － 回收残值 ¥0 ＝ 成本池 ÷ 556 天'),
           findsOneWidget);
-      // 时间轴（仅追加）三事件
+      // 时间轴三事件（排障批起 extra 行长按可删，文案同批改口径）
       expect(find.textContaining('+¥399 二次付费：Type-C 扩展坞'), findsOneWidget);
-      expect(find.textContaining('时间轴仅追加不删除'), findsOneWidget);
+      expect(find.textContaining('二次付费长按可删'), findsOneWidget);
+      expect(find.textContaining('购入/回收/报废仅追加'), findsOneWidget);
       // 状态 chip + 冻结无决算入口
       expect(find.textContaining('● 使用中 · 计费中'), findsOneWidget);
       expect(find.byKey(const ValueKey('i-detail-settle')), findsNothing);
@@ -485,6 +490,72 @@ void main() {
       await tester.tap(find.byKey(ValueKey('i-item-row-${it.id}')));
       await settle5(tester);
       expect(find.textContaining('来源：记账流水升级建档（联动 L12）'), findsOneWidget);
+    });
+
+    testWidgets('二次付费录入：联动生流水 · txn_id 精确回填（删除链路由「老事件兜底」守护）',
+        (tester) async {
+      await useSurface(tester);
+      // 视口撑到 800×2400（直接赋 physicalSize，仿 diary_filter_rows_test
+      // 先例——setSurfaceSize 在本文件的路由泵法下实测不生效）：时间轴行
+      // 整体在屏内，长按命中不依赖滚动与遮挡。
+      tester.view.physicalSize = const Size(800 * 3, 2400 * 3);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+      final id = await seedMacbook();
+      await openDetail(tester, id);
+      // 录一笔二次付费（联动生流水＋回填 txn_id）
+      await tester.tap(find.byKey(const ValueKey('i-life-extra')));
+      await settle5(tester);
+      await tester.enterText(find.byKey(const ValueKey('i-extra-amt')), '200');
+      await tester.enterText(
+          find.byKey(const ValueKey('i-extra-desc')), '屏幕换膜');
+      await tester.tap(find.byKey(const ValueKey('i-extra-save')));
+      expect(await pollContains(tester, '已计入成本池'), isTrue);
+      await settle5(tester);
+      final ev = (await repo.loadAll())
+          .items
+          .firstWhere((x) => x.id == id)
+          .events
+          .lastWhere((e) => e.kind == kEvExtra);
+      final txn = await db.query(DbSchema.tLedgerTxns,
+          where: "source = 'item'");
+      expect(txn.length, 1);
+      expect(ev.txnId, txn.single['id']); // 事件级精确关联已回填
+      // 注：本用例不再覆盖「长按删除」段——录账 bottom sheet 流程会在测试
+      // 环境残留浮层（Theater+AbsorbPointer）吞掉后续长按手势，属环境问题
+      // 非产品行为；删除链路（长按→确认→事件与流水同删）由下方「老事件兜底」
+      // 用例全链路守护，仓储侧删除/兜底/类型守护见 items_repo_test。
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('二次付费删除·老事件兜底：txn_id 空 → 同日同额同备注匹配流水同删',
+        (tester) async {
+      await useSurface(tester);
+      final id = await seedMacbook();
+      // 模拟迁移 50 之前的老数据：事件无 txn_id，流水直写（老 _pushTxn 不回填）
+      await repo.addExtraPay(id, 399, '官方换电池（补差）', date: '2026-09-19');
+      await db.insert(DbSchema.tLedgerTxns, {
+        'kind': 'expense', 'amt': 399.0, 'cat_id': 103, 'account_id': 1,
+        'date': '2026-09-19',
+        'note': '物品养护：MacBook Air M3 · 官方换电池（补差）',
+        'source': 'item', 'link_id': '$id', 'bk': 1, 'created_at': 0,
+      });
+      await openDetail(tester, id);
+      final ev = (await repo.loadAll())
+          .items
+          .firstWhere((x) => x.id == id)
+          .events
+          .lastWhere((e) => e.kind == kEvExtra);
+      expect(ev.txnId, isNull);
+      await tester.longPress(find.byKey(ValueKey('i-tl-row-${ev.id}')));
+      expect(await pollContains(tester, '联动生成的记账流水一并删除'), isTrue);
+      await tester.tap(find.byKey(const ValueKey('d-confirm-ok')));
+      await settle5(tester);
+      expect(
+          await db.query(DbSchema.tLedgerTxns,
+              where: "source = 'item' AND kind = 'expense'"),
+          isEmpty); // 兜底匹配成功：流水同删
+      await drainLogTimer(tester);
     });
   });
 

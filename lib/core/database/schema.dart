@@ -78,8 +78,10 @@ class DbSchema {
   // 50：日记改版批2b（2026-10-19）——migrations[49]（49→50）建 `tags` / `tag_links`
   // 两表（标签池全局唯一 + 按 id 关联；新表只建零搬数据；历史 `journal_entries.tags`
   // 的名字由 `TagDao.seedFromJournalTags` 懒导入，不在 SQL 里解析 JSON）。
+  // 51：物品模块排障批（2026-11-06）——migrations[50]（50→51）给 item_events 加
+  // txn_id（事件级记账流水关联·二次付费删记录同删联动流水；纯加列零搬数据）。
   // 同 v49 教训：版本常量与 migrations 最高键必须同批同步。
-  static const int version = 50;
+  static const int version = 51;
  
 
   

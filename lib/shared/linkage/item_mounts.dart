@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/logging/app_log.dart';
 import '../../features/items/domain/item_models.dart';
 import '../../features/items/presentation/items_providers.dart';
 import '../../features/ledger/domain/ledger_txn.dart';
@@ -48,6 +49,7 @@ Future<int> itemCreate(
 }
 
 /// 二次付费：事件 + 支出流水（联动 L12）。
+/// 事件行回填 txn_id（迁移 50 起）：删记录时精确找到联动流水同删。
 Future<void> itemExtraPay(
   WidgetRef ref,
   ItemProfile it, {
@@ -55,14 +57,49 @@ Future<void> itemExtraPay(
   required String desc,
 }) async {
   final repo = ref.read(itemsRepositoryProvider);
-  await repo.addExtraPay(it.id!, amount, desc);
-  await _pushTxn(ref,
+  final evId = await repo.addExtraPay(it.id!, amount, desc);
+  final txnId = await _pushTxn(ref,
       itemId: it.id!,
       itemName: it.name,
       amount: amount,
       income: false,
       date: _todayKey(),
       note: '物品养护：${it.name} · $desc');
+  if (txnId != null) await repo.backfillEventTxn(evId, txnId);
+}
+
+/// 删除二次付费记录（排障批 2026-11-06）：联动流水同删——
+/// - 新事件（txn_id 已回填）：按 id 精确删；
+/// - 老事件（txn_id=NULL·迁移 50 前）：按「物品链＋同日同额同备注」兜底匹配，
+///   匹配不到（无账户环境未生流水/流水已被手动删）只删事件不碰账。
+/// 删事件与删流水都失败即抛（调用方 UI 已二次确认，静默吞错会让账实背离）。
+Future<void> itemExtraPayDelete(
+  WidgetRef ref,
+  ItemProfile it,
+  ItemEvent e,
+) async {
+  final repo = ref.read(itemsRepositoryProvider);
+  final ledger = ref.read(ledgerRepositoryProvider);
+  var txnId = e.txnId;
+  if (txnId == null) {
+    // 老事件兜底：note = '物品养护：{name} · {desc}'，desc 在 label 里。
+    const tag = '二次付费：';
+    final desc = e.label.startsWith(tag) ? e.label.substring(tag.length) : '';
+    txnId = await ledger.findItemLinkedTxn(
+        itemId: it.id!,
+        kind: LedgerTxn.kExpense,
+        amt: e.amount,
+        date: e.date,
+        note: '物品养护：${it.name} · $desc');
+  }
+  if (txnId != null) {
+    await ledger.delTxn(txnId); // 连带其退款冲抵行
+    ref.read(ledgerTickProvider.notifier).state++;
+  }
+  await repo.deleteExtraEvent(e.id!);
+  ref.read(itemsTickProvider.notifier).state++;
+  AppLog.addKey('物品二次付费删除：${it.name} · −${e.amount} · ${e.date}'
+      '${txnId != null ? ' · 联动流水 #$txnId 同删' : ' · 无关联流水'}');
 }
 
 /// 回收：事件（残值扣减）+ 收入流水；keep=false 转出停计费并冻结决算。
@@ -87,7 +124,8 @@ Future<void> itemRecycle(
 Future<void> itemScrap(WidgetRef ref, ItemProfile it, String reason) =>
     ref.read(itemsRepositoryProvider).scrap(it.id!, reason);
 
-Future<void> _pushTxn(
+/// 返回新流水 id；无账户环境（测试/首启）静默跳过返回 null（widget 测试零网络零权限）。
+Future<int?> _pushTxn(
   WidgetRef ref, {
   required int itemId,
   required String itemName,
@@ -99,8 +137,8 @@ Future<void> _pushTxn(
 }) async {
   final ledger = ref.read(ledgerRepositoryProvider);
   final accts = await ledger.accounts();
-  if (accts.isEmpty) return; // 无账户环境（测试/首启）静默跳过
-  await ledger.addTxn(LedgerTxn(
+  if (accts.isEmpty) return null; // 无账户环境（测试/首启）静默跳过
+  final id = await ledger.addTxn(LedgerTxn(
     kind: income ? LedgerTxn.kIncome : LedgerTxn.kExpense,
     amt: amount,
     catId: income ? null : kLedgerCatShopping,
@@ -113,6 +151,7 @@ Future<void> _pushTxn(
     bk: await ledger.curBookId(),
   ));
   ref.read(ledgerTickProvider.notifier).state++;
+  return id;
 }
 
 /// 建档/事件同步流水归类「购物」（ledger 种子大类 id 103，同 wishRedeem 先例）。
