@@ -313,6 +313,7 @@ ACTIVE_TICKETS19 = {
     "交棒话术-20261019-日记模块改版批1日期轨道与图墙.md",
     "交棒话术-20261019-日记批1收口与size还债.md",
     "交棒话术-20261106-物品批A实证能力.md",
+    "交棒话术-20261107-阅读二期批7XRay效率.md",
 }
 _ho = "docs/handoff"
 _on_disk = {f for f in os.listdir(_ho)
