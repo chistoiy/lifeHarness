@@ -149,6 +149,18 @@ extension _ReaderBoot on _ReaderPageState {
         '章=${doc.chapters.length} 段=${doc.chapters.fold<int>(0, (s, c) => s + c.paras.length)}',
       );
       if (_pag == null) _clampPos();
+      // 2026-11-07 真机反馈：书籍详情页目录行带 ?chapter= 直达正文对应章节。
+      // 先精确比标题，再退到互相包含（目录节名与 EPUB 章名常带不同前后缀）。
+      final wanted = widget.initialChapter?.trim();
+      if (wanted != null && wanted.isNotEmpty) {
+        var ci = doc.chapters.indexWhere((c) => c.title == wanted);
+        if (ci < 0) {
+          ci = doc.chapters.indexWhere((c) =>
+              c.title.isNotEmpty &&
+              (c.title.contains(wanted) || wanted.contains(c.title)));
+        }
+        if (ci >= 0) _gotoChapter(ci);
+      }
       // 轮5.2②：分页就绪＝位置可算 → 回填会话起始快照（此后无需手填）。
       _sessFrom = _locSnap();
       final sid = _sessId;

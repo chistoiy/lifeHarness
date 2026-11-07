@@ -34,13 +34,12 @@ const Color _kIcDesktop = Color(0xFF6366F1);
 /// 我的/设置（M0 · 对齐原型 p-profile）。
 /// 真数据：完成任务数/连续记录天/在册书籍/同步与提醒读数/安装包版本号。
 /// 2026-10-11 批A：行序与卡片分组回到原型（记录管理收回组卡、维护类三行移末段）；
-/// 仍为死键待批C 落地＝主题市场（原型 `sheetThemeMarket` 未实现）、字号调节。
+/// 仍为死键待批C 落地＝字号调节；主题市场第二入口已按 2026-11-07 产品裁定撤销。
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = context.tokens;
     final settings = ref.watch(settingsControllerProvider);
     final streak = ref.watch(streakDaysProvider).valueOrNull ?? 0;
     final doneTasks = ref.watch(doneTaskCountProvider).valueOrNull ?? 0;
@@ -1179,13 +1178,13 @@ class NavToggleGrid extends ConsumerWidget {
   }
 }
 
-/// V1.27 P2 外观二级页（原型 p-sub-appearance）：主题风格/深色模式/主题色/字体大小 收拢。
+/// V1.27 P2 外观二级页（原型 p-sub-appearance）：主题风格/深色模式/字体大小 收拢。
+/// 2026-11-07：主题色与主题风格同源重复，整行撤销。
 class AppearanceSettingsPage extends ConsumerWidget {
   const AppearanceSettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = context.tokens;
     final settings = ref.watch(settingsControllerProvider);
     final registry = ref.watch(themeRegistryProvider);
     // 强制深色主题（赛博朋克）要让深色三档置灰——按当前主题包判，不写死主题名。
@@ -1199,23 +1198,9 @@ class AppearanceSettingsPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Expanded(
-                        child: Text('主题风格',
-                            style:
-                                TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
-                    TextButton(
-                      onPressed: () => _toast(context, '主题市场（GitHub 热加载）V1.x 上线'),
-                      child: Text('更多主题 ›',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: tokens.accent,
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-                Text('${registry.ids.length} 套内置 · 配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色',
+                const Text('主题风格',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                Text('${registry.ids.length} 套内置 · 点按即时切换',
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 10),
                 _ThemeGrid(registry: registry, selectedId: settings.themeId),
@@ -1260,53 +1245,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
-                const SizedBox(height: 6),
-                // 主题色（原型 themeDots：一排色点，点击=切对应主题）
-                Row(
-                  children: [
-                    _SetIc(icon: Icons.palette_outlined),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                        child: Text('主题色',
-                            style:
-                                TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final b in registry.all)
-                          Builder(builder: (context) {
-                            final t = b.pick(
-                                Theme.of(context).brightness == Brightness.dark);
-                            final on = b.id == settings.themeId;
-                            return GestureDetector(
-                              key: ValueKey('theme-dot-${b.id}'),
-                              onTap: () {
-                                ref
-                                    .read(settingsControllerProvider.notifier)
-                                    .setTheme(b.id);
-                                ref
-                                    .read(eventBusProvider)
-                                    .publish(ThemeChangedEvent(b.id));
-                              },
-                              child: Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: t.gradient,
-                                  border: Border.all(
-                                      color: on
-                                          ? t.accent
-                                          : Colors.black.withValues(alpha: .12),
-                                      width: on ? 2.5 : 1),
-                                ),
-                              ),
-                            );
-                          }),
-                      ],
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 12),
                 // 字体大小（原型默认第 2 档）
                 Row(
                   children: [

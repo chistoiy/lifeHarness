@@ -478,7 +478,7 @@ tailwind.config = {
     </span>
   </div>
 
-  <!-- 顶栏（专版壳：返回 + 标题 + 深浅色） -->
+  <!-- 顶栏（专版壳：返回 + 标题；深浅色统一由外观页三档控制） -->
   <header id="topHead" class="px-5 pb-2 pt-1 flex items-center gap-2 relative z-20">
     <button id="btnBack" onclick="goBack()" class="hidden w-9 h-9 -ml-2 rounded-full items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
@@ -487,19 +487,16 @@ tailwind.config = {
       <div id="pageTitle" class="text-xl font-extrabold tracking-tight truncate">AI 增强</div>
       <div id="pageSub" class="text-[11px] text-slate-400 -mt-0.5 truncate">Opt-in · 逐项授权</div>
     </div>
-    <button onclick="toggleTheme()" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" aria-label="切换深浅色" title="切换深浅色">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
-    </button>
   </header>
 
   <!-- ========== 页面容器（专版壳＝顶栏 78 + 底栏 70；与壳同口径） ========== -->
   <main class="h-[calc(100%-148px)] overflow-hidden relative">
     <!-- ===== 设置域专版屏序：外观 / 提醒通知 / 记录管理 / 回收站 / 桌面与快捷方式（批4 迁入） ===== -->
-    <!-- ===== P12f 二级：外观（V1.27 · 主题风格/深色/主题色/字号 收拢） ===== -->
+    <!-- ===== P12f 二级：外观（V1.27 · 主题风格/深色模式/字体大小 收拢；2026-11-07 撤主题色重复项） ===== -->
     <section id="p-sub-appearance" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">主题风格</div><button onclick="openSheet('sheetThemeMarket')" class="text-[11px] text-brand-500 font-bold">更多主题 ›</button></div>
-        <div class="text-[11px] text-slate-400 mb-2">7 套内置 · 支持配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色</div>
+        <div class="row-title">主题风格</div>
+        <div class="text-[11px] text-slate-400 mb-2">7 套内置 · 点按即时切换 · 与深色模式正交 · 赛博朋克强制深色</div>
         <div class="grid grid-cols-3 gap-2" id="themeStyleRow"></div>
       </div>
       <div class="card mt-4 space-y-3 text-sm">
@@ -509,8 +506,6 @@ tailwind.config = {
           <button id="dm-light" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setDarkMode('light')">浅色</button>
           <button id="dm-dark" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setDarkMode('dark')">深色</button>
         </div>
-        <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8c3 4 5.4 6.3 5.4 9.3a5.4 5.4 0 0 1-10.8 0c0-3 2.4-5.3 5.4-9.3Z"/></svg></span><div class="flex-1"><b>主题色</b></div>
-          <div class="flex gap-2" id="themeDots"></div></div>
         <div class="flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
       </div>
 
@@ -693,8 +688,8 @@ tailwind.config = {
   <div id="sheetThemeMarket" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetThemeMarket')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
       <div class="grabber"></div>
-      <div class="font-extrabold">🛍 主题市场</div>
-      <div class="text-[11px] text-slate-400 mb-3 mt-0.5 leading-5">主题即配置文件（<span class="font-mono">themes/*.json</span> 设计令牌）：颜色/字体/圆角/阴影/纹理 · 下载即热加载，无需刷新 · 正式版支持从仓库拉取并校验签名</div>
+      <div class="font-extrabold">全部主题</div>
+      <div class="text-[11px] text-slate-400 mb-3 mt-0.5 leading-5">7 套内置主题 · 点按即时切换 · 与深色模式正交 · 当前生效项以主色标出</div>
       <div id="mktList"></div>
       <button onclick="closeSheet('sheetThemeMarket')" class="mt-2 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">收起</button>
     </div>
@@ -726,7 +721,7 @@ const stack=[]; let curPage='p-sub-appearance';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-sub-aiVerify':['AI API 验证','端点 · Key · 模型连通性'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','八类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删'],'p-sub-desktop':['桌面与快捷方式','长按菜单 · 铺到桌面 · 小部件绑目标 · 链接直达'],'p-sub-nfc':['NFC 卡片','贴卡触发动作 · 卡片数据可改']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-sub-aiVerify':['AI API 验证','端点 · Key · 模型连通性'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色模式 · 字体大小'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','八类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删'],'p-sub-desktop':['桌面与快捷方式','长按菜单 · 铺到桌面 · 小部件绑目标 · 链接直达'],'p-sub-nfc':['NFC 卡片','贴卡触发动作 · 卡片数据可改']};
 
 function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);return;}
   $$('.page').forEach(s=>s.classList.remove('active'));
@@ -837,23 +832,30 @@ function renderThemeRow(){
   $('#themeStyleRow').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95 text-left" style="border-color:${t[0]===curTheme?'var(--accent)':'transparent'};background:var(--card)">
     <span class="block h-11 rounded-xl" style="background:${themeSwatch(t)};${t[0]==='neumorph'?'box-shadow:inset 2px 2px 4px rgba(0,0,0,.12),-2px -2px 4px #fff':''}${t[0]==='cyber'?'box-shadow:inset 0 0 12px rgba(34,211,238,.5)':''}"></span>
     <span class="text-[10px] font-bold block mt-1" style="color:${t[0]===curTheme?'var(--accent)':'#94a3b8'}">${t[1].split(' · ')[0]}</span></button>`).join('')
-    +MKT_LOADED.map(t=>`<button onclick="setTheme('${t.k}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95 text-left" style="border-color:${t.k===curTheme?'var(--accent)':'transparent'};background:var(--card)"><span class="block h-11 rounded-xl" style="background:${themeSwatch(t.sw)}"></span><span class="text-[10px] font-bold block mt-1" style="color:${t.k===curTheme?'var(--accent)':'#94a3b8'}">${t.name} ⬇</span></button>`).join('');}
+    +MKT_LOADED.map(t=>`<button onclick="setTheme('${t.k}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95 text-left" style="border-color:${t.k===curTheme?'var(--accent)':'transparent'};background:var(--card)"><span class="block h-11 rounded-xl" style="background:${themeSwatch(t.sw)}"></span><span class="text-[10px] font-bold block mt-1" style="color:${t.k===curTheme?'var(--accent)':'#94a3b8'}">${t.name}</span></button>`).join('');}
 function renderSideThemes(){if(!$('#sideThemes'))return;
   $('#sideThemes').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="px-2 py-2 rounded-xl text-[11px] font-bold transition ${t[0]===curTheme?'text-white ring-2 ring-white/60':'text-slate-400'}" style="background:${t[0]===curTheme?themeSwatch(t):'#1e293b'}">${t[1].split(' · ')[0]}</button>`).join('')}
 /* —— 主题市场 —— */
 let MKT_LOADED=[];
-const MKT_META=[{k:'sakura',n:'樱花粉系',d:'粉色系渐变 + 大圆角 · 社区作者 @hao',v:'v0.9'},{k:'mint',n:'薄荷抹茶',d:'绿色护胃 · 社区作者 @tea',v:'v1.1'},{k:'graphite',n:'石墨黑白',d:'无彩色极客风 · 等宽字体',v:'v1.0'}];
-function renderMkt(){var items=MKT_META.map(function(m){var loaded=MKT_LOADED.some(function(x){return x.k===m.k});
- var sw=m.k==='sakura'?'linear-gradient(135deg,#f472b6,#e879f9)':m.k==='mint'?'linear-gradient(135deg,#10b981,#84cc16)':'linear-gradient(135deg,#27272a,#71717a)';
- var tail=loaded?'<span class="text-[10px] text-emerald-500 font-bold shrink-0">✓ 已加载</span>':'<button class="mini-btn shrink-0" onclick="mktInstall(\''+m.k+'\')">⬇ 下载热加载</button>';
- return '<div class="mkt-card flex items-center gap-3"><span class="w-11 h-11 rounded-xl flex-shrink-0" style="background:'+sw+'"></span><div class="flex-1 min-w-0"><b class="text-xs">'+m.n+'</b> <span class="text-[9px] text-slate-400">'+m.v+'</span><div class="text-[10px] text-slate-400 truncate">'+m.d+'</div></div>'+tail+'</div>'}).join('');
- $('#mktList').innerHTML=items+'<div class="text-[10px] text-slate-400 leading-5 mt-1">流程演示：从主题仓库（GitHub Release json）拉取配置 → 校验签名 → applyTokens() 写入设计令牌 → 全局即时换肤。将 json 放入 <span class="font-mono">prototype/themes/</span> 目录即可同理扩展。</div>';}
-function mktInstall(k){const m=MKT_META.find(x=>x.k===k);if(MKT_LOADED.some(x=>x.k===k))return;
- toast('⬇ 拉取 themes/'+k+'.json … 签名校验通过（模拟 412ms）');
- setTimeout(()=>{MKT_LOADED.push({k,name:m.n,sw:['',m.n,k==='sakura'?'#f472b6':k==='mint'?'#10b981':'#52525b',k==='sakura'?'#fb7185':k==='mint'?'#84cc16':'#a1a1aa',k==='sakura'?'#e879f9':k==='mint'?'#14b8a6':'#18181b']});
-  setTheme(k);renderMkt();toast('🎨 '+m.n+' 已热加载并应用 · 未刷新页面')},650);}
-function toggleTheme(){DARK_MODE=(darkWant()?'light':'dark');try{localStorage.setItem('lh.darkMode',DARK_MODE)}catch(e){}
- darkApply();toast(DARK_MODE==='dark'?'已锁定深色':'已锁定浅色')}
+/* 2026-11-07 产品裁定：内置主题可切换，撤掉联网下载 / 签名校验语义。
+   清单与 THEMES 同源（7 套），点按 setTheme 即时生效。 */
+const MKT_META=[
+ {k:'minimal', n:'简约 · 默认', d:'中性灰底 + 靛蓝主色 · 系统默认'},
+ {k:'fresh',   n:'小清新',       d:'薄荷绿到天蓝 · 高明度轻快'},
+ {k:'retro',   n:'复古',         d:'赭石与棕褐 · 低饱和纸感'},
+ {k:'neumorph',n:'轻拟态',       d:'浅灰蓝 + 内外双面阴影'},
+ {k:'cyber',   n:'赛博朋克',     d:'深紫底 + 霓虹青紫 · 强制深色'},
+ {k:'autumn',  n:'秋日暖调',     d:'米黄纸底 + 焦糖橙'},
+ {k:'ocean',   n:'海洋深蓝',     d:'深蓝底 + 天青高光'}
+];
+function renderMkt(){var items=MKT_META.map(function(m){
+ var t=THEMES.find(function(x){return x[0]===m.k})||[m.k,m.n,'#6366f1','#8b5cf6','#d946ef'];
+ var on=curTheme===m.k;
+ var tail=on?'<span class="text-[10px] font-bold shrink-0" style="color:var(--accent)">使用中</span>'
+            :'<button class="mini-btn shrink-0" onclick="mktApply(\''+m.k+'\')">切换</button>';
+ return '<div class="mkt-card flex items-center gap-3"'+(on?' style="border-color:var(--accent)"':'')+'><span class="w-11 h-11 rounded-xl flex-shrink-0" style="background:'+themeSwatch(t)+'"></span><div class="flex-1 min-w-0"><b class="text-xs">'+m.n+'</b><div class="text-[10px] text-slate-400 truncate">'+m.d+'</div></div>'+tail+'</div>'}).join('');
+ var el=$('#mktList');if(el)el.innerHTML=items+'<div class="text-[10px] text-slate-400 leading-5 mt-1">内置主题随应用发布，无需下载；切换后全局设计令牌即时生效，深浅色档位保持不变。</div>';}
+function mktApply(k){setTheme(k);renderMkt();toast('已切换到「'+(MKT_META.find(function(m){return m.k===k})||{n:k}).n+'」');}
 
 /* ================= 模拟数据（自 index.html 逐字迁入 · 批4） ================= */
 const D = {
@@ -1059,7 +1061,6 @@ function tick(){ const d=new Date(); const c=$('#clock'); if(c)c.textContent=d.g
 darkApply();
 renderNav();
 renderThemeRow(); renderSideThemes(); renderDeskMenu(); renderDeskPin(); renderMkt();
-$('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 tick(); setInterval(tick,10000);
 </script>
 

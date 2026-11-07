@@ -1,6 +1,6 @@
 {
  "file": "index-bookshelf.html",
- "total": 580071,
+ "total": 581649,
  "cut": 0,
  "screens": [
   {
@@ -368,8 +368,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2138,
-   "hash": "1819381e"
+   "size": 2772,
+   "hash": "2b2597b8"
   },
   {
    "id": "sheetBrLocalInfo",

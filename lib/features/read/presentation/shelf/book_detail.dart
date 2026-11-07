@@ -765,10 +765,10 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                 GestureDetector(
                   key: ValueKey('toc-s-${s.id}'),
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() {
-                    _chapF = s.title;
-                    _tab = 'q';
-                  }),
+                  // 2026-11-07 真机反馈：点目录＝进阅读器正文对应章节，不再只筛书摘。
+                  onTap: () => context.push(
+                    '/read/reader/${b.id}?chapter=${Uri.encodeComponent(s.title)}',
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.only(left: 4, top: 5, bottom: 5),
                     child: Row(
@@ -801,29 +801,42 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                             ),
                           ),
                         ),
-                        // 该节划线摘录数角标（原型 q 位：划线图标+N）
+                        // 该节划线摘录数角标（原型 q 位：划线图标+N）·点它筛本章书摘，
+                        // 整行才是进正文（2026-11-07 真机反馈，能力不丢）。
                         if ((chapQ[s.title] ?? 0) > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  BsIcons.quote,
-                                  size: 10,
-                                  color: tokens.accent as Color,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '${chapQ[s.title]}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
+                          GestureDetector(
+                            key: ValueKey('toc-q-${s.id}'),
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => setState(() {
+                              _chapF = s.title;
+                              _tab = 'q';
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    BsIcons.quote,
+                                    size: 10,
                                     color: tokens.accent as Color,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '${chapQ[s.title]}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: tokens.accent as Color,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.chevron_right,
+                            size: 14, color: cs.onSurfaceVariant),
                         if (_tocDone(b, s, cur, curActive))
                           Icon(
                             BsIcons.check,

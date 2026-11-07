@@ -80,6 +80,31 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         title: const Text('标签管理'),
         actions: [
           IconButton(
+            key: const ValueKey('tg-fold-all'),
+            tooltip: _foldAll ? '全部展开' : '全部折叠',
+            icon: Icon(
+              _foldAll ? Icons.unfold_more : Icons.unfold_less,
+              color: _foldAll ? tokens.accent : null,
+            ),
+            onPressed: () => setState(() {
+              _foldAll = !_foldAll;
+              _folded.clear();
+            }),
+          ),
+          IconButton(
+            key: const ValueKey('tg-sort'),
+            tooltip: _sortMode == 0 ? '排序 · 默认' : '排序 · 引用数',
+            icon: Icon(
+              Icons.swap_vert,
+              color: _sortMode == 1 ? tokens.accent : null,
+            ),
+            onPressed: () {
+              setState(() => _sortMode = _sortMode == 0 ? 1 : 0);
+              AppToast.show(context,
+                  _sortMode == 1 ? '按引用条数从多到少' : '按标签池默认顺序', ms: 1200);
+            },
+          ),
+          IconButton(
             key: const ValueKey('tg-add'),
             tooltip: '添加标签',
             icon: const Icon(Icons.add),
@@ -91,52 +116,10 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _TopBtn(
-                  key: const ValueKey('tg-fold-all'),
-                  label: _foldAll ? '全部展开' : '全部折叠',
-                  onTap: () => setState(() {
-                    _foldAll = !_foldAll;
-                    _folded.clear();
-                  }),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _TopBtn(
-                  key: const ValueKey('tg-sort'),
-                  label: _sortMode == 0 ? '排序 · 默认' : '排序 · 引用数',
-                  onTap: () {
-                    setState(() => _sortMode = _sortMode == 0 ? 1 : 0);
-                    AppToast.show(context,
-                        _sortMode == 1 ? '按引用条数从多到少' : '按标签池默认顺序', ms: 1200);
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  key: const ValueKey('tg-add-top'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: tokens.accent,
-                    minimumSize: const Size.fromHeight(38),
-                    padding: EdgeInsets.zero,
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
-                  onPressed: () async {
-                    await context.push('/tags/add');
-                    await _refresh();
-                  },
-                  child: const Text('＋ 添加标签'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          // 2026-11-07 真机反馈：展开/排序/添加三操作统一进顶栏线性图标，
+          // 内容区不再占一行文字按钮（原型 p-sub-tags 同口径）。
           // 跨模块搜索（口径④）：搜标签名 + 三模块内容，**忽略作用域**。
           Container(
             height: 40,
@@ -461,34 +444,6 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
         'public' => Icons.public,
         _ => Icons.label_outline,
       };
-}
-
-class _TopBtn extends StatelessWidget {
-  const _TopBtn({super.key, required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        height: 38,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: tokens.card,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: tokens.cardBorder),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w600, color: tokens.text1)),
-      ),
-    );
-  }
 }
 
 /// 删除确认（口径④：三模块一律解绑，内容本身不删）。

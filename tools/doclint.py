@@ -315,6 +315,7 @@ ACTIVE_TICKETS19 = {
     "交棒话术-20261106-物品批A实证能力.md",
     "交棒话术-20261107-阅读二期批7XRay效率.md",
     "交棒话术-20261107-记录四模块拆分C案批1路由与底栏池.md",
+    "交棒话术-20261107-真机反馈九条整改.md",
 }
 _ho = "docs/handoff"
 _on_disk = {f for f in os.listdir(_ho)

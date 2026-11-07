@@ -1,6 +1,6 @@
 {
  "file": "index-time.html",
- "total": 139175,
+ "total": 141037,
  "cut": 0,
  "screens": [
   {
@@ -40,8 +40,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 1968,
-   "hash": "8dbee8b7"
+   "size": 1567,
+   "hash": "2ea1b258"
   },
   {
    "id": "p-sub-tagAdd",

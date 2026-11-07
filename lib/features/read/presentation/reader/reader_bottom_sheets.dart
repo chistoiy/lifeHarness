@@ -18,6 +18,8 @@ class BrProgData {
     required this.frac,
     required this.auto,
     required this.homeLbl,
+    required this.logicLabel,
+    required this.paperLabel,
   });
 
   final int pct;
@@ -33,6 +35,12 @@ class BrProgData {
 
   /// 非空＝显示「回到进书位置」（拖离进书位置后才有值 · 轮5.2①）。
   final String? homeLbl;
+
+  /// 当前屏按排版实算的逻辑页（2026-11-07 真机反馈双口径）。
+  final String logicLabel;
+
+  /// 原书纸书页：按登记总页数折算，未登记时写「未登记总页数」。
+  final String paperLabel;
 }
 
 /// 阅读进度弹层：统计三格 + 全书滑条 + 明细/自动翻页 +（离开过才现）回到进书位置。
@@ -115,6 +123,20 @@ class _ProgSheetState extends State<_ProgSheet> {
                 _stat(context, 'brStPct', '${d.pct}', '%', d.eta),
                 _stat(context, 'brStMin', '${d.sessMin}', '分钟', '本次时长'),
                 _stat(context, 'brStNote', '${d.notes}', '条', '本书笔记'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _pageCard(context, 'brStLogic', '当前屏 · 逻辑页',
+                      d.logicLabel),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _pageCard(context, 'brStPaper', '原书 · 纸书页',
+                      d.paperLabel),
+                ),
               ],
             ),
             Slider(
@@ -213,6 +235,36 @@ class _ProgSheetState extends State<_ProgSheet> {
   }
 }
 
+
+/// 双口径读数卡（原型 brStLogic / brStPaper）。
+Widget _pageCard(BuildContext context, String key, String label, String value) {
+  final cs = Theme.of(context).colorScheme;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      border: Border.all(color: cs.outlineVariant),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          key: ValueKey(key),
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w800,
+            color: cs.onSurface,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
 Widget _stat(
   BuildContext context,

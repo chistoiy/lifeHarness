@@ -109,8 +109,12 @@ List<GoRoute> readPageRoutes() => [
                 LocalImportPage(reattachBookId: s.uri.queryParameters['reattach']),
           ),
         GoRoute(
+            // ?chapter= 书籍详情页目录行直达正文对应章节（2026-11-07 真机反馈）。
             path: '/read/reader/:id',
-            builder: (_, s) => ReaderPage(bookId: s.pathParameters['id']!),
+            builder: (_, s) => ReaderPage(
+              bookId: s.pathParameters['id']!,
+              initialChapter: s.uri.queryParameters['chapter'],
+            ),
           ),
         // 书架资料单类管理页：?kind= 决定类（书架维度行「管理X」入口；默认来源）。
           GoRoute(

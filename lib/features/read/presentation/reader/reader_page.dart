@@ -73,9 +73,12 @@ const int kBrLoupeThrottleMs = 60;
 /// 图片放大保存、内链直跳/外链三策略、命中「上/下一处」、进页自动计时/退出结算。
 /// 批3 划词菜单与同库、批4 外观面板/逐书记忆/TTS/自动翻页/常亮在其上接入。
 class ReaderPage extends ConsumerStatefulWidget {
-  const ReaderPage({super.key, required this.bookId});
+  const ReaderPage({super.key, required this.bookId, this.initialChapter});
 
   final String bookId;
+
+  /// 目录行直达：装载完成后按标题匹配章并跳入（null＝按记忆位置开书）。
+  final String? initialChapter;
 
   @override
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
@@ -527,6 +530,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         ? '约${(etaMin / 60).ceil()}小时后读完'
         : '约${etaMin < 1 ? 1 : etaMin}分钟后读完';
     final h = _homePos;
+    // 2026-11-07 真机反馈：逻辑页（按当前屏实算）与原书页（按登记总页数折算）
+    // 双读数并列，别把渲染分页误当成纸书页码。
+    final logicTot = pag.estTotal;
+    final logicCur =
+        (pag.gPosEst(_pos.ci, _pos.pg) + 1).clamp(1, logicTot).toInt();
+    final paperTot = _book?.pages ?? 0;
+    final paperCur = paperTot > 0
+        ? (f * paperTot).round().clamp(1, paperTot).toInt()
+        : 0;
     showBrProgressSheet(
       context,
       d: BrProgData(
@@ -539,6 +551,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         homeLbl: h != null && (h.ci != _pos.ci || h.pg != _pos.pg)
             ? '回到进书位置'
             : null,
+        logicLabel: '第 $logicCur / $logicTot 页',
+        paperLabel: paperTot > 0 ? '第 $paperCur / $paperTot 页' : '未登记总页数',
       ),
       onSeek: _seek, // 弹层内已把 0~1000 滑条值换算成 0~1 分数
       onDetail: () => context.push('/read/log/${widget.bookId}'),
@@ -932,140 +946,152 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                 _viewport = size;
                 _rebuildPag();
               }
-              return SafeArea(
-                bottom: false,
-                child: Stack(
-                  key: _stackKey,
-                  children: [
-                    // 热区可视化占位（键供测试/调试；手势统一走 body 层分派）。
-                    if (_doc != null && _err == null) ...[
-                      Positioned(
-                        left: 0,
-                        top: size.height * .15,
-                        bottom: size.height * .15,
-                        width: size.width * .16,
-                        child: const ColoredBox(
-                          key: ValueKey('brZoneL'),
-                          color: Colors.transparent,
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        top: size.height * .15,
-                        bottom: size.height * .15,
-                        width: size.width * .16,
-                        child: const ColoredBox(
-                          key: ValueKey('brZoneR'),
-                          color: Colors.transparent,
-                        ),
-                      ),
-                      Positioned(
-                        left: size.width * .16,
-                        right: size.width * .16,
-                        top: size.height * .15,
-                        bottom: size.height * .15,
-                        child: const ColoredBox(
-                          key: ValueKey('brZoneC'),
-                          color: Colors.transparent,
-                        ),
-                      ),
-                    ],
-                    Positioned.fill(
-                      child: RepaintBoundary(
-                        key: _contentBoundaryKey,
-                        child: BrBackdrop(
-                          key: const ValueKey('brStage'),
-                          cfg: _cfg,
-                          base: th.$2,
-                          child: _stage(th),
-                        ),
-                      ),
+              return Stack(
+                children: [
+                  // 2026-11-07 真机反馈：底纹必须铺满整屏——背景层放在
+                  // SafeArea 之外，正文 / chrome 仍留在安全区里。
+                  Positioned.fill(
+                    child: BrBackdrop(
+                      key: const ValueKey('brStage'),
+                      cfg: _cfg,
+                      base: th.$2,
+                      child: const SizedBox.expand(),
                     ),
-                    // 亮度遮罩（V1.53 轮3：模拟系统亮度，只压正文不压 chrome）。
-                    if (_cfg.lum < 100)
-                      Positioned.fill(
-                        key: const ValueKey('brLumMask'),
-                        child: IgnorePointer(
-                          child: ColoredBox(
-                            color: Colors.black.withValues(
-                              alpha: (100 - _cfg.lum) / 100 * .55,
+                  ),
+                  Positioned.fill(
+                    child: SafeArea(
+                      bottom: false,
+                      child: Stack(
+                        key: _stackKey,
+                        children: [
+                          // 热区可视化占位（键供测试/调试；手势统一走 body 层分派）。
+                          if (_doc != null && _err == null) ...[
+                            Positioned(
+                              left: 0,
+                              top: size.height * .15,
+                              bottom: size.height * .15,
+                              width: size.width * .16,
+                              child: const ColoredBox(
+                                key: ValueKey('brZoneL'),
+                                color: Colors.transparent,
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              top: size.height * .15,
+                              bottom: size.height * .15,
+                              width: size.width * .16,
+                              child: const ColoredBox(
+                                key: ValueKey('brZoneR'),
+                                color: Colors.transparent,
+                              ),
+                            ),
+                            Positioned(
+                              left: size.width * .16,
+                              right: size.width * .16,
+                              top: size.height * .15,
+                              bottom: size.height * .15,
+                              child: const ColoredBox(
+                                key: ValueKey('brZoneC'),
+                                color: Colors.transparent,
+                              ),
+                            ),
+                          ],
+                          // 背景已提到安全区外（见本屏外层 BrBackdrop），此处只画正文。
+                          Positioned.fill(
+                            child: RepaintBoundary(
+                              key: _contentBoundaryKey,
+                              child: _stage(th),
                             ),
                           ),
-                        ),
-                      ),
-                    if (_doc != null && _err == null) ...[
-                      if (_chrome) _topBar(bar),
-                      if (_chrome && _pag != null) _bottomBar(bar, size),
-                      if (_flash != null) _flashBar(bar),
-                      if (_selController.sel != null) ...brSelLayer(
-                        size: size,
-                        hlPop: _hlPop,
-                        place: _selBarPlace(size),
-                        skin: brSelSkinOf(th.$2),
-                        onCopy: _actCopy,
-                        onToggleHl: () => setState(() => _hlPop = !_hlPop),
-                        onQuote: _actQuote,
-                        onDict: _actDict,
-                        onTts: () => readToast(context, '朗读能力规划中 · 暂未上线'),
-                        onAi: _actAi,
-                        onShare: _actShare,
-                        onColor: _addHl,
-                        onDelete: _delHl,
-                        onXray: xrSelToLearn,
-                        tools: _brSelTools,
-                        handle: (end) =>
-                            brHandleWidget(
-                              end,
-                              _selAnchor(end),
-                              (g) {
-                                _dragSel(end: end, global: g);
-                                _loupeAtEnd(end);
-                              },
-                              onDragStart: (g) => _loupeAtEnd(end),
-                              onDragEnd: () => _setLoupe(null),
-                              accent: context.tokens.accent, // F3-3：手柄色随主题
+                          // 亮度遮罩（V1.53 轮3：模拟系统亮度，只压正文不压 chrome）。
+                          if (_cfg.lum < 100)
+                            Positioned.fill(
+                              key: const ValueKey('brLumMask'),
+                              child: IgnorePointer(
+                                child: ColoredBox(
+                                  color: Colors.black.withValues(
+                                    alpha: (100 - _cfg.lum) / 100 * .55,
+                                  ),
+                                ),
+                              ),
                             ),
+                          if (_doc != null && _err == null) ...[
+                            if (_chrome) _topBar(bar),
+                            if (_chrome && _pag != null) _bottomBar(bar, size),
+                            if (_flash != null) _flashBar(bar),
+                            if (_selController.sel != null) ...brSelLayer(
+                              size: size,
+                              hlPop: _hlPop,
+                              place: _selBarPlace(size),
+                              skin: brSelSkinOf(th.$2),
+                              onCopy: _actCopy,
+                              onToggleHl: () => setState(() => _hlPop = !_hlPop),
+                              onQuote: _actQuote,
+                              onDict: _actDict,
+                              onTts: () => readToast(context, '朗读能力规划中 · 暂未上线'),
+                              onAi: _actAi,
+                              onShare: _actShare,
+                              onColor: _addHl,
+                              onDelete: _delHl,
+                              onXray: xrSelToLearn,
+                              tools: _brSelTools,
+                              handle: (end) =>
+                                  brHandleWidget(
+                                    end,
+                                    _selAnchor(end),
+                                    (g) {
+                                      _dragSel(end: end, global: g);
+                                      _loupeAtEnd(end);
+                                    },
+                                    onDragStart: (g) => _loupeAtEnd(end),
+                                    onDragEnd: () => _setLoupe(null),
+                                    accent: context.tokens.accent, // F3-3：手柄色随主题
+                                  ),
+                            ),
+                            // V1.53.2 选区放大镜：拖动手柄期间跟随手指显示。
+                            if (_loupeFocal != null)
+                              ReaderLoupe(
+                                image: _loupeImage,
+                                focal: _loupeFocal!,
+                                contentLogicalSize: size,
+                                stackSize: size,
+                              ),
+                            // 轮5.2①：正文不再悬浮任何胶囊——「回到进书位置」在进度弹层，
+                            // 「回到刚才在读」在目录抽屉（跳章返回）。
+                          ],
+                          if (_drawerOpen && _doc != null && _pag != null && _book != null)
+                            ReaderTocDrawer(
+                              state: _drState,
+                              book: _book!,
+                              doc: _doc!,
+                              pager: _pag!,
+                              ci: _pos.ci,
+                              pg: _pos.pg,
+                              onGoto: _gotoChapter,
+                              onXrJump: xrJumpTo,
+                              backLbl: _jumpFrom?.title,
+                              onBackJump: _jumpFrom == null ? null : _goBackJump,
+                              onAddBookmark: () {
+                                setState(() => _pos.bm = [_pos.ci, _pos.pg, DateTime.now().millisecondsSinceEpoch]);
+                                _savePos();
+                                _showFlash('书签已添加 · ${_cfi(_pos.ci, _pos.pg)}');
+                              },
+                              onSearchJump: (hits, idx, q) {
+                                setState(() {
+                                  _hits = hits;
+                                  _hitI = idx;
+                                  _hitQ = q;
+                                });
+                                _jumpHit(idx);
+                              },
+                              onClose: () => setState(() => _drawerOpen = false),
+                            ),
+                        ],
                       ),
-                      // V1.53.2 选区放大镜：拖动手柄期间跟随手指显示。
-                      if (_loupeFocal != null)
-                        ReaderLoupe(
-                          image: _loupeImage,
-                          focal: _loupeFocal!,
-                          contentLogicalSize: size,
-                          stackSize: size,
-                        ),
-                      // 轮5.2①：正文不再悬浮任何胶囊——「回到进书位置」在进度弹层，
-                      // 「回到刚才在读」在目录抽屉（跳章返回）。
-                    ],
-                    if (_drawerOpen && _doc != null && _pag != null && _book != null)
-                      ReaderTocDrawer(
-                        state: _drState,
-                        book: _book!,
-                        doc: _doc!,
-                        pager: _pag!,
-                        ci: _pos.ci,
-                        pg: _pos.pg,
-                        onGoto: _gotoChapter,
-                        onXrJump: xrJumpTo,
-                        backLbl: _jumpFrom?.title,
-                        onBackJump: _jumpFrom == null ? null : _goBackJump,
-                        onAddBookmark: () {
-                          setState(() => _pos.bm = [_pos.ci, _pos.pg, DateTime.now().millisecondsSinceEpoch]);
-                          _savePos();
-                          _showFlash('书签已添加 · ${_cfi(_pos.ci, _pos.pg)}');
-                        },
-                        onSearchJump: (hits, idx, q) {
-                          setState(() {
-                            _hits = hits;
-                            _hitI = idx;
-                            _hitQ = q;
-                          });
-                          _jumpHit(idx);
-                        },
-                        onClose: () => setState(() => _drawerOpen = false),
-                      ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               );
             },
           ),

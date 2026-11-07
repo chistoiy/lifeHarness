@@ -1,6 +1,6 @@
 {
  "file": "index-settings.html",
- "total": 105299,
+ "total": 103535,
  "cut": 0,
  "screens": [
   {
@@ -8,8 +8,8 @@
    "kind": "screen",
    "title": "外观",
    "role": "home",
-   "size": 5954,
-   "hash": "c9d22ff0"
+   "size": 5260,
+   "hash": "1cff5b15"
   },
   {
    "id": "p-sub-notify",
@@ -56,8 +56,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 769,
-   "hash": "8e05ea35"
+   "size": 700,
+   "hash": "37babfed"
   },
   {
    "id": "sheetTrashPurge",

@@ -1330,8 +1330,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 16604,
-          "hash": "9366f338"
+          "size": 16598,
+          "hash": "34137f22"
         }
       }
     },
@@ -1582,8 +1582,8 @@
       "status": "exclusive",
       "files": {
         "index-settings.html": {
-          "size": 5954,
-          "hash": "c9d22ff0"
+          "size": 5260,
+          "hash": "1cff5b15"
         }
       }
     },
@@ -2317,8 +2317,8 @@
       "status": "exclusive",
       "files": {
         "index-bookshelf.html": {
-          "size": 2138,
-          "hash": "1819381e"
+          "size": 2772,
+          "hash": "2b2597b8"
         }
       }
     },
@@ -3461,8 +3461,8 @@
       "status": "exclusive",
       "files": {
         "index-settings.html": {
-          "size": 769,
-          "hash": "8e05ea35"
+          "size": 700,
+          "hash": "37babfed"
         }
       }
     },
@@ -4441,8 +4441,8 @@
       "status": "exclusive",
       "files": {
         "index-time.html": {
-          "size": 1968,
-          "hash": "8dbee8b7"
+          "size": 1567,
+          "hash": "2ea1b258"
         }
       }
     },

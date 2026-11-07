@@ -9,7 +9,7 @@ import 'package:path/path.dart' as p;
 /// 与版本占位串，这些串会直接进 UI/提示条/角标，真机语义树已抓实过：
 ///  · `联动Lx`：模块联动编号（「准备事项（勾选即转待办 · 联动 L3）」「（联动 L10）」）；
 ///  · `V1x`：版本占位（宫格磁贴角标 `V1.0`/`V1.x`、`规划 V1.x` toast、
-///    呵护 `_VChip('V1.x')`、外观页「主题市场…V1.x 上线」）；
+///    呵护 `_VChip('V1.x')`；外观页主题市场占位已按产品裁定撤销）；
 ///  · `（模拟）`：把「这版还是假的」写给用户（「添加图片附件（模拟）」「搜索分类（模拟）」）；
 ///  · `正交|热加载|配置文件`：设计令牌那套自述（「设计令牌热加载」「与深色模式正交」）。
 /// 教学句式族（「长按/点击…即可」）与 emoji 面**不在本闸**，走交互整改 T13 专项批，
@@ -110,7 +110,6 @@ void main() {
       'features/ledger/presentation/ledger_pick_sheets.dart': 1,
       'features/read/presentation/stats/quotes_lib_page.dart': 1,
       'features/settings/presentation/recmg_page.dart': 1,
-      'features/settings/presentation/settings_page.dart': 1,
       'features/todo/presentation/widgets/todo_edit_sheet.dart': 1,
       'shared/linkage/stats_providers.dart': 1,
     },
@@ -120,7 +119,7 @@ void main() {
       'features/ledger/presentation/ledger_pick_sheets.dart': 1,
     },
     '黑话': {
-      'features/settings/presentation/settings_page.dart': 3,
+      'features/settings/presentation/settings_page.dart': 1,
       // 存量越线登记（阅读模块批2 · 2026-10-14 跑出本红）：命中＝布局弹层副标题里的
       // 「正交」（「结构 × 方向 正交两维」），该句由**思维导图批1**（2026-10-12）写入，
       // 该批门禁未带本闸，故今日现形——本批一行未动 mindmap。清污＝独立文案批
