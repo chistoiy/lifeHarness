@@ -336,41 +336,28 @@ void main() {
     });
   });
 
-  group('记录页（原型 p-records · V1.29轮5 记录·X 标题+⇄菜单）', () {
-    testWidgets('标题随段变化 · ⇄ 菜单切段 · 心情月历卡 + 写今天入口 + 真实条目卡', (tester) async {
+  group('独立日记页（C 案批2 · 单段标题，无段切换）', () {
+    testWidgets('标题只显「日记」· 无 ⇄ 菜单 · 心情月历卡 + 真实条目卡', (tester) async {
       await jrepo.save(JournalEntry(
           day: DateTime.now(),
           mood: 2,
           content: '今天跑了 5 公里\n#运动',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await tester.pumpAndSettle();
 
-      expect(find.text('记录 · 日记'), findsOneWidget);
+      expect(find.text('日记'), findsWidgets);
+      expect(find.text('记录 · 日记'), findsNothing,
+          reason: '标题不得再带「记录 · 」前缀');
       expect(find.text('📔 日记'), findsNothing); // 段切换行已移除
-      expect(find.byKey(const ValueKey('rec-switch')), findsOneWidget);
+      expect(find.byKey(const ValueKey('rec-switch')), findsNothing,
+          reason: '四段切换钮已随记录页退役');
       // §4b-4（产品令）：「写今天的日记」入口卡已整行移除（FAB 覆盖同一入口）
       expect(find.text('写今天的日记'), findsNothing);
       expect(find.textContaining('已记录 1 篇'), findsOneWidget);
       expect(find.textContaining('连续记录 1 天'), findsOneWidget);
       expect(find.textContaining('今天跑了 5 公里'), findsOneWidget);
-
-      // ⇄ 菜单：当前项带✓，切「阅读」→ 标题与占位联动。
-      await tester.tap(find.byKey(const ValueKey('rec-switch')));
-      await tester.pumpAndSettle();
-      expect(find.text('影音游'), findsOneWidget);
-      await tester.tap(find.text('阅读'));
-      await tester.pumpAndSettle();
-      expect(find.text('记录 · 阅读'), findsOneWidget);
-      // M1批3 后阅读 tab=书架工作台（不再是占位）
-      expect(find.text('最近摘录'), findsOneWidget);
-      // 回日记段
-      await tester.tap(find.byKey(const ValueKey('rec-switch')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('日记'));
-      await tester.pumpAndSettle();
-      expect(find.text('记录 · 日记'), findsOneWidget);
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
@@ -386,7 +373,7 @@ void main() {
           content: '普通一天',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await tester.pumpAndSettle();
 
       // §4c-2：顶行三枚图标已整行移除，筛选只剩 FAB 长按扇形一条路——
@@ -420,7 +407,7 @@ void main() {
           content: '回望测试',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await tester.pumpAndSettle();
 
       await switchLayout(tester, 'ins');
@@ -778,7 +765,7 @@ void main() {
         (tester) async {
       final (e, a, _) = await seedImgEntry();
       await useSurface(tester);
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
       await switchLayout(tester, 'ins'); // 切 INS
       await settle5(tester);
@@ -825,7 +812,7 @@ void main() {
     testWidgets('2a-4 列表行缩略点大图 + 关联小图标展开 + 预览去路径', (tester) async {
       final (e, a, b) = await seedImgEntry();
       await useSurface(tester);
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
 
       expect(find.byKey(ValueKey('jimg-${e.id}-0')), findsOneWidget);
@@ -892,7 +879,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
       await useSurface(tester);
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
 
       expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
@@ -928,7 +915,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
       await useSurface(tester);
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
       await switchLayout(tester, 'ins');
       await settle5(tester);
@@ -967,7 +954,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
       await useSurface(tester);
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
 
       await tester.tap(find.text('📊 回顾'));
@@ -1005,7 +992,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
       await useSurface(tester);
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
       await tester.tap(find.text('📊 回顾'));
       await settle5(tester);
@@ -1538,7 +1525,7 @@ void main() {
 
     testWidgets('U3 回顾弹层月份切换有界：禁未来（连点›停当月）', (tester) async {
       final now = DateTime.now();
-      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
       await tester.tap(find.text('📊 回顾'));
       await settle5(tester);

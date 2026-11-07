@@ -223,7 +223,7 @@ void main() {
       );
 
   Future<void> openFilterSheet(WidgetTester tester) async {
-    await tester.pumpWidget(scope(const JournalPage()));
+    await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
     await tester.pumpAndSettle();
     await tester.longPress(find.byKey(const ValueKey('diary-fan-fab')));
     await tester.pumpAndSettle();

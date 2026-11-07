@@ -54,7 +54,7 @@ void main() {
         home: const MediaQuery(
           // FAB 呼吸环是无限动画，`pumpAndSettle` 会等不到静止。
           data: MediaQueryData(disableAnimations: true),
-          child: JournalPage(),
+          child: JournalPage(section: 'diary'),
         ),
       ),
     ));

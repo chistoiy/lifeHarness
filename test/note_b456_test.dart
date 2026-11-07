@@ -177,7 +177,7 @@ void main() {
   testWidgets('批5① 搜索钮＝真搜索（原僵尸钮）：标题/正文命中', (t) async {
     await dao.save(note('WebDAV 选型', content: '坚果云应用密码'));
     await dao.save(note('别的', content: '无关内容'));
-    await t.pumpWidget(scope(const JournalPage(initialTab: 'note')));
+    await t.pumpWidget(scope(const JournalPage(section: 'note')));
     await t.pumpAndSettle();
 
     await t.tap(find.byKey(const ValueKey('rec-search')));
@@ -198,7 +198,7 @@ void main() {
 
   testWidgets('批5② 顶栏「更多」收拢 导入/导出/打开历史（笔记段）', (t) async {
     await dao.save(note('甲'));
-    await t.pumpWidget(scope(const JournalPage(initialTab: 'note')));
+    await t.pumpWidget(scope(const JournalPage(section: 'note')));
     await t.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('rec-more')), findsOneWidget);
@@ -283,27 +283,17 @@ void main() {
 
   // ------------------------------------------------------------------ 批6
 
-  testWidgets('批6① 四段切换＝180ms 淡入过渡（非硬切）', (t) async {
+  testWidgets('批6① 单段壳保留 180ms 淡入容器（页内不再切段）', (t) async {
     await dao.save(note('甲'));
-    await t.pumpWidget(scope(const JournalPage(initialTab: 'note')));
+    await t.pumpWidget(scope(const JournalPage(section: 'note')));
     await t.pumpAndSettle();
 
     final sw = t.widget<AnimatedSwitcher>(find.ancestor(
         of: find.byType(NoteTab), matching: find.byType(AnimatedSwitcher)));
     expect(sw.duration, const Duration(milliseconds: 180), reason: '〇B 微动档 120~180ms');
-
-    await t.tap(find.byKey(const ValueKey('rec-switch')));
-    await t.pumpAndSettle();
-    await t.tap(find.text('日记'));
-    await t.pump(); // 建出新段并启动过渡（此帧 t=0）
-    await t.pump(const Duration(milliseconds: 90)); // 推进到过渡中段
-
-    final fades = t.widgetList<FadeTransition>(find.descendant(
-        of: find.byType(AnimatedSwitcher),
-        matching: find.byType(FadeTransition)));
-    expect(fades.any((f) => f.opacity.value > 0 && f.opacity.value < 1), isTrue,
-        reason: '切换进行中＝新段正在淡入（硬切时不会出现中间值）');
-    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('rec-switch')), findsNothing,
+        reason: '段切换入口已随记录页退役');
+    expect(find.text('记录 · 笔记'), findsNothing);
   });
 
   testWidgets('批6② 多选条进出＝AnimatedSize 过渡', (t) async {

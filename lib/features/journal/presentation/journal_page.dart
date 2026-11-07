@@ -110,28 +110,14 @@ class _NoteFabState extends ConsumerState<_NoteFab> {
   }
 }
 
-/// 模块3 记录页（原型 p-records · V1.29轮5）：无段切换行，
-/// 标题随当前段显「记录 · X」，右上 ⇄ 钮开四能力菜单。
-/// 日记（M0/V1.28）与笔记列表管理（M1 批1a）为真实数据；阅读/影音游留占位。
-///
-/// V1.58 反馈轮5：支持段深链 [initialTab]（仪表盘「阅读」格 → `/journal?tab=book`），
-/// 进来即落在对应段视图，不再停在默认日记段。
-///
-/// C 案批1（2026-11-07）：记录页退役，四模块各自独立成页。
-/// [standalone]＝单段独立页：标题只显段名、不画 ⇄ 切换菜单、段由 [section] 锁定；
-/// 默认 false 的旧四段构造仅供存量守护直接 pump 用，**不再挂任何路由**。
+/// C 案批2（2026-11-07）：四模块独立页共用的单段壳。
+/// 段由路由经 [section] 锁定，页内不做段切换——旧四段带前缀的标题、切换菜单、
+/// 段深链参数与全局「上次停留段」状态都已随记录页退役删净。
 class JournalPage extends ConsumerStatefulWidget {
-  const JournalPage(
-      {super.key, this.initialTab, this.section, this.standalone = false});
+  const JournalPage({super.key, required this.section});
 
-  /// 深链段名（diary/note/book/media）；null 或非法值 = 沿用当前段。
-  final String? initialTab;
-
-  /// 独立页锁定的段（standalone 时必填，合法值见 [kRecordLabels]）。
-  final String? section;
-
-  /// true＝单段独立页（无「记录 · 」前缀、无 ⇄ 菜单）。
-  final bool standalone;
+  /// 路由锁定的段（diary/note/book/media，见 [kRecordLabels]）。
+  final String section;
 
   static const kRecordLabels = {
     'diary': '日记',
@@ -139,9 +125,6 @@ class JournalPage extends ConsumerStatefulWidget {
     'book': '阅读',
     'media': '影音游',
   };
-
-  /// 段名合法性：深链参数来自外部 URI，必须先校验再落状态。
-  static bool isRecordTab(String? t) => kRecordLabels.containsKey(t);
 
   @override
   ConsumerState<JournalPage> createState() => JournalPageState();
@@ -155,97 +138,15 @@ class JournalPageState extends ConsumerState<JournalPage> {
   final GlobalKey<NoteTreeOverlayState> _noteTreeKey =
       GlobalKey<NoteTreeOverlayState>();
 
-  /// 本帧生效的深链段：provider 落定前先按它渲染，避免「先闪日记再切段」。
-  String? _linkTab;
-
-  @override
-  void initState() {
-    super.initState();
-    _takeLink();
-  }
-
-  @override
-  void didUpdateWidget(covariant JournalPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTab != widget.initialTab) _takeLink();
-  }
-
-  /// 把深链段写回 [recordTabProvider]（⇄ 菜单同款通道）。
-  /// initState/build 期不能同步改 provider，故落到本帧之后的微任务。
-  void _takeLink() {
-    if (widget.standalone) return; // 独立页不吃旧深链段状态
-    final t = widget.initialTab;
-    if (!JournalPage.isRecordTab(t)) return;
-    final seg = t!;
-    // 只在 initState/didUpdateWidget 里调用，本帧必然重建，无需 setState。
-    _linkTab = seg;
-    Future<void>.microtask(() {
-      if (mounted) ref.read(recordTabProvider.notifier).state = seg;
-    });
-  }
-
-  /// ⇄ 菜单选段：用户意图优先于深链，清掉本帧覆盖后交给 provider。
-  void _selectTab(String v) {
-    if (_linkTab != null) setState(() => _linkTab = null);
-    ref.read(recordTabProvider.notifier).state = v;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final providerTab = ref.watch(recordTabProvider);
-    // 独立页段由路由锁定，不受全局「上次停留段」串台影响。
-    final tab = widget.standalone
-        ? (widget.section ?? 'note')
-        : (_linkTab ?? providerTab);
-    final tokens = context.tokens;
+    // 段只由路由锁定；标题恒显单段名，页内不存在段切换入口。
+    final tab = widget.section;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.standalone
-            ? (JournalPage.kRecordLabels[tab] ?? '笔记')
-            : '记录 · ${JournalPage.kRecordLabels[tab]}'),
+        title: Text(JournalPage.kRecordLabels[tab] ?? '笔记'),
         actions: [
-          // ⇄ 四能力切换（仅旧四段兼容页；C 案独立页不画这枚钮）。
-          // 轮10-9：菜单条目改圆角行卡+选中底色（与弹层/抽屉同语言·accent 随主题）。
-          if (!widget.standalone)
-            PopupMenuButton<String>(
-            key: const ValueKey('rec-switch'),
-            tooltip: '切换 日记/笔记/阅读/影音游',
-            icon: const Icon(Icons.sync_alt),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18)),
-            onSelected: _selectTab,
-            itemBuilder: (_) => [
-              for (final e in JournalPage.kRecordLabels.entries)
-                PopupMenuItem<String>(
-                  value: e.key,
-                  height: 46,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: e.key == tab
-                          ? tokens.accent.withValues(alpha: .12)
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        Text(e.value,
-                            style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w800,
-                                color: e.key == tab ? tokens.accent : null)),
-                        const Spacer(),
-                        if (e.key == tab)
-                          Icon(Icons.check, size: 17, color: tokens.accent),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
           // 批5①（2026-10-12）：搜索钮**兑现**——原只弹「全局搜索 · 即将开放」
           //（DAO 的 `list(query:)` 早已在册，缺的只是一个入口）。
           IconButton(
@@ -335,8 +236,8 @@ class JournalPageState extends ConsumerState<JournalPage> {
                         extra: const DiaryEditArg()),
                   },
                 ),
-      // 批6①（工单 §2 · 2026-10-12）：四段（日记/笔记/阅读/影音游）切换＝180ms
-      // 淡入＋微上移（〇B 微动档 120~180ms·easeOut；原 `switch(tab)` 是硬切）。
+      // 单段壳容器：段由 section 锁定，页内不切换；保留 180ms 淡入＋微上移
+      //（〇B 微动档 120~180ms·easeOut）供路由重建与首帧入场。
       // 每段带 key：阅读/影音游两个工作台若返回同型 widget，无 key 时 AnimatedSwitcher
       // 会判「同一件」而不补间。`layoutBuilder` 只留当前件＝只做入场、旧段立即移除。
       body: AnimatedSwitcher(

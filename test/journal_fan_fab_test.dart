@@ -58,7 +58,7 @@ void main() {
       );
 
   Future<void> pumpPage(WidgetTester tester) async {
-    await tester.pumpWidget(scope(const JournalPage()));
+    await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
     await tester.pumpAndSettle();
   }
 
@@ -136,7 +136,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('diary-fan-筛选')), findsNothing);
       // 仍在记录页（没被推到编辑页）
-      expect(find.text('记录 · 日记'), findsOneWidget);
+      expect(find.text('日记'), findsWidgets);
+      expect(find.byKey(const ValueKey('rec-switch')), findsNothing);
     });
 
     testWidgets('F6 点环外收起', (tester) async {

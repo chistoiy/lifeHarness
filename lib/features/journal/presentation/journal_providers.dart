@@ -233,6 +233,3 @@ final journalSpanProvider = Provider<({String from, String to})>((ref) {
   final s = ref.watch(settingsControllerProvider);
   return (from: s.journalFrom, to: s.journalTo);
 });
-
-/// 记录页四段 tab（diary/note/book/media）。
-final recordTabProvider = StateProvider<String>((ref) => 'diary');

@@ -74,18 +74,14 @@ void main() {
       expect(old.builder, isNull, reason: '/journal 不得再构建四段记录页');
     });
 
-    test('独立页构造用 standalone＋section，旧 ⇄ 菜单由守卫包住', () {
+    test('四条独立页构造只用 section 锁段（无独立页开关）', () {
       final s = File('lib/features/journal/presentation/journal_routes.dart')
           .readAsStringSync();
       for (final seg in <String>['note', 'diary', 'book', 'media']) {
-        expect(s, contains("section: '$seg', standalone: true"));
+        expect(s, contains("section: '$seg'"), reason: '$seg 未被路由锁定');
       }
-      final page = File('lib/features/journal/presentation/journal_page.dart')
-          .readAsStringSync();
-      expect(page, contains('if (!widget.standalone)'),
-          reason: '⇄ 切换菜单必须只在旧四段兼容类上画');
-      expect(page, contains('widget.standalone'),
-          reason: '标题前缀与段锁定都要走 standalone 分支');
+      expect(s, isNot(contains('standalone')),
+          reason: '批2 已删独立页开关，段只由路由锁定');
     });
   });
 

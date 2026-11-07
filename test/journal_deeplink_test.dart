@@ -1,7 +1,7 @@
 /// C 案批1 · 旧「记录」四段深链退役守护（2026-11-07 产品拍板 C 案）。
 ///  ① `/journal?tab=book` 不再进四段页，落 `/readhub` 独立阅读页（标题「阅读」·无 ⇄ 钮）；
 ///  ② `?tab=diary` → `/diary`；`?tab=note` → `/notes`；无参/非法 → `/notes`；
-///  ③ 独立页段由路由锁定，不受 `recordTabProvider`「上次停留段」串台；
+///  ③ 独立页段只由路由锁定，页内无段切换状态（全局「上次停留段」已删）；
 ///  ④ 旧 ⇄ 菜单（rec-switch）与「记录 · X」标题都不出现在可达路由上；
 ///  ⑤ 源码级：仪表盘／DB 概览不再写 `?tab=` 旧深链（防复活）；
 ///  ⑥ 沿用：我的页「小工具合集」入口行已摘。
@@ -93,7 +93,6 @@ void main() {
         (tester) async {
       await pumpRouter(tester, '/journal?tab=book');
       final page = tester.widget<JournalPage>(find.byType(JournalPage));
-      expect(page.standalone, isTrue, reason: '仍落旧四段页＝记录页没退役');
       expect(page.section, 'book');
       expect(find.text('阅读'), findsWidgets);
       expect(find.byKey(const ValueKey('rec-switch')), findsNothing,
@@ -113,13 +112,11 @@ void main() {
       await settleLogTimer(tester);
     });
 
-    testWidgets('③ ?tab=note 落独立笔记页：段锁定不受上次停留段串台',
+    testWidgets('③ ?tab=note 落独立笔记页：段由路由锁定',
         (tester) async {
-      // 先伪造「上次停在日记段」；独立页必须由路由锁定在笔记段，不得跟 provider 跑。
-      container.read(recordTabProvider.notifier).state = 'diary';
+      // 段只由路由锁定；页内不存在「上次停留段」这一态。
       await pumpRouter(tester, '/journal?tab=note');
       final page = tester.widget<JournalPage>(find.byType(JournalPage));
-      expect(page.standalone, isTrue);
       expect(page.section, 'note');
       expect(find.text('笔记'), findsWidgets);
       expect(find.byKey(const ValueKey('rec-switch')), findsNothing);
@@ -132,7 +129,6 @@ void main() {
 
     testWidgets('④ 无参／非法段名一律落笔记页（不再有「沿用上次段」这一态）',
         (tester) async {
-      container.read(recordTabProvider.notifier).state = 'diary';
       await pumpRouter(tester, '/journal');
       expect(tester.widget<JournalPage>(find.byType(JournalPage)).section,
           'note');
@@ -171,11 +167,11 @@ void main() {
     });
   });
 
-  group('独立页本体（不经路由·存量兼容类不再可达）', () {
+  group('独立页本体（不经路由·单段壳）', () {
     testWidgets('笔记独立页：顶栏标题「笔记」·搜索钮在·切换钮不在',
         (tester) async {
       await tester.pumpWidget(
-          wrap(const JournalPage(section: 'note', standalone: true)));
+          wrap(const JournalPage(section: 'note')));
       await tester.pump();
       expect(find.text('笔记'), findsWidgets);
       expect(find.byKey(const ValueKey('rec-search')), findsOneWidget);

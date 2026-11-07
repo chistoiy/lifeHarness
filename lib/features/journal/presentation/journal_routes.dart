@@ -29,22 +29,22 @@ List<GoRoute> journalShellRoutes() => [
         GoRoute(
           path: '/notes',
           builder: (_, _) =>
-              const JournalPage(section: 'note', standalone: true),
+              const JournalPage(section: 'note'),
         ),
         GoRoute(
           path: '/diary',
           builder: (_, _) =>
-              const JournalPage(section: 'diary', standalone: true),
+              const JournalPage(section: 'diary'),
         ),
         GoRoute(
           path: '/readhub',
           builder: (_, _) =>
-              const JournalPage(section: 'book', standalone: true),
+              const JournalPage(section: 'book'),
         ),
         GoRoute(
           path: '/mediahub',
           builder: (_, _) =>
-              const JournalPage(section: 'media', standalone: true),
+              const JournalPage(section: 'media'),
         ),
 ];
 

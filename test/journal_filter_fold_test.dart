@@ -127,7 +127,7 @@ void main() {
   }
 
   Future<void> openFilterSheet(WidgetTester tester) async {
-    await tester.pumpWidget(scope(const JournalPage()));
+    await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
     await tester.pumpAndSettle();
     // §4c-2 之后筛选只剩 FAB 长按扇形一条路
     await tester.longPress(find.byKey(const ValueKey('diary-fan-fab')));
