@@ -1,14 +1,14 @@
-# STATUS（唯一状态源 · 最后更新 2026-11-07）
+# STATUS（唯一状态源 · 最后更新 2026-11-08）
 
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
-> 体量口径：硬闸＝`python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤6,770 字节·叙事只留「本批／上一批」两级且各 ≤400 字符）；**黄线＝上限 90%（6,093 字节），到线即当轮瘦身，上限随瘦身棘轮只降不升**（细则＝`AGENTS.md`「文档体量治理」）。收尾改本文件一律走 `status_set.py`（`--rotate`→`--set`）。
+> 体量口径：硬闸＝`python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤6,480 字节·叙事只留「本批／上一批」两级且各 ≤400 字符）；**黄线＝上限 90%（5,832 字节），到线即当轮瘦身，上限随瘦身棘轮只降不升**（细则＝`AGENTS.md`「文档体量治理」）。收尾改本文件一律走 `status_set.py`（`--rotate`→`--set`）。
 
-- **上一批＝** 表单浮动标签整改·批2 原型轮（11-08）：按裁定把 A/B/C/D 铺到 11 份原型 112 处（共 128 字段）·新增 .fl-compact 兼容 flex/grid 并列·E 豁免 38 处·删 D 类纯字段名标题行 1·导图专版与 3 类 JS 动态表单留待裁定。15 原型六守护全绿·四刀各红其位并还原复绿·7 组真原型截图·registry 300/300·索引卡 15/15·protogate 296 屏硬红 0·doclint PASS；lib 零改动·未推 3·攒 6213 不变。工单＝docs/handoff/表单浮动标签整改规格-20261107.md §4B
-- **本批＝** 表单浮动标签整改·批3 实现轮（11-08）：46 份 dart 76 处 decoration 按裁定改造（A/B/C 字段名进 labelText·hint 只留示例·全仓显式 auto）；8 共享工厂（7 改签名＋_box 补 auto）；D 类删 10 行外部标题（含 1 处 _Label 包装拆壳·必填信息并入 label）；反向错用修正；LH-C04 规范同步。analyze lib 0 error／6 存量 info；定向波 5 波全绿；新增常驻守护＋三刀各红其位并还原复绿。E 豁免 38·内联 20·参数化 15 留裁定；lib 首度改动·未推 4·攒 6213 不变·不推不出包。工单＝docs/handoff/表单浮动标签整改规格-20261107.md §1C/§4C
+- **本批＝** 收尾并推送（11-08）：5 枚双端推齐·未推 0；STATUS 删哈希滚存＋棘轮收窄·交接文档沉 5 条旧日志；doclint／status_set／守护波／diff 全绿；攒 6213 不变·不出包·真机复验待令装机
+- **上一批＝** 浮动标签批3 实现轮（11-08）：46 dart 76 处 decoration·8 工厂·删 D 类 10 行标题·显式 auto·反向错用修正；analyze 0 error·定向 5 波·常驻守护＋三刀全绿；工单 §4C
 
 ## 基线（八项，其余不写）
 
-**未推＝4**（3 枚已推齐＝1f3dc95c·导图 L2 原型＋浮动标签批1/批2/批3 各 1 枚本地未推；16 枚于 11-07 双端推齐回读核验＝头 `ac34aff8`；对账口径＝提交后 `git rev-list --count origin/feat/m0-skeleton..HEAD`；11-07 前批已双端推齐＝头 `76206794`；前七枚＋收尾一枚已于 11-07 双端推齐回读核验＝头 `ed7bdf43`）；再前一批八枚头 `59923ee1`（读数 `git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
+**未推＝0**（11-08 五枚＝导图 L2 原型＋浮动标签批1/批2/批3＋收尾，双端推齐并回读核验；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
 - 最新预发布＝`v0.2.15-mm-p7`（装机 8202·arm64 单包）／`-nfc`／`-desktop-b1` 三枚双端挂齐；逐枚钉版/双端 id/md5＝台账§A。⚠ 只挂 arm64 瘦身包·勿卸载＝清库
 - 再前预发布＝`-tree-swipe`／`-tree-follow`／`-note-mount`／`-note-local`（DB v39→v42 首枚）／`-health-media`／`-media`——台账＝同档 §A
 - DB＝`DbSchema.version=52`（v52＝物品批A `item_profiles` 加 brand/serial/note·全可空纯加列；v51＝item_events 加 txn_id；v50＝日记批2b 建 tags+tag_links——**version 与 migrations 必须同批改**；v49~v45 逐版＝沉各归档工单；本行读数由守护二十三与 schema.dart 比对）
