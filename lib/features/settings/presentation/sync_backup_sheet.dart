@@ -312,6 +312,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                       obscureText: true,
                       style: const TextStyle(fontSize: 13),
                       decoration: const InputDecoration(
+                        floatingLabelBehavior: FloatingLabelBehavior.auto,
                           labelText: '口令', isDense: true),
                     ),
                   ),

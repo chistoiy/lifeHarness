@@ -511,6 +511,8 @@ class _HabitLogSheetState extends ConsumerState<_HabitLogSheet> {
                           controller: _note,
                           style: const TextStyle(fontSize: 12),
                           decoration: InputDecoration(
+                            labelText: '备注',
+                            floatingLabelBehavior: FloatingLabelBehavior.auto,
                             hintText: isToday ? '可选 · 今天的情况' : '可选 · 当天的情况',
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(

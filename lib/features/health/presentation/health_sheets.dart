@@ -329,6 +329,8 @@ Widget _inlineDate(BuildContext context, TextEditingController c, String label) 
         controller: c,
         style: const TextStyle(fontSize: 12.5),
         decoration: InputDecoration(
+          labelText: '日期',
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
           isDense: true,
           hintText: 'yyyy-MM-dd',
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -623,6 +625,7 @@ class _VitalSheetState extends ConsumerState<_VitalSheet> {
           controller: _note,
           style: const TextStyle(fontSize: 12.5),
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.auto,
             isDense: true,
             hintText: '如 服药后 2 小时测',
             label: const Text('备注', style: TextStyle(fontSize: 11)),

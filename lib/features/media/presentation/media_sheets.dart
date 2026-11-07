@@ -135,6 +135,7 @@ class _BulkTagSheetState extends State<_BulkTagSheet> {
               controller: _c,
               autofocus: true,
               decoration: InputDecoration(
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
                 labelText: '标签名',
                 errorText: _err,
                 isDense: true,

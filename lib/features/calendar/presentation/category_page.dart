@@ -412,7 +412,9 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _name,
-              decoration: const InputDecoration(labelText: '分类名称', isDense: true),
+              decoration: const InputDecoration(
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
+                labelText: '分类名称', isDense: true),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(

@@ -44,7 +44,9 @@ Future<void> showDiaryTplCreateSheet(
               controller: nameCtl,
               style: const TextStyle(fontSize: 13),
               decoration: const InputDecoration(
-                  isDense: true, hintText: '模板名称，如：每日三省'),
+                labelText: '模板名称',
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
+                  isDense: true, hintText: '如：每日三省'),
             ),
             const SizedBox(height: 10),
             Text('分节',

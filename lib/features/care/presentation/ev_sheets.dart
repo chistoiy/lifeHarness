@@ -157,10 +157,12 @@ class _EvFormState extends ConsumerState<_EvForm> {
 
   static const _units = ['ml', 'min', 'g', '次', '°C'];
 
-  InputDecoration _inpBox(BuildContext ctx, String hint) {
+  InputDecoration _inpBox(BuildContext ctx, String hint, {String? label}) {
     final tokens = ctx.tokens;
     return InputDecoration(
       hintText: hint,
+      labelText: label,
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
       hintStyle: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -230,7 +232,7 @@ class _EvFormState extends ConsumerState<_EvForm> {
             key: const ValueKey('evf-name'),
             controller: _nameCtl,
             style: const TextStyle(fontSize: 12),
-            decoration: _inpBox(context, '如：拍嗝 / 抚触'),
+            decoration: _inpBox(context, '如：拍嗝 / 抚触', label: '事件名称'),
           ),
           const CLabel('图标'),
           Wrap(

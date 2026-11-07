@@ -669,6 +669,8 @@ class _TimePickState extends ConsumerState<_TimePick> {
               maxLength: 5000,
               maxLines: 2,
               decoration: InputDecoration(
+                labelText: '备注',
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
                   hintText: '请输入备注',
                   isDense: true,
                   counterText: '',

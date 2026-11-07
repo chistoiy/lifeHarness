@@ -329,7 +329,9 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
                 controller: _name,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: '习惯名称，如：晨间跑步 30 分钟',
+                  labelText: '习惯名称',
+                  floatingLabelBehavior: FloatingLabelBehavior.auto,
+                  hintText: '如：晨间跑步 30 分钟',
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -711,7 +713,8 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
                                     controller: s.name,
                                     style: const TextStyle(fontSize: 11.5),
                                     decoration: InputDecoration(
-                                      hintText: '子项名',
+                                      labelText: '子项名',
+                                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                                       isDense: true,
                                       contentPadding:
                                           const EdgeInsets.symmetric(

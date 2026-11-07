@@ -83,7 +83,8 @@ Future<void> showXrAddSheet(
                   style: const TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700),
                   decoration: InputDecoration(
-                    hintText: '要加入的词',
+                    labelText: '要加入的词',
+                    floatingLabelBehavior: FloatingLabelBehavior.auto,
                     hintStyle: TextStyle(fontSize: 12, color: _Lk.muted(context)),
                   ),
                   onChanged: (_) => setSt(() {}),

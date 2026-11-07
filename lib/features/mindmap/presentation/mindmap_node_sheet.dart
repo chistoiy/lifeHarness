@@ -231,7 +231,8 @@ class _MmNodeSheetState extends State<_MmNodeSheet> {
                       onSubmitted: (_) => _submitByEnter(),
                       onChanged: (_) => setS(() {}),
                       decoration: const InputDecoration(
-                        hintText: '节点标题',
+                        labelText: '节点标题',
+                        floatingLabelBehavior: FloatingLabelBehavior.auto,
                         isDense: true,
                       ),
                     ),
@@ -242,25 +243,26 @@ class _MmNodeSheetState extends State<_MmNodeSheet> {
                       maxLines: 4,
                       minLines: 2,
                       decoration: const InputDecoration(
+                        labelText: '备注',
+                        floatingLabelBehavior: FloatingLabelBehavior.auto,
                         hintText: '备注（画布不显示，编辑时可读回）',
                         isDense: true,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _Label(
-                      text: '标签（逗号分隔）',
-                      child: TextField(
+                    TextField(
                         key: const ValueKey('mm-node-tags'),
                         controller: widget.tagsCtrl,
                         maxLines: 1,
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => _submitByEnter(),
                         decoration: const InputDecoration(
-                          hintText: '留空则无标签，如：方法论, 复盘',
+                          labelText: '标签（逗号分隔）',
+                          floatingLabelBehavior: FloatingLabelBehavior.auto,
+                          hintText: '如：方法论, 复盘',
                           isDense: true,
                         ),
                       ),
-                    ),
                     const SizedBox(height: 12),
                     _Label(
                       text: '任务属性',

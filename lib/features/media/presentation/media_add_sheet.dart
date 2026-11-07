@@ -569,6 +569,7 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
         onChanged: onChanged,
         keyboardType: numeric ? TextInputType.number : TextInputType.text,
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
           labelText: label,
           errorText: errorText,
           isDense: true,

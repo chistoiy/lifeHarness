@@ -210,6 +210,7 @@ class _RenameDialogState extends State<_RenameDialog> {
           controller: _c,
           autofocus: true,
           decoration: InputDecoration(
+            floatingLabelBehavior: FloatingLabelBehavior.auto,
             labelText: '新名字',
             errorText: _err,
             isDense: true,

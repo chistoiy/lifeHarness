@@ -281,6 +281,8 @@ class _CycleDaySheetState extends ConsumerState<_CycleDaySheet> {
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: const TextStyle(fontSize: 12),
                       decoration: InputDecoration(
+                        labelText: '基础体温',
+                        floatingLabelBehavior: FloatingLabelBehavior.auto,
                         hintText: '36.5 ℃',
                         hintStyle: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                         isDense: true,
@@ -330,12 +332,13 @@ class _CycleDaySheetState extends ConsumerState<_CycleDaySheet> {
                 ),
             ],
           ),
-          const CLabel('备注'),
           TextField(
             key: const ValueKey('cy-note'),
             controller: _noteCtl,
             style: const TextStyle(fontSize: 12),
             decoration: InputDecoration(
+              labelText: '备注',
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
               hintText: '如：痛经 1h，热敷后缓解',
               hintStyle: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               isDense: true,

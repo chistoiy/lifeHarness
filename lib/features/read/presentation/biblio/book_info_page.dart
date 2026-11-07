@@ -489,6 +489,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                         maxLines: 2,
                         style: const TextStyle(fontSize: 11.5),
                         decoration: InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.auto,
                           labelText: label,
                           labelStyle: const TextStyle(fontSize: 11.5),
                           isDense: true,

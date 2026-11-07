@@ -462,7 +462,9 @@ class _CertSheetState extends State<_CertSheet> {
           key: const ValueKey('d-cert-title'),
           controller: _titleCtl,
           decoration: InputDecoration(
-            hintText: '名称，如：护照',
+            labelText: '名称',
+            floatingLabelBehavior: FloatingLabelBehavior.auto,
+            hintText: '如：护照',
             isDense: true,
             filled: true,
             fillColor: scheme.surfaceContainerHighest,
@@ -485,7 +487,9 @@ class _CertSheetState extends State<_CertSheet> {
           key: const ValueKey('d-cert-tip'),
           controller: _tipCtl,
           decoration: InputDecoration(
-            hintText: '提示（可选），如：办理周期约 10 个工作日',
+            labelText: '提示（可选）',
+            floatingLabelBehavior: FloatingLabelBehavior.auto,
+            hintText: '如：办理周期约 10 个工作日',
             isDense: true,
             filled: true,
             fillColor: scheme.surfaceContainerHighest,

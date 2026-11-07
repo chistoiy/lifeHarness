@@ -251,7 +251,7 @@ class _AddBabySheetState extends ConsumerState<_AddBabySheet> {
             key: const ValueKey('ab-name'),
             controller: _nameCtl,
             style: const TextStyle(fontSize: 12),
-            decoration: _inp(context, '如：糯米'),
+            decoration: _inp(context, '如：糯米', label: '宝宝昵称'),
           ),
           const CLabel('出生日期'),
           GestureDetector(
@@ -335,10 +335,12 @@ BoxDecoration _inputBox(ThemeTokens tokens) => BoxDecoration(
       border: Border.all(color: tokens.cardBorder),
     );
 
-InputDecoration _inp(BuildContext ctx, String hint) {
+InputDecoration _inp(BuildContext ctx, String hint, {String? label}) {
   final tokens = ctx.tokens;
   return InputDecoration(
     hintText: hint,
+    labelText: label,
+    floatingLabelBehavior: FloatingLabelBehavior.auto,
     hintStyle: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
@@ -623,7 +625,7 @@ class _AllergySheetState extends ConsumerState<_AllergySheet> {
             controller: _reactCtl,
             maxLines: 3,
             style: const TextStyle(fontSize: 12),
-            decoration: _inp(context, '输入宝宝的过敏反应…'),
+            decoration: _inp(context, '输入宝宝的过敏反应…', label: '宝宝过敏反应'),
           ),
           const CLabel('常见症状'),
           Wrap(

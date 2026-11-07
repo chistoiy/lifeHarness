@@ -42,6 +42,7 @@ class _GoalDetailPageState extends ConsumerState<GoalDetailPage> {
                   keyboardType: const TextInputType.numberWithOptions(
                       decimal: true, signed: false),
                   decoration: const InputDecoration(
+                    floatingLabelBehavior: FloatingLabelBehavior.auto,
                       labelText: '当前值', suffixText: '（进度不可回退）'),
                 ),
                 const SizedBox(height: 6),

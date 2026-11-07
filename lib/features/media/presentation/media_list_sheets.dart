@@ -220,6 +220,7 @@ class _NewSheetState extends State<_NewSheet> {
               controller: _c,
               onSubmitted: (_) => _go(),
               decoration: InputDecoration(
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
                 labelText: '单名',
                 errorText: _err,
                 isDense: true,

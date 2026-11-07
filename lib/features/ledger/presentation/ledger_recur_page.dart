@@ -430,7 +430,9 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
                       }
                     },
                     decoration: InputDecoration(
-                      hintText: '名称 · 如 爱奇艺会员',
+                      labelText: '名称',
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
+                      hintText: '如：爱奇艺会员',
                       counterText: '',
                       errorText: _nameErr,
                       contentPadding:

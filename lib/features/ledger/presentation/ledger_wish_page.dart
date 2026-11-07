@@ -442,7 +442,8 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
                       }
                     },
                     decoration: InputDecoration(
-                      hintText: '心愿名称',
+                      labelText: '心愿名称',
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                       counterText: '',
                       errorText: _nameErr,
                       contentPadding:

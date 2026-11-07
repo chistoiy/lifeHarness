@@ -293,6 +293,8 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
                     controller: _addCtl,
                     style: const TextStyle(fontSize: 12.5),
                     decoration: InputDecoration(
+                      labelText: '新增书籍来源',
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                       hintText: '新增名称…',
                       hintStyle: TextStyle(
                         fontSize: 11.5,

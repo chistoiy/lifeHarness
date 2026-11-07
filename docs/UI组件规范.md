@@ -107,7 +107,7 @@
 
 ### LH-C04 分节卡 section card（V1.28 新增）
 - 原型：日记结构化分节；代码 `diary_edit_page.dart` 分节渲染（sec-$i key）
-- 规格：LH-C01 底 + 节标题 w800 + 独立 TextField（hint=占位语）
+- 规格：LH-C01 底 + 节标题 w800 + 独立 TextField（labelText=字段名 · floatingLabelBehavior.auto · hintText 仅放示例值）
 - ui_kit 已抽 `SectionCard` 原语，新页面分节一律复用
 
 ### LH-C05 INS 卡片 ins card

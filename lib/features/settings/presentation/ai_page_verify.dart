@@ -146,6 +146,7 @@ class _AiVerifyPageState extends ConsumerState<AiVerifyPage> {
               controller: _url,
               style: const TextStyle(fontSize: 12.5),
               decoration: const InputDecoration(
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
                   isDense: true, labelText: 'Base URL', hintText: 'https://api.xxx.com/v1')),
           const SizedBox(height: 8),
           Row(
@@ -156,7 +157,9 @@ class _AiVerifyPageState extends ConsumerState<AiVerifyPage> {
                     controller: _key,
                     obscureText: true,
                     style: const TextStyle(fontSize: 12.5),
-                    decoration: const InputDecoration(isDense: true, labelText: 'API Key')),
+                    decoration: const InputDecoration(
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
+                      isDense: true, labelText: 'API Key')),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -164,7 +167,9 @@ class _AiVerifyPageState extends ConsumerState<AiVerifyPage> {
                     key: const ValueKey('ai-verify-model'),
                     controller: _model,
                     style: const TextStyle(fontSize: 12.5),
-                    decoration: const InputDecoration(isDense: true, labelText: '模型名')),
+                    decoration: const InputDecoration(
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
+                      isDense: true, labelText: '模型名')),
               ),
             ],
           ),
@@ -175,6 +180,7 @@ class _AiVerifyPageState extends ConsumerState<AiVerifyPage> {
               maxLines: 2,
               style: const TextStyle(fontSize: 12.5),
               decoration: const InputDecoration(
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
                   isDense: true, labelText: '验证提示词', hintText: '请只回复四个字：连接成功')),
           const SizedBox(height: 10),
           Row(

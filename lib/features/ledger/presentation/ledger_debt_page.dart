@@ -478,7 +478,8 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
                       }
                     },
                     decoration: InputDecoration(
-                      hintText: '对方',
+                      labelText: '对方',
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                       counterText: '',
                       errorText: _personErr,
                       contentPadding:

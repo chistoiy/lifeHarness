@@ -175,7 +175,8 @@ class _TrigSheetState extends ConsumerState<_TrigSheet> {
             maxLines: 2,
             maxLength: 80,
             decoration: const InputDecoration(
-              hintText: '补一句（可选）',
+              labelText: '补一句（可选）',
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
               counterText: '',
             ),
           ),

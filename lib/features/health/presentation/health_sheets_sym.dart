@@ -194,8 +194,9 @@ class _SymptomSheetState extends ConsumerState<_SymptomSheet> {
                 controller: _nameIn,
                 style: const TextStyle(fontSize: 12),
                 decoration: const InputDecoration(
+                  labelText: '自定义症状名',
+                  floatingLabelBehavior: FloatingLabelBehavior.auto,
                     isDense: true,
-                    hintText: '自定义症状名',
                     contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
                     border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)))),
               ),

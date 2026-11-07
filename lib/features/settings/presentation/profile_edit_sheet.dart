@@ -54,7 +54,8 @@ class _ProfileSheetState extends ConsumerState<_ProfileSheet> {
 
   InputDecoration _box(BuildContext context, String label) => InputDecoration(
         labelText: label,
-        hintText: label == '昵称' ? '显示在「我的」与今天页问候语' : '出现在顶栏副标题',
+
+        floatingLabelBehavior: FloatingLabelBehavior.auto,hintText: label == '昵称' ? '显示在「我的」与今天页问候语' : '出现在顶栏副标题',
         isDense: true,
         filled: true,
         fillColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: .06),

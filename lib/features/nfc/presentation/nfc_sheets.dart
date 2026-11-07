@@ -379,7 +379,6 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
 
               // ===== 卡片信息块（full / card 形态）=====
               if (_showCard) ...[
-                _label('名称', scheme),
                 TextField(
                   key: const ValueKey('nfc-name'),
                   controller: _name,
@@ -390,13 +389,14 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
                   onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => _save(),
                   decoration: InputDecoration(
+                    labelText: '名称',
+                    floatingLabelBehavior: FloatingLabelBehavior.auto,
                     hintText: '例如：出门记账卡',
                     counterText: '$nameLen/$kNfcNameMaxLen',
                     errorText: _nameError ? '起个名字' : null,
                   ),
                 ),
                 const SizedBox(height: 6),
-                _label('默认描述（选填）', scheme),
                 TextField(
                   key: const ValueKey('nfc-desc'),
                   controller: _desc,
@@ -406,6 +406,8 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
                   ],
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
+                    labelText: '默认描述（选填）',
+                    floatingLabelBehavior: FloatingLabelBehavior.auto,
                     hintText: '例如：坐下就计时',
                     counterText: '',
                   ),

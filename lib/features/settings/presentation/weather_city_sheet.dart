@@ -102,6 +102,8 @@ class _CitySheetState extends ConsumerState<_CitySheet> {
             style: const TextStyle(fontSize: 13),
             onSubmitted: (_) => _search(),
             decoration: const InputDecoration(
+              labelText: '城市名',
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
                 isDense: true, hintText: '输入城市名'),
           ),
           const SizedBox(height: 10),

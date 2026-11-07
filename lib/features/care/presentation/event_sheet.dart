@@ -754,7 +754,7 @@ class _EventLogState extends ConsumerState<_EventLog> {
                 controller: _kbCtl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-                decoration: _inp(context, '键盘输入量'),
+                decoration: _inp(context, '', label: '键盘输入量'),
               ),
             Wrap(
               spacing: 6,
@@ -881,7 +881,7 @@ class _EventLogState extends ConsumerState<_EventLog> {
                         key: ValueKey('el-supp-name-$i'),
                         controller: _supp[i].$1,
                         style: const TextStyle(fontSize: 12),
-                        decoration: _inp(context, '输入补剂名称'),
+                        decoration: _inp(context, '如：维生素 D3', label: '补剂名称'),
                       ),
                     ),
                     const Padding(
@@ -894,7 +894,7 @@ class _EventLogState extends ConsumerState<_EventLog> {
                         key: ValueKey('el-supp-amt-$i'),
                         controller: _supp[i].$2,
                         style: const TextStyle(fontSize: 12),
-                        decoration: _inp(context, '用量'),
+                        decoration: _inp(context, '', label: '用量'),
                       ),
                     ),
                     GestureDetector(
@@ -936,7 +936,7 @@ class _EventLogState extends ConsumerState<_EventLog> {
               key: const ValueKey('el-solid-name'),
               controller: _solidCtl,
               style: const TextStyle(fontSize: 12),
-              decoration: _inp(context, '如：米粉 / 蛋黄泥'),
+              decoration: _inp(context, '如：米粉 / 蛋黄泥', label: '辅食名称'),
             ),
             const SizedBox(height: 10),
             Row(
@@ -990,7 +990,7 @@ class _EventLogState extends ConsumerState<_EventLog> {
               key: const ValueKey('el-cus-name'),
               controller: _cusCtl,
               style: const TextStyle(fontSize: 12),
-              decoration: _inp(context, '如：按摩 / 出门散步'),
+              decoration: _inp(context, '如：按摩 / 出门散步', label: '事件名称'),
             ),
             const CLabel('单位（自行选择）'),
             CSingleRow(
@@ -1047,12 +1047,11 @@ class _EventLogState extends ConsumerState<_EventLog> {
                 ),
             ],
           ),
-          const CLabel('备注'),
           TextField(
             key: const ValueKey('el-note'),
             controller: _noteCtl,
             style: const TextStyle(fontSize: 12),
-            decoration: _inp(context, '可选'),
+            decoration: _inp(context, '可选', label: '备注'),
           ),
           const SizedBox(height: 16),
           Row(
@@ -1182,10 +1181,12 @@ class _EventLogState extends ConsumerState<_EventLog> {
   }
 }
 
-InputDecoration _inp(BuildContext context, String hint) {
+InputDecoration _inp(BuildContext context, String hint, {String? label}) {
   final tokens = context.tokens;
   return InputDecoration(
     hintText: hint,
+    labelText: label,
+    floatingLabelBehavior: FloatingLabelBehavior.auto,
     hintStyle: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),

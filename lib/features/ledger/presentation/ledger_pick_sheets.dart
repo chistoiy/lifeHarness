@@ -266,7 +266,9 @@ Future<String?> promptAcctName(BuildContext ctx, String def,
                 controller: ctl,
                 autofocus: true,
                 decoration:
-                    InputDecoration(labelText: '账户名称', errorText: err),
+                    InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.auto,
+                  labelText: '账户名称', errorText: err),
                 onSubmitted: (_) => save(),
               ),
               actions: [

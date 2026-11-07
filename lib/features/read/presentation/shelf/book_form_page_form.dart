@@ -486,6 +486,8 @@ extension _BookFormForm on _BookFormPageState {
                       style: const TextStyle(fontSize: 12.5),
                       onSubmitted: (_) => _addTag(),
                       decoration: InputDecoration(
+                        labelText: '标签名',
+                        floatingLabelBehavior: FloatingLabelBehavior.auto,
                         isDense: true,
                         hintText: '输入标签名',
                         hintStyle: TextStyle(

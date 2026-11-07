@@ -269,6 +269,7 @@ TextField _field(
   autofocus: autofocus,
   onChanged: onChanged,
   decoration: InputDecoration(
+    floatingLabelBehavior: FloatingLabelBehavior.auto,
     labelText: label,
     labelStyle: const TextStyle(fontSize: 12.5),
     filled: true,

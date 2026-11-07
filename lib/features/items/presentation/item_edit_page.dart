@@ -118,10 +118,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     super.dispose();
   }
 
-  InputDecoration _inp(String hint) {
+  InputDecoration _inp(String hint, {String? label}) {
     final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
         hintText: hint,
+        labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
         isDense: true,
         filled: true,
         fillColor: scheme.surfaceContainerHighest,
@@ -164,7 +166,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
             key: const ValueKey('i-edit-name'),
             controller: _nameCtl,
             textCapitalization: TextCapitalization.none,
-            decoration: _inp('名称 · 品牌型号，如 MacBook Air M3'),
+            decoration: _inp('如 MacBook Air M3', label: '名称 · 品牌型号'),
           ),
           const SizedBox(height: 8),
           Row(
@@ -173,7 +175,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                 child: TextField(
                   key: const ValueKey('i-edit-brand'),
                   controller: _brandCtl,
-                  decoration: _inp('品牌'),
+                  decoration: _inp('', label: '品牌'),
                 ),
               ),
               const SizedBox(width: 8),
@@ -181,7 +183,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                 child: TextField(
                   key: const ValueKey('i-edit-serial'),
                   controller: _serialCtl,
-                  decoration: _inp('序列号'),
+                  decoration: _inp('', label: '序列号'),
                 ),
               ),
             ],
@@ -194,7 +196,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                   key: const ValueKey('i-edit-price'),
                   controller: _priceCtl,
                   keyboardType: TextInputType.number,
-                  decoration: _inp('购入价格 ¥'),
+                  decoration: _inp('¥', label: '购入价格'),
                 ),
               ),
               const SizedBox(width: 8),
@@ -267,13 +269,12 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
               ),
             ),
           ],
-          const _Lbl('物品备注'),
           TextField(
             key: const ValueKey('i-edit-note'),
             controller: _noteCtl,
             maxLines: 3,
             minLines: 2,
-            decoration: _inp('配件、来源、存放注意…（属档案层，不进成本时间轴）'),
+            decoration: _inp('配件、来源、存放注意…（属档案层，不进成本时间轴）', label: '物品备注'),
           ),
           const _Lbl('计费方式'),
           Wrap(
@@ -516,7 +517,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                 key: const ValueKey('i-edit-plan'),
                 controller: _planCtl,
                 keyboardType: TextInputType.number,
-                decoration: _inp('计划总次数'),
+                decoration: _inp('', label: '计划总次数'),
               ),
             ),
             const SizedBox(width: 8),
@@ -558,7 +559,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                 key: const ValueKey('i-edit-stoppct'),
                 controller: _stopPctCtl,
                 keyboardType: TextInputType.number,
-                decoration: _inp('止损线：净值跌破购入价 30%'),
+                decoration: _inp('净值跌破购入价 30%', label: '止损线'),
               ),
             ),
           ],

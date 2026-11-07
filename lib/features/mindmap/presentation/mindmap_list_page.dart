@@ -245,6 +245,8 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
                     autofocus: true,
                     maxLines: 1,
                     decoration: const InputDecoration(
+                      labelText: '导图名称',
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                         hintText: '导图名称（可留空）', isDense: true),
                   ),
                   const SizedBox(height: 12),

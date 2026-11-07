@@ -114,7 +114,9 @@ extension _NoteRich on _NoteEditPageState {
                 keyboardType: TextInputType.url,
                 style: TextStyle(fontSize: 13.5, color: _fg),
                 decoration: InputDecoration(
-                  labelText: 'https://…',
+                  labelText: '链接',
+                  hintText: 'https://…',
+                  floatingLabelBehavior: FloatingLabelBehavior.auto,
                   labelStyle: TextStyle(color: _fg.withValues(alpha: .55)),
                   enabledBorder: UnderlineInputBorder(
                       borderSide: BorderSide(color: _fg.withValues(alpha: .3))),

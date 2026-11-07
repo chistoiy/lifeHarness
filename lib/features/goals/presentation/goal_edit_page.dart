@@ -246,7 +246,10 @@ class _GoalEditPageState extends ConsumerState<GoalEditPage> {
           key: const ValueKey('g-edit-title'),
           controller: _title,
           decoration:
-              const InputDecoration(hintText: '目标 O 标题，如：O4 把身体养回来'),
+              const InputDecoration(
+            labelText: '目标 O 标题',
+            floatingLabelBehavior: FloatingLabelBehavior.auto,
+            hintText: '如：O4 把身体养回来'),
         ),
         const Padding(
           padding: EdgeInsets.only(top: 16, bottom: 6),
@@ -323,7 +326,9 @@ class _GoalEditPageState extends ConsumerState<GoalEditPage> {
                         controller: _rows[i].label,
                         style: const TextStyle(fontSize: 12),
                         decoration: const InputDecoration(
-                            hintText: '关键结果描述，如：每周运动 ≥3 次',
+                          labelText: '关键结果描述',
+                          floatingLabelBehavior: FloatingLabelBehavior.auto,
+                            hintText: '如：每周运动 ≥3 次',
                             isDense: true),
                       ),
                     ),

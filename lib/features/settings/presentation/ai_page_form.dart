@@ -166,9 +166,11 @@ class _AiProviderFormSheetState extends ConsumerState<_AiProviderFormSheet> {
                 color: Colors.grey)),
       );
 
-  InputDecoration _inp([String? hint]) => InputDecoration(
+  InputDecoration _inp(String? hint, {String? label}) => InputDecoration(
       isDense: true,
       hintText: hint,
+      labelText: label,
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
       border: const OutlineInputBorder());
 
   @override
@@ -187,32 +189,29 @@ class _AiProviderFormSheetState extends ConsumerState<_AiProviderFormSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _label('名称'),
                   TextField(
                       key: const ValueKey('ai-prov-f-name'),
                       controller: _name,
                       style: const TextStyle(fontSize: 12.5),
-                      decoration: _inp('自己看得懂就行，如「公司中转站」「家里 Ollama」')),
-                  _label('Base URL（必填 · 按端点要求填完整前缀）'),
+                      decoration: _inp('自己看得懂就行，如「公司中转站」「家里 Ollama」', label: '名称')),
                   TextField(
                       key: const ValueKey('ai-prov-f-url'),
                       controller: _url,
                       style: const TextStyle(
                           fontSize: 12, fontFamily: 'monospace'),
-                      decoration: _inp('https://relay.example.com/v1'),
+                      decoration: _inp('https://relay.example.com/v1', label: 'Base URL（必填）'),
                       onChanged: (_) => setState(() {})),
                   const SizedBox(height: 4),
                   const Text('请求会拼 /chat/completions（OpenAI 兼容）或 /messages（Anthropic）；'
                       '中转站要别的后缀（如 /v1/api）直接写进 Base URL 即可。',
                       style:
                           TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
-                  _label('模型名（必填）'),
                   TextField(
                       key: const ValueKey('ai-prov-f-model'),
                       controller: _model,
                       style: const TextStyle(
                           fontSize: 12, fontFamily: 'monospace'),
-                      decoration: _inp('deepseek-chat / qwen2.5:7b')),
+                      decoration: _inp('deepseek-chat / qwen2.5:7b', label: '模型名（必填）')),
                   _label('协议'),
                   Row(
                     children: [
@@ -229,7 +228,6 @@ class _AiProviderFormSheetState extends ConsumerState<_AiProviderFormSheet> {
                           onTap: () => setState(() => _protocol = 'anthropic')),
                     ],
                   ),
-                  _label('API Key（该服务商单独保存）'),
                   TextField
                       (
                     key: const ValueKey('ai-prov-f-key'),
@@ -238,6 +236,8 @@ class _AiProviderFormSheetState extends ConsumerState<_AiProviderFormSheet> {
                     style: const TextStyle(
                         fontSize: 12, fontFamily: 'monospace'),
                     decoration: InputDecoration(
+                      labelText: 'API Key',
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                         isDense: true,
                         hintText:
                             _storedTail.isEmpty ? '未设置 · 填入即保存' : '••••',

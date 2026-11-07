@@ -77,6 +77,7 @@ class _BatchTagSheetState extends State<_BatchTagSheet> {
                 controller: _ctl,
                 onSubmitted: (v) => _pick(v.trim()),
                 decoration: InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.auto,
                   labelText: '新标签',
                   labelStyle: const TextStyle(fontSize: 12),
                   isDense: true,

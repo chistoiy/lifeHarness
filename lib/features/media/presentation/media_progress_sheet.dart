@@ -367,6 +367,7 @@ class _ProgressSheetState extends ConsumerState<_ProgressSheet> {
         controller: controller,
         keyboardType: numeric ? TextInputType.number : TextInputType.text,
         decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
           labelText: label,
           isDense: true,
           border: const OutlineInputBorder(),

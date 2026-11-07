@@ -680,10 +680,12 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
 
   // ==================== 生命周期三弹层（写库全走 item_mounts，全联动重算） ====================
 
-  InputDecoration _inp(String hint) {
+  InputDecoration _inp(String hint, {String? label}) {
     final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
         hintText: hint,
+        labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
         isDense: true,
         filled: true,
         fillColor: scheme.surfaceContainerHighest,
@@ -729,13 +731,13 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
               key: const ValueKey('i-extra-amt'),
               controller: amtCtl,
               keyboardType: TextInputType.number,
-              decoration: _inp('金额，如 399'),
+              decoration: _inp('如 399', label: '金额'),
             ),
             const SizedBox(height: 8),
             TextField(
               key: const ValueKey('i-extra-desc'),
               controller: descCtl,
-              decoration: _inp('说明，如 Type-C 扩展坞'),
+              decoration: _inp('如 Type-C 扩展坞', label: '说明'),
             ),
             const SizedBox(height: 12),
             // HG-D3 固定预览区：口径预览（功能信息，非教学文案）
@@ -820,7 +822,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
                 key: const ValueKey('i-recycle-amt'),
                 controller: amtCtl,
                 keyboardType: TextInputType.number,
-                decoration: _inp('回收金额，如 4200（闲鱼/以旧换新）'),
+                decoration: _inp('如 4200（闲鱼/以旧换新）', label: '回收金额'),
               ),
               const SizedBox(height: 12),
               _radioRow(

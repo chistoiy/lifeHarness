@@ -127,7 +127,7 @@ class _DayEditPageState extends ConsumerState<DayEditPage> {
             key: const ValueKey('d-edit-title'),
             controller: _titleCtl,
             textCapitalization: TextCapitalization.none,
-            decoration: _inp('标题，如：妈妈生日'),
+            decoration: _inp('如：妈妈生日', label: '标题'),
           ),
           const _Lbl('图标'),
           DayIconPickRow(
@@ -173,7 +173,7 @@ class _DayEditPageState extends ConsumerState<DayEditPage> {
                 child: TextField(
                   key: const ValueKey('d-edit-prep-inp'),
                   controller: _prepCtl,
-                  decoration: _inp('添加一条准备事项，回车确认'),
+                  decoration: _inp('添加一条准备事项，回车确认', label: '准备事项'),
                   onSubmitted: (_) => _addPrep(),
                 ),
               ),
@@ -453,10 +453,12 @@ class _DayEditPageState extends ConsumerState<DayEditPage> {
     Navigator.pop(context, 'purged');
   }
 
-  InputDecoration _inp(String hint) {
+  InputDecoration _inp(String hint, {String? label}) {
     final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
         hintText: hint,
+        labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
         isDense: true,
         filled: true,
         fillColor: scheme.surfaceContainerHighest,

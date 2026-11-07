@@ -324,7 +324,9 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                 }
               },
               decoration: InputDecoration(
-                  hintText: '任务标题，如：给绿植浇水',
+                labelText: '任务标题',
+                floatingLabelBehavior: FloatingLabelBehavior.auto,
+                  hintText: '如：给绿植浇水',
                   isDense: true,
                   errorText: _titleErr),
               textInputAction: TextInputAction.next,

@@ -1035,6 +1035,8 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                         onSubmitted: (_) => _add(),
                         style: const TextStyle(fontSize: 12),
                         decoration: const InputDecoration(
+                          labelText: '新增养入词',
+                          floatingLabelBehavior: FloatingLabelBehavior.auto,
                           isDense: true,
                           hintText: '新增养入词…',
                         ),

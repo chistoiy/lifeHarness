@@ -289,9 +289,11 @@ class _MilestoneFormState extends ConsumerState<_MilestoneForm> {
             controller: _name,
             style: const TextStyle(fontSize: 12),
             decoration: InputDecoration(
+              labelText: '里程碑名称',
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-              hintText: '里程碑名称，如：第一次独立站立',
+              hintText: '如：第一次独立站立',
               hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),

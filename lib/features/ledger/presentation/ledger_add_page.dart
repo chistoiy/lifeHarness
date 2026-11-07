@@ -874,7 +874,9 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
         },
         style: TextStyle(fontSize: compact ? 12.5 : 13),
         decoration: InputDecoration(
-          hintText: '对方（如：老王）',
+          labelText: '对方',
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
+          hintText: '如：老王',
           errorText: _personErr,
           isDense: compact,
           filled: compact,
