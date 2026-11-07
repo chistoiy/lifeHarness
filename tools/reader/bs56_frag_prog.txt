@@ -1,0 +1,19 @@
+  <!-- 轮5.1 · 进度弹层（原底栏内嵌面板 → 正常底部弹层） -->
+  <div id="sheetBrProg" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrProg')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">阅读进度</b><span class="text-[9px] text-slate-400 tabular-nums" id="brProgCfi">—</span></div>
+      <div class="mt-4 grid grid-cols-3 text-center">
+        <div><div class="text-xl font-black leading-none"><span id="brStPct">0</span><span class="text-[10px]">%</span></div><div class="text-[9px] text-slate-400 mt-1" id="brStEta">—</div></div>
+        <div><div class="text-xl font-black leading-none"><span id="brStMin">0</span><span class="text-[10px]">分钟</span></div><div class="text-[9px] text-slate-400 mt-1">本次时长</div></div>
+        <div><div class="text-xl font-black leading-none"><span id="brStNote">0</span><span class="text-[10px]">条</span></div><div class="text-[9px] text-slate-400 mt-1">本书笔记</div></div>
+      </div>
+      <div class="mt-5"><input type="range" min="0" max="100" value="0" class="br-range" id="brProg" oninput="brSeek(this.value)">
+        <div class="text-center text-[9px] text-slate-400 mt-1">拖动到全书任意位置 · 目标章节即时实算</div></div>
+      <div class="mt-5 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetBrProg');bsSessOpen(brV.b)">阅读明细</button>
+        <button class="flex-1 py-3 rounded-2xl grad text-white text-xs font-bold" id="brBtnAuto" onclick="brQuickToggleAuto()">开启自动翻页</button>
+      </div>
+      <div class="mt-2"><button class="w-full py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetBrProg')">关闭</button></div>
+    </div>
+  </div>
+

@@ -1,0 +1,40 @@
+{
+  "id": "ocean",
+  "meta": { "name": "海洋深蓝", "ver": "1.0", "author": "LifeHarness Team", "license": "MIT" },
+  "tokens": {
+    "--accent": "#0284c7",
+    "--accent-l": "#38bdf8",
+    "--g1": "#0c4a6e",
+    "--g2": "#0369a1",
+    "--g3": "#0ea5e9",
+    "--page": "#eaf4fb",
+    "--card": "#ffffff",
+    "--card-bd": "#d3e6f5",
+    "--card-r": "20px",
+    "--card-sh": "0 4px 16px rgba(2,132,199,.12)",
+    "--nav-bg": "rgba(234,244,251,.9)",
+    "--nav-bd": "#d3e6f5",
+    "--text1": "#082f49",
+    "--text2": "#4a6b82",
+    "--ink": "#082f49",
+    "--page-img": "radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.22), transparent)"
+  },
+  "dark": {
+    "--accent": "#38bdf8",
+    "--accent-l": "#7dd3fc",
+    "--g1": "#0c4a6e",
+    "--g2": "#075985",
+    "--g3": "#0284c7",
+    "--page": "#082033",
+    "--card": "#0e2a44",
+    "--card-bd": "#1c4263",
+    "--card-r": "20px",
+    "--card-sh": "0 4px 16px rgba(0,0,0,.35)",
+    "--nav-bg": "rgba(8,32,51,.9)",
+    "--nav-bd": "#1c4263",
+    "--text1": "#dcebf7",
+    "--text2": "#8fb2c9",
+    "--ink": "#dcebf7",
+    "--page-img": "radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.15), transparent)"
+  }
+}

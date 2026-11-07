@@ -1,0 +1,551 @@
+{
+ "file": "index-bookshelf.html",
+ "total": 579727,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-readhub",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 381,
+   "hash": "eb849b62"
+  },
+  {
+   "id": "p-bookDetail",
+   "kind": "screen",
+   "title": "书籍详情",
+   "role": "home",
+   "size": 111,
+   "hash": "de396620"
+  },
+  {
+   "id": "p-bookshelf",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 3863,
+   "hash": "0a844fd6"
+  },
+  {
+   "id": "p-bookInfo",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 97,
+   "hash": "1f4249ef"
+  },
+  {
+   "id": "p-biblioSearch",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 111,
+   "hash": "ea0983a4"
+  },
+  {
+   "id": "p-bookForm",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 97,
+   "hash": "18696ae3"
+  },
+  {
+   "id": "sheetBfDate",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1131,
+   "hash": "e0aafad0"
+  },
+  {
+   "id": "sheetBfPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 801,
+   "hash": "00ab0d1d"
+  },
+  {
+   "id": "p-quotes",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1918,
+   "hash": "04a1ffc8"
+  },
+  {
+   "id": "p-quoteEdit",
+   "kind": "screen",
+   "title": "新增摘录",
+   "role": "home",
+   "size": 1940,
+   "hash": "2a2dd0ca"
+  },
+  {
+   "id": "p-readlog",
+   "kind": "screen",
+   "title": "阅读记录",
+   "role": "home",
+   "size": 96,
+   "hash": "b2c7458a"
+  },
+  {
+   "id": "p-readstat",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 3804,
+   "hash": "fdc5a331"
+  },
+  {
+   "id": "p-readtimer",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 2374,
+   "hash": "1837f060"
+  },
+  {
+   "id": "p-readset",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 227,
+   "hash": "17886e61"
+  },
+  {
+   "id": "p-doubanLogin",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1231,
+   "hash": "a3304461"
+  },
+  {
+   "id": "p-readimport",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 348,
+   "hash": "608a2a6d"
+  },
+  {
+   "id": "sheetLongPress",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 594,
+   "hash": "fab0e4a4"
+  },
+  {
+   "id": "p-bkmgr",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 901,
+   "hash": "58032fc2"
+  },
+  {
+   "id": "sheetBmDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 613,
+   "hash": "0b4c9159"
+  },
+  {
+   "id": "p-xrwords",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 4659,
+   "hash": "5322fd57"
+  },
+  {
+   "id": "p-booklists",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 392,
+   "hash": "2b272d05"
+  },
+  {
+   "id": "p-booklist",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 111,
+   "hash": "20b9a154"
+  },
+  {
+   "id": "sheetBooklist",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 865,
+   "hash": "49fc9eeb"
+  },
+  {
+   "id": "sheetListShare",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1424,
+   "hash": "96251474"
+  },
+  {
+   "id": "sheetAuthorPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 539,
+   "hash": "21907203"
+  },
+  {
+   "id": "sheetShBatchDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1034,
+   "hash": "3803fd4d"
+  },
+  {
+   "id": "sheetShBatchTag",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 663,
+   "hash": "e697fd9d"
+  },
+  {
+   "id": "sheetBookOps",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 429,
+   "hash": "a89a68c9"
+  },
+  {
+   "id": "sheetTrack",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 703,
+   "hash": "e58bdfd5"
+  },
+  {
+   "id": "sheetQuoteOps",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 502,
+   "hash": "0e690206"
+  },
+  {
+   "id": "p-localImport",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 5182,
+   "hash": "ae9e35bc"
+  },
+  {
+   "id": "p-readerPage",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 12581,
+   "hash": "0de636d0"
+  },
+  {
+   "id": "p-readerSearch",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1096,
+   "hash": "6ae5aea0"
+  },
+  {
+   "id": "sheetProgress",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 945,
+   "hash": "b6368a4c"
+  },
+  {
+   "id": "sheetPillDemo",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 5406,
+   "hash": "9325f5ba"
+  },
+  {
+   "id": "sheetShelfSort",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 825,
+   "hash": "54829bb1"
+  },
+  {
+   "id": "sheetYearReport",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 668,
+   "hash": "3089c8ed"
+  },
+  {
+   "id": "sheetNewBook",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 4585,
+   "hash": "f413573e"
+  },
+  {
+   "id": "sheetEditBook",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 5070,
+   "hash": "2ad1d75e"
+  },
+  {
+   "id": "sheetGoal",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 3509,
+   "hash": "28d928ea"
+  },
+  {
+   "id": "sheetInboxBook",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 460,
+   "hash": "52b9b108"
+  },
+  {
+   "id": "sheetReview",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1672,
+   "hash": "aef4cf44"
+  },
+  {
+   "id": "sheetTocImport",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2571,
+   "hash": "e9941b5c"
+  },
+  {
+   "id": "sheetBrAppearance",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 4479,
+   "hash": "9a2d9650"
+  },
+  {
+   "id": "sheetBrApSub",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 3859,
+   "hash": "08b204fc"
+  },
+  {
+   "id": "sheetBrProg",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2138,
+   "hash": "1819381e"
+  },
+  {
+   "id": "sheetBrLocalInfo",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1667,
+   "hash": "5a1ddefa"
+  },
+  {
+   "id": "sheetXrScope",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1631,
+   "hash": "b0b190ce"
+  },
+  {
+   "id": "sheetXrDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 874,
+   "hash": "42986c95"
+  },
+  {
+   "id": "sheetXrAdd",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1252,
+   "hash": "d7468022"
+  },
+  {
+   "id": "sheetXrMerge",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 289,
+   "hash": "59a83221"
+  },
+  {
+   "id": "sheetXrBak",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1069,
+   "hash": "adc12113"
+  },
+  {
+   "id": "sheetXrAiPre",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1240,
+   "hash": "75f98c8b"
+  },
+  {
+   "id": "sheetXrAiReview",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1206,
+   "hash": "25f63087"
+  },
+  {
+   "id": "sheetXrFail",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1118,
+   "hash": "3893570c"
+  },
+  {
+   "id": "sheetBrOpen",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 275,
+   "hash": "dd5b04a6"
+  },
+  {
+   "id": "sheetBrAiChoice",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1846,
+   "hash": "f8870295"
+  },
+  {
+   "id": "sheetAiReview",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1954,
+   "hash": "b214c614"
+  },
+  {
+   "id": "sheetBrAi",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1226,
+   "hash": "14d82883"
+  },
+  {
+   "id": "sheetBrDict",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 889,
+   "hash": "05c9d170"
+  },
+  {
+   "id": "sheetBrImg",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 955,
+   "hash": "00d1fa0f"
+  },
+  {
+   "id": "sheetBrLink",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 852,
+   "hash": "d05c10e2"
+  },
+  {
+   "id": "sheetBrAutoPage",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 599,
+   "hash": "a225ce76"
+  },
+  {
+   "id": "sheetBrMore",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1811,
+   "hash": "d85a2f19"
+  },
+  {
+   "id": "sheetBrDel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 744,
+   "hash": "c622bc1f"
+  },
+  {
+   "id": "sheetBrCache",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1358,
+   "hash": "e168b15f"
+  },
+  {
+   "id": "sheetBrReload",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 909,
+   "hash": "42960985"
+  },
+  {
+   "id": "sheetBrLost",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 917,
+   "hash": "b7911ca4"
+  }
+ ]
+}

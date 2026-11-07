@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  配置弹窗（批3 重做）· **套用 App 内卡片体系**，不再是系统默认 Material 表单。
+
+  为什么原来的丑：裸LinearLayout + 系统 CheckBox/Button 堆在白底上，与App 内的
+  「卡片 + 行 + 无按钮底栏」语言毫无关系（用户 2026-10-15 装机反馈原话「太丑了」）。
+  现按App 内设置页的层级做：底＝页面底色、头＝标题＋副标题、行＝描边分隔的开关行、
+  尾＝主/次两个文字按钮（与 App 内 `TextButton` 口径一致，禁立体按钮）。
+
+  行控件用**自绘圆角**（`lh_cfg_row`）而不是 `?android:attr/listDivider`，
+  这样深浅两档只跟 `@color/lh_cfg_*`（跟随系统），与小组件色档同一套纪律（C6）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/lh_cfg_bg"
+    android:orientation="vertical"
+    android:paddingStart="18dp"
+    android:paddingTop="18dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="12dp">
+
+    <!-- 头部：标题 17sp 粗 ＋ 副标题 12sp 次文本（App 内卡标题层级） -->
+    <TextView
+        android:id="@+id/lh_cfg_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/lh_widget_cfg_title"
+        android:textColor="@color/lh_wg_fg"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:text="@string/lh_widget_cfg_hint"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="12sp" />
+
+    <!-- 卡片：四行开关，描边圆角、行间 1dp 分隔（App 内 _card 体系） -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/lh_cfg_card"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_cfg_summary"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="13sp" />
+
+            <CheckBox
+                android:id="@+id/lh_cfg_summary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:button="@drawable/lh_cfg_check"
+                android:contentDescription="@string/lh_widget_cfg_summary" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/lh_wg_stroke" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_cfg_quick"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="13sp" />
+
+            <CheckBox
+                android:id="@+id/lh_cfg_quick"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:button="@drawable/lh_cfg_check"
+                android:contentDescription="@string/lh_widget_cfg_quick" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/lh_wg_stroke" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_cfg_todo_list"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="13sp" />
+
+            <CheckBox
+                android:id="@+id/lh_cfg_todo_list"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:button="@drawable/lh_cfg_check"
+                android:contentDescription="@string/lh_widget_cfg_todo_list" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/lh_wg_stroke" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_cfg_ledger"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="13sp" />
+
+            <CheckBox
+                android:id="@+id/lh_cfg_ledger"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:button="@drawable/lh_cfg_check"
+                android:contentDescription="@string/lh_widget_cfg_ledger" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/lh_wg_stroke" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lh_widget_cfg_hide_amount"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="13sp" />
+
+            <CheckBox
+                android:id="@+id/lh_cfg_hide_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:button="@drawable/lh_cfg_check"
+                android:contentDescription="@string/lh_widget_cfg_hide_amount" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 「在哪里改」：一句话指路，替掉系统默认那种半屏高的说明文字（禁教学性长篇） -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/lh_widget_cfg_wheres_body"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="11sp" />
+
+    <!-- 尾部：次动作「取消」＋主动作「完成」，都是文字按钮（App 内口径） -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/lh_cfg_cancel"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:minWidth="64dp"
+            android:text="@string/lh_widget_cfg_cancel"
+            android:textColor="@color/lh_wg_sub"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/lh_cfg_ok"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="6dp"
+            android:minWidth="72dp"
+            android:text="@string/lh_widget_cfg_ok"
+            android:textColor="@color/lh_wg_acc"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

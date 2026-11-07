@@ -1,0 +1,37 @@
+[
+ {
+  "bookSourceName": "仿真源",
+  "bookSourceUrl": "http://127.0.0.1:8123",
+  "bookSourceGroup": "测试",
+  "enabled": true,
+  "searchUrl": "/search?key={{key}}",
+  "ruleSearch": {
+   "bookList": "class.item",
+   "name": "tag.h3.0@tag.a.0@text",
+   "bookUrl": "tag.a.0@href",
+   "author": "tag.p.1@tag.a.0@text##作者：",
+   "coverUrl": "tag.img.0@src",
+   "kind": "tag.p.0@tag.span[0:1]@text",
+   "lastChapter": "tag.li.0@tag.a.0@text"
+  },
+  "ruleBookInfo": {
+   "name": "class.itemtxt.0@tag.h1.0@text",
+   "author": "//meta[@property='og:novel:author']/@content",
+   "coverUrl": "//meta[@property='og:image']/@content",
+   "intro": "class.des.0@tag.p.0@text",
+   "wordCount": "class.itemtxt.0@tag.h1.0@tag.i.0@text",
+   "lastChapter": "class.itemtxt.0@tag.li.0@tag.a.0@text"
+  },
+  "ruleToc": {
+   "chapterList": "id.list.0@tag.a",
+   "chapterName": "text",
+   "chapterUrl": "href",
+   "nextTocUrl": "class.pages.0@tag.a.0@href"
+  },
+  "ruleContent": {
+   "content": "class.con.0@tag.p@text",
+   "nextContentUrl": "class.prenext.0@tag.span.-1@text.下一页.0@href",
+   "replaceRegex": "请收藏本站[^\n]*##"
+  }
+ }
+]

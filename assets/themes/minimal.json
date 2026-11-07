@@ -1,0 +1,38 @@
+{
+  "id": "minimal",
+  "meta": { "name": "简约", "ver": "1.0", "author": "LifeHarness Team", "license": "MIT" },
+  "tokens": {
+    "--accent": "#6366f1",
+    "--accent-l": "#818cf8",
+    "--g1": "#6366f1",
+    "--g2": "#8b5cf6",
+    "--g3": "#d946ef",
+    "--page": "#f8fafc",
+    "--card": "#ffffff",
+    "--card-bd": "#f1f5f9",
+    "--card-r": "20px",
+    "--card-sh": "0 1px 3px rgba(15,23,42,.05)",
+    "--nav-bg": "rgba(255,255,255,.85)",
+    "--nav-bd": "#e2e8f0",
+    "--text1": "#0f172a",
+    "--text2": "#64748b",
+    "--ink": "#0f172a"
+  },
+  "dark": {
+    "--accent": "#6366f1",
+    "--accent-l": "#818cf8",
+    "--g1": "#6366f1",
+    "--g2": "#8b5cf6",
+    "--g3": "#d946ef",
+    "--page": "#020617",
+    "--card": "#0f172a",
+    "--card-bd": "#1e293b",
+    "--card-r": "20px",
+    "--card-sh": "0 1px 3px rgba(0,0,0,.4)",
+    "--nav-bg": "rgba(2,6,23,.85)",
+    "--nav-bd": "#1e293b",
+    "--text1": "#e2e8f0",
+    "--text2": "#94a3b8",
+    "--ink": "#e2e8f0"
+  }
+}

@@ -1,0 +1,864 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/platform/saf_tree.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/ui_kit.dart';
+import '../../domain/note.dart';
+import '../../domain/note_folder.dart';
+import '../journal_providers.dart';
+import '../note_export.dart';
+import '../note_local_import.dart';
+import '../note_open_history.dart';
+import 'note_sheet_lang.dart';
+
+/// 面板开合补间时长（原路由 transitionDuration 同值；叠层与本件都用）。
+/// 开侧阈值 24 与甩速 500 常量在 `note_tree_overlay.dart`（手势执行点）。
+/// 沿革：轮2 贴边判定带 110 → 轮4 整屏口径作废判定带；轮4 阈值 56→24（更早入树）。
+const Duration kNoteTreeAnimDur = Duration(milliseconds: 220);
+
+/// V1.29 批A3 · 文件夹树面板（原型 noteTree · Obsidian 形态）：
+/// 整屏右滑或右上文件夹钮开 62% 悬浮圆角卡（承载＝常驻叠层 `NoteTreeOverlay`，不走 Navigator）；
+/// 点文件夹=选中当前目录（不关面板·自动展开）；点树外遮罩＝收起（全开时遮罩才参与命中）；
+/// 「添加文件夹」建在选中目录下（未选=顶层）；长按手建夹=行内就地重命名/删除（T-E），
+/// 长按本地/导出挂载节点=移除挂载（V1.64 批2）；底部操作条：重命名/添加/展开折叠/关闭。
+///
+/// 树内再弹的**输入框/导入面板/移除挂载半屏仍走路由**——它们发生在抬手之后，不影响手势。
+class NoteTreePanel extends ConsumerStatefulWidget {
+  const NoteTreePanel(
+      {super.key,
+      required this.onClose,
+      required this.follow,
+      required this.settleClose});
+
+  /// 六处「收起自己」入口统一走它（不许再 Navigator.pop）。
+  final VoidCallback onClose;
+
+  /// 面板左滑逐帧钉进度（T-B：位移与遮罩淡入同帧跟随）。
+  final ValueChanged<double> follow;
+
+  /// 面板左滑松手判定交回叠层（p∈[0,1] 剩开度，vx 横向甩速）。
+  final void Function(double p, double vx) settleClose;
+
+  @override
+  ConsumerState<NoteTreePanel> createState() => _TreeDrawerState();
+}
+
+class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
+  /// 批4①（工单 §2 · 2026-10-12）：展开集合住 [noteTreeOpenProvider]（**跨开合保留**）。
+  /// 原为本地 `final Set<int> _open`，面板收起时 `NoteTreeOverlay` 把面板换成
+  /// `SizedBox.shrink()` ⇒ 本 State dispose ⇒ 展开态全丢（只剩选中项自动展开）；
+  /// 原型 `ntOpen` 是模块级、跨开关保留。挂到 provider 后与面板生命周期解耦。
+  Set<int> get _open => ref.read(noteTreeOpenProvider);
+
+  /// 改展开集合（写回 provider；build 已 `ref.watch` 故自带重建）。
+  void _mutateOpen(void Function(Set<int> o) f) {
+    final o = {..._open};
+    f(o);
+    ref.read(noteTreeOpenProvider.notifier).state = o;
+  }
+
+  /// T-E（原型 ntAct 同款）：当前展开行内动作的文件夹 id（同一时刻只有一行有动作钮）。
+  int? _actId;
+
+  /// T-B：面板左滑收起过程中的进度累计（拖起手时以叠层当前值打底）。
+  double? _closeFrom;
+
+  void _pick(String folder, {bool hasKids = false, int? id}) {
+    final cur = ref.read(noteFilterProvider);
+    // 批5③：走 helper 写回设置（当前文件夹也持久化）。
+    saveNoteFilter(ref, (folder: folder, sort: cur.sort, asc: cur.asc));
+    if (hasKids && id != null) _mutateOpen((o) => o.add(id));
+    _actId = null; // 原型 ntPick：点别的行＝行内动作收起
+    setState(() {});
+  }
+
+  FolderNode? _find(List<FolderNode> nodes, String name) {
+    for (final n in nodes) {
+      if (n.name == name) return n;
+      final r = _find(n.children, name);
+      if (r != null) return r;
+    }
+    return null;
+  }
+
+  Future<void> _add(FolderNode? parent) async {
+    final name = await _promptName(context,
+        title: parent == null ? '新建文件夹（顶层）' : '在「${parent.name}」下新建');
+    if (name == null || name.trim().isEmpty) return;
+    await ref.read(noteFolderDaoProvider).create(name, parentId: parent?.id);
+    if (parent != null) _mutateOpen((o) => o.add(parent.id));
+    ref.invalidate(noteFolderListProvider);
+    setState(() {});
+    if (mounted) {
+      AppToast.show(context,
+          parent == null ? '已新建文件夹「${name.trim()}」' : '已在「${parent.name}」下新建「${name.trim()}」');
+    }
+  }
+
+  /// T-E（树手感批2·真机反馈轮3）：长按手建夹＝行尾**就地**现「重命名/删除」两钮
+  /// （原型 ntLong/ntAct 同款，再长按同夹收起）；挂载节点维持「移除挂载」半屏（N-1c）。
+  /// 旧的白色 `showModalBottomSheet` 菜单撤掉——与胶囊语言不符，且多一层转场。
+  void _longPress(FolderNode node) {
+    if (node.folder.isMount) {
+      _unmount(node);
+      return;
+    }
+    // 批4③（工单 §2）：树内长按进管理态＝触觉锚 〇B「长按进管理态」的**触发位置扩张**
+    //（与列表长按进多选、影音架 `_enterSel` 同语义；产品随样张一并点头）。
+    HapticFeedback.mediumImpact();
+    setState(() => _actId = _actId == node.id ? null : node.id);
+  }
+
+  Future<void> _rename(FolderNode node) async {
+    setState(() => _actId = null);
+    final dao = ref.read(noteFolderDaoProvider);
+    final name = await _promptName(context, title: '重命名', initial: node.name);
+    if (name == null || name.trim().isEmpty || !mounted) return;
+    await dao.rename(node.id, name);
+    ref.invalidate(noteFolderListProvider);
+    setState(() {});
+  }
+
+  Future<void> _delete(FolderNode node) async {
+    setState(() => _actId = null);
+    final dao = ref.read(noteFolderDaoProvider);
+    final ok = await dao.deleteTree(node.id);
+    // 批1 的 DAO 守卫原本静默吞掉「系统打开」的删除请求＝点了没反应；批2 补可见提示。
+    if (!ok && mounted) {
+      AppToast.show(context, '「$kSystemOpenFolder」是系统夹 · 不能删除');
+    }
+    final sel = ref.read(noteFilterProvider).folder;
+    if (sel == node.name) {
+      final cur = ref.read(noteFilterProvider);
+      saveNoteFilter(ref, (folder: '', sort: cur.sort, asc: cur.asc));
+    }
+    ref.invalidate(noteFolderListProvider);
+    setState(() {});
+  }
+
+  /// 底部条「重命名」钮：手建夹直接开输入弹层，挂载节点走「移除挂载」（菜单撤了，入口得留着）。
+  void _renameOrUnmount(FolderNode node) {
+    if (node.folder.isMount) {
+      _unmount(node);
+    } else {
+      _rename(node);
+    }
+  }
+
+  /// 移除挂载（N-1c）：确认层后果三行现算；确认后只摘挂载行，笔记与磁盘原件都不动。
+  Future<void> _unmount(FolderNode node) async {
+    final dao = ref.read(noteFolderDaoProvider);
+    final notes = ref.read(noteDaoProvider);
+    final ids = await dao.subtreeIds(node.id);
+    final keep = await mountNoteCount(dao, notes, node.id);
+    if (!mounted) return;
+    await showNoteUnmountSheet(context,
+        folder: node.folder,
+        childCount: ids.length - 1,
+        keepCount: keep,
+        onConfirm: () async {
+          final removed =
+              await unmountFolder(folders: dao, notes: notes, folder: node.folder);
+          if (ref.read(noteFilterProvider).folder == node.name) {
+            final cur = ref.read(noteFilterProvider);
+            saveNoteFilter(ref, (folder: '', sort: cur.sort, asc: cur.asc));
+          }
+          ref.invalidate(noteFolderListProvider);
+          ref.invalidate(notesProvider);
+          ref.invalidate(noteLocalFoldersProvider);
+          setState(() {});
+          if (mounted && removed > 0) {
+            AppToast.show(context,
+                '已移除挂载「${node.name}」 · $keep 条笔记保留在库 · 原文件不动');
+          }
+        });
+  }
+
+  /// 「导入本地」面板（N-1 目录档／文件档）——批5② 起实现提到顶层
+  /// [noteImportLocalAction]，树与顶栏「更多」共用同一份。
+  Future<void> _importLocal() => noteImportLocalAction(context, ref);
+
+  /// 「导出为本地目录」半屏（批3 N-2）——同上，见 [noteExportLocalAction]。
+  Future<void> _exportLocal() => noteExportLocalAction(context, ref);
+
+  /// 批4 N-4：树顶固定「系统打开」行＝开历史半屏（原型 `nohOpen`，**不是切目录**）。
+  /// 批5② 起实现提到顶层 [noteOpenHistoryAction]；树侧自带「跳转前收树」。
+  void _openHist() =>
+      noteOpenHistoryAction(context, ref, onBeforeNavigate: widget.onClose);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // 批4①：订阅展开集合（跨开合保留的根就在这条 watch 上）。
+    ref.watch(noteTreeOpenProvider);
+    final treeAsync = ref.watch(noteTreeProvider);
+    // 批6③：首帧骨架——FutureProvider 未落定时原 `?? const []` 会先铺一帧空树（闪一下），
+    // 骨架顶住这一帧，落定后整体换真行。
+    final treeLoading = !treeAsync.hasValue;
+    final tree = treeAsync.valueOrNull ?? const [];
+    // 单文件导入的「本地」挂标随该夹是否还有本地来源笔记自动回落（工单 §1.2）。
+    final localFolders =
+        ref.watch(noteLocalFoldersProvider).valueOrNull ?? const <String>{};
+    final allNotes =
+        ref.watch(notesProvider).valueOrNull ?? const <Note>[];
+    final total = allNotes.length;
+    // 批4 N-4：树顶固定行的读数＝**同一份列表**里挑来源（不另查库＝计数与列表同源）。
+    final hist = openHistFrom(allNotes);
+    final selName = ref.watch(noteFilterProvider).folder;
+    final selNode = selName.isEmpty ? null : _find(tree, selName);
+    final w = MediaQuery.sizeOf(context).width * .62;
+
+    // 笔记树手感批 T-A（真机反馈轮3·产品确认）：直角满高贴边 → Obsidian 式悬浮圆角卡
+    // （留边 8·圆角 16·描边＋阴影；原型 #noteTree 同形）。点树外收起/返回键/底部条沿用。
+    // T-B：面板面上左滑＝叠层同一条 controller 反向跟手收起（跟手开、跟手收是成对要求）。
+    return GestureDetector(
+      key: const ValueKey('nt-swipe-close'),
+      // 面板只在遮罩全开时才接收指针（叠层 IgnorePointer 钉 value==1），起手开度恒 1 打底。
+      onHorizontalDragStart: (_) => _closeFrom = 1,
+      onHorizontalDragUpdate: (d) {
+        final from = _closeFrom;
+        if (from == null) return;
+        final p = (from + (d.primaryDelta ?? d.delta.dx) / w).clamp(0.0, 1.0);
+        _closeFrom = p;
+        widget.follow(p);
+      },
+      onHorizontalDragEnd: (d) => _settleClose(d.velocity.pixelsPerSecond.dx),
+      onHorizontalDragCancel: () => _settleClose(0),
+      child: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: w,
+            height: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: .18),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8))
+                ],
+              ),
+              child: ClipRRect(
+                key: const ValueKey('nt-card-shape'),
+                borderRadius: BorderRadius.circular(16),
+                child: Material(
+                  color: scheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: context.tokens.cardBorder),
+                  ),
+                  child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 4, 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                          child: Text('文件夹',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15))),
+                      IconButton(
+                          key: const ValueKey('nt-close-hd'),
+                          onPressed: widget.onClose,
+                          icon: const Icon(Icons.close, size: 20)),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: treeLoading
+                      ? const _TreeSkeleton()
+                      : ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    children: [
+                      _row(context,
+                          keyName: 'nt-all',
+                          icon: Icons.notes_outlined,
+                          label: '全部笔记',
+                          count: total,
+                          depth: 0,
+                          selected: selName == '',
+                          onTap: () => _pick('')),
+                      // V1.64 批4 N-4（工单 §18.1·原型树顶固定行）：恒定在场的「系统打开」行＝
+                      // 点它开历史半屏（不是切目录），带「临时」标与计数（与列表同源）；
+                      // 该夹同时从下方树节点里排除（见 _nodes），故不会出现两处。
+                      _row(context,
+                          keyName: 'nt-sysopen',
+                          icon: Icons.history,
+                          label: kSystemOpenFolder,
+                          badgeSource: 'temp',
+                          count: hist.length,
+                          depth: 0,
+                          onTap: _openHist),
+                      ..._nodes(tree, 0, localFolders),
+                      // V1.60 全局回收站：抽屉行改道统一屏并落「笔记」段
+                      // （页内垃圾箱视图随本批下架，恢复/彻底删除只在此屏做）。
+                      _row(context,
+                          keyName: 'nt-trash',
+                          icon: Icons.delete_outline,
+                          label: '回收站',
+                          depth: 0,
+                          onTap: () {
+                            final router = GoRouter.of(context);
+                            widget.onClose(); // 常驻叠层批：跳转前收起＝本地 close()
+                            router.push('/settings/trash?seg=note');
+                          }),
+                      _row(context,
+                          keyName: 'nt-add',
+                          icon: Icons.add,
+                          label: '添加文件夹 · ${selNode?.name ?? '顶层'}',
+                          depth: 0,
+                          onTap: () => _add(selNode)),
+                      // V1.64 批2 N-1：树底「导入本地」入口（目录／文件就地两取法）。
+                      _row(context,
+                          keyName: 'nt-import',
+                          icon: Icons.drive_folder_upload_outlined,
+                          label: '导入本地 · 目录或文件',
+                          depth: 0,
+                          onTap: _importLocal),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // 轮11-2：底部操作条恢复线性图标钮（用户反馈文字钮不如图标直观）。
+                // 批3 起第 5 枚＝导出：五钮改**等分单元格**（原 `spaceEvenly` 加一枚会在 360dp
+                // 窄屏把右端挤出卡面；Expanded 后 360dp 面板每格 44.6≥U6 的 44 下限）。
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: IconButton(
+                          key: const ValueKey('nt-bt-rename'),
+                          tooltip: selNode == null
+                              ? '先点选文件夹'
+                              : '重命名「${selNode.name}」',
+                          onPressed: () => selNode == null
+                              ? AppToast.show(context, '先点选文件夹')
+                              : _renameOrUnmount(selNode),
+                          icon: const Icon(Icons.edit_outlined, size: 20),
+                        ),
+                      ),
+                      Expanded(
+                        child: IconButton(
+                          key: const ValueKey('nt-bt-add'),
+                          tooltip: '添加文件夹',
+                          onPressed: () => _add(selNode),
+                          icon: const Icon(Icons.create_new_folder_outlined,
+                              size: 20),
+                        ),
+                      ),
+                      // V1.64 批3 N-2：底条第 5 枚＝导出为本地目录
+                      // （原型 `ntBtExport` 一直有这枚，dart 侧此前缺；顺序照原型 edit/add/export/expand/close）。
+                      Expanded(
+                        child: IconButton(
+                          key: const ValueKey('nt-bt-export'),
+                          tooltip: '导出为本地目录',
+                          onPressed: _exportLocal,
+                          icon: const Icon(Icons.output, size: 20),
+                        ),
+                      ),
+                      Expanded(
+                        child: IconButton(
+                          key: const ValueKey('nt-bt-expand'),
+                          tooltip: '全部展开/折叠',
+                          // 批1 缺陷修复：原实现只有 `_open.addAll(all)`（全文件无清除 `_open`
+                          // 的路径）⇒ 全展开后再点**无反应**。原型 `ntExpandAll` 是 `ntAllOpen`
+                          // 翻转的 toggle、规范 LH-S38 钮名「展开折叠」，两处都判它该双向。
+                          onPressed: () {
+                            final all = <int>[];
+                            void collect(List<FolderNode> ns) {
+                              for (final n in ns) {
+                                all.add(n.id);
+                                collect(n.children);
+                              }
+                            }
+
+                            collect(tree);
+                            if (all.isEmpty) return; // 无文件夹＝无可展开
+                            _mutateOpen((o) {
+                              if (all.every(o.contains)) {
+                                o.clear(); // 已全展开 → 全部折叠
+                              } else {
+                                o.addAll(all); // 否则展开全部
+                              }
+                            });
+                            // 与单夹 caret 同口径：收起行内动作态。
+                            setState(() => _actId = null);
+                          },
+                          icon: const Icon(Icons.unfold_more, size: 20),
+                        ),
+                      ),
+                      Expanded(
+                        child: IconButton(
+                          key: const ValueKey('nt-bt-close'),
+                          tooltip: '关闭',
+                          onPressed: widget.onClose,
+                          icon: const Icon(Icons.close, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+            ),
+            ),
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  /// T-B：面板左滑松手判定（常驻叠层批口径＝工单 §1：剩开度 p<0.6 或左甩过速即关，否则补间回全开）。
+  void _settleClose(double vx) {
+    final p = _closeFrom;
+    _closeFrom = null;
+    if (p == null) return;
+    widget.settleClose(p, vx);
+  }
+
+  /// 树上角标来源（''＝不画）：挂载夹直取；`local_file` 挂标随本地来源笔记清空自动回落。
+  String _badgeOf(FolderNode n, Set<String> localFolders) {
+    final s = n.folder.source;
+    if (s == 'local_file') return localFolders.contains(n.name) ? s : '';
+    return s;
+  }
+
+  List<Widget> _nodes(List<FolderNode> nodes, int depth,
+          Set<String> localFolders) =>
+      [
+        // 批4 N-4：固定「系统打开」夹只在树顶那一行出现（点它开历史半屏），这里排除＝
+        // 防「固定行＋普通节点」两处重复（同一夹两种语义；摘掉这层 where＝刀③红）。
+        for (final n in nodes.where((x) => x.name != kSystemOpenFolder)) ...[
+          _row(context,
+              keyName: 'nt-${n.name}',
+              icon: Icons.folder_outlined,
+              label: n.name,
+              badgeSource: _badgeOf(n, localFolders),
+              count: n.noteCount,
+              depth: depth,
+              selected: ref.watch(noteFilterProvider).folder == n.name,
+              caret: n.children.isNotEmpty
+                  ? (_open.contains(n.id)
+                      ? Icons.expand_more
+                      : Icons.chevron_right)
+                  : null,
+              onCaret: () {
+                // 原型 ntToggle：展开/折叠同时收起行内动作。
+                _mutateOpen((o) {
+                  if (o.contains(n.id)) {
+                    o.remove(n.id);
+                  } else {
+                    o.add(n.id);
+                  }
+                });
+                setState(() => _actId = null);
+              },
+              onTap: () => _pick(n.name, hasKids: n.children.isNotEmpty, id: n.id),
+              onLongPress: () => _longPress(n),
+              actions: _actId == n.id ? _actBtns(n) : null),
+          // 笔记树手感批 T-C：展开/折叠＝AnimatedSize 150ms easeOut（〇B 微动档），不再跳变。
+          AnimatedSize(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _open.contains(n.id)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: _nodes(n.children, depth + 1, localFolders))
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ];
+
+  Widget _row(BuildContext context,
+      {required String keyName,
+      required IconData icon,
+      required String label,
+      String badgeSource = '',
+      int? count,
+      int depth = 0,
+      bool selected = false,
+      IconData? caret,
+      VoidCallback? onCaret,
+      required VoidCallback onTap,
+      VoidCallback? onLongPress,
+      Widget? actions}) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      key: ValueKey(keyName),
+      // 常驻叠层批·命中闭环（工单 §1 成因二）：动作态下行 onTap 让位给行尾两钮，
+      // 免得点钮落空时被整行接走＝「点了只变选中」。
+      onTap: actions == null ? onTap : null,
+      onLongPress: onLongPress,
+      child: Container(
+        // 轮10-9：行卡圆角化（与弹层条目同语言）。
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        // 批4②（2026-10-12）：行高对齐 U6 的 44dp 热区（原 padding 11+11 与内容
+        // 自然高 17~18 ＝ 约 40 < 44）。用 minHeight 而非加 padding：带 caret 的行
+        // 内容 18、不带 caret 的 17，两者自然高不同 ⇒ 只有兜底下限能让**所有行**都是 44。
+        constraints: const BoxConstraints(minHeight: 44),
+        decoration: BoxDecoration(
+          color: selected ? tokens.accent.withValues(alpha: .10) : null,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: EdgeInsets.fromLTRB(10.0 + depth * 16, 11, 12, 11),
+        child: Row(
+          children: [
+            SizedBox(
+                width: 20,
+                child: caret == null
+                    ? null
+                    : IconButton(
+                        key: ValueKey('$keyName-caret'),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: onCaret,
+                        icon: Icon(caret, size: 18))),
+            Icon(icon,
+                size: 17,
+                color: selected ? tokens.accent : scheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Row(
+              children: [
+                Flexible(
+                    child: Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                selected ? FontWeight.w800 : FontWeight.w600,
+                            color: selected ? tokens.accent : null))),
+                // V1.64 批2：挂载来源角标（纯文字线性胶囊·零 emoji）。
+                if (badgeSource.isNotEmpty) MountBadge(source: badgeSource),
+              ],
+            )),
+            // T-E：动作态下行尾两钮替掉计数位（原型 ntAct 同款）。
+            if (actions != null)
+              actions
+            else if (count != null)
+              Text('$count',
+                  style: TextStyle(
+                      fontSize: 10, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// T-E 行内动作（原型 nt-act-rename／nt-act-del）：行尾就地两枚线性图标钮，
+  /// 点哪枚即收起动作态；不再开白色半屏菜单。
+  ///
+  /// **命中区不许压到图标尺寸**（模拟器装机验出的真缺陷：`constraints: BoxConstraints()`
+  /// ＋zero padding 把 IconButton 缩成图标大小，手指点在图标上仍落到整行＝变成"选中目录"，
+  /// 而 widget 测试按 key 点中心永远点得中，抓不到）。下限 44×44（U6 同一口径）。
+  Widget _actBtns(FolderNode node) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // opaque 包裹＝该矩形命中必落此处，祖先 InkWell 抢不走（摘掉＝中心命中例红＝刀③）。
+          GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: IconButton(
+              key: const ValueKey('nt-act-rename'),
+              tooltip: '重命名',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              onPressed: () => _rename(node),
+              icon: const Icon(Icons.edit_outlined, size: 18))),
+          GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: IconButton(
+              key: const ValueKey('nt-act-del'),
+              tooltip: '删除文件夹',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              onPressed: () => _delete(node),
+              icon: Icon(Icons.delete_outline,
+                  size: 18, color: Theme.of(context).colorScheme.error))),
+        ],
+      );
+}
+
+Future<String?> _promptName(BuildContext context,
+    {required String title, String? initial}) =>
+    showDialog<String>(
+      context: context,
+      builder: (bc) => _NameDialog(title: title, initial: initial),
+    );
+
+class _NameDialog extends StatefulWidget {
+  const _NameDialog({required this.title, this.initial});
+
+  final String title;
+  final String? initial;
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  late final TextEditingController _ctl =
+      TextEditingController(text: widget.initial ?? '');
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text(widget.title, style: const TextStyle(fontSize: 16)),
+        content: TextField(
+            key: const ValueKey('nt-name-input'),
+            controller: _ctl,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: '文件夹名称')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消')),
+          TextButton(
+              key: const ValueKey('nt-name-ok'),
+              onPressed: () => Navigator.pop(context, _ctl.text),
+              child: const Text('确定')),
+        ],
+      );
+}
+
+/// 「移动到」选择弹层（批量操作 · 原型 sheetNoteMove）：返回目标文件夹名。
+Future<String?> showFolderPickSheet(BuildContext context,
+    WidgetRef ref) async {
+  // 树是 FutureProvider：冷读（此前没开过树）时它处于 loading，`valueOrNull` 会是空表 ⇒
+  // 弹层开成空壳（有夹也列不出）。先等它落定（读失败退空表），保证「有夹就列得出」。
+  List<FolderNode> tree;
+  try {
+    tree = await ref.read(noteTreeProvider.future);
+  } catch (_) {
+    tree = const [];
+  }
+  if (!context.mounted) return null;
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    builder: (bc) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 批4④：原为裸 `ListTile`（默认主题白底），与本模块其它弹层的自绘描边卡行
+            // 是两套语言；收进 NoteSheetHeader + NoteSheetRow 统一。
+            const NoteSheetHeader(title: '移动到文件夹'),
+            Flexible(
+              child: tree.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      child: Text('还没有文件夹 · 先在文件树里新建',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color:
+                                  Theme.of(bc).colorScheme.onSurfaceVariant)),
+                    )
+                  : ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final (name, depth) in _flatten(tree))
+                          Padding(
+                            padding: EdgeInsets.only(left: depth * 18.0),
+                            child: NoteSheetRow(
+                              key: ValueKey('mv-$name'),
+                              icon: Icons.folder_outlined,
+                              label: name,
+                              dense: true,
+                              onTap: () => Navigator.of(bc).pop(name),
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+List<(String, int)> _flatten(List<FolderNode> nodes, [int depth = 0]) => [
+      for (final n in nodes) ...[(n.name, depth), ..._flatten(n.children, depth + 1)],
+    ];
+
+// ---------------------------------------------------------------------------
+// 批5②（2026-10-12）·笔记级动作（顶层）——原只藏在树面板内部（列表页与编辑页零入口，
+// 要先用整屏右滑开树才够得着）。提成顶层后：树底行 / 树顶历史行 / 顶栏「更多」三处共用
+// 同一份实现，不再各处抄一遍。
+// ---------------------------------------------------------------------------
+
+/// 「导入本地」（目录 / 文件两取法）。取消＝静默；读不到必出声（「点了必须有看得见的变化」）。
+Future<void> noteImportLocalAction(BuildContext context, WidgetRef ref) async {
+  final dao = ref.read(noteDaoProvider);
+  final folders = ref.read(noteFolderDaoProvider);
+  await showNoteLocalImportSheet(context, onRun: (kind) async {
+    final LocalImportReport? r;
+    try {
+      if (kind == 'dir') {
+        final treeUri = await safPickTree();
+        if (treeUri == null) return null; // 用户在系统选择器里取消＝不出提示
+        r = await importLocalTree(
+            notes: dao,
+            folders: folders,
+            root: await safListTree(treeUri),
+            readText: safReadText);
+      } else {
+        final docs = await safPickFiles();
+        if (docs.isEmpty) return null;
+        r = await importLocalFiles(
+            notes: dao,
+            folders: folders,
+            docs: docs,
+            currentFolder: ref.read(noteFilterProvider).folder,
+            readText: safReadText);
+      }
+    } catch (_) {
+      // catch-ok: 授权失效/provider 拒绝都要可见。
+      if (context.mounted) {
+        AppToast.show(context, '读不到所选内容（授权可能已失效）');
+      }
+      return null;
+    }
+    ref.invalidate(noteFolderListProvider);
+    ref.invalidate(notesProvider);
+    ref.invalidate(noteLocalFoldersProvider);
+    return r;
+  });
+}
+
+/// 「导出为本地目录」（原型 `sheetNoteExport`/`nxDo`）。取消＝`null`＝不出提示。
+Future<void> noteExportLocalAction(BuildContext context, WidgetRef ref) async {
+  final dao = ref.read(noteDaoProvider);
+  final folders = ref.read(noteFolderDaoProvider);
+  final sel = ref.read(noteFilterProvider).folder;
+  await showNoteExportSheet(context,
+      hasCurrentFolder: sel.isNotEmpty,
+      folderLabel: sel, onRun: (scope) async {
+    final String tree;
+    try {
+      final picked = await safPickTree();
+      if (picked == null) return null; // 用户在系统选择器里取消
+      tree = picked;
+    } catch (_) {
+      // catch-ok: 拿不到授权也要出声，否则就是「点了没反应」。
+      if (context.mounted) AppToast.show(context, '没能拿到目录授权（可再选一次）');
+      return null;
+    }
+    String treePath;
+    try {
+      treePath = (await safListTree(tree)).path;
+    } catch (_) {
+      // 列不出＝这个 tree 读不到（授权失效/provider 拒绝），别往下写。
+      if (context.mounted) AppToast.show(context, '读不到所选目录（授权可能已失效）');
+      return const NoteExportReport(errorCode: 'error');
+    }
+    final r = await exportNotesToTree(
+        notes: dao,
+        folders: folders,
+        treeUri: tree,
+        treePath: treePath,
+        scope: scope);
+    ref.invalidate(noteFolderListProvider);
+    ref.invalidate(notesProvider);
+    ref.invalidate(noteLocalFoldersProvider);
+    return r;
+  });
+}
+
+/// 「系统打开」历史半屏（原型 `nohOpen`）。计数与列表同源＝读 `notesProvider` 这一份。
+/// [onBeforeNavigate]：树侧传入「收起面板」；顶栏调用传 null（无面板可收）。
+void noteOpenHistoryAction(BuildContext context, WidgetRef ref,
+    {VoidCallback? onBeforeNavigate}) {
+  final dao = ref.read(noteDaoProvider);
+  final hist = openHistFrom(ref.read(notesProvider).valueOrNull ?? const <Note>[]);
+  showNoteOpenHistorySheet(context,
+      notes: hist,
+      onOpen: (n) {
+        final router = GoRouter.of(context);
+        onBeforeNavigate?.call(); // 常驻叠层：跳走前先收树
+        router.push('/note/edit', extra: n.id);
+      },
+      onMove: (n) async {
+        final to = await showFolderPickSheet(context, ref);
+        if (to == null || to.isEmpty) return;
+        await dao.setFolderMany([n.id!], to);
+        ref.invalidate(notesProvider);
+        ref.invalidate(noteTreeProvider);
+        if (context.mounted) {
+          AppToast.show(context, '已转入「$to」 · 临时标记已解除 · 来源标保留');
+        }
+      },
+      onClear: () async {
+        // 语义＝只软删**仍在临时夹**的进件，已转入的一行不动（产品裁定）；句子照原型原话。
+        final moved = await openHistClear(dao);
+        ref.invalidate(notesProvider);
+        ref.invalidate(noteTreeProvider);
+        return moved == 0
+            ? '本来就是空的 · 临时夹里没有待清的进件'
+            : '已清空 $moved 条 · 已转入的笔记不受影响';
+      });
+}
+
+/// 批6③（工单 §2 · 2026-10-12）·文件树首帧骨架。
+/// `noteTreeProvider` 是 FutureProvider：未落定时原实现 `?? const []` 直接铺空列表 ⇒
+/// 开树第一帧是「空」、下一帧才见内容（闪一下）。骨架顶住这一帧：几枚中性占位条
+/// （纯几何、零 emoji、不引新色值），落定后整体换成真行。
+class _TreeSkeleton extends StatelessWidget {
+  const _TreeSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final c =
+        Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: .12);
+    Widget bar(double w, {double h = 10}) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+            color: c, borderRadius: BorderRadius.circular(6)));
+    const rows = <(double, double)>[
+      (0, 132), (0, 158), (16, 112), (16, 96), (0, 140),
+    ];
+    return ListView(
+      key: const ValueKey('nt-skeleton'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      children: [
+        for (final (indent, w) in rows)
+          Padding(
+            padding: EdgeInsets.only(left: indent, top: 7, bottom: 7),
+            child: Row(children: [
+              bar(16, h: 16),
+              const SizedBox(width: 10),
+              bar(w),
+            ]),
+          ),
+      ],
+    );
+  }
+}

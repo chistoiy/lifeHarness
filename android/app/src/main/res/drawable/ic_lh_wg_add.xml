@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「记一笔」加号图标（线性 stroke 1.8 同族 · 禁令：禁 emoji、禁彩块） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="17dp"
+    android:height="17dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12,5 L12,19 M5,12 L19,12"
+        android:strokeColor="@color/lh_wg_btn_fg"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round" />
+</vector>

@@ -1,0 +1,103 @@
+{
+ "file": "index-time.html",
+ "total": 139175,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-calendar",
+   "kind": "screen",
+   "title": "时间",
+   "role": "home",
+   "size": 5824,
+   "hash": "54079063"
+  },
+  {
+   "id": "p-timeStats",
+   "kind": "screen",
+   "title": "时间账本",
+   "role": "home",
+   "size": 782,
+   "hash": "d8f30482"
+  },
+  {
+   "id": "p-sub-cats",
+   "kind": "screen",
+   "title": "分类管理",
+   "role": "home",
+   "size": 916,
+   "hash": "b0872a5e"
+  },
+  {
+   "id": "p-sub-catAdd",
+   "kind": "screen",
+   "title": "添加分类",
+   "role": "home",
+   "size": 2759,
+   "hash": "9f9362d2"
+  },
+  {
+   "id": "p-sub-tags",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1968,
+   "hash": "8dbee8b7"
+  },
+  {
+   "id": "p-sub-tagAdd",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1597,
+   "hash": "a6892382"
+  },
+  {
+   "id": "sheetTimePick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2687,
+   "hash": "62ef285e"
+  },
+  {
+   "id": "sheetTagEdit",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2172,
+   "hash": "dad49d4b"
+  },
+  {
+   "id": "sheetTagMerge",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 508,
+   "hash": "3e2b9d7f"
+  },
+  {
+   "id": "sheetTsCat",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1085,
+   "hash": "4c5a7b3b"
+  },
+  {
+   "id": "sheetCatParent",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 678,
+   "hash": "49b47655"
+  },
+  {
+   "id": "sheetDatePick",
+   "kind": "sheet",
+   "title": "",
+   "role": "rep",
+   "size": 1089,
+   "hash": "7c2f033d"
+  }
+ ]
+}

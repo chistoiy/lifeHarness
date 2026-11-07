@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2×2 打卡-单习惯（批A）小组件元数据 · 与另三枚 2×2 同尺寸口径（110dp / targetCell 2×2）。
+
+  ⚠ **本枚写 `android:configure`，四枚读数型不写**（两类语义不同，别照抄）：
+    · 读数型（概览／快捷／待办／记账）没有「目标」，配置页对它们只剩四个全局开关，
+      添加时弹一次纯属打扰 ⇒ 2026-10-15 产品令不写。
+    · 打卡型**一枚绑一个习惯**，而 `appWidgetId` 是系统在落桌面那一刻才分配的——
+      只有 configure 会在新实例创建时被系统调起并把 id 交给我们，App 内
+      「先选后落」的预选绑定才有人认领（第④步无感回写，见 `WidgetConfigActivity`）。
+    · 用户从桌面小部件库直接拖出这枚时同样走 configure：没有预选即**立即收摊**
+      （不弹配置 UI），桌面显示「未选择内容，点此设置」，点它起 App 去选。
+
+  resizeMode 开两向（2×2 同族口径）；updatePeriodMillis=0：App 存活时按需刷新（§6.3）。
+  预览图两个都给：previewLayout 给 Android 12+，previewImage 给 MIUI（实测只认图，
+  没图就回落应用图标 ⇒ 五枚长得一模一样）。图由 tools/gen_widget_previews.py 生成，
+  浅/深两档（drawable-nodpi + drawable-night-nodpi · C6）。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="com.lifeharness.lifeharness.WidgetConfigActivity"
+    android:description="@string/lh_widget_habit_desc"
+    android:initialLayout="@layout/lh_widget_habit"
+    android:minHeight="110dp"
+    android:minResizeHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minWidth="110dp"
+    android:previewImage="@drawable/lh_widget_habit_preview"
+    android:previewLayout="@layout/lh_widget_habit"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

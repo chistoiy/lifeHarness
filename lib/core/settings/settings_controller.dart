@@ -1,0 +1,313 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../nav/nav_collapse.dart';
+import '../nav/nav_module.dart';
+import '../providers.dart';
+import 'user_settings.dart';
+
+/// 底栏开关结果。
+///
+/// 为什么不是 `bool`：两种拒绝要提示**不同的话**（「最多 5 个」vs「今天/我的至少要留一个」），
+/// 合成一个 false 会让 UI 只能瞎猜。2026-10-15 产品放开锚栏目后新增 [needAnchor]。
+enum NavToggleResult {
+  ok,
+
+  /// 已达 5 个上限。
+  maxReached,
+
+  /// 「今天」「我的」至少要留一个（关完一个锚都不剩）。
+  needAnchor,
+}
+
+/// 设置变更控制器（Riverpod 2 Notifier）。
+///
+/// 依赖 [settingsRepositoryProvider]（其底层 SharedPreferences 于 main 中 override 注入）。
+class SettingsController extends Notifier<UserSettings> {
+  static const int _maxNav = 5;
+
+  @override
+  UserSettings build() => ref.read(settingsRepositoryProvider).load();
+
+  Future<void> setTheme(String themeId) async {
+    if (themeId == state.themeId) return;
+    state = state.copyWith(themeId: themeId);
+    await _persist();
+  }
+
+  Future<void> setMode(ThemeModeOption mode) async {
+    if (mode == state.mode) return;
+    state = state.copyWith(mode: mode);
+    await _persist();
+  }
+
+  /// 切换某栏目是否在底栏。
+  ///
+  /// 两条拒绝（2026-10-15 口径）：
+  /// - 已满 5 个时再开 → [NavToggleResult.maxReached]；
+  /// - 关掉后「今天」「我的」一个都不剩 → [NavToggleResult.needAnchor]。
+  ///
+  /// 锚栏目**不再**是「常开不可点」：可关其一，只要另一个还在。
+  Future<NavToggleResult> toggleNav(NavModule module) async {
+    final current = [...state.navIds];
+    final present = current.contains(module.id);
+    if (!present) {
+      if (current.length >= _maxNav) return NavToggleResult.maxReached;
+      current.add(module.id);
+    } else {
+      final left = current.where((id) => id != module.id);
+      if (!left.any((id) => NavModule.fromId(id).isAnchor)) {
+        return NavToggleResult.needAnchor;
+      }
+      current.remove(module.id);
+    }
+    state = state.copyWith(navIds: current);
+    await _persist();
+    return NavToggleResult.ok;
+  }
+
+  Future<void> resetNav() async {
+    state = state.copyWith(navIds: NavModule.defaultNav.map((m) => m.id).toList());
+    await _persist();
+  }
+
+  /// 主页卡片自由编排顺序（M0末C；仪表盘「⇄ 编排」保存时写入）。
+  Future<void> setHomeOrder(List<String> order) async {
+    state = state.copyWith(homeCardOrder: order);
+    await _persist();
+  }
+
+  /// 笔记快照恢复方式（V1.29 记录管理）：'replace' ⇄ 'copy'。
+  Future<void> setNoteRestoreMode(String mode) async {
+    state = state.copyWith(noteRestoreMode: mode);
+    await _persist();
+  }
+
+  /// MD 预览 LaTeX 公式渲染（V1.29轮9k·记录管理，默认关）。
+  Future<void> setNoteLatex(bool on) async {
+    state = state.copyWith(noteLatex: on);
+    await _persist();
+  }
+
+  /// 纯文本行号（V1.29轮9p·笔记⋯弹层，仅 kind=plain，默认关）。
+  Future<void> setNotePlainLineNum(bool on) async {
+    state = state.copyWith(notePlainLineNum: on);
+    await _persist();
+  }
+
+  /// V1.57 E 批 · 回收站自动清理期限（30/7/90 天 · 0=不清理，默认 30）。
+  Future<void> setTrashKeepDays(int days) async {
+    state = state.copyWith(trashKeepDays: days);
+    await _persist();
+  }
+
+  /// 编辑页左右滑动切换上下篇（V1.29轮10-2·记录管理，默认关）。
+  Future<void> setNoteSwipe(bool on) async {
+    state = state.copyWith(noteSwipe: on);
+    await _persist();
+  }
+
+  /// 批5③（2026-10-12）·笔记段筛选持久化：当前文件夹 / 排序键 / 方向**一次写回**
+  /// （三档是一组状态，分三次 persist 会写三遍 prefs）。排序键未知值收敛 'updated'。
+  Future<void> setNoteFilter(
+      {required String folder, required String sort, required bool asc}) async {
+    final s =
+        const {'updated', 'created', 'title'}.contains(sort) ? sort : 'updated';
+    if (folder == state.noteFolder &&
+        s == state.noteSort &&
+        asc == state.noteSortAsc) {
+      return;
+    }
+    state = state.copyWith(noteFolder: folder, noteSort: s, noteSortAsc: asc);
+    await _persist();
+  }
+
+  /// 批5③·笔记视图档（0=列表 / 2/3=卡片列数；越界收敛到 0）。同值不写盘。
+  Future<void> setNoteViewCols(int cols) async {
+    final v = const {0, 2, 3}.contains(cols) ? cols : 0;
+    if (v == state.noteViewCols) return;
+    state = state.copyWith(noteViewCols: v);
+    await _persist();
+  }
+
+  /// 日记天气城市（M1批2e·设置页一次选定；编码 `name|lat|lon`，''=未设置）。
+  Future<void> setWeatherCity(String city) async {
+    state = state.copyWith(weatherCity: city);
+    await _persist();
+  }
+
+  /// 我的页资料（R14-12）：昵称 + 一句话签名。只进设置项 KV，不建表不迁移；
+  /// 头像首字、页面副标题与「今天」页问候语都随这一份数据联动。
+  Future<void> setProfile({required String nick, required String bio}) async {
+    state = state.copyWith(profileNick: nick, profileBio: bio);
+    await _persist();
+  }
+
+  /// 提醒通知设置（M0末A）。副作用（权限申请/排程同步）由 settings feature 层执行，
+  /// core 不触达 feature（R2）。
+  Future<void> setNotify(NotifySettings n) async {
+    state = state.copyWith(notify: n);
+    await _persist();
+  }
+
+  /// V1.65·底栏手势总开关（双指张开＝收起底栏 / 捏合＝还原）。默认关；
+  /// 关＝壳层整层手势不工作（不改变老用户行为）。
+  Future<void> setNavGesture(bool on) async {
+    if (on == state.navGestureOn) return;
+    state = state.copyWith(navGestureOn: on);
+    await _persist();
+  }
+
+  /// V1.65·收起后线索形态：'a' 细握把（默认）/ 'b' 胶囊折角 / 'none' 不画（2026-10-18）。
+  /// 未知值收敛到 'a'（口径函数与 `fromMap` 共用 `navCueStyleOf`，禁两处各写一份）。
+  Future<void> setNavLineStyle(String style) async {
+    final v = navCueStyleOf(style);
+    if (v == state.navLineStyle) return;
+    state = state.copyWith(navLineStyle: v);
+    await _persist();
+  }
+
+  /// V1.65·线索距屏幕底部（px）。越界值收敛到档位闭区间，界面不出现越界读数。
+  Future<void> setNavLineGap(int gap) async {
+    final v = gap.clamp(kNavLineGapMin, kNavLineGapMax);
+    if (v == state.navLineGap) return;
+    state = state.copyWith(navLineGap: v);
+    await _persist();
+  }
+
+  /// 「我的」页版式（hero/chapters/minimal）。未知值收敛到默认 'hero'，
+  /// 同值不写盘（与 setNavLineStyle 同口径）。
+  Future<void> setMyLayout(String v) async {
+    final lay = const {'hero', 'chapters', 'minimal'}.contains(v) ? v : 'hero';
+    if (lay == state.myLayout) return;
+    state = state.copyWith(myLayout: lay);
+    await _persist();
+  }
+
+  /// 演示残留批（2026-10-12）·记录管理「默认新建模板」：三档循环
+  /// （cycleRecSet：纯文本/KPT 复盘/晨间三问），脏值收敛 '纯文本'，同值不写盘。
+  Future<void> setJournalDefaultTpl(String v) async {
+    final t = const {'纯文本', 'KPT 复盘', '晨间三问'}.contains(v)
+        ? v
+        : '纯文本';
+    if (t == state.journalDefaultTpl) return;
+    state = state.copyWith(journalDefaultTpl: t);
+    await _persist();
+  }
+
+  /// 语义断链批 #27（2026-10-12）·记录页日记段持久化：筛选键与 INS 布局开关。同值不写盘。
+  ///
+  /// 日记改版收尾批（2026-10-19）：本键**语义收窄为「标记」**（all/todo/starred/liked）——
+  /// 标签筛选拆到 [setJournalTags] / [toggleJournalTag] 的多值键。白名单内联在此
+  /// （core 不得 import feature 的 `kDfMarkKeys`）；白名单外的值一律回落 `all`，
+  /// 免得旧标签值继续占着标记位把列表筛空。
+  Future<void> setJournalFilter(String v) async {
+    final raw = v.trim();
+    const marks = {'all', 'todo', 'starred', 'liked'};
+    final f = marks.contains(raw) ? raw : 'all';
+    if (f == state.journalFilter) return;
+    state = state.copyWith(journalFilter: f);
+    await _persist();
+  }
+
+  /// 日记改版收尾批（2026-10-19）·筛选标签**多选**（AND 语义，见 `diaryHit`）。
+  ///
+  /// 一次写全量而不是「加一枚/减一枚两个方法」：调用方（筛选弹层）本来就持有
+  /// 完整的选中集合，逐枚增删会触发多次 `_persist()`，且中间态会让列表闪一下。
+  /// 去空、去重、截断到 [UserSettings.kJournalTagMax]——与 `decodeJournalTags` 同口径。
+  Future<void> setJournalTags(List<String> tags) async {
+    final next = <String>[];
+    for (final t in tags) {
+      final v = t.trim();
+      if (v.isEmpty || next.contains(v)) continue;
+      next.add(v);
+      if (next.length >= UserSettings.kJournalTagMax) break;
+    }
+    if (next.length == state.journalTags.length &&
+        next.every(state.journalTags.contains)) {
+      return;
+    }
+    state = state.copyWith(journalTags: next);
+    await _persist();
+  }
+
+  /// 点一枚标签胶囊：已选则取消、未选则追加（对齐原型 `diaryTagToggle`）。
+  Future<void> toggleJournalTag(String name) {
+    final t = name.trim();
+    if (t.isEmpty) return Future<void>.value();
+    final cur = state.journalTags;
+    final next = cur.contains(t)
+        ? [for (final x in cur) if (x != t) x]
+        : [...cur, t];
+    return setJournalTags(next);
+  }
+
+  Future<void> setJournalIns(bool on) async {
+    if (on == state.journalIns) return;
+    state = state.copyWith(journalIns: on);
+    await _persist();
+  }
+
+  /// 日记改版批1a（2026-10-19）：视图三档写入（track/list/ins）。
+  /// 非法值**静默忽略**（不写不落盘）——与 `myLayout`/`journalDefaultTpl` 的收敛口径一致，
+  /// 免得脏深链参数把用户视图打到一个不存在的档。
+  Future<void> setJournalLayout(String v) async {
+    if (!UserSettings.kJournalLayouts.contains(v)) return;
+    if (v == state.journalLayout) return;
+    state = state.copyWith(journalLayout: v);
+    await _persist();
+  }
+
+  /// 日记改版批2d（2026-10-19）：筛选时间段（8 档预设 或 `custom`）。
+  ///
+  /// 与 `setJournalLayout` 的「静默忽略」不同：时间段有天然默认值 `all`，
+  /// 脏键**回落**而不是不写——否则深链带了脏参数会把用户卡在上次的时间段上。
+  /// 切档**不动**起止两键（原型 `dfFrom/dfTo` 常驻，切回自定义还能拿回区间）。
+  Future<void> setJournalRange(String v) async {
+    final r = UserSettings.kJournalRanges.contains(v) ? v : 'all';
+    if (r == state.journalRange) return;
+    state = state.copyWith(journalRange: r);
+    await _persist();
+  }
+
+  /// 应用自定义起止：**一次写三键**（`custom` + from + to），只落一次盘。
+  ///
+  /// 非法区间直接不写（两端全空＝还没选；`from > to`＝空集）。判据与
+  /// `dfRangeValid` 同式，此处内联是为了不让 core 反向依赖 feature。
+  Future<void> setJournalCustom(String from, String to) async {
+    final bad = (from.isEmpty && to.isEmpty) ||
+        (from.isNotEmpty && to.isNotEmpty && from.compareTo(to) > 0);
+    if (bad) return;
+    if (state.journalRange == 'custom' &&
+        from == state.journalFrom &&
+        to == state.journalTo) {
+      return;
+    }
+    state = state.copyWith(
+        journalRange: 'custom', journalFrom: from, journalTo: to);
+    await _persist();
+  }
+
+  /// 筛选项**四维全清**（标记回全部 / 标签清空 / 时间段回全部 / 起止清空），只落一次盘。
+  ///
+  /// 单独一个方法而不是让 UI 连调多个 setter：连调会触发多次 `_persist()`，
+  /// 且中间态（已清标记、未清时间段）会让列表闪一下再变。
+  Future<void> resetJournalFilter() async {
+    state = state.copyWith(
+        journalFilter: 'all',
+        journalTags: const [],
+        journalRange: 'all',
+        journalFrom: '',
+        journalTo: '');
+    await _persist();
+  }
+
+  /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认）。
+  /// 用户手动切换时由时间页写入；切视图档不改它。
+  Future<void> setCalMonthExpanded(bool on) async {
+    if (on == state.calMonthExpanded) return;
+    state = state.copyWith(calMonthExpanded: on);
+    await _persist();
+  }
+
+  Future<void> _persist() => ref.read(settingsRepositoryProvider).save(state);
+}

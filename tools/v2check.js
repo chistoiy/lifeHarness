@@ -1,0 +1,1 @@
+const s=require("fs").readFileSync("prototype/index-v2.html","utf8");const m=s.match(/<script>[\s\S]*?<\/script>/g);const last=m[m.length-1].replace(/<\/?script>/g,"");require("fs").writeFileSync("tmp_v2.js",last);console.log("lines",last.split("\n").length);

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面批1 · 快捷方式图标「我的」(settings)。见 ic_lh_inbox.xml 顶部说明。
+     批C-2（2026-10-18）：同一份矢量图兼作 1×1 模块瓦片的图标（`lh_tile.xml` 的
+     `lh_tile_icon`），底色与其余七枚一致（#6366F1），只换字形。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#6366F1"
+        android:pathData="M6,1 h12 a5,5 0 0 1 5,5 v12 a5,5 0 0 1 -5,5 h-12 a5,5 0 0 1 -5,-5 v-12 a5,5 0 0 1 5,-5 z" />
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2.4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M12,12.5A4,4 0,1 0,12,4.5A4,4 0,1 0,12,12.5Z" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2.4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M4.5,20.5L4.5,19.5A7,7 0,0 1,11.5,12.5L12.5,12.5A7,7 0,0 1,19.5,19.5L19.5,20.5" />
+    </group>
+</vector>

@@ -1,0 +1,146 @@
+    <!-- ===== V1.50 书架专版 · 阅读器（本地 EPUB） ===== -->
+    <style>
+    /* ---- 阅读器追加样式（勿回改上方既有样式） ---- */
+    .br-stage{position:absolute;inset:0;overflow:hidden;transition:background .25s}
+    .br-scroll{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    .brp{text-indent:2em;margin:0 0 .85em;word-break:break-all}
+    .brp-h{font-weight:800;text-indent:0;margin:1.1em 0 .8em;font-size:1.25em;line-height:1.5}
+    .brp-q{border-left:3px solid currentColor;opacity:.85;padding-left:.8em;text-indent:0;margin:0 0 .95em}
+    .brp-i{text-indent:0;margin:0 0 1em}
+    .brp-i figcaption{text-align:center;font-size:.62em;opacity:.55;margin-top:6px}
+    .br-cur{background:rgba(99,102,241,.28);border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+    .br-selon{outline:2px solid rgba(99,102,241,.55);outline-offset:2px;border-radius:5px}
+    .br-hit{outline:2px solid rgba(99,102,241,.65);border-radius:4px}
+    .br-link{text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+    .br-chrome{background:rgba(15,23,42,.86);backdrop-filter:blur(8px);color:#e2e8f0}
+    #brSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28)}
+    #brSelBar .sdb{padding:9px 10px;border-radius:10px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;cursor:pointer}
+    #brSelBar .sdb:active{background:rgba(148,163,184,.18)}
+    .br-range{width:100%;accent-color:var(--accent);height:26px}
+    .br-themecard{border:2px solid transparent;opacity:.55;cursor:pointer;transition:.15s}
+    .br-themecard.on{border-color:var(--accent);opacity:1;box-shadow:0 0 0 3px rgba(99,102,241,.14)}
+    .br-fs{border:2px solid #e2e8f0}.dark .br-fs{border-color:#334155}
+    .br-fs.on{border-color:var(--accent)!important;background:rgba(99,102,241,.08)}
+    .br-zone{-webkit-tap-highlight-color:transparent}
+    .br-swig{animation:brSwig .22s ease}@keyframes brSwig{from{transform:translateX(var(--sw,24px));opacity:.2}to{transform:none;opacity:1}}
+    .br-pulse{width:7px;height:7px;border-radius:99px;background:var(--accent);animation:brPl 1.6s infinite}@keyframes brPl{0%,100%{opacity:1}50%{opacity:.25}}
+    .br-local{position:absolute;right:3px;bottom:3px;z-index:5;display:inline-flex;align-items:center;gap:2px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,23,42,.62);backdrop-filter:blur(3px);border-radius:99px;padding:1.5px 5px;line-height:1.4}
+    </style>
+
+    <!-- ===== BR-1 导入本地图书（四步向导） ===== -->
+    <section id="p-localImport" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center gap-1.5 mt-1 mb-3" id="brSteps"></div>
+      <div id="brImp1" class="hidden">
+        <div class="card">
+          <div class="flex items-center gap-2.5"><span class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5v5C4 16.5 7.4 20 12 21.5 16.6 20 20 16.5 20 11.5v-5z"/><path d="m9 12 2 2 4-4.5"/></svg></span>
+          <div class="flex-1"><div class="text-sm font-bold">Android 13+ · 无需「所有文件访问」</div><div class="text-[11px] text-slate-400 mt-0.5">通过系统文件选择器（SAF）读取所选 EPUB，应用只拿到该文件本身</div></div></div>
+          <div class="mt-3 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-5">
+            <div>· 13+：一次性读取授权，不落存储权限</div>
+            <div>· 12 及以下：仅申请单次读文件权限</div>
+            <div>· 全程本地解析，不上传、不联网下载书籍</div>
+          </div>
+          <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold active:scale-[.99]" onclick="brImpGo(2)">允许访问手机存储 · 选择文件</button>
+        </div>
+        <div class="mt-3 card">
+          <div class="row-title text-sm font-extrabold">支持范围</div>
+          <div class="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+            <div class="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 p-2.5 leading-5"><b>EPUB 2 / EPUB 3</b><br>图文混排 · 内/外链 · 目录</div>
+            <div class="rounded-xl bg-rose-50 dark:bg-rose-500/10 p-2.5 leading-5"><b>不支持</b><br>DRM 加密书 · PDF（独立模块）</div>
+          </div>
+        </div>
+      </div>
+      <div id="brImp2" class="hidden">
+        <div class="flex items-center gap-1 text-[11px] text-slate-400 mb-2"><button class="font-bold" onclick="brImpDir('download')">下载</button><span>/</span><button onclick="brImpDir('docs')">文档</button><span>· 手机存储</span></div>
+        <div id="brFiles" class="space-y-2.5"></div>
+        <div class="mt-3 text-[10px] text-slate-400 text-center">加密书籍与 PDF 置灰不可选 · 点击即打开系统选择器（模拟）</div>
+      </div>
+      <div id="brImp3" class="hidden">
+        <div class="card text-center py-7">
+          <div class="w-14 h-14 mx-auto rounded-2xl grad flex items-center justify-center text-white"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16.5H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A2 2 0 0 1 6 18h13v4H6a2 2 0 0 1-2-2.5z"/></svg></div>
+          <div class="font-extrabold mt-3 text-sm" id="brImpFile">—</div>
+          <div class="mt-4 mx-5 text-left space-y-2 text-[11px]" id="brTaskList"></div>
+          <div class="mt-4 mx-6 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span id="brBar" class="block h-full grad transition-all" style="width:0%"></span></div>
+        </div>
+      </div>
+      <div id="brImp4" class="hidden">
+        <div id="brDup" class="hidden mb-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20 p-3 text-[11px] leading-5 text-amber-700 dark:text-amber-400"></div>
+        <div class="flex gap-4">
+          <div id="brMCov" class="w-24 h-36 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white p-2.5 text-[9px] leading-[14px] font-bold shadow-lg shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <input id="brF_t" class="w-full card !py-2 text-sm font-bold outline-none" placeholder="书名">
+            <input id="brF_a" class="w-full card !py-2 text-xs outline-none" placeholder="作者">
+            <div class="text-[10px] text-slate-400">书名 / 作者 / 简介 / 目录从 EPUB 元数据自动读取 · 可修改</div>
+          </div>
+        </div>
+        <div class="mt-3 space-y-2">
+          <div class="flex gap-2"><input id="brF_press" class="flex-1 card !py-2 text-xs outline-none" placeholder="出版社"><input id="brF_pub" class="w-28 card !py-2 text-xs outline-none" placeholder="出版日期"></div>
+          <textarea id="brF_intro" rows="3" class="w-full card text-xs outline-none leading-5" placeholder="简介"></textarea>
+        </div>
+        <div class="mt-3 card">
+          <div class="flex items-center justify-between"><div class="row-title text-xs font-extrabold">解析内容预览</div><span class="text-[9px] rounded-full px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400" id="brFmtTag">EPUB3 · 图文混排</span></div>
+          <div class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400" id="brMetaSum">—</div>
+          <div class="mt-2 max-h-36 overflow-y-auto no-scrollbar text-[11px] leading-5" id="brTocPrev"></div>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[11px]"><span class="font-bold">加入「本地」标签与来源分组</span><span class="toggle on" id="brFTag" onclick="tgl(this)"></span></div>
+        <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold active:scale-[.99]" id="brSaveBtn" onclick="brImpCommit()">加入书架 · 开始阅读</button>
+        <div class="mt-2 text-[10px] text-slate-400 text-center">源文件保留原位 · 书架登记解析结果与分页缓存</div>
+      </div>
+    </section>
+
+    <!-- ===== BR-2 阅读主屏（全屏沉浸） ===== -->
+    <section id="p-readerPage" class="page !px-0 relative overflow-hidden">
+      <div class="br-stage" id="brStage">
+        <div class="br-scroll" id="brScroll"><div id="brBody" class="mx-auto"></div></div>
+        <button class="br-zone absolute left-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(-1)" aria-label="上一页"></button>
+        <button class="br-zone absolute right-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(1)" aria-label="下一页"></button>
+        <div class="br-zone absolute inset-x-[16%] top-[15%] bottom-[15%] z-[9]" onclick="brTapCenter()"></div>
+        <div id="brTop" class="br-chrome hidden absolute top-0 inset-x-0 z-[70] px-3 pt-3 pb-2.5">
+          <div class="flex items-center gap-2">
+            <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="brBack()" title="返回"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
+            <div class="flex-1 min-w-0 text-center"><div class="text-xs font-bold truncate" id="brTopTitle">—</div><div class="text-[9px] opacity-60 truncate" id="brTopSub">—</div></div>
+            <span id="brSessChip" class="text-[9px] rounded-full px-1.5 py-0.5 bg-white/10 tabular-nums">00:00</span>
+            <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="navTo('p-readerSearch')" title="全书检索"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+            <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="openSheet('sheetBrMore')" title="更多"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+          </div>
+          <div id="brHitsBar" class="hidden mt-2 flex items-center gap-2 text-[10px]"><span class="opacity-70" id="brHitsLbl">0 处匹配</span><span class="flex-1"></span><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(-1)">上一处</button><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(1)">下一处</button><button class="text-white/60 px-1" onclick="brClearHit()">✕</button></div>
+        </div>
+        <div id="brBottom" class="br-chrome hidden absolute bottom-0 inset-x-0 z-[70] px-4 pt-2 pb-3 whitespace-nowrap">
+          <div class="flex items-center gap-2 text-[9px] opacity-70"><span id="brCfi" class="tabular-nums truncate max-w-[52%]">—</span><span class="flex-1"></span><span id="brPgLbl">—</span></div>
+          <input type="range" min="0" max="100" value="0" class="br-range mt-0.5" id="brProg" oninput="brSeek(this.value)">
+          <div class="flex items-center justify-between mt-1">
+            <button class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold shrink-0" onclick="openSheet('sheetBrToc');brTocRender()">目录</button>
+            <div class="flex items-center gap-1 text-[10px]">
+              <button class="px-2 py-1 rounded-lg bg-white/10 font-bold" onclick="brFsNudge(-1)">A-</button>
+              <button class="px-2 py-1 rounded-lg bg-white/10 font-bold" onclick="brFsNudge(1)">A+</button>
+              <button class="px-2 py-1 rounded-lg" onclick="brThemeCycle()" id="brThemeBtn">日间</button>
+              <button class="px-2 py-1 rounded-lg" onclick="brModeToggle()" id="brModeBtn">滚动</button>
+            </div>
+            <button class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold shrink-0" onclick="openSheet('sheetBrAppearance');brApOpen()">外观</button>
+          </div>
+        </div>
+        <div id="brSelBar" class="hidden absolute z-[72] br-chrome rounded-2xl px-1.5 py-1"><div class="flex items-center overflow-x-auto no-scrollbar max-w-[320px]" id="brSelActs"></div></div>
+        <div id="brColorPop" class="hidden absolute z-[73] br-chrome rounded-xl px-2 py-2 flex items-center gap-2"></div>
+        <div id="brTts" class="hidden absolute bottom-14 inset-x-3 z-[69] br-chrome rounded-2xl px-3 py-2.5">
+          <div class="flex items-center gap-2 text-[10px]">
+            <button class="w-8 h-8 rounded-full grad text-white flex items-center justify-center" onclick="brTtsToggle()" id="brTtsPlay"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+            <div class="flex-1 min-w-0"><b>朗读中 · <span id="brTtsCh">—</span></b><div class="opacity-60 truncate" id="brTtsNext">下一段：…</div></div>
+            <button class="px-1.5 py-1 rounded-lg bg-white/10" onclick="brTtsRate()" id="brTtsRate">1.0x</button>
+            <button class="text-white/60 px-1" onclick="brTtsOff()">✕</button>
+          </div>
+        </div>
+        <div id="brFlash" class="hidden absolute left-1/2 -translate-x-1/2 bottom-28 z-[71] text-[10px] br-chrome rounded-full px-3 py-1.5"></div>
+      </div>
+    </section>
+
+    <!-- ===== BR-3 全书检索 ===== -->
+    <section id="p-readerSearch" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center gap-2 mt-1">
+        <div class="flex-1 relative">
+          <input id="brSq" class="w-full card !py-2.5 pl-9 pr-8 text-sm outline-none" placeholder="在本书中搜索关键词" oninput="brSearchRender()">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <button class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hidden" id="brSqX" onclick="$('#brSq').value='';brSearchRender()">✕</button>
+        </div>
+      </div>
+      <div class="mt-2 text-[10px] text-slate-400"><span id="brSInfo">输入关键词检索全书正文</span></div>
+      <div id="brSHits" class="mt-3 space-y-2.5"></div>
+    </section>

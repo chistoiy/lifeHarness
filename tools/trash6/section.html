@@ -1,0 +1,13 @@
+    <!-- ===== P4a2 待办垃圾箱（V1.57 · 软删保留期内可恢复 · 支持批量彻底删除/恢复） ===== -->
+    <section id="p-sub-todoTrash" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[11px] text-slate-400"><b class="text-slate-600 dark:text-slate-300" id="ttCnt">4 项</b><span id="ttKeep"> · 删除 30 天后自动彻底删除</span></div>
+        <div class="flex items-center gap-3 text-[11px] font-bold">
+          <button class="text-brand-500 hidden" id="ttAllBtn" onclick="ttSelAll()">全选</button>
+          <button class="text-slate-500" id="ttPickBtn" onclick="ttToggleSel()">选择</button>
+        </div>
+      </div>
+      <div class="mt-2 space-y-2" id="ttList"></div>
+    </section>
+
+    <!-- ===== P4b 阅读导入向导 ===== -->

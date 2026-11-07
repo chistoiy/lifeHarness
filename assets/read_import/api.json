@@ -1,0 +1,15 @@
+{
+  "cat": "api",
+  "channels": [
+    {
+      "id": "api",
+      "cat": "api",
+      "name": "API 导入",
+      "fmt": "自定义 JSON 地址",
+      "fields": "需先在设置里验证 Key",
+      "dedupKey": "外部 id",
+      "parser": "none",
+      "hint": "API 通道建设中 · 拿到 JSON 导出后可直接粘贴到下方文本框（按 Notion/自定义 JSON 规则解析）"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 打卡状态点·未打卡：空心圈（原型 .wg-dot 未 on 态） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@android:color/transparent" />
+    <stroke
+        android:width="1.4dp"
+        android:color="@color/lh_wg_sub" />
+</shape>

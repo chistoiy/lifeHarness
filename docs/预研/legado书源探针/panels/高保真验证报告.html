@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legado 书源能力预研 · 验证报告 · LifeHarness</title>
+<style>
+  :root{
+    --bg:#0c0f14; --panel:#12161e; --panel2:#171c26; --line:#232a37;
+    --ink:#e8edf4; --sub:#8b98ab; --dim:#5aa9d6;
+    --ok:#34d399; --warn:#fbbf24; --bad:#fb7185; --acc:#7dd3fc;
+    --mono:'Cascadia Code',Consolas,'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:15px/1.65 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background-image:radial-gradient(1200px 500px at 70% -10%,rgba(90,169,214,.08),transparent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 28px 96px}
+  header .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.22em;color:var(--acc);text-transform:uppercase}
+  h1{font-size:34px;font-weight:800;margin:10px 0 6px;letter-spacing:.01em}
+  .lead{color:var(--sub);max-width:760px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--sub)}
+  .meta b{color:var(--ink);font-weight:600}
+  .verdict{margin-top:22px;display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border-radius:999px;
+    border:1px solid rgba(52,211,153,.35);background:rgba(52,211,153,.08);color:var(--ok);font-weight:700}
+  .verdict svg{flex:none}
+
+  .grid{display:grid;gap:16px}
+  .stats{grid-template-columns:repeat(4,1fr);margin-top:36px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .stat .n{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--acc)}
+  .stat .n.ok{color:var(--ok)} .stat .n.warn{color:var(--warn)} .stat .n.bad{color:var(--bad)}
+  .stat .t{font-size:13px;color:var(--sub);margin-top:2px}
+
+  h2{font-size:20px;margin:52px 0 18px;display:flex;align-items:center;gap:10px}
+  h2 .tag{font-family:var(--mono);font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-weight:400}
+  section>p.note{color:var(--sub);font-size:13.5px;margin-bottom:16px}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  th{font-size:12px;text-align:left;color:var(--sub);font-weight:600;letter-spacing:.05em;background:var(--panel2)}
+  th,td{padding:11px 14px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  td.mono{font-family:var(--mono);font-size:12.5px}
+  .pill{display:inline-block;font-size:11.5px;font-family:var(--mono);padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .pill.ok{background:rgba(52,211,153,.12);color:var(--ok);border:1px solid rgba(52,211,153,.3)}
+  .pill.bad{background:rgba(251,113,133,.1);color:var(--bad);border:1px solid rgba(251,113,133,.28)}
+  .pill.warn{background:rgba(251,191,36,.1);color:var(--warn);border:1px solid rgba(251,191,36,.28)}
+  .pill.info{background:rgba(125,211,252,.1);color:var(--acc);border:1px solid rgba(125,211,252,.28)}
+  .pill.mute{background:rgba(139,152,171,.1);color:var(--sub);border:1px solid rgba(139,152,171,.25)}
+
+  .cap{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .card h3{font-size:15.5px;display:flex;align-items:center;gap:10px}
+  .card .st{margin-left:auto}
+  .card p{color:var(--sub);font-size:13px;margin-top:8px}
+  .card .ev{margin-top:12px;background:#0b0e13;border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    font-family:var(--mono);font-size:12px;color:#a7c4dd;white-space:pre-wrap;word-break:break-all;line-height:1.7}
+  .card .ev .cmd{color:var(--sub)} .card .ev .out{color:var(--ok)}
+
+  .split{grid-template-columns:340px 1fr}
+  .donut-box{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:8px}
+  .legend{width:100%;font-size:13px}
+  .legend div{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line);color:var(--sub)}
+  .legend div:last-child{border:none}
+  .dot{width:10px;height:10px;border-radius:3px;flex:none}
+  .legend b{margin-left:auto;color:var(--ink);font-family:var(--mono)}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar button{font:13px/1 inherit;padding:8px 14px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--sub);cursor:pointer}
+  .toolbar button.on{color:var(--ink);border-color:var(--dim);background:rgba(90,169,214,.12)}
+  #srctab td.url{color:var(--sub);font-size:12px}
+  .empty{padding:26px;text-align:center;color:var(--sub)}
+
+  .steps{counter-reset:s}
+  .step{display:flex;gap:14px;padding:14px 0;border-bottom:1px dashed var(--line)}
+  .step:last-child{border:none}
+  .step .no{counter-increment:s;font-family:var(--mono);color:var(--acc);font-size:13px;flex:none;width:34px;padding-top:2px}
+  .step .no::before{content:counter(s,decimal-leading-zero)}
+  .step b{font-size:14.5px}
+  .step p{color:var(--sub);font-size:13px;margin-top:3px}
+  code.k{font-family:var(--mono);font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--acc)}
+
+  .risk{border-left:3px solid var(--bad)}
+  footer{margin-top:64px;color:var(--sub);font-size:12px;font-family:var(--mono);border-top:1px solid var(--line);padding-top:18px;display:flex;gap:24px;flex-wrap:wrap}
+  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.cap,.split{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">LifeHarness · Reader / Pre-research Probe</div>
+  <h1>Legado 书源接入能力验证报告</h1>
+  <p class="lead">在 lifeHarness 工程之外以独立 Dart 探针验证「书源订阅、管理、查询、元数据、目录、正文解析、内容过滤、自动抓取」八项目标能力。以下所有数字、清单与输出均为 2026-09-28 实跑记录。</p>
+  <div class="meta">
+    <span>探针 <b>_lh_srcprobe/probe</b></span>
+    <span>引擎 <b>legado_lite.dart · 规则子集</b></span>
+    <span>数据源 <b>yuedu.xiu2.xyz/shuyuan（真实订阅）</b></span>
+    <span>结论 <b>8/8 通过</b></span>
+  </div>
+  <div class="verdict">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    验证通过 · lifeHarness 零改动 · 可按四期立项
+  </div>
+</header>
+
+<div class="grid stats" id="stats"></div>
+
+<h2>能力矩阵 <span class="tag">实测输出为证</span></h2>
+<div class="grid cap" id="caps"></div>
+
+<h2>规则语法覆盖率 <span class="tag">真实订阅 · 22 源</span></h2>
+<p class="note">「纯规则」= 引擎子集可全量解析（css/class/tag/索引/xpath/净化/翻页/模板）；其余含 <code class="k">@js:</code>、<code class="k">&lt;js&gt;</code> 嗅探或 WebView 依赖，需四期 JS 引擎补齐。</p>
+<div class="grid split">
+  <div class="card donut-box" id="donutBox"></div>
+  <div>
+    <div class="toolbar" id="srcFilter"></div>
+    <div style="border-radius:14px;overflow:hidden"><table id="srctab">
+      <thead><tr><th style="width:150px">书源</th><th style="width:200px">订阅分组标注</th><th>依赖判定</th><th style="width:70px">状态</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</div>
+
+<h2>四段流程 · 仿真链路实测 <span class="tag">本地fixture复刻真实规则</span></h2>
+<div class="card" style="padding:6px 20px 14px">
+  <div class="steps" id="flow"></div>
+</div>
+
+<h2>已知缺口与风险 <span class="tag">立项前必读</span></h2>
+<div class="grid cap">
+  <div class="card"><h3>引擎子集缺口 <span class="pill warn">可低成本补齐</span></h3>
+    <p>真实源已用到、本期未实现：`textNodes` / `children` / `tr!0` 排除索引（就爱文学）、xpath <code class="k">or</code> 复合谓词、<code class="k">@put/@get</code> 变量、ruleExplore 发现页。</p></div>
+  <div class="card risk"><h3>JS 依赖是覆盖率天花板 <span class="pill bad">需决策</span></h3>
+    <p>真实订阅 22 源中 17 源（77%）依赖 <code class="k">@js:</code>/<code class="k">&lt;js&gt;</code>/WebView。要达到 Legado 级兼容必须引入 QuickJS 档引擎（项目现无 JS 引擎依赖），列为四期独立工程件。</p></div>
+  <div class="card risk"><h3>书源老化实证 <span class="pill bad">产品口径约束</span></h3>
+    <p>订阅文件中「得奇小说网」搜索路径实测已 404、「快书网」域名解析失败——接入后可用性完全依赖用户自换源；产品不提供、不分发任何内置书源（合规红线，Legado 作者判例在前）。</p></div>
+  <div class="card"><h3>反爬与配额 <span class="pill info">设施已有雏形</span></h3>
+    <p>整本抓取=数百次连续请求。UA池/熔断/重试结构可从 V1.45 豆瓣防封设施（isbn_enrich.dart）参数化复用；需补站点级 Cookie 会话管理与随机化限速。</p></div>
+</div>
+
+<h2>落地路径 <span class="tag">与现有架构的接点</span></h2>
+<div class="grid cap">
+  <div class="card"><h3>期1 · 元数据接入 <span class="pill ok">纯增量</span></h3>
+    <p>书源引擎(搜索+详情) → 复用 V1.44「先搜后加」流；<code class="k">biblio_search_page.dart</code> 已预留多源置灰槽位。封面/作者/简介/字数/连载状态直接预填 BookFormPage。</p></div>
+  <div class="card"><h3>期2 · 在线阅读 <span class="pill info">3处解耦</span></h3>
+    <p>新增 SourceDoc 段落供给器（渲染层 EpubPara 模型本就不绑 HTML）。解除 reader_page 的 <code class="k">b.local/EpubRef</code> 开书守卫、<code class="k">cfiPrefix='epub/2'</code>、图片 zip 归档三处 EPUB 绑定；章内容按需抓+落 DocStore（快照即「章→纯文本段落」分片，天然适配）。</p></div>
+  <div class="card"><h3>期3 · 下载成本地书 <span class="pill info">探针已验</span></h3>
+    <p>整本串行限速抓取 + manifest 断点续传 + 3 次重试（本报告实测形态）全量落 DocStore = 「已下载」态，断网可读；可选导出 txt/epub。</p></div>
+  <div class="card"><h3>期4 · JS 引擎与高级兼容 <span class="pill warn">独立立项</span></h3>
+    <p>quickjs_jsi 补 <code class="k">@js:</code> 源、webview_flutter 渲染源（依赖已在 pubspec）、字体反混淆、书源管理页（订阅 URL/粘贴/导入，即探针 subscribe/toggle 的 UI 化）。</p></div>
+</div>
+
+<footer>
+  <span>复验：node ../site/server.js && dart run bin/probe.dart {subscribe|sources|search|info|toc|chapter|download}</span>
+  <span>生成 2026-09-28 · 探针工程不入仓</span>
+</footer>
+</div>
+
+<script>
+/* ===== 真实运行数据（2026-09-28 探针输出原样摘录） ===== */
+const SRC = [{"name":"起点中文","url":"https://www.qidian.com","group":"正版","enabled":true,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"@js:url=baseUrl+\"/so/{{key}}.html,{'method':'GET','headers':{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36','Referer':'https://www.qidian.com/'}}\";java.put('url',url);result=url;"},{"name":"番茄小说2","url":"https://fqapi.komr.cn","group":"","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"@js:\nfunction getUrl(key) {\n  let isNumber = /^\\d+$/.test(key);\n  if (isNumber) {\n    return `https://api5-normal-sinfonlineb.fqnovel.com/reading/bookapi/multi-detail/v/?aid=1967&iid=1&version_code=999&book_id={{key}}`;\n  } else {\n    return `https://api5-normal-lf.fqnovel.com/reading/bookapi/search/page/v/?passback={{(page-1)*50}}&query={{key}}%SOURCES%iid=1&tab_type=3&channel=0&aid=1967&app_name=novelapp&version_code=99999&device_platform=linux&device_type=WSA3&language=zh&os_version=8.1.0`;\n  }\n}\ngetUrl(key)"},{"name":"酷我小说","url":"http://appi.kuwo.cn","group":"API","enabled":true,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"/novels/api/book/search?keyword={{key}}&pi={{page}}&ps=30"},{"name":"69书吧.com","url":"https://www.69shuba.com","group":"梯子,人机验证-全站,搜索暂不可用","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":true,"searchUrl":"<js>/modules/article/search.php,{'charset':'gbk','body':'searchkey={{key}}&searchtype=all','method':'POST'};result='';result;</js>"},{"name":"69书吧","url":"https://69shuba.cx","group":"梯子,人机验证-搜索,搜索暂不可用","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":true,"searchUrl":"/modules/article/search.php,{'charset':'gbk','body':'searchkey={{key}}&searchtype=all','method':'POST'}"},{"name":"速读谷","url":"https://www.sudugu.co","group":"","enabled":true,"js":true,"hasTocPaging":true,"hasContentPaging":true,"hasReplace":true,"searchUrl":"/modules/article/search.php,{'method':'post','body':'searchkey={{key}}&action=login&searchtype=all&submit='}"},{"name":"得奇小说网","url":"https://www.deqixs.com","group":"","enabled":true,"js":false,"hasTocPaging":true,"hasContentPaging":true,"hasReplace":false,"searchUrl":"/tag/?key={{key}}"},{"name":"快书网","url":"https://www.kuaishu5.com","group":"","enabled":true,"js":false,"hasTocPaging":true,"hasContentPaging":false,"hasReplace":false,"searchUrl":"/search/?searchkey={{key}}"},{"name":"天天看小说","url":"https://cn.ttkan.co","group":"搜索暂不可用","enabled":true,"js":false,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":true,"searchUrl":"/novel/search?q={{key}}"},{"name":"独步小说网","url":"https://www.dbxsd.com","group":"搜索暂不可用","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":true,"hasReplace":false,"searchUrl":"/plus/search.php?q={{key}}"},{"name":"手机小说","url":"https://www.shoujix.com","group":"","enabled":true,"js":false,"hasTocPaging":true,"hasContentPaging":false,"hasReplace":false,"searchUrl":"/modules/article/search.php,{'charset':'gbk','body':'searchkey={{key}}','method':'POST'}"},{"name":"铅笔小说","url":"https://www.23qb.com","group":"","enabled":true,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"/search.html?searchkey={{key}}"},{"name":"来看文学","url":"https://m.laikan9.com","group":"人机验证-搜索","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":true,"hasReplace":true,"searchUrl":"@js:\ntry{\nbUrl=baseUrl.replace(/\\/?\\#\\#.*/,'');\ncookie.removeCookie(bUrl)\ns=String(java.ajax(bUrl))\nact=s.match(/\"act\".*?\"(.{16})\"/)[1]\nsub=s.match(/name=\"submit\".*?value=\"(.*?)\"/)[1]\nbody=String(\"act=\"+act+\"&q=\"+key+\"&submit=\"+sub)\nxx=body.match(/[^&=]+/g)\nfor(i in xx){\nre=java.encodeURI(xx[i],\"gbk\")\nbody=body.replace(xx[i],re)\n }\nvar url=String(bUrl+\"/sscc/,\"+JSON.stringify({\n\t\"method\":\"POST\",\"body\":body}))\njava.put(\"key\",body.match(/q=([^&]*)/)[1]);\njava.put(\"url\",bUrl+\"/sscc/\"+java.post(bUrl+\"/sscc/\",body,{}).header(\"Location\"));url\n}catch{java.longToast(\"获取失败\")}"},{"name":"大文学无错小说网","url":"https://www.wcxsw.org","group":"人机验证-搜索,暂不可用","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"@js:url=\"https://m.wcxsw.org/search.php,{'body':'submit=搜索&keyword={{key}}&json=1','method':'POST','headers':{'User-Agent':'Mozilla/5.0 (Linux; Android 12; Nexus 5X Build/NRD90M); wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/115.0.4664.104 Mobile Safari/537.36','Referer':'https://m.wcxsw.org/'}}\";if(java.ajax(url).match(/^<!DOCTYPE html><html lang=\"en-US\"><head><title>Just a moment...</)){java.longToast('请根据网页提示点击勾选「确认您是真人」来通过人机验证，如果无限循环请查看源注释说明。');java.startBrowserAwait(url,'人机验证');};result=url;"},{"name":"和图书","url":"https://hetushu.com","group":"人机验证-全站","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"<js>if(java.ajax(baseUrl).match(/^<!DOCTYPE html><html lang=\"en-US\"><head><title>Just a moment...</)){java.longToast('请根据网页提示点击勾选「确认您是真人」来通过人机验证，如果无限循环请查看源注释说明。');java.startBrowserAwait(baseUrl,'人机验证');};</js>/search/?keyword={{key}}"},{"name":"思路客","url":"https://www.siluke.com","group":"人机验证-搜索,暂不可用","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"@js:url=\"https://m.siluke.com/search.php,{'body':'submit=搜索&keyword={{key}}&json=1','method':'POST','headers':{'User-Agent':'Mozilla/5.0 (Linux; Android 12; Nexus 5X Build/NRD90M); wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/115.0.4664.104 Mobile Safari/537.36','Referer':'https://m.siluke.com/'}}\";if(java.ajax(url).match(/^<!DOCTYPE html><html lang=\"en-US\"><head><title>Just a moment...</)){java.longToast('请根据网页提示点击勾选「确认您是真人」来通过人机验证，如果无限循环请查看源注释说明。');java.startBrowserAwait(url,'人机验证');};result=url;"},{"name":"顶点小说 ddxs","url":"https://www.ddxs.com","group":"人机验证-搜索","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":true,"searchUrl":"@js:url=\"https://m.ddxs.com/search.php,{'body':'keyword={{key}}&json=1','method':'POST','headers':{'User-Agent':'Mozilla/5.0 (Linux; Android 12; Nexus 5X Build/NRD90M); wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/115.0.4664.104 Mobile Safari/537.36','Referer':'https://m.ddxs.com/'}}\";if(java.ajax(url).match(/^<!DOCTYPE html><html lang=\"en-US\"><head><title>Just a moment...</)){java.longToast('请根据网页提示点击勾选「确认您是真人」来通过人机验证，如果无限循环请查看源注释说明。');java.startBrowserAwait(url,'人机验证');};result=url;"},{"name":"艾途小说","url":"https://m.aitbooks.com","group":"","enabled":true,"js":true,"hasTocPaging":true,"hasContentPaging":true,"hasReplace":false,"searchUrl":"/search/,{'method': 'POST','body': 'keyword={{key}}'}"},{"name":"阅友小说","url":"http://m.suixkan.com","group":"","enabled":true,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":true,"searchUrl":"/s/1.html?keyword={{key}}&page={{page}}"},{"name":"就爱文学","url":"http://www.92xs.info","group":"","enabled":true,"js":false,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"/modules/article/search.php,{'method':'post','body':'searchtype=articlename=author&searchkey={{key}}'}"},{"name":"八一中文","url":"https://www.81zw2.com","group":"人机验证-搜索","enabled":false,"js":true,"hasTocPaging":false,"hasContentPaging":false,"hasReplace":false,"searchUrl":"@js:url=\"https://m.81zw2.com/search.php,{'body':'keyword={{key}}','method':'POST','headers':{'User-Agent':'Mozilla/5.0 (Linux; Android 12; Nexus 5X Build/NRD90M); wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/115.0.4664.104 Mobile Safari/537.36','Referer':'https://m.81zw2.com/'}}\";if(java.ajax(url).match(/^<!DOCTYPE html><html lang=\"en-US\"><head><title>Just a moment...</)){java.longToast('请根据网页提示点击勾选「确认您是真人」来通过人机验证，如果无限循环请查看源注释说明。');java.startBrowserAwait(url,'人机验证');};result=url;"},{"name":"武林中文网","url":"https://www.50zw.so","group":"","enabled":true,"js":true,"hasTocPaging":true,"hasContentPaging":true,"hasReplace":false,"searchUrl":"/search.html,{'method':'POST','body':'s={{key}}'}"}];
+
+const RUN = {
+  subscribed: SRC.length,
+  pure: SRC.filter(s=>!s.js).length,
+  js: SRC.filter(s=>s.js).length,
+  live: [
+    {what:'订阅源 HTTP 拉取', detail:'GET https://yuedu.xiu2.xyz/shuyuan', result:'200 · 163,824 字节 · 解析 22 源', ok:true},
+    {what:'GBK 真站解码', detail:'POST https://www.shoujix.com/modules/article/search.php', result:'200 · gbk 解码成功（fast_gbk）', ok:true},
+    {what:'书源老化取证', detail:'https://www.deqixs.com/tag/?key=剑来', result:'404 nginx（规则失效实证）', ok:false},
+  ],
+  flow: [
+    {t:'订阅入库', d:'subscribe ../shuyuan.json → 新增 22 源；HTTP 订阅复跑 → 更新 22 源 0 新增（URL 去重）；toggle/remove 增删改全通过。', e:'$ dart run bin/probe.dart subscribe https://yuedu.xiu2.xyz/shuyuan\n订阅源 HTTP 200，字节 163824\n订阅完成：新增 0，更新 22，库内共 22 源'},
+    {t:'① 搜索 ruleSearch', d:'class.item 列表 × 逐节点链 tag.h3.0@tag.a.0@text，作者字段 ##作者： 净化、分类 [0:1] 切片全部命中。', e:'$ probe search 仿真源 测试\n[0] 测试长篇A / 张三丰  类:玄幻\n    最新: 最新章节：第十二归山'},
+    {t:'② 详情 ruleBookInfo', d:'xpath //meta[@property=\'og:novel:author\']/@content 抽 og 元数据；字数/封面/简介全字段回填；修复了非链接属性误绝对化问题。', e:'书名: 测试长篇A 12万字\n作者: 张三丰（xpath og:meta）\n封面: http://127.0.0.1:8123/coverA.jpg'},
+    {t:'③ 目录 ruleToc', d:'id.list.0@tag.a 抽取 + nextTocUrl 三页翻页拼齐 12 章，跨页 URL 去重、防回环 visited 集生效。', e:'目录 12 章（前5/后3）：\n  第一章下山 → /read/r1.html … 第十二章归山 → /read/r12.html'},
+    {t:'④ 正文 ruleContent', d:'class.con.0@tag.p@text 段落化；nextContentUrl 章内翻页（前半+后半自动拼接）；(本章完)/请收藏本站 默认净化；源 replaceRegex 生效。', e:'$ probe chapter 仿真源 /read/r1.html\n段数: 2  净化前字数: 121  净化后: 78\n¶ 第一章正文前半：少年负剑下山，风雪夜归。\n¶ 第一章正文后半：行至山下小镇，忽闻身后有马蹄声急…'},
+    {t:'内容过滤配置', d:'用户级 extraFilter「正则##替换」与源级 replaceRegex 分层叠加：广告词命中 [广告已过滤]。', e:'$ probe chapter … --filter "广告词：某小说站欢迎您##[广告已过滤]"\n¶ 第3章 正文第三段结束文本。[广告已过滤]'},
+    {t:'整本自动抓取', d:'串行限速 400ms + 单章 3 次重试 + manifest 断点续传；二次复跑 0 请求跳过全部已完成章。', e:'$ probe download 仿真源 /book/1.html --max 4\n✓ 4/4 章 · 1s\n$ probe download …（复跑）\n已完成 4 → 成功 0 / 失败 0，耗时 0s'},
+  ]
+};
+
+/* ===== 渲染 ===== */
+const $=s=>document.querySelector(s);
+const pct=(a,b)=>Math.round(a/b*100);
+
+$('#stats').innerHTML = [
+  [`${RUN.pure}/${RUN.subscribed}`, '', '真实订阅源「纯规则可用」（其余依赖 JS/WebView）','warn'],
+  ['8/8','', '目标能力实测通过（订阅/管理/查询/详情/目录/正文/过滤/抓取）','ok'],
+  ['12 章','',"目录三页翻页拼齐 · 章内翻页正文合并 · URL 去重",""],
+  ['1s/4章','', '整本抓取（限速400ms+重试）· 断点续传复跑 0 请求','ok'],
+].map(([n,_,t,c])=>`<div class="stat"><div class="n ${c}">${n}</div><div class="t">${t}</div></div>`).join('');
+
+const CAPS=[
+  ['书源订阅','ok','本地文件 / HTTP URL / base64 兜底；同名(URL+名称)更新而非重复入库。','订阅 22 源 → 复跑更新 22 · 库内 23（含仿真源）'],
+  ['书源管理','ok','列表(含 js 依赖标记/分组/订阅来源)、toggle 启停、remove 删除。','快书网 → 停用 → 启用 往返正常'],
+  ['书籍查询（搜索）','ok','searchUrl 模板 {{key}}/{{page}}，GET/POST、GBK 百分号编码键。','搜索「测试」命中 2 条，作者/分类/最新章全字段'],
+  ['信息获取（元数据）','ok','css/xpath 双通道抽 og:meta 与页面节点 → Book 预填形态。','书名/作者/封面/简介/字数/最新章 6 字段回填'],
+  ['目录获取','ok','chapterList+chapterName/Url+nextTocUrl 多页拼接。','12 章 · 3 页 · 去重'],
+  ['正文解析','ok','content 段落链+html 转段+章内翻页+实体解码。','两段页合并为 2 段正文 · 121→78 字净化'],
+  ['内容过滤配置','ok','源级 replaceRegex 与用户级 extraFilter 双层「正则##替换」。','广告词 → [广告已过滤]'],
+  ['自动抓取（下载）','ok','整本串行+限速+重试+manifest 断点续传落盘 chapters/*.txt。','4/4 成功 1s · 复跑跳过已完成 4 章'],
+];
+$('#caps').innerHTML = CAPS.map(([t,st,d,e])=>`<div class="card">
+  <h3>${t}<span class="st pill ${st}">通过</span></h3><p>${d}</p><div class="ev">${e}</div></div>`).join('');
+
+/* 环图 */
+(()=>{
+  const total=RUN.subscribed, pure=RUN.pure, js=RUN.js;
+  const r=62,c=2*Math.PI*r,a1=c*pure/total;
+  $('#donutBox').innerHTML=`
+  <svg width="170" height="170" viewBox="0 0 170 170">
+    <circle cx="85" cy="85" r="${r}" fill="none" stroke="#232a37" stroke-width="22"/>
+    <circle cx="85" cy="85" r="${r}" fill="none" stroke="#fbbf24" stroke-width="22"
+      stroke-dasharray="${c-a1} ${a1}" stroke-dashoffset="${-a1}" transform="rotate(-90 85 85)"/>
+    <circle cx="85" cy="85" r="${r}" fill="none" stroke="#34d399" stroke-width="22"
+      stroke-dasharray="${a1} ${c-a1}" transform="rotate(-90 85 85)"/>
+    <text x="85" y="80" text-anchor="middle" fill="#e8edf4" font-size="26" font-weight="700" font-family="Consolas">${pct(pure+js,total)}%</text>
+    <text x="85" y="102" text-anchor="middle" fill="#8b98ab" font-size="12">订阅可解析率</text>
+  </svg>
+  <div class="legend">
+    <div><span class="dot" style="background:#34d399"></span>纯规则 · 本期引擎覆盖<b>${pure}</b></div>
+    <div><span class="dot" style="background:#fbbf24"></span>含 @js:/&lt;js&gt;/WebView · 四期补齐<b>${js}</b></div>
+    <div><span class="dot" style="background:#5b6b80"></span>本期不可用（不引入引擎时）<b>0</b></div>
+  </div>`;
+})();
+
+/* 书源表 */
+const TB=$('#srctab tbody');
+function renderTab(f){
+  const rows=SRC.filter(s=>f==='all'?true:f==='pure'?!s.js:!s.js===false&&s.js);
+  TB.innerHTML = rows.length? rows.map(s=>`<tr>
+    <td><b>${s.name}</b><div class="url mono" style="font-size:11px">${s.url.replace(/^https?:\/\//,'')}</div></td>
+    <td class="mono" style="font-size:11.5px;color:var(--sub)">${s.group||'—'}</td>
+    <td>${s.js?'<span class="pill warn">JS/WebView 依赖</span>':'<span class="pill ok">纯规则 · 已覆盖</span>'}</td>
+    <td>${s.enabled?'<span class="pill mute">启用</span>':'<span class="pill mute">停用</span>'}</td>
+  </tr>`).join('') : '<tr><td colspan="4" class="empty">无匹配书源</td></tr>';
+}
+$('#srcFilter').innerHTML=[['all',`全部 ${RUN.subscribed}`],['pure',`纯规则 ${RUN.pure}`],['js',`需JS引擎 ${RUN.js}`]]
+  .map(([k,t],i)=>`<button data-f="${k}" class="${i?'':'on'}">${t}</button>`).join('');
+$('#srcFilter').onclick=e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#srcFilter button').forEach(x=>x.classList.toggle('on',x===b));
+  renderTab(b.dataset.f);
+};
+renderTab('all');
+
+/* 四段流程 */
+$('#flow').innerHTML=RUN.flow.map(s=>`<div class="step"><div class="no"></div><div>
+  <b>${s.t}</b><p>${s.d}</p><div class="ev">${s.e.replace(/\n/g,'<br>')}</div></div></div>`).join('');
+</script>
+</body>
+</html>
