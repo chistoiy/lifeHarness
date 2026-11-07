@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/media_mounts.dart';
@@ -632,12 +633,37 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 30),
               child: Center(
-                child: Text(
-                  entries.isEmpty ? '还没有日记 · 点右下角 ＋ 开始' : '该筛选下暂无日记',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
+                // C 案批5 F1：筛选空态补「清除筛选」文字钮（原型 p-diaryHome
+                // 筛选空态两行＋文字钮）；纯空态不给钮（无筛选可清）。
+                child: entries.isEmpty
+                    ? Text('还没有日记 · 点右下角 ＋ 开始',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant))
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('该筛选下暂无日记',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant)),
+                          const SizedBox(height: 4),
+                          InkWell(
+                            key: const ValueKey('diary-clear-filter'),
+                            onTap: () => ref
+                                .read(settingsControllerProvider.notifier)
+                                .resetJournalFilter(),
+                            child: Text('清除筛选',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color:
+                                        Theme.of(context).colorScheme.primary)),
+                          ),
+                        ],
+                      ),
               ),
             );
           }

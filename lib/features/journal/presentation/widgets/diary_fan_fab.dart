@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/grad_fab.dart' show GradFab, kFabOpenRotation;
@@ -90,6 +91,8 @@ class _DiaryFanFabState extends State<DiaryFanFab>
   }
 
   void _openFan() {
+    // C 案批5 F3：长按展开补轻触感（原型 L1634 navigator.vibrate(8) 同口径）。
+    HapticFeedback.lightImpact();
     final box = _ballKey.currentContext?.findRenderObject();
     if (box is! RenderBox || !box.hasSize) return;
     final c = box.localToGlobal(box.size.center(Offset.zero));

@@ -284,7 +284,9 @@ class _RunningRow extends ConsumerWidget {
       child: InkWell(
         key: const ValueKey('media-running-row'),
         borderRadius: BorderRadius.circular(14),
-        onTap: null,
+        // C 案批5 F5：接上死入口——对齐原型 mStartTimerFor 跳条目详情
+        // （计时在详情面起停），消除「注释说能点、实际 null」的矛盾。
+        onTap: () => context.push('/media/item/${s.itemId}'),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(

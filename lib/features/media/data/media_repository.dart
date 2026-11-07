@@ -34,6 +34,9 @@ class MediaRepository {
     // 拼音比较器目前在阅读模块内部（R1 禁跨 feature import），要推全需先抽进 shared，另批做。
     'name': 'title COLLATE NOCASE ASC',
     'duration': 'duration_min DESC, updated_at DESC',
+    // C 案批5 F4：架面补「按进度」（原型 MSRT 六键之一）；三档 pct 取大，
+    // 无进度（全 0）沉底，与「无发行年沉底」同口径。
+    'progress': 'MAX(main_pct, side_pct, ach_pct) DESC, updated_at DESC',
     // 批8a 设置屏默认排序六档之「发行年」（原型 MSRT）；无发行年沉底。
     'year': 'COALESCE(release_year, 0) DESC, updated_at DESC',
   };

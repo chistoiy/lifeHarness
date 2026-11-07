@@ -43,24 +43,34 @@ class _DiaryMetaState extends ConsumerState<_DiaryMeta> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // C 案批5 F2：标签全量渲染（原型 L4526 渲染全部 #标签，
+        // 旧 take(3) 静默截断会丢第 4 枚起的标签信息）。
+        // Row＝标签区（Expanded+Wrap 全量换行）＋尾部关联钮/保存时间原位靠右。
         Row(
           children: [
-            for (final t in e.tags.take(3))
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: tokens.cardBorder),
-                  ),
-                  child: Text('#$t',
-                      style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w700)),
-                ),
+            Expanded(
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final t in e.tags)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: tokens.cardBorder),
+                        ),
+                        child: Text('#$t',
+                            style: const TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                ],
               ),
-            const Spacer(),
+            ),
             if (n + qm > 0)
               IconButton(
                 key: ValueKey('jref-${e.id}'),
