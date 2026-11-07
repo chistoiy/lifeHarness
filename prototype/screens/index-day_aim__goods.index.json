@@ -1,6 +1,6 @@
 {
  "file": "index-day_aim__goods.html",
- "total": 296372,
+ "total": 297889,
  "cut": 0,
  "screens": [
   {
@@ -24,8 +24,8 @@
    "kind": "screen",
    "title": "编辑档案",
    "role": "home",
-   "size": 5476,
-   "hash": "b1a88015"
+   "size": 5854,
+   "hash": "7412c351"
   },
   {
    "id": "p-itemStats",
@@ -64,8 +64,8 @@
    "kind": "screen",
    "title": "编辑日子",
    "role": "home",
-   "size": 3150,
-   "hash": "1e976024"
+   "size": 3292,
+   "hash": "7aff6e1e"
   },
   {
    "id": "p-dayRemind",
@@ -112,16 +112,16 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1175,
-   "hash": "374735a8"
+   "size": 1300,
+   "hash": "f93105e5"
   },
   {
    "id": "sheetRecycle",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1256,
-   "hash": "8eef908d"
+   "size": 1318,
+   "hash": "edaf0aab"
   },
   {
    "id": "sheetScrap",
@@ -152,8 +152,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3010,
-   "hash": "646340e5"
+   "size": 3112,
+   "hash": "f8c6393a"
   },
   {
    "id": "sheetRemindPick",

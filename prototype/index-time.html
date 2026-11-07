@@ -428,6 +428,25 @@ tailwind.config = {
   .tg-turn{transition:transform .18s}
   .tg-turn.on{transform:rotate(-180deg)}
 </style>
+<style id="lh-float-label">
+/* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
+.fl-field{position:relative;display:flow-root}
+.fl-field>label[data-fl]{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;font-size:13px;line-height:1.2;color:#94a3b8;transition:top .15s,font-size .15s,transform .15s,color .15s}
+.fl-field>input:focus+label[data-fl],.fl-field>textarea:focus+label[data-fl],.fl-field>input:not(:placeholder-shown)+label[data-fl],.fl-field>textarea:not(:placeholder-shown)+label[data-fl]{top:5px;transform:none;font-size:10px;font-weight:700;color:#6366f1}
+.fl-field>input,.fl-field>textarea{padding-top:22px!important;padding-bottom:8px!important;box-sizing:border-box}
+.fl-field>textarea{min-height:76px;box-sizing:border-box}
+.fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
+.fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
+</style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <!--
   LifeHarness · 时间模块专版高保真原型（事实源 index-time.html）
@@ -577,11 +596,11 @@ tailwind.config = {
         </div>
         <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
           <span class="font-bold shrink-0">分类名称</span>
-          <input id="caName" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="请输入标题">
+          <div class="fl-field flex-1"><input id="caName" class="text-right outline-none bg-transparent placeholder:text-slate-300" placeholder=" "><label for="caName" data-fl>分类名称</label></div>
         </div>
         <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
           <span class="font-bold shrink-0">默认描述</span>
-          <input id="caDesc" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="请输入描述">
+          <div class="fl-field flex-1"><input id="caDesc" class="text-right outline-none bg-transparent placeholder:text-slate-300" placeholder=" "><label for="caDesc" data-fl>分类描述</label></div>
         </div>
         <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
           <span class="font-bold shrink-0">默认标签</span>
@@ -625,7 +644,7 @@ tailwind.config = {
       <div class="card mt-1 !p-0 overflow-hidden text-sm">
         <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
           <span class="font-bold shrink-0">标签名称</span>
-          <input id="taName" maxlength="12" oninput="taRender()" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="如：复盘">
+          <div class="fl-field flex-1"><input id="taName" maxlength="12" oninput="taRender()" class="text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="如：复盘"><label for="taName" data-fl>标签名</label></div>
         </div>
         <!-- 口径②：适用模块多选，默认全勾（产品原话「新建标签默认全部勾选，用户可手动取消」） -->
         <div class="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">

@@ -264,6 +264,25 @@ tailwind.config = {
   .brand-cap{font-size:9px;line-height:1.4;color:#64748b;text-align:center}
   .glow-btn{box-shadow:0 0 14px color-mix(in srgb,var(--accent) 45%,transparent)}
 </style>
+<style id="lh-float-label">
+/* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
+.fl-field{position:relative;display:flow-root}
+.fl-field>label[data-fl]{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;font-size:13px;line-height:1.2;color:#94a3b8;transition:top .15s,font-size .15s,transform .15s,color .15s}
+.fl-field>input:focus+label[data-fl],.fl-field>textarea:focus+label[data-fl],.fl-field>input:not(:placeholder-shown)+label[data-fl],.fl-field>textarea:not(:placeholder-shown)+label[data-fl]{top:5px;transform:none;font-size:10px;font-weight:700;color:#6366f1}
+.fl-field>input,.fl-field>textarea{padding-top:22px!important;padding-bottom:8px!important;box-sizing:border-box}
+.fl-field>textarea{min-height:76px;box-sizing:border-box}
+.fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
+.fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
+</style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <body class="flex items-center justify-center">
 
@@ -469,14 +488,14 @@ tailwind.config = {
         <div class="fld-err" id="txAmtErr"></div>
       <div id="txDebtWrap" class="hidden mt-3 space-y-2">
         <div class="flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold" id="txDebtSeg"></div>
-        <input id="txDebtPerson" class="inp" placeholder="对方（如：老王）" oninput="txState.person=this.value;fldErr('txPersonErr','','txDebtPerson')">
+        <div class="fl-field"><input id="txDebtPerson" class="inp" placeholder="如：老王" oninput="txState.person=this.value;fldErr('txPersonErr','','txDebtPerson')"><label for="txDebtPerson" data-fl>对方</label></div>
         <div class="fld-err" id="txPersonErr"></div>
       </div>
       <div id="txTransferWrap" class="hidden mt-3 space-y-2"></div>
       <div class="fld-err" id="txAcctErr"></div>
       <button class="mt-3 w-full flex items-center text-left px-1 py-2.5 border-b border-slate-100 dark:border-slate-800" id="txAcctRow" onclick="openLedgerAcctPick(a=>{txState.acct=a;renderTxAdd()},'选择付款账户')"></button>
       <div class="mt-1 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-        <input id="txNote" class="flex-1 bg-transparent text-[13px] outline-none placeholder:text-slate-400" placeholder="备注…" oninput="txState.note=this.value">
+        <div class="fl-field flex-1"><input id="txNote" class="bg-transparent text-[13px] outline-none placeholder:text-slate-400" placeholder=" " oninput="txState.note=this.value"><label for="txNote" data-fl>备注</label></div>
         <button class="text-slate-400" onclick="toast('添加图片附件（模拟）')"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h3.2L9 5h6l1.8 2.5H20v12H4z"/><circle cx="12" cy="13" r="3.2"/></svg></button>
       </div>
       <div class="mt-2.5 flex gap-1.5 flex-wrap text-[10px] font-bold" id="txMetaRow"></div>
@@ -802,7 +821,7 @@ tailwind.config = {
       </div>
       <div class="mt-3 flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-800 px-3.5 py-3">
         <span class="fin-ico !w-8 !h-8" id="lcPrev"></span>
-        <input id="caNameInp" class="flex-1 bg-transparent outline-none text-[13px] placeholder:text-slate-400" placeholder="请输入类别名称" oninput="catPrevName();fldErr('caNameErr','','caNameInp')">>
+        <div class="fl-field flex-1"><input id="caNameInp" class="bg-transparent outline-none text-[13px] placeholder:text-slate-400" placeholder=" " oninput="catPrevName();fldErr('caNameErr','','caNameInp')"><label for="caNameInp" data-fl>类别名称</label></div>>
       </div>
       <div class="fld-err" id="caNameErr"></div>
       <button class="mt-2.5 w-full card !py-3.5 flex items-center text-left" onclick="openCatParentPick()">
@@ -931,10 +950,10 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="font-extrabold text-sm" id="aaTitle">新建账户</div>
       <div class="mt-3 grid grid-cols-3 gap-1.5" id="aaTypeGrid"></div>
-      <input id="aaName" class="inp mt-3" placeholder="账户名称">
+      <div class="fl-field mt-3"><input id="aaName" class="inp" placeholder=" "><label for="aaName" data-fl>账户名称</label></div>
       <div class="mt-2 grid grid-cols-2 gap-2">
-        <input id="aaBal" class="inp" type="number" placeholder="余额">
-        <input id="aaLimit" class="inp hidden" type="number" placeholder="信用额度">
+        <div class="fl-field"><input id="aaBal" class="inp" type="number" placeholder=" "><label for="aaBal" data-fl>余额</label></div>
+        <div class="fl-field"><input id="aaLimit" class="inp hidden" type="number" placeholder=" "><label for="aaLimit" data-fl>信用额度</label></div>
       </div>
       <div class="mt-2 grid grid-cols-2 gap-2 hidden" id="aaCreditRow">
         <select id="aaBill" class="sel w-full"></select>

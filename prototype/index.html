@@ -420,6 +420,15 @@ tailwind.config = {
 .fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
 .fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
 </style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <body class="lay-hero flex items-center justify-center">
 
@@ -1328,9 +1337,9 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="font-extrabold">📦 录入新物品</div>
       <div class="mt-2 flex gap-2 text-xs"><button class="tag-chip on">手动录入</button><button class="tag-chip" onclick="toast('将从记账流水选择（联动L12）')">从记账流水升级</button></div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="名称 · 品牌型号">
+      <div class="fl-field mt-3 w-full"><input class="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder=" "><label data-fl>名称 · 品牌型号</label></div>
       <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-        <input class="inp" placeholder="购入价格 ¥">
+        <div class="fl-field"><input class="inp" placeholder="¥"><label data-fl>购入价格</label></div>
         <input class="inp" type="date" value="2026-09-19">
       </div>
       <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
@@ -1348,7 +1357,7 @@ tailwind.config = {
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
       <div class="font-extrabold">新建倒数日</div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="标题，如：妈妈生日">
+      <div class="fl-field mt-3 w-full"><input class="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="如：妈妈生日"><label data-fl>标题</label></div>
       <div class="mt-2 flex gap-2 text-xs"><button class="tag-chip on">按农历 🌙</button><button class="tag-chip">按公历</button></div>
       <div class="mt-2 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3 leading-5">提前提醒：7 天 ✓ · 3 天 ✓ · 当天 ✓（多级可配）<br>准备事项可一键生成待办（联动 L10）</div>
       <button onclick="closeSheet('sheetAddDay');toast('倒数日已创建（模拟）')" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">创建</button>
@@ -1430,7 +1439,7 @@ tailwind.config = {
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
       <div class="font-extrabold">🔁 新建习惯</div>
-      <input id="hbTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="习惯名称，如：晨间跑步 30 分钟">
+      <div class="fl-field mt-3 w-full"><input id="hbTitle" class="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="如：晨间跑步 30 分钟"><label for="hbTitle" data-fl>习惯名称</label></div>
       <div class="mt-3 text-xs font-bold text-slate-500">类型</div>
       <div class="mt-1 grid grid-cols-2 gap-2 text-xs">
         <button id="hbPos" class="tag-chip justify-center on" onclick="hbType('pos',this)">✅ 正向 · 好习惯要坚持</button>

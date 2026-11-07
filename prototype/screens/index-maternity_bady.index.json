@@ -1,6 +1,6 @@
 {
  "file": "index-maternity_bady.html",
- "total": 322564,
+ "total": 325350,
  "cut": 0,
  "screens": [
   {
@@ -8,8 +8,8 @@
    "kind": "screen",
    "title": "母婴呵护",
    "role": "home",
-   "size": 4110,
-   "hash": "fdc84578"
+   "size": 4190,
+   "hash": "81161558"
   },
   {
    "id": "p-baby",
@@ -112,8 +112,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2591,
-   "hash": "d82668b6"
+   "size": 2747,
+   "hash": "b3e80bb5"
   },
   {
    "id": "sheetBabySwitch",
@@ -128,16 +128,16 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2386,
-   "hash": "3abb30d5"
+   "size": 2465,
+   "hash": "b6eff74f"
   },
   {
    "id": "sheetCarer",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 941,
-   "hash": "c992dd12"
+   "size": 1015,
+   "hash": "6d525975"
   },
   {
    "id": "sheetCareDate",
@@ -160,32 +160,32 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1564,
-   "hash": "4d459627"
+   "size": 1644,
+   "hash": "112d7e97"
   },
   {
    "id": "sheetVaxAdd",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1974,
-   "hash": "534db1df"
+   "size": 2130,
+   "hash": "0fa16d87"
   },
   {
    "id": "sheetMilestone",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1735,
-   "hash": "9b2e1807"
+   "size": 1809,
+   "hash": "00980ea2"
   },
   {
    "id": "sheetEventLog",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 9952,
-   "hash": "6a632986"
+   "size": 10273,
+   "hash": "3dc54a5d"
   },
   {
    "id": "sheetEvPanel",

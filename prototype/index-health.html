@@ -271,6 +271,25 @@ tailwind.config = {
   .brand-cap{font-size:9px;line-height:1.4;color:#64748b;text-align:center}
   .glow-btn{box-shadow:0 0 14px color-mix(in srgb,var(--accent) 45%,transparent)}
 </style>
+<style id="lh-float-label">
+/* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
+.fl-field{position:relative;display:flow-root}
+.fl-field>label[data-fl]{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;font-size:13px;line-height:1.2;color:#94a3b8;transition:top .15s,font-size .15s,transform .15s,color .15s}
+.fl-field>input:focus+label[data-fl],.fl-field>textarea:focus+label[data-fl],.fl-field>input:not(:placeholder-shown)+label[data-fl],.fl-field>textarea:not(:placeholder-shown)+label[data-fl]{top:5px;transform:none;font-size:10px;font-weight:700;color:#6366f1}
+.fl-field>input,.fl-field>textarea{padding-top:22px!important;padding-bottom:8px!important;box-sizing:border-box}
+.fl-field>textarea{min-height:76px;box-sizing:border-box}
+.fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
+.fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
+</style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <body class="flex items-center justify-center">
 
@@ -434,8 +453,8 @@ tailwind.config = {
           <div id="exToday" class="text-sm font-extrabold mt-1">未记录</div>
           <div class="text-[10px] text-slate-400 mt-0.5" id="exWeekTx">—</div>
           <div class="flex gap-2 mt-2 text-xs items-center">
-            <input id="spKm" class="inp !w-16 !py-1.5 text-xs" type="number" step="0.1" inputmode="decimal" placeholder="km">
-            <input id="spMin" class="inp !w-16 !py-1.5 text-xs" type="number" inputmode="numeric" placeholder="min">
+            <div class="fl-field fl-compact !w-16"><input id="spKm" class="inp !py-1.5 text-xs" type="number" step="0.1" inputmode="decimal" placeholder="km"><label for="spKm" data-fl>距离</label></div>
+            <div class="fl-field fl-compact !w-16"><input id="spMin" class="inp !py-1.5 text-xs" type="number" inputmode="numeric" placeholder="min"><label for="spMin" data-fl>时长</label></div>
             <button class="mini-btn" onclick="sportCalc()">算配速</button>
           </div>
           <div id="spOut" class="mt-1 text-xs font-bold min-h-[16px]" style="color:var(--accent)"></div>
@@ -930,14 +949,14 @@ tailwind.config = {
         <button class="flex-1 rounded-lg py-1.5 text-slate-500" data-m="pace" onclick="hExMode('pace',this)">按配速</button>
       </div>
       <div class="mt-2 grid grid-cols-3 gap-2 text-center text-[10px]">
-        <div><input id="heKm" class="inp !py-2 text-sm" type="number" step="0.1" inputmode="decimal" placeholder="0" oninput="hExCalc()"><span class="text-slate-400">距离 km</span></div>
-        <div><input id="heMin" class="inp !py-2 text-sm" type="number" inputmode="numeric" placeholder="0" oninput="hExCalc()"><span class="text-slate-400">时长 min</span></div>
-        <div><input id="hePace" class="inp !py-2 text-sm" inputmode="numeric" placeholder="mm′ss″" oninput="hExCalc()"><span class="text-slate-400">配速 /km</span></div>
+        <div><div class="fl-field fl-compact"><input id="heKm" class="inp !py-2 text-sm" type="number" step="0.1" inputmode="decimal" placeholder="0" oninput="hExCalc()"><label for="heKm" data-fl>距离</label></div><span class="text-slate-400">距离 km</span></div>
+        <div><div class="fl-field fl-compact"><input id="heMin" class="inp !py-2 text-sm" type="number" inputmode="numeric" placeholder="0" oninput="hExCalc()"><label for="heMin" data-fl>时长</label></div><span class="text-slate-400">时长 min</span></div>
+        <div><div class="fl-field fl-compact"><input id="hePace" class="inp !py-2 text-sm" inputmode="numeric" placeholder="mm′ss″" oninput="hExCalc()"><label for="hePace" data-fl>配速</label></div><span class="text-slate-400">配速 /km</span></div>
       </div>
       <div class="mt-1 text-[10px]" style="color:var(--accent)" id="heCalc">—</div>
       <div class="mt-2 grid grid-cols-2 gap-2 text-[10px]">
-        <div><input id="heKcal" class="inp !py-2 text-sm" type="number" inputmode="numeric" placeholder="留空自动估"><span class="text-slate-400">消耗 kcal</span></div>
-        <div><input id="heNote" class="inp !py-2 text-sm" placeholder="如 晨跑 / 腿日"><span class="text-slate-400">备注</span></div>
+        <div><div class="fl-field fl-compact"><input id="heKcal" class="inp !py-2 text-sm" type="number" inputmode="numeric" placeholder="留空自动估"><label for="heKcal" data-fl>消耗</label></div><span class="text-slate-400">消耗 kcal</span></div>
+        <div><div class="fl-field fl-compact"><input id="heNote" class="inp !py-2 text-sm" placeholder="如 晨跑 / 腿日"><label for="heNote" data-fl>备注</label></div><span class="text-slate-400">备注</span></div>
       </div>
       <div class="mt-3 flex items-center justify-between"><b class="text-[13px]">数据来源</b><span class="text-[10px] text-slate-400">计时结束自动回填</span></div>
       <div class="mt-1.5 flex gap-1.5" id="heSrcRow"></div>
@@ -951,7 +970,7 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="font-extrabold text-[15px]">新增药品</div>
       <div class="mt-3 text-[10px] text-slate-400">名称 / 规格</div>
-      <div class="mt-1.5 flex gap-2"><input id="hdName" class="inp !py-2 text-sm flex-1" placeholder="如 维生素 D3"><input id="hdSpec" class="inp !py-2 text-sm w-28" placeholder="400IU"></div>
+      <div class="mt-1.5 flex gap-2"><div class="fl-field fl-compact flex-1"><input id="hdName" class="inp !py-2 text-sm" placeholder="如 维生素 D3"><label for="hdName" data-fl>药品名称</label></div><div class="fl-field fl-compact w-28"><input id="hdSpec" class="inp !py-2 text-sm" placeholder="400IU"><label for="hdSpec" data-fl>规格</label></div></div>
       <div class="mt-3 text-[10px] text-slate-400">服用时刻（可多选）</div>
       <div class="mt-1.5 flex flex-wrap gap-1.5" id="hdTimeRow"></div>
       <div class="mt-2 flex gap-2 items-center"><span class="text-[10px] text-slate-400">添加</span><div class="hw !h-[68px] w-24" id="hdAddTime"></div><button class="mini-btn flex-1" onclick="hdAddT()">+ 加入</button></div>
@@ -971,7 +990,7 @@ tailwind.config = {
       <div class="mt-1 text-[10px] text-slate-400" id="hdlSub">—</div>
       <div class="mt-3 space-y-2" id="hdlList"></div>
       <div class="mt-3 text-[10px] text-slate-400">备注（整批）</div>
-      <input id="hdlNote" class="inp !py-2 text-sm mt-1.5" placeholder="如 漏服一次 / 随餐服用">
+      <div class="fl-field fl-compact"><input id="hdlNote" class="inp !py-2 text-sm mt-1.5" placeholder="如 漏服一次 / 随餐服用"><label for="hdlNote" data-fl>服药备注</label></div>
       <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHDrugLog')">关闭</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="hDrugLogSave()">记录</button></div>
     </div>
   </div>

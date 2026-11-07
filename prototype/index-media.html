@@ -503,6 +503,25 @@ tailwind.config = {
   .mds-mom-row .mds-mom-add{margin-bottom:0;flex:1}
   .mds-mom-imp{padding:11px 14px;border-radius:14px;border:1.5px solid var(--card-bd);color:var(--mds-ink);font-weight:800;font-size:13px;background:var(--card);box-shadow:var(--card-sh);cursor:pointer;white-space:nowrap}
 </style>
+<style id="lh-float-label">
+/* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
+.fl-field{position:relative;display:flow-root}
+.fl-field>label[data-fl]{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;font-size:13px;line-height:1.2;color:#94a3b8;transition:top .15s,font-size .15s,transform .15s,color .15s}
+.fl-field>input:focus+label[data-fl],.fl-field>textarea:focus+label[data-fl],.fl-field>input:not(:placeholder-shown)+label[data-fl],.fl-field>textarea:not(:placeholder-shown)+label[data-fl]{top:5px;transform:none;font-size:10px;font-weight:700;color:#6366f1}
+.fl-field>input,.fl-field>textarea{padding-top:22px!important;padding-bottom:8px!important;box-sizing:border-box}
+.fl-field>textarea{min-height:76px;box-sizing:border-box}
+.fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
+.fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
+</style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <body class="flex items-center justify-center">
 
@@ -804,10 +823,10 @@ tailwind.config = {
           </div>
         </div>
         <input type="file" accept="image/*" class="hidden" id="mdsAddCoverFile" onchange="mCoverRead(this.files[0])">
-        <input id="mdsAddTitle" class="inp !py-2.5 text-sm mb-2" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder="片名 / 专辑 / 游戏名">
-        <input id="mdsAddCreator" class="inp !py-2.5 text-sm mb-2" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder="导演 / 主创 / 艺人 / 工作室">
-        <input id="mdsAddPub" class="inp !py-2.5 text-sm mb-2" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder="制片 / 流媒体 / 唱片公司 / 发行">
-        <div class="flex gap-2 text-xs mb-3"><input class="inp flex-1 !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="年份"><input class="inp flex-1 !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="时长/集数/曲目"><input class="inp flex-1 !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="评分"></div>
+        <div class="fl-field fl-compact mb-2"><input id="mdsAddTitle" class="inp !py-2.5 text-sm" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder=" "><label for="mdsAddTitle" data-fl>片名 / 专辑 / 游戏名</label></div>
+        <div class="fl-field fl-compact mb-2"><input id="mdsAddCreator" class="inp !py-2.5 text-sm" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder=" "><label for="mdsAddCreator" data-fl>导演 / 主创 / 艺人</label></div>
+        <div class="fl-field fl-compact mb-2"><input id="mdsAddPub" class="inp !py-2.5 text-sm" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder=" "><label for="mdsAddPub" data-fl>制片 / 发行</label></div>
+        <div class="flex gap-2 text-xs mb-3"><div class="fl-field fl-compact flex-1"><input class="inp !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder=" "><label data-fl>年份</label></div><div class="fl-field fl-compact flex-1"><input class="inp !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder=" "><label data-fl>时长 / 集数</label></div><div class="fl-field fl-compact flex-1"><input class="inp !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder=" "><label data-fl>评分</label></div></div>
         <div id="mdsAddKindFields" class="mb-3 text-[11px]" style="opacity:.85"></div>
         <div class="flex gap-2 mt-4"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-add')">取消</button><button class="mds-chip on" id="mdsAddSaveBtn" style="flex:1;justify-content:center" onclick="mAddSave()">保存 · 进入影音架</button></div>
       </div>
@@ -836,7 +855,7 @@ tailwind.config = {
       <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
         <div class="grabber"></div>
         <div class="mds-title text-[15px]">新建影音单</div>
-        <input id="mlNewName" class="inp !py-2 text-sm mt-3 w-full" placeholder="单名" />
+        <div class="fl-field fl-compact mt-3 w-full"><input id="mlNewName" class="inp !py-2 text-sm" placeholder="单名" /><label for="mlNewName" data-fl>歌单名称</label></div>
         <div class="flex gap-1.5 mt-3 flex-wrap" id="mlTypeChips"></div>
         <button id="mlNewGo" class="mds-chip on mt-4" onclick="mlNewGo()">建好并进入</button>
       </div>
@@ -926,12 +945,12 @@ tailwind.config = {
         <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mdsNoteItemChips"></div>
         <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">类型</div>
         <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mdsNoteTypeChips"></div>
-        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteUnit" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="第 5 集 / 曲目 3 / 章节"><input id="mdNoteWhen" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="创建时间"><input id="mdNoteAt" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="时间点 1:52:14"></div>
+        <div class="flex gap-2 text-[11px] mb-2"><div class="fl-field fl-compact flex-1"><input id="mdNoteUnit" class="inp !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="第 5 集 / 曲目 3 / 章节"><label for="mdNoteUnit" data-fl>条目</label></div><div class="fl-field fl-compact flex-1"><input id="mdNoteWhen" class="inp !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder=" "><label for="mdNoteWhen" data-fl>创建时间</label></div><div class="fl-field fl-compact flex-1"><input id="mdNoteAt" class="inp !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="1:52:14"><label for="mdNoteAt" data-fl>时间点</label></div></div>
         <textarea id="mdNoteBody" class="inp !py-2.5 text-sm mb-1" rows="3" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="正文：一句台词 / 一段歌词 / 一张截图旁的批注…" oninput="document.getElementById('mdNoteErr').classList.add('hidden')"></textarea>
         <div id="mdNoteErr" class="hidden text-[10px] mb-1" style="color:#dc2626">先写正文</div>
-        <input id="mdNoteAnno" class="inp !py-2 text-[11px] mb-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="批注（复习背面显示，可选）">
+        <div class="fl-field fl-compact mb-2"><input id="mdNoteAnno" class="inp !py-2 text-[11px]" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="复习背面显示，可选"><label for="mdNoteAnno" data-fl>批注</label></div>
         <div class="flex items-center gap-2 mb-2"><span class="text-[9.5px] mds-mono shrink-0" style="opacity:.55">附件截图</span><div id="mdNoteImgs" class="flex gap-2 overflow-x-auto no-scrollbar" style="flex:1;min-width:0"></div><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNoteAddImg()">＋ 附件</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" id="mdNotePasteBtn" onclick="mNotePaste()">粘贴文本</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px;opacity:.45" onclick="toast('未安装识别库')">识图</button></div>
-        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteTag" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="标签"></div>
+        <div class="flex gap-2 text-[11px] mb-2"><div class="fl-field fl-compact flex-1"><input id="mdNoteTag" class="inp !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder=" "><label for="mdNoteTag" data-fl>标签</label></div></div>
         <div class="flex gap-2 mt-3"><button class="mds-chip" onclick="toast('已插入今日日记草稿（L5 联动）')">→ 日记</button><button class="mds-chip" onclick="toast('已生成待办（L5 联动）')">→ 待办</button><button class="mds-chip on" style="margin-left:auto" onclick="mNoteSave()">保存</button></div>
       </div>
     </div>
@@ -979,11 +998,11 @@ tailwind.config = {
         <div class="grabber"></div>
         <div class="mds-title text-[15px] mb-3">记一条听后感</div>
         <div class="flex gap-2 mb-2">
-          <input id="moSong" class="inp !py-2.5 text-sm" style="flex:2;background:rgba(255,255,255,.6);color:var(--mds-ink);border-color:rgba(15,23,42,.08)" placeholder="歌名">
-          <input id="moArtist" class="inp !py-2.5 text-sm" style="flex:1;background:rgba(255,255,255,.6);color:var(--mds-ink);border-color:rgba(15,23,42,.08)" placeholder="歌手">
+          <div class="fl-field fl-compact"><input id="moSong" class="inp !py-2.5 text-sm" style="flex:2;background:rgba(255,255,255,.6);color:var(--mds-ink);border-color:rgba(15,23,42,.08)" placeholder=" "><label for="moSong" data-fl>歌名</label></div>
+          <div class="fl-field fl-compact"><input id="moArtist" class="inp !py-2.5 text-sm" style="flex:1;background:rgba(255,255,255,.6);color:var(--mds-ink);border-color:rgba(15,23,42,.08)" placeholder=" "><label for="moArtist" data-fl>歌手</label></div>
         </div>
         <textarea id="moText" class="inp !py-2.5 text-sm mb-2" rows="3" style="background:rgba(255,255,255,.6);color:var(--mds-ink);border-color:rgba(15,23,42,.08)" placeholder="此刻的听感、心情、联想…随手写几句"></textarea>
-        <input id="moList" class="inp !py-2.5 text-sm mb-3" style="background:rgba(255,255,255,.6);color:var(--mds-ink);border-color:rgba(15,23,42,.08)" placeholder="关联歌单（可选）">
+        <div class="fl-field fl-compact mb-3"><input id="moList" class="inp !py-2.5 text-sm" style="background:rgba(255,255,255,.6);color:var(--mds-ink);border-color:rgba(15,23,42,.08)" placeholder="可选"><label for="moList" data-fl>关联歌单</label></div>
         <div class="flex gap-2"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-moment')">取消</button><button class="mds-chip on" style="flex:1;justify-content:center" onclick="mSaveMoment()">记下</button></div>
       </div>
     </div>

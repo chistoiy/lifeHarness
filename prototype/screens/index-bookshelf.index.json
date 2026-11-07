@@ -1,6 +1,6 @@
 {
  "file": "index-bookshelf.html",
- "total": 582822,
+ "total": 586388,
  "cut": 0,
  "screens": [
   {
@@ -80,8 +80,8 @@
    "kind": "screen",
    "title": "新增摘录",
    "role": "home",
-   "size": 1940,
-   "hash": "2a2dd0ca"
+   "size": 2003,
+   "hash": "b1b32028"
   },
   {
    "id": "p-readlog",
@@ -120,8 +120,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 1231,
-   "hash": "a3304461"
+   "size": 1377,
+   "hash": "b5dcbec8"
   },
   {
    "id": "p-readimport",
@@ -144,8 +144,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 901,
-   "hash": "58032fc2"
+   "size": 982,
+   "hash": "8fc3f782"
   },
   {
    "id": "sheetBmDel",
@@ -160,8 +160,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 4659,
-   "hash": "5322fd57"
+   "size": 4737,
+   "hash": "d9d104f9"
   },
   {
    "id": "p-booklists",
@@ -248,8 +248,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 5182,
-   "hash": "ae9e35bc"
+   "size": 5567,
+   "hash": "c1e0b861"
   },
   {
    "id": "p-readerPage",
@@ -304,16 +304,16 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 4585,
-   "hash": "f413573e"
+   "size": 5589,
+   "hash": "aa6184a4"
   },
   {
    "id": "sheetEditBook",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 5070,
-   "hash": "2ad1d75e"
+   "size": 6092,
+   "hash": "7d475f1d"
   },
   {
    "id": "sheetGoal",
@@ -400,8 +400,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1252,
-   "hash": "d7468022"
+   "size": 1340,
+   "hash": "5fcea9a2"
   },
   {
    "id": "sheetXrMerge",

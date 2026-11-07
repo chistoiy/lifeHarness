@@ -1,6 +1,6 @@
 {
  "file": "index_habitcheck.html",
- "total": 335279,
+ "total": 337326,
  "cut": 0,
  "screens": [
   {
@@ -40,24 +40,24 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 3350,
-   "hash": "53ce175b"
+   "size": 3414,
+   "hash": "1bc370e2"
   },
   {
    "id": "sheetHabitEdit",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 5038,
-   "hash": "59c7e20e"
+   "size": 5101,
+   "hash": "4d8d5673"
   },
   {
    "id": "sheetHabitLog",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1307,
-   "hash": "8989bd5e"
+   "size": 1386,
+   "hash": "6503dfa2"
   },
   {
    "id": "sheetHabitBackfill",
@@ -104,8 +104,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1159,
-   "hash": "258e788a"
+   "size": 1234,
+   "hash": "76c87486"
   },
   {
    "id": "sheetHabitPend",

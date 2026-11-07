@@ -267,6 +267,15 @@ tailwind.config = {
 .fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
 .fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
 </style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <body class="flex items-center justify-center">
 
@@ -436,13 +445,13 @@ tailwind.config = {
       <div class="mt-1.5 text-center text-[10px] text-slate-400">照片存本机应用目录，随整包备份带走，不进云端</div>
       <input type="file" id="iePhotoCam" accept="image/*" capture="environment" class="hidden" onchange="itemPhotoRead(this)">
       <input type="file" id="iePhotoLib" accept="image/*" class="hidden" onchange="itemPhotoRead(this)">
-      <input id="ieName" class="inp mt-4" placeholder="名称 · 品牌型号，如 MacBook Air M3">
+      <div class="fl-field mt-4"><input id="ieName" class="inp" placeholder="如 MacBook Air M3"><label for="ieName" data-fl>名称 · 品牌型号</label></div>
       <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-        <input id="ieBrand" class="inp" placeholder="品牌">
-        <input id="ieSerial" class="inp" placeholder="序列号">
+        <div class="fl-field"><input id="ieBrand" class="inp" placeholder=" "><label for="ieBrand" data-fl>品牌</label></div>
+        <div class="fl-field"><input id="ieSerial" class="inp" placeholder=" "><label for="ieSerial" data-fl>序列号</label></div>
       </div>
       <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-        <input id="ieCost" class="inp" type="number" placeholder="购入价格 ¥">
+        <div class="fl-field"><input id="ieCost" class="inp" type="number" placeholder="¥"><label for="ieCost" data-fl>购入价格</label></div>
         <input id="ieBuy" class="inp" type="date" value="2026-09-19">
       </div>
       <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
@@ -450,8 +459,7 @@ tailwind.config = {
         <select id="ieYears" class="inp"><option>预期 3 年</option><option>预期 5 年</option><option>预期 8 年</option><option>不设预期</option></select>
       </div>
       <div class="mt-2 flex items-center gap-2 text-sm"><input id="ieWar" class="inp flex-1" type="date"><span class="text-[11px] text-slate-400 shrink-0">保修到期</span></div>
-      <div class="text-xs font-bold mt-4 mb-1.5">物品备注</div>
-      <textarea id="ieNote" class="inp h-16 resize-none leading-5" placeholder="配件、来源、存放注意…（这层备注属于档案，不写进成本时间轴）"></textarea>
+      <div class="fl-field"><textarea id="ieNote" class="inp h-16 resize-none leading-5" placeholder="配件、来源、存放注意…"></textarea><label for="ieNote" data-fl>物品备注</label></div>
       <div class="text-xs font-bold mt-4 mb-1.5">计费方式</div>
       <div class="flex gap-2 text-xs" id="ieCalcChips">
         <button class="tag-chip on" onclick="ieCalcPick(this,'day')">直线法 · 按天摊薄（默认）</button>
@@ -459,12 +467,12 @@ tailwind.config = {
         <button class="tag-chip" onclick="ieCalcPick(this,'stop')">预估止损</button>
       </div>
       <div id="ieTimesWrap" class="hidden"><div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-        <input id="iePlan" class="inp" type="number" value="300" placeholder="计划总次数">
+        <div class="fl-field"><input id="iePlan" class="inp" type="number" value="300" placeholder=" "><label for="iePlan" data-fl>计划总次数</label></div>
         <select id="iePUnit" class="inp"><option>次</option><option>公里</option><option>页</option><option>小时</option></select>
       </div><div class="text-[10px] text-slate-400 mt-1">每次成本 ＝ 成本池 ÷ 计划次数 · 日均按近 30 天实际频次折算</div></div>
       <div id="ieStopWrap" class="hidden"><div class="mt-2 grid grid-cols-2 gap-2 text-sm">
         <select id="ieStopYears" class="inp"><option value="3">预期 3 年</option><option value="5" selected>预期 5 年</option><option value="8">预期 8 年</option></select>
-        <input id="ieStopPct" class="inp" type="number" value="30" placeholder="止损线：净值跌破购入价 30%">
+        <div class="fl-field"><input id="ieStopPct" class="inp" type="number" value="30" placeholder="净值跌破购入价 30%"><label for="ieStopPct" data-fl>止损线</label></div>
       </div><div class="text-[10px] text-slate-400 mt-1">按直线折旧预估净值曲线 · 接近止损线时提醒择机回收/转卖</div></div>
       <div class="text-xs font-bold mt-4 mb-1.5">状态</div>
       <div class="flex gap-2 text-xs" id="ieStChips">
@@ -550,7 +558,7 @@ tailwind.config = {
 
     <!-- ===== P8b 日子编辑（新建 / 修改共用） ===== -->
     <section id="p-dayEdit" class="page px-5 safe-pb no-scrollbar">
-      <input id="deTitle" class="inp" placeholder="标题，如：妈妈生日">
+      <div class="fl-field"><input id="deTitle" class="inp" placeholder="如：妈妈生日"><label for="deTitle" data-fl>标题</label></div>
       <div class="text-xs font-bold mt-4 mb-1.5">图标</div>
       <div class="flex gap-2 flex-wrap text-sm" id="deIcons"></div>
       <div class="text-xs font-bold mt-4 mb-1.5">卡片颜色</div>
@@ -583,7 +591,7 @@ tailwind.config = {
       <div class="text-xs font-bold mt-4 mb-1.5">提前提醒（多级可多选）</div>
       <div class="flex gap-2 flex-wrap text-xs" id="deRemChips"></div>
       <div class="text-xs font-bold mt-4 mb-1.5">准备事项（可勾选 · 保存后一键转待办）</div>
-      <div class="flex gap-2"><input id="dePrepInp" class="inp flex-1 !py-2 text-xs" placeholder="添加一条准备事项，回车确认" onkeydown="if(event.key==='Enter')dePrepAdd()"><button class="mini-btn self-center" onclick="dePrepAdd()">＋</button></div>
+      <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="dePrepInp" class="inp !py-2 text-xs" placeholder="添加一条，回车确认" onkeydown="if(event.key==='Enter')dePrepAdd()"><label for="dePrepInp" data-fl>准备事项</label></div><button class="mini-btn self-center" onclick="dePrepAdd()">＋</button></div>
       <div class="mt-2 space-y-1.5" id="dePrepList"></div>
       <div class="mt-3 card !p-0 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
         <label class="flex items-center justify-between px-1 py-3"><span>准备事项勾选后生成待办（联动 L3）</span><span class="toggle on" id="dePrepTask" onclick="tgl(this)"></span></label>
@@ -817,8 +825,8 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="font-extrabold">💳 记录二次付费</div>
       <div class="text-[11px] text-slate-400">维修 / 配件 / 保养等追加支出，计入成本池 · 当前档案：<b id="exName" class="text-slate-300"></b></div>
-      <input id="exAmt" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" type="number" placeholder="金额，如 399">
-      <input id="exDesc" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="说明，如 Type-C 扩展坞">
+      <div class="fl-field mt-3 w-full"><input id="exAmt" class="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" type="number" placeholder="如 399"><label for="exAmt" data-fl>金额</label></div>
+      <div class="fl-field mt-2 w-full"><input id="exDesc" class="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="如 Type-C 扩展坞"><label for="exDesc" data-fl>说明</label></div>
       <div class="mt-3 text-xs bg-sun/10 rounded-xl p-3 leading-6" id="exMode">成本计算方式：<br>◉ 摊回全周期 · 日均立即回升<br>○ 自本次起重新计算</div>
       <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked class="accent-indigo-500">同步生成一条记账流水（联动 L12）</label>
       <button onclick="extraPaySave()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
@@ -828,7 +836,7 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="font-extrabold">♻️ 回收 / 出售</div>
       <div class="text-[11px] text-slate-400">残值将从总成本中扣减，生成净持有成本决算 · 当前档案：<b id="rcName" class="text-slate-300"></b></div>
-      <input id="rcAmt" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" type="number" placeholder="回收金额，如 4200（闲鱼/以旧换新）">
+      <div class="fl-field mt-3 w-full"><input id="rcAmt" class="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" type="number" placeholder="如 4200（闲鱼/以旧换新）"><label for="rcAmt" data-fl>回收金额</label></div>
       <div class="mt-3 text-xs space-y-2">
         <label class="flex gap-2"><input type="radio" name="rc" value="out" checked class="accent-indigo-500">已转出 — 停止计费，立即生成决算单</label>
         <label class="flex gap-2"><input type="radio" name="rc" value="keep" class="accent-indigo-500">残值抵扣后继续留用 — 以新净值继续每日摊薄</label>
@@ -891,9 +899,9 @@ tailwind.config = {
       <div class="font-extrabold">📦 录入新物品</div>
       <div class="mt-2 flex gap-2 text-xs"><button class="tag-chip on" id="aiTabMan" onclick="aiTab('man')">手动录入</button><button class="tag-chip" id="aiTabBill" onclick="aiTab('bill')">从记账流水升级</button></div>
       <div id="aiMan">
-        <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="名称 · 品牌型号">
+        <div class="fl-field mt-3 w-full"><input class="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder=" "><label data-fl>名称 · 品牌型号</label></div>
         <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-          <input class="inp" placeholder="购入价格 ¥">
+          <div class="fl-field"><input class="inp" placeholder="¥"><label data-fl>购入价格</label></div>
           <input class="inp" type="date" value="2026-09-19">
         </div>
         <div class="mt-2 grid grid-cols-2 gap-2 text-sm">

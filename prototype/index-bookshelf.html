@@ -374,6 +374,15 @@ tailwind.config = {
 .fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
 .fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
 </style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <body class="flex items-center justify-center">
 
@@ -601,7 +610,7 @@ tailwind.config = {
           <select id="qeBook" class="inp w-full" onchange="qeBookChange()"></select>
           <div class="mt-2 flex gap-2">
             <select id="qeCh" class="inp flex-1 min-w-0"></select>
-            <input id="qePg" class="inp w-20" type="number" placeholder="页码">
+            <div class="fl-field w-20"><input id="qePg" class="inp" type="number" placeholder=" "><label for="qePg" data-fl>页码</label></div>
           </div>
           <div class="mt-2 flex items-center gap-2">
             <span class="text-[10px] text-slate-400 shrink-0">创建时间</span>
@@ -704,8 +713,8 @@ tailwind.config = {
       <div class="mx-3 mt-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[9px] text-slate-400 truncate">accounts.douban.com/passport/login</div>
       <div class="p-5 space-y-3">
         <div class="text-[15px] font-extrabold text-slate-700 dark:text-slate-200">登录豆瓣</div>
-        <input class="inp" placeholder="手机号 / 邮箱" id="dblUser">
-        <div class="flex gap-2"><input class="inp flex-1" placeholder="验证码" id="dblCode"><button class="mini-btn self-stretch" id="dblCodeBtn" onclick="dblSendCode()">获取验证码</button></div>
+        <div class="fl-field"><input class="inp" placeholder="手机号 / 邮箱" id="dblUser"><label for="dblUser" data-fl>豆瓣账号</label></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input class="inp" placeholder=" " id="dblCode"><label for="dblCode" data-fl>验证码</label></div><button class="mini-btn self-stretch" id="dblCodeBtn" onclick="dblSendCode()">获取验证码</button></div>
         <button class="w-full py-2.5 rounded-xl grad text-white text-[12.5px] font-bold" onclick="dblLogin()">登录</button>
         <div class="text-[10px] text-slate-400">演示：任意账号 + 验证码 1234 即登录成功</div>
       </div>
@@ -736,7 +745,7 @@ tailwind.config = {
         <button class="mini-btn !text-[10px]" onclick="navTo('p-bookshelf')">回书架</button>
       </div>
       <div class="mt-2 flex gap-1.5 flex-wrap" id="bmKindChips"></div>
-      <div class="mt-3 flex gap-2"><input id="bmAddInp" class="inp flex-1" placeholder="新增名称…" onkeydown="if(event.key==='Enter')bmAdd()"><button class="mini-btn self-stretch flex items-center px-4" onclick="bmAdd()">添加</button></div>
+      <div class="mt-3 flex gap-2"><div class="fl-field fl-compact flex-1"><input id="bmAddInp" class="inp" placeholder="名称…" onkeydown="if(event.key==='Enter')bmAdd()"><label for="bmAddInp" data-fl>新增书籍来源</label></div><button class="mini-btn self-stretch flex items-center px-4" onclick="bmAdd()">添加</button></div>
       <div id="bmList" class="mt-3"></div>
     </section>
 
@@ -774,7 +783,7 @@ tailwind.config = {
         <div class="xr-mrow flex items-center gap-2 mt-1" id="xrwImp" onclick="xrWordsImport()"><b class="text-xs">从文件导入</b><span class="ml-auto text-[10px] text-slate-400">合并进全局词库 · 覆盖需确认</span></div>
       </div>
       <div class="mt-2 flex gap-1.5 flex-wrap" id="xrwTypeChips"></div>
-      <div class="mt-3 flex gap-2"><input id="xrwAddInp" class="inp flex-1" placeholder="新增养入词…" onkeydown="if(event.key==='Enter')xrWordsAdd()"><button class="mini-btn self-stretch flex items-center px-4" onclick="xrWordsAdd()">添加</button></div>
+      <div class="mt-3 flex gap-2"><div class="fl-field fl-compact flex-1"><input id="xrwAddInp" class="inp" placeholder=" " onkeydown="if(event.key==='Enter')xrWordsAdd()"><label for="xrwAddInp" data-fl>新增养入词</label></div><button class="mini-btn self-stretch flex items-center px-4" onclick="xrWordsAdd()">添加</button></div>
       <div id="xrwList" class="mt-3"></div>
       </div>
       <div id="xrcAi" class="hidden">
@@ -1164,14 +1173,14 @@ tailwind.config = {
         <div class="flex gap-4">
           <div id="brMCov" class="w-24 h-36 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white p-2.5 text-[9px] leading-[14px] font-bold shadow-lg shrink-0"></div>
           <div class="flex-1 space-y-2">
-            <input id="brF_t" class="w-full card !py-2 text-sm font-bold outline-none" placeholder="书名">
-            <input id="brF_a" class="w-full card !py-2 text-xs outline-none" placeholder="作者">
+            <div class="fl-field fl-compact w-full"><input id="brF_t" class="card !py-2 text-sm font-bold outline-none" placeholder=" "><label for="brF_t" data-fl>书名</label></div>
+            <div class="fl-field fl-compact w-full"><input id="brF_a" class="card !py-2 text-xs outline-none" placeholder=" "><label for="brF_a" data-fl>作者</label></div>
             <div class="text-[10px] text-slate-400">书名 / 作者 / 简介 / 目录从 EPUB 元数据自动读取 · 可修改</div>
           </div>
         </div>
         <div class="mt-3 space-y-2">
-          <div class="flex gap-2"><input id="brF_press" class="flex-1 card !py-2 text-xs outline-none" placeholder="出版社"><input id="brF_pub" class="w-28 card !py-2 text-xs outline-none" placeholder="出版日期"></div>
-          <textarea id="brF_intro" rows="3" class="w-full card text-xs outline-none leading-5" placeholder="简介"></textarea>
+          <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="brF_press" class="card !py-2 text-xs outline-none" placeholder=" "><label for="brF_press" data-fl>出版社</label></div><div class="fl-field fl-compact w-28"><input id="brF_pub" class="card !py-2 text-xs outline-none" placeholder=" "><label for="brF_pub" data-fl>出版日期</label></div></div>
+          <div class="fl-field fl-compact w-full"><textarea id="brF_intro" rows="3" class="card text-xs outline-none leading-5" placeholder=" "></textarea><label for="brF_intro" data-fl>简介</label></div>
         </div>
         <div class="mt-3 card">
           <div class="flex items-center justify-between"><div class="row-title text-xs font-extrabold">解析内容预览</div><span class="text-[9px] rounded-full px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400" id="brFmtTag">EPUB3 · 图文混排</span></div>
@@ -1488,11 +1497,11 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="flex items-center justify-between"><div class="font-extrabold text-sm">添加新书到书架</div><button class="mini-btn !text-[10px]" onclick="shScanIsbn()">扫 ISBN</button></div>
       <div class="mt-3 space-y-2.5">
-        <input id="nbName" class="inp" placeholder="书名（必填）" oninput="fldErr('nbNameErr','','nbName')">
+        <div class="fl-field"><input id="nbName" class="inp" placeholder=" " oninput="fldErr('nbNameErr','','nbName')"><label for="nbName" data-fl>书名（必填）</label></div>
         <div class="fld-err" id="nbNameErr"></div>
-        <div class="flex gap-2"><input id="nbAuthor" class="inp flex-1" placeholder="作者"><button class="mini-btn self-stretch flex items-center px-3" onclick="ebPickAuthor('nb')">从列表选</button></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="nbAuthor" class="inp" placeholder=" "><label for="nbAuthor" data-fl>作者</label></div><button class="mini-btn self-stretch flex items-center px-3" onclick="ebPickAuthor('nb')">从列表选</button></div>
         <div class="text-[10px] text-slate-400" id="nbAuthorHint"></div>
-        <input id="nbPub" class="inp" placeholder="出版社（可留空，保存后自动登记）">
+        <div class="fl-field"><input id="nbPub" class="inp" placeholder="可留空，保存后自动登记"><label for="nbPub" data-fl>出版社</label></div>
         <div class="text-[10.5px] font-bold text-slate-500 mt-1">来源</div>
         <select id="nbSrcChips" class="inp !py-2 text-[11.5px]" onchange="ebPickSel('nb','src',this.value)"></select>
         <div class="text-[10.5px] font-bold text-slate-500 mt-1.5">分组</div>
@@ -1500,21 +1509,21 @@ tailwind.config = {
         <div class="text-[10px] text-slate-400" id="nbPubHint"></div>
         <div class="flex items-center gap-2 mt-1.5"><button class="mini-btn !text-[10px]" onclick="ebxToggle('nb')" id="nbMoreBtn">更多资料</button><span class="text-[10px] text-slate-400" id="nbMoreSum"></span></div>
         <div id="nbMore" class="hidden space-y-2 pt-1">
-          <div class="flex gap-2"><input id="nbTr" class="inp flex-1" placeholder="译者"><input id="nbPubDate" class="inp flex-1" placeholder="出版日期 2015-06"></div>
+          <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="nbTr" class="inp" placeholder=" "><label for="nbTr" data-fl>译者</label></div><div class="fl-field fl-compact flex-1"><input id="nbPubDate" class="inp" placeholder="2015-06"><label for="nbPubDate" data-fl>出版日期</label></div></div>
           <div class="text-[10.5px] font-bold text-slate-500">书籍类型 <span class="ml-1" id="nbFmtChips"></span></div>
           <div class="text-[10.5px] font-bold text-slate-500">进度方式 <span class="ml-1" id="nbPwChips"></span></div>
-          <div class="flex gap-2"><input id="nbTot" class="inp flex-1" type="number" placeholder="总位置 / 总页"><input id="nbPos" class="inp flex-1" type="number" placeholder="已读位置"><input id="nbFee" class="inp w-20" type="number" placeholder="¥"></div>
-          <input id="nbSeries" class="inp" placeholder="系列 / 套装">
-          <textarea id="nbIntro" class="inp min-h-[52px]" placeholder="书籍简介（导入源可自动带出）"></textarea>
+          <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="nbTot" class="inp" type="number" placeholder=" "><label for="nbTot" data-fl>总位置 / 总页</label></div><div class="fl-field fl-compact flex-1"><input id="nbPos" class="inp" type="number" placeholder=" "><label for="nbPos" data-fl>已读位置</label></div><div class="fl-field fl-compact w-20"><input id="nbFee" class="inp" type="number" placeholder="¥"><label for="nbFee" data-fl>费用</label></div></div>
+          <div class="fl-field"><input id="nbSeries" class="inp" placeholder=" "><label for="nbSeries" data-fl>系列 / 套装</label></div>
+          <div class="fl-field"><textarea id="nbIntro" class="inp min-h-[52px]" placeholder="导入源可自动带出"></textarea><label for="nbIntro" data-fl>书籍简介</label></div>
         </div>
-        <div class="flex gap-2"><input id="nbIsbn" class="inp flex-1" placeholder="ISBN / 豆瓣 subject_id" oninput="shIsbnHint()"><span id="nbLookup" class="text-[10px] self-center text-slate-400 w-24"></span></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="nbIsbn" class="inp" placeholder="豆瓣 subject_id" oninput="shIsbnHint()"><label for="nbIsbn" data-fl>ISBN</label></div><span id="nbLookup" class="text-[10px] self-center text-slate-400 w-24"></span></div>
         <div id="nbCacheAsk" class="hidden flex items-center gap-2 flex-wrap -mt-1"><span class="text-[10px] text-slate-500">本地已有《<b id="nbCacheN"></b>》缓存</span><button class="mini-btn !text-[10px]" onclick="dbPick('nb',1)">用缓存</button><button class="mini-btn !text-[10px]" onclick="dbPick('nb',0)">仍联网查询</button></div>
-        <div class="flex gap-2"><input id="nbPages" class="inp flex-1" type="number" placeholder="总页数"><input id="nbRead" class="inp flex-1" type="number" placeholder="已读页（可选）"></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="nbPages" class="inp" type="number" placeholder=" "><label for="nbPages" data-fl>总页数</label></div><div class="fl-field fl-compact flex-1"><input id="nbRead" class="inp" type="number" placeholder=" "><label for="nbRead" data-fl>已读页（可选）</label></div></div>
         <div class="text-[10px] text-slate-400 -mt-1">分区 <span class="ml-1" id="nbStChips"></span></div>
         <div class="text-[10px] text-slate-400 -mt-1">标签（可多选）<span class="ml-1" id="nbTagChips"></span></div>
         <div class="text-[10px] text-slate-400 -mt-1">封面（可上传 / 拍照 / 按 ISBN 取图，或直接选书脊色）</div>
         <div class="cov-pick mt-1.5"><div id="nbCovBox" class="cov-box"></div><div class="flex-1"><div class="flex flex-wrap gap-1.5"><button class="mini-btn !text-[10px]" onclick="ebCovFor='new';ebCovFile()">上传封面</button><button class="mini-btn !text-[10px]" onclick="ebCovFor='new';ebCovCam()">拍照</button><button class="mini-btn !text-[10px]" onclick="ebCovFor='new';ebCovIsbn()">ISBN 取图</button></div><div class="mt-2 flex gap-1" id="nbCovColors"></div></div></div>
-        <textarea id="nbNote" class="inp min-h-[52px]" placeholder="一句话：为什么想读（可选）"></textarea>
+        <div class="fl-field"><textarea id="nbNote" class="inp min-h-[52px]" placeholder="一句话：为什么想读（可选）"></textarea><label for="nbNote" data-fl>想读理由</label></div>
       </div>
       <div class="mt-3 text-[10px] text-slate-400 leading-5">录入后可在详情页开计时；ISBN 命中后按阅读设置「ISBN 补全」开关决定是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分（ISBN 未登记或整页取不到时按书名在豆瓣反查；关闭或离线时留空待补）</div>
       <div class="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 mt-4 bg-white dark:bg-slate-900"><button class="w-full py-3 rounded-xl grad text-white text-sm font-bold" onclick="shSaveNew()">加入书架</button></div>
@@ -1542,8 +1551,8 @@ tailwind.config = {
         <input type="file" id="ebCoverCam" accept="image/*" capture="environment" class="hidden" onchange="ebCovRead(this)">
       </div>
       <div class="mt-3 space-y-2.5">
-        <input id="ebName" class="inp" placeholder="书名">
-        <div class="flex gap-2"><input id="ebAuthor" class="inp flex-1" placeholder="作者"><button class="mini-btn self-stretch flex items-center px-3" onclick="ebPickAuthor('eb')">从列表选</button></div>
+        <div class="fl-field"><input id="ebName" class="inp" placeholder=" "><label for="ebName" data-fl>书名</label></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="ebAuthor" class="inp" placeholder=" "><label for="ebAuthor" data-fl>作者</label></div><button class="mini-btn self-stretch flex items-center px-3" onclick="ebPickAuthor('eb')">从列表选</button></div>
         <div class="text-[10px] text-slate-400" id="ebAuthorHint"></div>
         <div class="text-[10.5px] font-bold text-slate-500 mt-1">来源</div>
         <select id="ebSrcChips" class="inp !py-2 text-[11.5px]" onchange="ebPickSel('eb','src',this.value)"></select>
@@ -1552,17 +1561,17 @@ tailwind.config = {
         <div class="text-[10px] text-slate-400" id="ebPubHint"></div>
         <div class="flex items-center gap-2 mt-1.5"><button class="mini-btn !text-[10px]" onclick="ebxToggle('eb')" id="ebMoreBtn">更多资料</button><span class="text-[10px] text-slate-400" id="ebMoreSum"></span></div>
         <div id="ebMore" class="hidden space-y-2 pt-1">
-          <div class="flex gap-2"><input id="ebTr" class="inp flex-1" placeholder="译者"><input id="ebPubDate" class="inp flex-1" placeholder="出版日期 2015-06"></div>
+          <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="ebTr" class="inp" placeholder=" "><label for="ebTr" data-fl>译者</label></div><div class="fl-field fl-compact flex-1"><input id="ebPubDate" class="inp" placeholder="2015-06"><label for="ebPubDate" data-fl>出版日期</label></div></div>
           <div class="text-[10.5px] font-bold text-slate-500">书籍类型 <span class="ml-1" id="ebFmtChips"></span></div>
           <div class="text-[10.5px] font-bold text-slate-500">进度方式 <span class="ml-1" id="ebPwChips"></span></div>
-          <div class="flex gap-2"><input id="ebTot" class="inp flex-1" type="number" placeholder="总位置 / 总页"><input id="ebPos" class="inp flex-1" type="number" placeholder="已读位置"><input id="ebFee" class="inp w-20" type="number" placeholder="¥"></div>
-          <input id="ebSeries" class="inp" placeholder="系列 / 套装">
-          <textarea id="ebIntro" class="inp min-h-[52px]" placeholder="书籍简介（导入源可自动带出）"></textarea>
+          <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="ebTot" class="inp" type="number" placeholder=" "><label for="ebTot" data-fl>总位置 / 总页</label></div><div class="fl-field fl-compact flex-1"><input id="ebPos" class="inp" type="number" placeholder=" "><label for="ebPos" data-fl>已读位置</label></div><div class="fl-field fl-compact w-20"><input id="ebFee" class="inp" type="number" placeholder="¥"><label for="ebFee" data-fl>费用</label></div></div>
+          <div class="fl-field"><input id="ebSeries" class="inp" placeholder=" "><label for="ebSeries" data-fl>系列 / 套装</label></div>
+          <div class="fl-field"><textarea id="ebIntro" class="inp min-h-[52px]" placeholder="导入源可自动带出"></textarea><label for="ebIntro" data-fl>书籍简介</label></div>
         </div>
-        <div class="flex gap-2"><input id="ebIsbn" class="inp flex-1" placeholder="ISBN / 豆瓣 subject_id" oninput="ebIsbnHint()"><span id="ebLookup" class="text-[10px] self-center text-slate-400 w-24"></span></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="ebIsbn" class="inp" placeholder="豆瓣 subject_id" oninput="ebIsbnHint()"><label for="ebIsbn" data-fl>ISBN</label></div><span id="ebLookup" class="text-[10px] self-center text-slate-400 w-24"></span></div>
         <div id="ebCacheAsk" class="hidden flex items-center gap-2 flex-wrap -mt-1"><span class="text-[10px] text-slate-500">本地已有《<b id="ebCacheN"></b>》缓存</span><button class="mini-btn !text-[10px]" onclick="dbPick('eb',1)">用缓存</button><button class="mini-btn !text-[10px]" onclick="dbPick('eb',0)">仍联网查询</button></div>
-        <div class="flex gap-2"><input id="ebPub" class="inp flex-1" placeholder="出版社"><input id="ebYr" class="inp w-24" placeholder="年份"></div>
-        <div class="flex gap-2"><input id="ebPages" class="inp flex-1" type="number" placeholder="总页数"><input id="ebProg" class="inp flex-1" type="number" placeholder="进度 %"></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="ebPub" class="inp" placeholder=" "><label for="ebPub" data-fl>出版社</label></div><div class="fl-field fl-compact w-24"><input id="ebYr" class="inp" placeholder=" "><label for="ebYr" data-fl>年份</label></div></div>
+        <div class="flex gap-2"><div class="fl-field fl-compact flex-1"><input id="ebPages" class="inp" type="number" placeholder=" "><label for="ebPages" data-fl>总页数</label></div><div class="fl-field fl-compact flex-1"><input id="ebProg" class="inp" type="number" placeholder="%"><label for="ebProg" data-fl>进度</label></div></div>
         <div class="text-[10px] text-slate-400 -mt-1">分区 <span id="ebStChips"></span></div>
         <div class="text-[10px] text-slate-400 -mt-1">标签 <span id="ebTagChips"></span></div>
         <div class="text-[10px] text-slate-400 -mt-1">评分 <span id="ebRate"></span></div>
@@ -1877,7 +1886,7 @@ tailwind.config = {
   <div id="sheetXrAdd" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrAdd')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="flex items-center justify-between"><b class="text-[15px]">加为词条</b><span class="text-[10px] text-slate-500 dark:text-slate-400">全书索引 · X-Ray</span></div>
-      <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] flex items-center gap-2"><span class="text-slate-400">词条</span><input id="xrAddWordIn" class="xr-kw !text-right !font-bold" placeholder="要加入的词"></div>
+      <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] flex items-center gap-2"><span class="text-slate-400">词条</span><div class="fl-field fl-compact flex-1"><input id="xrAddWordIn" class="xr-kw !text-right !font-bold" placeholder=" "><label for="xrAddWordIn" data-fl>要加入的词</label></div></div>
       <div class="mt-2.5 text-[10px] font-bold text-slate-400">类型</div>
       <div class="mt-1.5 flex gap-1.5 flex-wrap" id="xrAddTypes"></div>
       <div class="mt-2.5 text-[10px] font-bold text-slate-400">生效范围</div>

@@ -1,6 +1,6 @@
 {
  "file": "index-ledger.html",
- "total": 378913,
+ "total": 381071,
  "cut": 0,
  "screens": [
   {
@@ -16,8 +16,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 2396,
-   "hash": "d43c3d60"
+   "size": 2528,
+   "hash": "0aa20b5a"
   },
   {
    "id": "p-txDetail",
@@ -176,8 +176,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2242,
-   "hash": "493af22f"
+   "size": 2307,
+   "hash": "bb44f00f"
   },
   {
    "id": "sheetLedgerParent2",
@@ -248,8 +248,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1277,
-   "hash": "2bd4795c"
+   "size": 1472,
+   "hash": "9c4890ba"
   },
   {
    "id": "sheetLedgerBatches",

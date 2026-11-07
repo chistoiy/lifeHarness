@@ -340,6 +340,25 @@ html.dark #shl .sel{background:#0f172a;border-color:#334155;color:#e2e8f0}
 #shl .sheet{position:absolute}
 #shl #imgView{position:absolute}
 </style>
+<style id="lh-float-label">
+/* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
+.fl-field{position:relative;display:flow-root}
+.fl-field>label[data-fl]{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;font-size:13px;line-height:1.2;color:#94a3b8;transition:top .15s,font-size .15s,transform .15s,color .15s}
+.fl-field>input:focus+label[data-fl],.fl-field>textarea:focus+label[data-fl],.fl-field>input:not(:placeholder-shown)+label[data-fl],.fl-field>textarea:not(:placeholder-shown)+label[data-fl]{top:5px;transform:none;font-size:10px;font-weight:700;color:#6366f1}
+.fl-field>input,.fl-field>textarea{padding-top:22px!important;padding-bottom:8px!important;box-sizing:border-box}
+.fl-field>textarea{min-height:76px;box-sizing:border-box}
+.fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
+.fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
+</style>
+<style id="lh-float-label-2">
+/* 批2：并列/紧凑格变体 + 布局类迁移后的宽度与 flex 等分 */
+.fl-field>input,.fl-field>textarea{width:100%}
+.fl-field.flex-1{min-width:0}
+.fl-field.fl-compact>input,.fl-field.fl-compact>textarea{padding-top:17px!important;padding-bottom:5px!important;font-size:11px;min-height:0}
+.fl-field.fl-compact>label[data-fl]{font-size:11px}
+.fl-field.fl-compact>input:focus+label[data-fl],.fl-field.fl-compact>textarea:focus+label[data-fl],.fl-field.fl-compact>input:not(:placeholder-shown)+label[data-fl],.fl-field.fl-compact>textarea:not(:placeholder-shown)+label[data-fl]{top:3px;font-size:9px}
+.fl-field>input.hidden+label[data-fl],.fl-field>textarea.hidden+label[data-fl]{display:none}
+</style>
 </head>
 <body>
 
@@ -488,8 +507,8 @@ html.dark #shl .sel{background:#0f172a;border-color:#334155;color:#e2e8f0}
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex items-center justify-between"><span class="text-slate-400">预设</span><select class="sel" onchange="toast('已填入'+this.value+'端点（模拟）')"><option>坚果云</option><option>Dropbox</option><option>Nextcloud</option><option>自定义</option></select></div>
           <input class="inp w-full" value="https://dav.jianguoyun.com/dav/">
-          <div class="grid grid-cols-2 gap-2"><input class="inp" placeholder="账号邮箱"><input class="inp" type="password" value="sk••••••••••" placeholder="应用密码（非登录密码）"></div>
-          <input class="inp w-full" value="/LifeHarness/" placeholder="远程目录">
+          <div class="grid grid-cols-2 gap-2"><div class="fl-field fl-compact"><input class="inp" placeholder=" "><label data-fl>账号邮箱</label></div><div class="fl-field fl-compact"><input class="inp" type="password" value="sk••••••••••" placeholder="非登录密码"><label data-fl>应用密码</label></div></div>
+          <div class="fl-field w-full"><input class="inp" value="/LifeHarness/" placeholder=" "><label data-fl>远程目录</label></div>
           <div class="flex items-center justify-between py-1"><span>仅 Wi-Fi 下自动同步</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <button onclick="toast('✓ 连接成功：PROPFIND /LifeHarness/ 返回 207 · 耗时 412ms（模拟）')" class="w-full py-2.5 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold">测试连接</button>
         </div>
