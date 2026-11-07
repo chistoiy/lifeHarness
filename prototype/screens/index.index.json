@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 311682,
+ "total": 307098,
  "cut": 0,
  "screens": [
   {
@@ -154,14 +154,6 @@
    "role": "home",
    "size": 1086,
    "hash": "27e8e5ef"
-  },
-  {
-   "id": "sheetAddMedia",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 2280,
-   "hash": "2b57ea42"
   },
   {
    "id": "sheetProfile",

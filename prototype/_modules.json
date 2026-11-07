@@ -1925,22 +1925,6 @@
       }
     },
     {
-      "id": "sheetAddMedia",
-      "kind": "sheet",
-      "title": "",
-      "home": "index.html",
-      "reps": [
-        "index-bookshelf.html"
-      ],
-      "status": "shared",
-      "files": {
-        "index.html": {
-          "size": 2280,
-          "hash": "2b57ea42"
-        }
-      }
-    },
-    {
       "id": "sheetAddTask",
       "kind": "sheet",
       "title": "",
@@ -6493,36 +6477,6 @@
       "exempt": null
     },
     {
-      "file": "index-ledger.html",
-      "id": "sheetAddMedia",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index_habitcheck.html",
-      "id": "sheetAddMedia",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-maternity_bady.html",
-      "id": "sheetAddMedia",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-day_aim__goods.html",
-      "id": "sheetAddMedia",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-health.html",
-      "id": "sheetAddMedia",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
       "file": "index.html",
       "id": "p-finance",
       "home": "index-ledger.html",
@@ -6718,11 +6672,6 @@
       "file": "index-media.html",
       "id": "sheetAddItem",
       "home": "index-day_aim__goods.html"
-    },
-    {
-      "file": "index-media.html",
-      "id": "sheetAddMedia",
-      "home": "index.html"
     },
     {
       "file": "index-media.html",
@@ -7170,12 +7119,6 @@
     {
       "file": "index-journal.html",
       "id": "sheetEventDetail",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-journal.html",
-      "id": "sheetAddMedia",
       "home": "index.html",
       "exempt": null
     },
@@ -8798,10 +8741,6 @@
       "to": "index-bookshelf.html#sheetTocImport"
     },
     {
-      "from": "index-health.html#sheetAddMedia",
-      "to": "index.html#sheetAddMedia"
-    },
-    {
       "from": "index-health.html#p-report",
       "to": "index-ledger.html#p-report"
     },
@@ -9070,6 +9009,15 @@
           "markCats",
           "markNote",
           "markDelBtn"
+        ]
+      },
+      {
+        "id": "sheetAddMedia",
+        "inner": [
+          "mdTitle",
+          "mdRate",
+          "mdLen",
+          "mdNote"
         ]
       }
     ],
