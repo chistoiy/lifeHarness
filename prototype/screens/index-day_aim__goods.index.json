@@ -1,6 +1,6 @@
 {
  "file": "index-day_aim__goods.html",
- "total": 295250,
+ "total": 296372,
  "cut": 0,
  "screens": [
   {
@@ -96,8 +96,8 @@
    "kind": "screen",
    "title": "编辑目标",
    "role": "home",
-   "size": 1366,
-   "hash": "26d7a3f5"
+   "size": 1430,
+   "hash": "ea29da3e"
   },
   {
    "id": "p-goalReview",

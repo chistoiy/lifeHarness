@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 307809,
+ "total": 308974,
  "cut": 0,
  "screens": [
   {
@@ -48,8 +48,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2557,
-   "hash": "93a5b8c6"
+   "size": 2543,
+   "hash": "52a4bd83"
   },
   {
    "id": "sheetNfcSet",
@@ -128,16 +128,16 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 8129,
-   "hash": "49fede77"
+   "size": 8193,
+   "hash": "297f66c3"
   },
   {
    "id": "sheetAddEvent",
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2229,
-   "hash": "66a8f615"
+   "size": 2293,
+   "hash": "84bbce85"
   },
   {
    "id": "sheetEventDetail",
@@ -160,8 +160,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1197,
-   "hash": "0bcf8192"
+   "size": 1200,
+   "hash": "376e791e"
   },
   {
    "id": "sheetTask",

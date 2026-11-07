@@ -1008,8 +1008,8 @@
       "status": "exclusive",
       "files": {
         "index-day_aim__goods.html": {
-          "size": 1366,
-          "hash": "26d7a3f5"
+          "size": 1430,
+          "hash": "ea29da3e"
         }
       }
     },
@@ -1568,8 +1568,8 @@
       "status": "exclusive",
       "files": {
         "index-ai.html": {
-          "size": 1774,
-          "hash": "e49ea4fc"
+          "size": 1976,
+          "hash": "6ba4084c"
         }
       }
     },
@@ -1933,8 +1933,8 @@
       "status": "shared",
       "files": {
         "index.html": {
-          "size": 8129,
-          "hash": "49fede77"
+          "size": 8193,
+          "hash": "297f66c3"
         }
       }
     },
@@ -1961,8 +1961,8 @@
       "status": "exclusive",
       "files": {
         "index-ai.html": {
-          "size": 3484,
-          "hash": "38fdacff"
+          "size": 3457,
+          "hash": "4541a452"
         }
       }
     },
@@ -2093,8 +2093,8 @@
       "status": "exclusive",
       "files": {
         "index-bookshelf.html": {
-          "size": 865,
-          "hash": "49fc9eeb"
+          "size": 990,
+          "hash": "27b39f83"
         }
       }
     },
@@ -3259,8 +3259,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 1197,
-          "hash": "0bcf8192"
+          "size": 1200,
+          "hash": "376e791e"
         }
       }
     },
@@ -3783,8 +3783,8 @@
       "status": "shared",
       "files": {
         "index.html": {
-          "size": 2229,
-          "hash": "66a8f615"
+          "size": 2293,
+          "hash": "84bbce85"
         }
       }
     },
@@ -4273,8 +4273,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 2557,
-          "hash": "93a5b8c6"
+          "size": 2543,
+          "hash": "52a4bd83"
         }
       }
     },

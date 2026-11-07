@@ -257,6 +257,16 @@ tailwind.config = {
   .brand-cap{font-size:9px;line-height:1.4;color:#64748b;text-align:center}
   .glow-btn{box-shadow:0 0 14px color-mix(in srgb,var(--accent) 45%,transparent)}
 </style>
+<style id="lh-float-label">
+/* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
+.fl-field{position:relative;display:flow-root}
+.fl-field>label[data-fl]{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;font-size:13px;line-height:1.2;color:#94a3b8;transition:top .15s,font-size .15s,transform .15s,color .15s}
+.fl-field>input:focus+label[data-fl],.fl-field>textarea:focus+label[data-fl],.fl-field>input:not(:placeholder-shown)+label[data-fl],.fl-field>textarea:not(:placeholder-shown)+label[data-fl]{top:5px;transform:none;font-size:10px;font-weight:700;color:#6366f1}
+.fl-field>input,.fl-field>textarea{padding-top:22px!important;padding-bottom:8px!important;box-sizing:border-box}
+.fl-field>textarea{min-height:76px;box-sizing:border-box}
+.fl-field>input:not(:focus):placeholder-shown::placeholder,.fl-field>textarea:not(:focus):placeholder-shown::placeholder{color:transparent}
+.fl-field>input:focus::placeholder,.fl-field>textarea:focus::placeholder{color:#94a3b8;font-size:11px}
+</style>
 </head>
 <body class="flex items-center justify-center">
 
@@ -624,7 +634,7 @@ tailwind.config = {
 
     <!-- ===== P10b 目标编辑（新建 / 修改共用） ===== -->
     <section id="p-goalEdit" class="page px-5 safe-pb no-scrollbar">
-      <input id="geTitle" class="inp" placeholder="目标 O 标题，如：O4 把身体养回来">
+      <div class="fl-field"><input id="geTitle" class="inp" placeholder="如：O4 把身体养回来"><label for="geTitle" data-fl>目标 O 标题</label></div>
       <div class="text-xs font-bold mt-4 mb-1.5">周期</div>
       <div class="flex gap-2 text-xs" id="gePeriodChips">
         <button class="tag-chip" data-k="year" onclick="gePeriodPick(this)">年度目标</button>
