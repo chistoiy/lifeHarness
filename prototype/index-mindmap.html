@@ -1168,10 +1168,10 @@ const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'
 function layout(boxIn){
   const box=boxIn||measure(cur.nodes);
   const W=id=>box[id]||60, H=n=>nodeH(n);
-  let base={}, depth={};
+  let base={}, depth={}, wide=null;
   if(VIEW.struct==='radial'){ const r=posRadial(box); base=r.base; depth=r.depth; }
   else if(VIEW.dir==='both'||VIEW.ratio==='landscape'){ const r=posTree(box,VIEW.dir==='both'); base=r.base; depth=r.depth; }
-  else { const r=posOutline(box); base=r.base; depth=r.depth; }
+  else { const r=posOutline(box); base=r.base; depth=r.depth; /* L2 2026-11-07: 同深度取最宽值作下限、上限 MAXW 不动；box 保留真实量宽，拉齐只作用于渲染宽与包围盒，refineBox 第二趟回填才不抖动 */ const byDepth={}; Object.keys(depth).forEach(id=>{const w=W(id),d=depth[id]; if(w>(byDepth[d]||0))byDepth[d]=w;}); wide={}; Object.keys(depth).forEach(id=>{wide[id]=Math.min(MAXW,byDepth[depth[id]]||W(id));}); }
   /* 各形态坐标原点不同，统一归一到非负再叠用户偏移（拖拽只存 dx/dy，不存绝对坐标） */
   let minX=Infinity,minY=Infinity;
   cur.nodes.forEach(n=>{ const p=base[n.id]||{x:0,y:0}; if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y; });
@@ -1181,10 +1181,10 @@ function layout(boxIn){
     const p=base[n.id]||{x:0,y:0};
     n.x=p.x-minX+PAD+(n.dx||0);
     n.y=p.y-minY+PAD+(n.dy||0);
-    if(n.x+W(n.id)>maxX)maxX=n.x+W(n.id);
+    const w=wide?(wide[n.id]||W(n.id)):W(n.id); if(n.x+w>maxX)maxX=n.x+w;
     if(n.y+H(n)>maxY)maxY=n.y+H(n);
   });
-  return {w:maxX+PAD,h:maxY+PAD,box,depth};
+  return {w:maxX+PAD,h:maxY+PAD,box,depth,wide};
 }
 /* —— 形态一：纵向大纲（竖屏默认；批1 交付形态：父在上、子竖排缩进表达层级）——
    行高按**各节点真实高度**累加（不是固定 40），否则多行节点会压到下一行（2026-10-12 实锤）。 */
@@ -1274,7 +1274,7 @@ function renderCanvas(boxIn){
   host.innerHTML='';
   const DP=depths(), FOCUS=cur.sel?branchSet(cur.sel):null, BLOCK=connect.from?blockSet(connect.from):null;
   cur.nodes.forEach(n=>{
-    const w=L.box[n.id]||60;
+    const w=(L.wide&&L.wide[n.id])||L.box[n.id]||60;
     const multiline=String(n.t||'').indexOf('\n')>=0;
     const el=document.createElement('div');
     const dp=DP[n.id]||0;
