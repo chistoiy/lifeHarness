@@ -136,19 +136,13 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
               enabled: !(v == 'spine' && kind == MediaItem.kMovie),
               onTap: () => ref.read(mediaViewProvider.notifier).state = v,
             ),
-          PopupMenuButton<String>(
+          // C 案批6e M2：排序改底弹层单选＋当前项标记（原型 m-sheet-sort 同款），
+          // 顶栏 PopupMenuButton 退役；补「按发行年/按进度」两键（SQL 批8a/批5 已就绪）。
+          IconButton(
             key: const ValueKey('mds-sort'),
             tooltip: '排序',
             icon: const Icon(Icons.swap_vert, size: 22),
-            initialValue: 'recent',
-            onSelected: (v) => ref.read(mediaSortProvider.notifier).state = v,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'recent', child: Text('最近活动')),
-              PopupMenuItem(value: 'rating', child: Text('按评分')),
-              PopupMenuItem(value: 'added', child: Text('新增在前')),
-              PopupMenuItem(value: 'name', child: Text('按名称')),
-              PopupMenuItem(value: 'duration', child: Text('按时长')),
-            ],
+            onPressed: () => showMediaSortSheet(context, ref),
           ),
           _ViewBtn(
             key: const ValueKey('mds-notes-entry'),
@@ -467,4 +461,55 @@ class _ViewBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+/// C 案批6e M2：排序底弹层（原型 mRenderSortSheet 同款·单选行右侧「●」标记当前项）。
+/// 键序对齐原型 MSRT 六键，另保留实现增强的「按时长」（去留已随裁定维持）。
+const _mediaSortOptions = <(String, String)>[
+  ('recent', '最近活动'),
+  ('rating', '按评分'),
+  ('added', '新增在前'),
+  ('year', '按发行年'),
+  ('name', '按名称'),
+  ('duration', '按时长'),
+  ('progress', '按进度'),
+];
+
+void showMediaSortSheet(BuildContext context, WidgetRef ref) {
+  final cur = ref.read(mediaSortProvider);
+  showModalBottomSheet<void>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(14),
+            child: Text('排序方式',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+          ),
+          for (final (v, label) in _mediaSortOptions)
+            ListTile(
+              key: ValueKey('mds-sort-$v'),
+              dense: true,
+              title: Text(label,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight:
+                          v == cur ? FontWeight.w800 : FontWeight.w400)),
+              trailing: v == cur
+                  ? Icon(Icons.circle, size: 10, color: Theme.of(ctx).colorScheme.primary)
+                  : null,
+              onTap: () {
+                ref.read(mediaSortProvider.notifier).state = v;
+                Navigator.of(ctx).pop();
+              },
+            ),
+          const SizedBox(height: 6),
+        ],
+      ),
+    ),
+  );
 }
