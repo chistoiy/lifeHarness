@@ -126,6 +126,25 @@ for p in redoc:
             anchor_red += 1
             (red if mode == 'strict' else warn).append(f"锚点断链: {p} -> prototype/{fn}#{anc}")
 print(f"锚点检查：断链 {anchor_red} 处")
+
+# 闸6 原型体量棘轮（2026-11-07 立）：单文件只降不升，新屏一律进模块专版。
+# 上限＝_modules.json sizeBudget.limits（盘上文本字节实测）；达 yellow 比例给黄灯（不拦），超限红灯。
+# 探针目录（--dir 变异自证）体量不代表现行，跳过；--modules 指副本注册表时可用来验闸会红。
+if not probe:
+    _sb = reg.get('sizeBudget') or {}
+    _lim = _sb.get('limits') or {}
+    _yel = float(_sb.get('yellow', 0.9))
+    for f in active_files:
+        cap = _lim.get(f)
+        if not cap:
+            red.append(f"闸6 未登记体量上限: {f}")
+            continue
+        sz = os.path.getsize(os.path.join(mdir, f))
+        if sz > cap:
+            red.append(f"闸6 原型超体量上限: {f} {sz} > {cap} B（只降不升，拆屏到专版）")
+        elif sz >= cap * _yel:
+            print(f"闸6 黄线: {f} {sz}/{cap} B（当轮瘦身或写明不瘦理由）")
+
 label = '红灯' if mode == 'strict' else '报告（report 模式不拦）'
 
 lst = red if mode == 'strict' else red + warn

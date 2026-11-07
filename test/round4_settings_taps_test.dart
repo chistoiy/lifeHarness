@@ -68,9 +68,9 @@ void main() {
             builder: (_, _) =>
                 const Scaffold(body: Center(child: Text('STUB-todo')))),
         GoRoute(
-            path: '/journal',
+            path: '/diary',
             builder: (_, _) =>
-                const Scaffold(body: Center(child: Text('STUB-journal')))),
+                const Scaffold(body: Center(child: Text('STUB-diary')))),
         GoRoute(
             path: '/read/shelf',
             builder: (_, _) =>
@@ -89,11 +89,11 @@ void main() {
     expect(find.text('STUB-todo'), findsOne);
   });
 
-  testWidgets('连续记录天→记录页（日记）', (t) async {
+  testWidgets('连续记录天→日记独立页', (t) async {
     await pumpSettings(t);
     await t.tap(find.byKey(const ValueKey('stat-streak')));
     await settle5(t);
-    expect(find.text('STUB-journal'), findsOne);
+    expect(find.text('STUB-diary'), findsOne);
   });
 
   testWidgets('在册书籍→书架（push 保栈）', (t) async {
@@ -103,11 +103,11 @@ void main() {
     expect(find.text('STUB-shelf'), findsOne);
   });
 
-  testWidgets('头像下副标题行→记录页（日记）', (t) async {
+  testWidgets('头像下副标题行→日记独立页', (t) async {
     await pumpSettings(t);
     await t.tap(find.byKey(const ValueKey('profile-sub')));
     await settle5(t);
-    expect(find.text('STUB-journal'), findsOne);
+    expect(find.text('STUB-diary'), findsOne);
   });
 
   // 轮7（2026-10-04）：真机「我的 24 在册 vs 书架 6」——booksProvider 含

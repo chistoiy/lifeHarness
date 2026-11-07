@@ -1497,7 +1497,8 @@ void main() {
           ),
         ),
       ));
-      router.go('/journal');
+      // C 案批1：/journal 退役为兼容跳转（无参落笔记页），日记段改走独立路由。
+      router.go('/diary');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 100));

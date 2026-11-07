@@ -37,24 +37,25 @@ void main() {
       );
     });
 
-    test('仪表盘「全部功能」阅读格已接记录页并带段参 · V0.5 灰标归零', () {
+    test('仪表盘「全部功能」阅读格直达独立阅读页 · V0.5 灰标归零', () {
       const f = 'lib/features/dashboard/presentation/dashboard_page.dart';
       final s = src(f);
-      // V1.58 反馈轮5：日记/笔记两枚下架（与记录页 ⇄ 段重复），
-      // 阅读枚改带 `?tab=book` 深链，点击自动切到阅读视图。
-      // 顺带修存量红（批6c·刀2 闸面清零）：仪表盘「全部功能」格子由 emoji 字面量改
-      // IconData 后本条字面量过期（语义未变：阅读枚仍接 /journal?tab=book、无 V0.5 角标）。
-      expect(s, contains("(Icons.menu_book_outlined, '阅读', '/journal?tab=book', null),"));
+      // C 案批1（2026-11-07）：记录页退役，阅读格不再带 `?tab=book` 段参，
+      // 直达 /readhub 独立页；日记/笔记两枚仍不回宫格（各有底栏池栏目）。
+      expect(s, contains("(Icons.menu_book_outlined, '阅读', '/readhub', null),"));
+      expect(s, isNot(contains('?tab=')), reason: '旧四段深链已退役，不得复活');
       expect(s, isNot(contains("'笔记', '/journal'")));
       expect(s, isNot(contains("'日记', '/journal'")));
       expect(s, isNot(contains("'V0.5'")), reason: '笔记/阅读早已上线，不得再挂规划角标');
     });
 
-    test('目标路由在册（/journal 与 /ledger 均已注册）', () {
-      expect(
-        src('lib/features/journal/presentation/journal_routes.dart'),
-        contains("path: '/journal'"),
-      );
+    test('目标路由在册（四条独立页 + /journal 兼容跳转）', () {
+      final r = src('lib/features/journal/presentation/journal_routes.dart');
+      for (final p in ['/notes', '/diary', '/readhub', '/mediahub', '/journal']) {
+        expect(r, contains("path: '$p'"), reason: '$p 未在册');
+      }
+      expect(r, contains('journalLegacyTarget'),
+          reason: '旧深链映射必须走单一纯函数，禁两处各写一份 switch');
       expect(
         src('lib/features/ledger/presentation/ledger_routes.dart'),
         contains("GoRoute(path: '/ledger'"),

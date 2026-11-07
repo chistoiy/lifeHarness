@@ -1097,7 +1097,7 @@ class _AllModulesCard extends StatelessWidget {
   static const _mods = <(IconData, String, String, String?)>[
     (Icons.check_box_outlined, '待办', '/todo', null),
     (Icons.schedule_outlined, '时间', '/calendar', null),
-    (Icons.menu_book_outlined, '阅读', '/journal?tab=book', null),
+    (Icons.menu_book_outlined, '阅读', '/readhub', null),
     (Icons.movie_outlined, '影音游', '/media/shelf', null),
     (Icons.bolt_outlined, '收集箱', '/inbox', null),
     (Icons.currency_yuan_outlined, '记账', '/ledger', null),

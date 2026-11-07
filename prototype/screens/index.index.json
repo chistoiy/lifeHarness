@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 314587,
+ "total": 311104,
  "cut": 0,
  "screens": [
   {
@@ -32,8 +32,8 @@
    "kind": "screen",
    "title": "我的",
    "role": "home",
-   "size": 16706,
-   "hash": "9f2197ab"
+   "size": 16604,
+   "hash": "9366f338"
   },
   {
    "id": "p-sub-nfc",
@@ -80,8 +80,8 @@
    "kind": "screen",
    "title": "记录",
    "role": "home",
-   "size": 3560,
-   "hash": "e8001677"
+   "size": 553,
+   "hash": "88e6d08d"
   },
   {
    "id": "sheetNoteImport",

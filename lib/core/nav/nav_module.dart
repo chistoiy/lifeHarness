@@ -11,7 +11,14 @@ enum NavModule {
   todo('todo', '待办', Icons.check_circle_outline, Icons.check_circle, '/todo'),
   calendar(
       'calendar', '时间', Icons.schedule, Icons.calendar_month, '/calendar'),
-  journal('journal', '记录', Icons.book_outlined, Icons.book, '/journal'),
+  // C 案批1：原「记录」四段页退役，本栏目改为独立「笔记」页；
+  // 保留 id「journal」＝老用户 navIds 里存的就是它，改 id 会让底栏静默少一栏。
+  journal('journal', '笔记', Icons.note_outlined, Icons.note, '/notes'),
+  // C 案批1：三模块各自独立成栏目，默认不入栏，只在设置页底栏池待选。
+  diary('diary', '日记', Icons.auto_stories_outlined, Icons.auto_stories,
+      '/diary'),
+  read('read', '阅读', Icons.menu_book_outlined, Icons.menu_book, '/readhub'),
+  media('media', '影音游', Icons.movie_outlined, Icons.movie, '/mediahub'),
   habit('habit', '习惯', Icons.autorenew, Icons.loop, '/habits'),
   inbox('inbox', '收集箱', Icons.inbox_outlined, Icons.inbox, '/inbox'),
   ledger('ledger', '记账', Icons.account_balance_wallet_outlined,
@@ -43,7 +50,8 @@ enum NavModule {
   /// 常驻出口了。约束由 `SettingsController.toggleNav` 兜底，UI 只负责提示。
   bool get isAnchor => this == NavModule.today || this == NavModule.settings;
 
-  /// 默认底栏序列（今天/我的固定 + 中间三栏）。
+  /// 默认底栏序列（今天/我的固定 + 中间三栏＝待办/时间/笔记）。
+  /// C 案批1：三枚新栏目默认不入栏，需在设置页底栏池自选。
   static const List<NavModule> defaultNav = [
     NavModule.today,
     NavModule.todo,

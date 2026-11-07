@@ -22,10 +22,10 @@ import '../../../shared/trash/trash_providers.dart';
 const Map<String, String> kDbOverviewModuleRoutes = {
   '阅读': '/read/shelf',
   '记账': '/ledger',
-  '笔记': '/journal?tab=note',
+  '笔记': '/notes',
   '待办': '/todo',
   '日程': '/calendar',
-  '日记': '/journal?tab=diary',
+  '日记': '/diary',
   '习惯': '/habits',
   '呵护': '/care',
   '物品': '/items',
@@ -43,7 +43,8 @@ const Map<String, String> kDbOverviewModuleRoutes = {
 /// 公开供常驻守护核对：必须与各 `*ShellRoutes()` 实际登记一致。
 const Set<String> kDbOverviewShellPaths = {
   '/ledger',
-  '/journal',
+  '/notes',
+  '/diary',
   '/todo',
   '/calendar',
   '/habits',

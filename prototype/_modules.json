@@ -1330,8 +1330,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 16706,
-          "hash": "9f2197ab"
+          "size": 16604,
+          "hash": "9366f338"
         }
       }
     },
@@ -1470,8 +1470,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 3560,
-          "hash": "e8001677"
+          "size": 553,
+          "hash": "88e6d08d"
         }
       }
     },
@@ -12591,5 +12591,27 @@
         ]
       }
     ]
+  },
+  "sizeBudget": {
+    "note": "2026-11-07 立：原型单文件体量棘轮，只降不升。新屏一律进模块专版、禁止往单文件堆；瘦身后方可按新实测下调上限。单位＝盘上字节（os.path.getsize，与文档体量治理同口径；原型索引卡/注册表用的是 JS 字符数，勿混用）。上限＝立闸时实测×1.15，黄线＝上限×90%；闸见 tools/protogate.py 闸6，随 doclint 收口链跑。",
+    "unit": "bytes",
+    "yellow": 0.9,
+    "limits": {
+      "index-ai.html": 127500,
+      "index-bookshelf.html": 745000,
+      "index-day_aim__goods.html": 381400,
+      "index-desktop.html": 123500,
+      "index-health.html": 370500,
+      "index-journal.html": 525100,
+      "index-ledger.html": 477300,
+      "index-maternity_bady.html": 409200,
+      "index-media.html": 510900,
+      "index-mindmap.html": 199400,
+      "index-settings.html": 139100,
+      "index-sync.html": 181800,
+      "index-time.html": 176800,
+      "index.html": 400300,
+      "index_habitcheck.html": 423400
+    }
   }
 }

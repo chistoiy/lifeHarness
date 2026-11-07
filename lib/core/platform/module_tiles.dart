@@ -103,11 +103,20 @@ const List<ModuleTile> kManualModuleTiles = <ModuleTile>[
 
 /// 全部 17 枚（11 底栏派生 ＋ 6 手工）。
 ///
+/// C 案批1：新增 diary/read/media 三栏目**不进瓦片目录**——落桌面要原生
+/// XML／Manifest／预览图三件套，未落资源前列进来会让 `LH_WHITELIST` 与 Dart
+/// 目录失配（`module_tiles_test` 守护③）。三枚瓦片另批立项。
 /// `final`（非 `const`）是因为 label/path 要从枚举实例上取——那是运行期读，
 /// 常量表达式里取不到（枚举字段不是 const 表达式）。派生本身仍只此一处。
+const Set<String> kTileNavIds = <String>{
+  'today', 'todo', 'calendar', 'journal', 'habit', 'inbox',
+  'ledger', 'items', 'days', 'goals', 'settings',
+};
+
 final List<ModuleTile> kModuleTiles = <ModuleTile>[
   for (final m in NavModule.values)
-    ModuleTile(
+    if (kTileNavIds.contains(m.id))
+      ModuleTile(
         id: m.id,
         label: m.label,
         route: m.path,

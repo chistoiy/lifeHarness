@@ -8,15 +8,44 @@ import 'tag_add_page.dart';
 import 'tag_manage_page.dart';
 
 
+/// C 案批1：旧「记录」四段深链的兼容落点（纯函数·路由与常驻断言共用）。
+/// 无参/非法段名一律落笔记页——记录页已退役，不再有「沿用上次停留的段」这一态。
+String journalLegacyTarget(String? tab) => switch (tab) {
+      'diary' => '/diary',
+      'note' => '/notes',
+      'book' => '/readhub',
+      'media' => '/mediahub',
+      _ => '/notes',
+    };
+
 /// 底部导航壳内路由（原 ShellRoute 登记 · 治理G6 下沉）
 List<GoRoute> journalShellRoutes() => [
-        // V1.58 反馈轮5：`?tab=diary|note|book|media` 段深链
-        // （仪表盘「阅读」格直达记录页阅读视图；无参 = 沿用上次停留的段）。
+        // C 案批1：/journal 退役为兼容跳转（旧桌面快捷方式／旧深链仍落对应独立页）。
         GoRoute(
           path: '/journal',
-          builder: (_, s) =>
-              JournalPage(initialTab: s.uri.queryParameters['tab']),
-        )
+          redirect: (_, s) => journalLegacyTarget(s.uri.queryParameters['tab']),
+        ),
+        // C 案批1：四模块各自独立成页（底栏可配置池栏目直达）。
+        GoRoute(
+          path: '/notes',
+          builder: (_, _) =>
+              const JournalPage(section: 'note', standalone: true),
+        ),
+        GoRoute(
+          path: '/diary',
+          builder: (_, _) =>
+              const JournalPage(section: 'diary', standalone: true),
+        ),
+        GoRoute(
+          path: '/readhub',
+          builder: (_, _) =>
+              const JournalPage(section: 'book', standalone: true),
+        ),
+        GoRoute(
+          path: '/mediahub',
+          builder: (_, _) =>
+              const JournalPage(section: 'media', standalone: true),
+        ),
 ];
 
 /// 全屏栈路由（治理G6 下沉）

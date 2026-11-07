@@ -114,11 +114,22 @@ class _NoteFabState extends ConsumerState<_NoteFab> {
 ///
 /// V1.58 反馈轮5：支持段深链 [initialTab]（仪表盘「阅读」格 → `/journal?tab=book`），
 /// 进来即落在对应段视图，不再停在默认日记段。
+///
+/// C 案批1（2026-11-07）：记录页退役，四模块各自独立成页。
+/// [standalone]＝单段独立页：标题只显段名、不画 ⇄ 切换菜单、段由 [section] 锁定；
+/// 默认 false 的旧四段构造仅供存量守护直接 pump 用，**不再挂任何路由**。
 class JournalPage extends ConsumerStatefulWidget {
-  const JournalPage({super.key, this.initialTab});
+  const JournalPage(
+      {super.key, this.initialTab, this.section, this.standalone = false});
 
   /// 深链段名（diary/note/book/media）；null 或非法值 = 沿用当前段。
   final String? initialTab;
+
+  /// 独立页锁定的段（standalone 时必填，合法值见 [kRecordLabels]）。
+  final String? section;
+
+  /// true＝单段独立页（无「记录 · 」前缀、无 ⇄ 菜单）。
+  final bool standalone;
 
   static const kRecordLabels = {
     'diary': '日记',
@@ -156,6 +167,7 @@ class JournalPageState extends ConsumerState<JournalPage> {
   /// 把深链段写回 [recordTabProvider]（⇄ 菜单同款通道）。
   /// initState/build 期不能同步改 provider，故落到本帧之后的微任务。
   void _takeLink() {
+    if (widget.standalone) return; // 独立页不吃旧深链段状态
     final t = widget.initialTab;
     if (!JournalPage.isRecordTab(t)) return;
     final seg = t!;
@@ -175,16 +187,22 @@ class JournalPageState extends ConsumerState<JournalPage> {
   @override
   Widget build(BuildContext context) {
     final providerTab = ref.watch(recordTabProvider);
-    final tab = _linkTab ?? providerTab;
+    // 独立页段由路由锁定，不受全局「上次停留段」串台影响。
+    final tab = widget.standalone
+        ? (widget.section ?? 'note')
+        : (_linkTab ?? providerTab);
     final tokens = context.tokens;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('记录 · ${JournalPage.kRecordLabels[tab]}'),
+        title: Text(widget.standalone
+            ? (JournalPage.kRecordLabels[tab] ?? '笔记')
+            : '记录 · ${JournalPage.kRecordLabels[tab]}'),
         actions: [
-          // ⇄ 四能力切换（仅记录页；当前项高亮✓）
+          // ⇄ 四能力切换（仅旧四段兼容页；C 案独立页不画这枚钮）。
           // 轮10-9：菜单条目改圆角行卡+选中底色（与弹层/抽屉同语言·accent 随主题）。
-          PopupMenuButton<String>(
+          if (!widget.standalone)
+            PopupMenuButton<String>(
             key: const ValueKey('rec-switch'),
             tooltip: '切换 日记/笔记/阅读/影音游',
             icon: const Icon(Icons.sync_alt),

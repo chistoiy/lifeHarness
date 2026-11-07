@@ -100,7 +100,7 @@ void main() {
       ]);
       // 标签与路由必须来自枚举本身（改枚举即改瓦片，不留第二份）。
       expect(nav.map((t) => t.label).toSet(),
-          containsAll(<String>['今天', '待办', '时间', '记录', '习惯', '收集箱', '记账', '物品', '日子', '目标', '我的']));
+          containsAll(<String>['今天', '待办', '时间', '笔记', '习惯', '收集箱', '记账', '物品', '日子', '目标', '我的']));
       expect(derived.first.route, '/', reason: '今天＝壳根路由');
       expect(derived.last.route, '/settings', reason: '我的＝设置页');
     });

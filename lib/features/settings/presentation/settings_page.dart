@@ -80,7 +80,7 @@ class SettingsPage extends ConsumerWidget {
               books: '$books',
               onEdit: () => showProfileEditSheet(context, ref),
               onTodo: () => context.go(NavModule.todo.path),
-              onJournal: () => context.go(NavModule.journal.path),
+              onJournal: () => context.go(NavModule.diary.path),
               onShelf: () => context.push('/read/shelf'),
             )
           else ...[
@@ -97,7 +97,7 @@ class SettingsPage extends ConsumerWidget {
               books: '$books',
               numSize: lay == 'minimal' ? 23 : 21,
               onTodo: () => context.go(NavModule.todo.path),
-              onJournal: () => context.go(NavModule.journal.path),
+              onJournal: () => context.go(NavModule.diary.path),
               onShelf: () => context.push('/read/shelf'),
             ),
           ],
@@ -529,7 +529,8 @@ class _ProfileHero extends StatelessWidget {
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -.2)),
                           const SizedBox(height: 3),
-                          // 真机反馈轮4③：副标题「已记录 N 天」点按直达日记（记录页）。
+                          // 真机反馈轮4③：副标题「已记录 N 天」点按直达日记。
+                          // C 案批1：记录页退役后改走 /diary 独立页（不再绕笔记页）。
                           GestureDetector(
                             key: const ValueKey('profile-sub'),
                             behavior: HitTestBehavior.opaque,
