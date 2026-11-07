@@ -8,7 +8,7 @@
 
 ## 基线（八项，其余不写）
 
-**未推＝7**（批6 两枚＋批7 两枚＋6210 装机 chore 一枚＋C 案批1 两枚）；再前一批三枚已于 11-07 双端推齐回读核验＝头 `7099b69f`（读数 `git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
+**未推＝0**（批6 两枚＋批7 两枚＋6210 装机 chore 一枚＋C 案批1 两枚于 11-07 双端推齐回读核验＝头 `62c54884`）；再前一批三枚头 `7099b69f`（读数 `git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
 - 最新预发布＝**`v0.2.15-mm-p7`**（钉版 `afae47d2`·装机 **8202**·arm64 单包 53,359,829 B·**双端挂齐＝GitHub `v0.2.15-mm-p7`＋Gitee `1225157`**·附件名 `lifeHarness-8202-arm64.apk`）／`v0.2.15-nfc`（钉版 `38d355a7`·发版件 **6173**·arm64 单包 42,224,880 B·**双端挂齐＝GitHub `415828988`＋Gitee `1213591`**）／`v0.2.15-desktop-b1`（钉版 `0807a971`·发版件 6144·双端挂齐＝GitHub `413683416`＋Gitee `1207740`）／`-time-b2`／`-journal`／`-nav-collapse`（6106·真机门 31 条）。⚠ 发版口径＝只挂 arm64 瘦身包禁 ≥100MB·Gitee 匿名直链被拦·⚠ 勿卸载＝清库；逐枚钉版/双端 id/md5＝`docs/archive/复测包与发版台账.md`§A
 - 再前预发布＝`v0.2.15-tree-swipe`／`tree-follow`／`note-mount`／`note-local`（**DB v39→v42 首枚**）／`v0.2.14-health-media`／`v0.2.13-media`（三包 6089/5089/8089）——台账＝同档 §A。
 - DB＝`DbSchema.version=52`（v52＝**物品批A 给 `item_profiles` 加 `brand`/`serial`/`note`**（I03 档案三字段·全可空纯加列；三列同时写进基础 DDL——v51 只写迁移不留 DDL 的坑不重犯）；v51＝物品排障批给 `item_events` 加 `txn_id`；v50＝**日记批2b 建 `tags`＋`tag_links`**（语句表 `lib/core/database/schema/tag.dart`·聚合 `...tg.mig`；`version` 与 `migrations` **必须同批改**——S6 抓过漏改 version ⇒ 真机 onUpgrade 不触发；本行读数已由守护二十三与 `schema.dart` 比对）；v49＝NFC 批1b 给 `nfc_cards` 加三列、v48＝NFC 批1 建表、v47＝思维导图批5 加四列、v46＝建 `mindmap_folders`、v45＝思维导图批1 双写 DDL，逐版细节＝沉各归档工单）
