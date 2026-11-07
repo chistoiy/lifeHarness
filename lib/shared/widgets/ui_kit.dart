@@ -588,10 +588,14 @@ class SectionCard extends StatelessWidget {
 
 /// LH-L04 空态补录行：描边占位行，点击=补录/添加入口。
 class EmptyDashRow extends StatelessWidget {
-  const EmptyDashRow({super.key, required this.text, this.onTap});
+  const EmptyDashRow(
+      {super.key, required this.text, this.onTap, this.dashed = false});
 
   final String text;
   final VoidCallback? onTap;
+
+  /// C 案批6b N4：虚线空态框（原型空态为 dashed；默认 false＝存量各页不受影响）。
+  final bool dashed;
 
   @override
   Widget build(BuildContext context) {
@@ -599,19 +603,57 @@ class EmptyDashRow extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 22),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        child: Center(
-          child: Text(text,
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+      child: CustomPaint(
+        foregroundPainter:
+            dashed ? _DashBorderPainter(scheme.outlineVariant, 16) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 22),
+          margin: dashed ? const EdgeInsets.all(1) : EdgeInsets.zero,
+          decoration: dashed
+              ? null
+              : BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+          child: Center(
+            child: Text(text,
+                style:
+                    TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          ),
         ),
       ),
     );
   }
+}
+
+/// C 案批6b N4：圆角虚线框画笔（4 实 4 空段）。
+class _DashBorderPainter extends CustomPainter {
+  _DashBorderPainter(this.color, this.radius);
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Offset.zero & size, Radius.circular(radius)));
+    for (final metric in path.computeMetrics()) {
+      double d = 0;
+      while (d < metric.length) {
+        canvas.drawPath(
+            metric.extractPath(d, (d + 4).clamp(0.0, metric.length)), paint);
+        d += 8;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashBorderPainter old) => old.color != color;
 }
 
 /// LH-K38 等宽分段选择条（原型外观屏 `.seg-on` 分段 · 2026-10-07 深色模式三档首个落点）。

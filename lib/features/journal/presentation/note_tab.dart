@@ -93,7 +93,18 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                   child: Row(
                     children: [
-                      Text('已选择 ${sel.length} 项',
+                      // C 案批6b N5：计数数字品牌色高亮（原型 noteSelTopN）。
+                      Text('已选择 ',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: scheme.onSurface)),
+                      Text('${sel.length}',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: tokens.accent)),
+                      Text(' 项',
                           style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
@@ -122,11 +133,12 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         Expanded(
           child: notes.isEmpty
               ? EmptyDashRow(
+                  dashed: true,
                   text: src.isNotEmpty
-                      ? '该来源下暂无笔记'
+                      ? '该来源下暂无笔记 · 换个来源试试'
                       : filter.folder.isEmpty
                           ? '还没有笔记 · 点右下角 ＋ 开始'
-                          : '「${filter.folder}」下还没有笔记',
+                          : '「${filter.folder}」下还没有笔记 · 点右下角新建',
                   onTap: () => context.push('/note/edit'),
                 )
               : cols == 0
@@ -160,9 +172,18 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     final allPinned = sel.every((id) => byId[id]?.pinned ?? false);
     final bar = Container(
       key: const ValueKey('note-sel-bar'),
+      // C 案批6b N1：悬浮圆角卡（原型 noteSelBar：横 16 外距＋圆角＋浮起阴影，
+      // 不再贴底满宽＋顶描边）。
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 10),
       decoration: BoxDecoration(
           color: tokens.card,
-          border: Border(top: BorderSide(color: tokens.cardBorder))),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: .10),
+                blurRadius: 12,
+                offset: const Offset(0, 4)),
+          ]),
       child: SafeArea(
         top: false,
         child: Row(
@@ -476,7 +497,8 @@ class _NoteTabState extends ConsumerState<NoteTab> {
           if (mounted) setState(() => _gone.remove(id));
           return;
         }
-        AppToast.showUndoWith(messenger, '已移入回收站 · 30 天内可恢复',
+        AppToast.showUndoWith(messenger,
+            '已移入回收站 · ${n.title} · 30 天内可恢复',
             onUndo: () async {
           await dao.restore(id);
           // 撤销后必须撤掉「立即隐藏」垫片，否则卡片不回归（`_gone` 只加不删

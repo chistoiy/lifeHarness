@@ -25,7 +25,7 @@ String noteSortLabel(NoteSort s, bool asc) => switch (s) {
 Future<void> pickNoteSource(BuildContext context, WidgetRef ref) async {
   const opts = <(String, String)>[
     ('', '全部来源'),
-    ('local', '本地导入'),
+    ('local', '本地文件'),
     ('export', '导出目录'),
     ('open_with', '系统打开'),
   ];

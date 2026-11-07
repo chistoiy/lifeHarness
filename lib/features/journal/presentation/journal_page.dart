@@ -67,8 +67,8 @@ class _NoteFabState extends ConsumerState<_NoteFab> {
 
   // 轮10-9：FAB 三选去 emoji=线性图标（与弹层/菜单同语言）。
   static const _acts = [
-    (Icons.edit_document, '添加富文本笔记', 'rich'),
-    (Icons.notes_outlined, '添加纯文本笔记', 'plain'),
+    (Icons.edit_document, '添加富文本', 'rich'),
+    (Icons.notes_outlined, '添加纯文本', 'plain'),
     (Icons.keyboard_outlined, '添加 MD 文档', 'md'),
   ];
 
@@ -117,7 +117,7 @@ class _NoteFabState extends ConsumerState<_NoteFab> {
             ),
         GradFab(
           tooltip: '添加笔记',
-          icon: Icon(_open ? Icons.close : Icons.add,
+          icon: Icon(_open ? Icons.close : Icons.edit,
               color: Colors.white, size: 26),
           onTap: () => setState(() => _open = !_open),
         ),
