@@ -39,7 +39,7 @@
  "lib/features/items/presentation/item_detail_page.dart": 5,
  "lib/features/items/presentation/items_kit.dart": 7,
  "lib/features/journal/presentation/diary_edit_page.dart": 2,
- "lib/features/journal/presentation/journal_page.dart": 9,
+ "lib/features/journal/presentation/journal_page.dart": 17,
  "lib/features/journal/presentation/journal_page_card.dart": 2,
  "lib/features/journal/presentation/note_edit_focus.dart": 1,
  "lib/features/journal/presentation/note_edit_page.dart": 1,

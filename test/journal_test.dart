@@ -355,7 +355,7 @@ void main() {
           reason: '四段切换钮已随记录页退役');
       // §4b-4（产品令）：「写今天的日记」入口卡已整行移除（FAB 覆盖同一入口）
       expect(find.text('写今天的日记'), findsNothing);
-      expect(find.textContaining('已记录 1 篇'), findsOneWidget);
+      expect(find.textContaining('已记录 1 篇'), findsNWidgets(2)); // 批6a D1：顶栏副标题＋月历卡标题各一份
       expect(find.textContaining('连续记录 1 天'), findsOneWidget);
       expect(find.textContaining('今天跑了 5 公里'), findsOneWidget);
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
@@ -957,9 +957,9 @@ void main() {
       await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
 
-      await tester.tap(find.text('📊 回顾'));
+      await tester.tap(find.byKey(const ValueKey('mood-review-btn')));
       await settle5(tester);
-      expect(find.text('回顾'), findsOneWidget);
+      expect(find.byKey(const ValueKey('mood-review-btn')), findsOneWidget);
       expect(find.text(_ml(now)), findsOneWidget);
       expect(find.byKey(const ValueKey('dr-trend')), findsOneWidget);
       expect(find.byKey(const ValueKey('dr-legend')), findsOneWidget);
@@ -994,7 +994,7 @@ void main() {
       await useSurface(tester);
       await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
-      await tester.tap(find.text('📊 回顾'));
+      await tester.tap(find.byKey(const ValueKey('mood-review-btn')));
       await settle5(tester);
 
       // ① 原型文案「词云 · 本月高频」（原实现写的是「高频词云」）
@@ -1527,7 +1527,7 @@ void main() {
       final now = DateTime.now();
       await tester.pumpWidget(scope(const JournalPage(section: 'diary')));
       await settle5(tester);
-      await tester.tap(find.text('📊 回顾'));
+      await tester.tap(find.byKey(const ValueKey('mood-review-btn')));
       await settle5(tester);
       await tester.tap(find.byKey(const ValueKey('dr-next')));
       await settle5(tester);
@@ -1555,7 +1555,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
       await pumpRouted(tester);
-      await tester.tap(find.text('📊 回顾'));
+      await tester.tap(find.byKey(const ValueKey('mood-review-btn')));
       await settle5(tester);
 
       final rect = tester.getRect(find.byKey(const ValueKey('dr-trend')));

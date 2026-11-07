@@ -38,6 +38,21 @@ import 'widgets/note_tree_drawer.dart'
 
 part 'journal_page_card.dart';
 
+/// C 案批6a D5：月份中文数字（原型「九月 · 已记录 18 篇」口径）。
+const _cnMonths = [
+  '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'
+];
+String _cnMonth(int m) => _cnMonths[m - 1];
+
+/// C 案批6a D1：日记顶栏副标题＝当月月份＋已记录篇数（原型 p-diaryHome pageSub）。
+String _diarySub(WidgetRef ref) {
+  final now = DateTime.now();
+  final n = (ref.watch(journalsProvider).valueOrNull ?? const <JournalEntry>[])
+      .where((e) => e.day.year == now.year && e.day.month == now.month)
+      .length;
+  return '${now.month}月 · 已记录 $n 篇';
+}
+
 /// 笔记段 FAB（V1.29轮2 原型 noteFabMenu）：与主页同款竖排三选
 /// 📝富文本 / 📃纯文本 / ⌨️MD 文档；新建默认归属当前选中文件夹。
 class _NoteFab extends ConsumerStatefulWidget {
@@ -146,7 +161,19 @@ class JournalPageState extends ConsumerState<JournalPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(JournalPage.kRecordLabels[tab] ?? '笔记'),
+        // C 案批6a D1：日记段补原型副标题（随当月篇数），其余段维持单行标题。
+        title: tab == 'diary'
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('日记'),
+                  Text(_diarySub(ref),
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w400)),
+                ],
+              )
+            : Text(JournalPage.kRecordLabels[tab] ?? '笔记'),
         actions: [
           // 批5①（2026-10-12）：搜索钮**兑现**——原只弹「全局搜索 · 即将开放」
           //（DAO 的 `list(query:)` 早已在册，缺的只是一个入口）。
@@ -479,7 +506,7 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
                     color: tokens.accent.withValues(alpha: .08),
                     borderRadius: BorderRadius.circular(16)),
                 child: Text(
-                  '🗓 那年今日 · ${onThisDay.day.year}-${_two(onThisDay.day.month)}-${_two(onThisDay.day.day)}\n'
+                  '🗓 那年今日 · ${DateTime.now().year - onThisDay.day.year} 年前 · ${_two(onThisDay.day.month)}-${_two(onThisDay.day.day)}\n'
                   '「${onThisDay.previewText.replaceAll('\n', ' ').clampText(24)}」点击查看',
                   style: const TextStyle(fontSize: 11, height: 1.6),
                 ),
@@ -533,11 +560,27 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
             );
           }
           if (insMode) return const SizedBox.shrink();
+          // C 案批6a D2：淡紫低饱和（浅档）/深紫（深档）渐变与配套文字色 onMood。
+          final bright = Theme.of(context).brightness;
+          final gradSoft = bright == Brightness.dark
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF3730A3), Color(0xFF4C1D95)])
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFEDE9FE), Color(0xFFC7D2FE)]);
+          final onMood = bright == Brightness.dark
+              ? const Color(0xFFEDE9FE)
+              : const Color(0xFF3C3489);
           return Container(
             // 渐变心情月历卡（原型 moodCard：标题+回顾钮+30 色条+脚注）
           padding: const EdgeInsets.all(16),
+          // C 案批6a D2：grad-soft 低饱和淡紫渐变（原型 moodCard），深浅两档；
+          // 主题全饱和渐变仍归 hero/按钮，月历卡不再随主题炸色。
           decoration: BoxDecoration(
-              gradient: tokens.gradient,
+              gradient: gradSoft,
               borderRadius: BorderRadius.circular(24),
               boxShadow: tokens.cardShadow),
           child: Column(
@@ -545,22 +588,40 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
             children: [
               Row(
                 children: [
-                  Text('${now.month}月 · 已记录 ${monthEntries.length} 篇',
-                      style: const TextStyle(
-                          color: Colors.white,
+                  // C 案批6a D5：月份中文数字；D2：文字 onMood 不再恒白。
+                  Text('${_cnMonth(now.month)} · 已记录 ${monthEntries.length} 篇',
+                      style: TextStyle(
+                          color: onMood,
                           fontWeight: FontWeight.w800,
                           fontSize: 14)),
                   const Spacer(),
                   GestureDetector(
-                    // 批2c：📊 回顾兑现=底部弹层（心情趋势柱+高频词云+去年本月）
+                    key: const ValueKey('mood-review-btn'),
+                    // 批2c：回顾兑现=底部弹层（心情趋势柱+高频词云+去年本月）
+                    // 批6a D3：胶囊白/70＋浮起阴影＋柱状线性图标＋slate 细字（原型同款·去 emoji）。
                     onTap: () => openDiaryReview(context, month: now),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: .2),
-                          borderRadius: BorderRadius.circular(999)),
-                      child: const Text('📊 回顾',
-                          style: TextStyle(color: Colors.white, fontSize: 11)),
+                          color: Colors.white.withValues(alpha: .7),
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withValues(alpha: .08),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2)),
+                          ]),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.bar_chart,
+                              size: 13, color: Color(0xFF475569)),
+                          const SizedBox(width: 3),
+                          Text('回顾',
+                              style: const TextStyle(
+                                  color: Color(0xFF475569), fontSize: 11)),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -737,12 +798,12 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
                             // 一整屏都是同样的卡，看不出哪篇被收藏（轨道/INS 档早已有图标）。
                             if (e.starred) ...[
                               Icon(Icons.star,
-                                  size: 13, color: tokens.accent),
+                                  size: 13, color: kJournalStarred),
                               const SizedBox(width: 3),
                             ],
                             if (e.liked) ...[
                               Icon(Icons.favorite,
-                                  size: 13, color: tokens.accent),
+                                  size: 13, color: kJournalLiked),
                               const SizedBox(width: 3),
                             ],
                             if (moodEmoji(e.mood) != null) ...[
@@ -855,9 +916,10 @@ class DiaryTabState extends ConsumerState<DiaryTab> {
 
   Color _barColorOf(JournalEntry? e) {
     if (e == null) return Colors.white.withValues(alpha: .22);
+    // C 案批6a D4：降饱和同明度色组（原型 renderMoodMini 口径），替换高饱和彩虹档。
     const palette = [
-      Color(0xFF6366F1), Color(0xFF2DD4BF), Color(0xFFF59E0B),
-      Color(0xFFFB7185), Color(0xFF8B5CF6), Color(0xFF0EA5E9), Color(0xFFF43F5E),
+      Color(0xFF9BA3E8), Color(0xFF7FCFC4), Color(0xFFE8BE6A),
+      Color(0xFFF0A3AE), Color(0xFFACA3EC), Color(0xFF7FBFDF), Color(0xFFEC8F9E),
     ];
     return palette[((e.mood ?? 1) - 1) % palette.length];
   }
