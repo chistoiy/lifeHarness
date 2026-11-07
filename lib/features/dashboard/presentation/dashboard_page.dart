@@ -1080,9 +1080,7 @@ class _DonutPainter extends CustomPainter {
       old.values != values || old.colors != colors || old.empty != empty;
 }
 
-/// 全部功能宫格（原型 D.grid：emoji + 浅灰圆角底块 14 项 · 未建灰显 + 版本角标）。
-/// V1.58 反馈轮5：日记/笔记两枚摘除（与记录页 ⇄ 四段重复），
-/// 「阅读」带段参深链 → 记录页自动切到阅读视图。
+/// 全部功能宫格（原型 D.grid·线性 SVG）；C 案批1 真机补口（11-07）：拆分后按原型在「时间」后补回日记/笔记两枚，其余次序不动；阅读直达 /readhub、影音游仍走栈页。
 class _AllModulesCard extends StatelessWidget {
   const _AllModulesCard();
 
@@ -1097,6 +1095,8 @@ class _AllModulesCard extends StatelessWidget {
   static const _mods = <(IconData, String, String, String?)>[
     (Icons.check_box_outlined, '待办', '/todo', null),
     (Icons.schedule_outlined, '时间', '/calendar', null),
+    (Icons.auto_stories_outlined, '日记', '/diary', null),
+    (Icons.note_outlined, '笔记', '/notes', null),
     (Icons.menu_book_outlined, '阅读', '/readhub', null),
     (Icons.movie_outlined, '影音游', '/media/shelf', null),
     (Icons.bolt_outlined, '收集箱', '/inbox', null),

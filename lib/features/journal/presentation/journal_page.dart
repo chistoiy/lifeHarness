@@ -21,6 +21,8 @@ import 'journal_providers.dart';
 import 'note_edit_page.dart';
 import 'note_search.dart';
 import 'note_tab.dart';
+import 'note_toolbar_actions.dart';
+import 'widgets/note_tree_overlay.dart';
 import 'widgets/diary_fan_fab.dart';
 import 'widgets/diary_filter_sheet.dart';
 import 'widgets/diary_review_sheet.dart';
@@ -149,6 +151,10 @@ class JournalPageState extends ConsumerState<JournalPage> {
   /// 日记段的状态外呼口（§4c-2：FAB 长按扇形里的筛选／设置两枚要调它）。
   final GlobalKey<DiaryTabState> _diaryKey = GlobalKey<DiaryTabState>();
 
+  /// C 案批1 真机补口：顶栏「文件夹」钮与笔记段内树叠层共用同一把键。
+  final GlobalKey<NoteTreeOverlayState> _noteTreeKey =
+      GlobalKey<NoteTreeOverlayState>();
+
   /// 本帧生效的深链段：provider 落定前先按它渲染，避免「先闪日记再切段」。
   String? _linkTab;
 
@@ -248,6 +254,14 @@ class JournalPageState extends ConsumerState<JournalPage> {
             icon: const Icon(Icons.search),
             onPressed: () => showNoteSearchSheet(context, ref),
           ),
+          // C 案批1 真机补口（2026-11-07）：筛选/排序/文件夹/视图并入顶栏第一行，
+          // 菜单天然锚在按钮下方、点空白关闭；页内第二行由 NoteTab 守卫撤掉。
+          if (tab == 'note')
+            NoteToolbarActions(
+              key: const ValueKey('note-toolbar-actions'),
+              inAppBar: true,
+              onOpenTree: () => _noteTreeKey.currentState?.open(),
+            ),
           // 批5②：笔记段的「更多」——把原本只藏在文件树里的 导入/导出/打开历史
           // 提到顶栏（列表页此前零入口，要先用整屏右滑开树才够得着）。
           if (tab == 'note')
@@ -342,8 +356,10 @@ class JournalPageState extends ConsumerState<JournalPage> {
           'diary' => KeyedSubtree(
               key: const ValueKey('rec-body-diary'),
               child: DiaryTab(key: _diaryKey)),
-          'note' =>
-            const KeyedSubtree(key: ValueKey('rec-body-note'), child: NoteTab()),
+          'note' => KeyedSubtree(
+              key: const ValueKey('rec-body-note'),
+              child:
+                  NoteTab(toolbarInAppBar: true, treeKey: _noteTreeKey)),
           'book' => KeyedSubtree(
               key: const ValueKey('rec-body-book'), child: readWorkbench()),
           _ => KeyedSubtree(

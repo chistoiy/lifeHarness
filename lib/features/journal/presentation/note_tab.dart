@@ -6,11 +6,11 @@ import 'package:go_router/go_router.dart';
 import '../../../core/logging/app_log.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
-import '../data/note_dao.dart';
 import '../domain/note.dart';
 import 'journal_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
 import 'note_paper.dart';
+import 'note_toolbar_actions.dart';
 import 'widgets/note_sheet_lang.dart';
 import 'widgets/note_tree_drawer.dart';
 import 'widgets/note_tree_overlay.dart';
@@ -25,7 +25,19 @@ int kNoteEstComputeCount = 0;
 /// 顶部「已选择 x 项」+底部线性图标三钮（置顶钮随所选全置顶=「取消置顶」智能切换）；
 /// 视图循环 列表→2列→3列（卡片=瀑布流错落·非行对齐）；时间三档 今天/今年MM-DD/跨年YYYY-MM-DD。
 class NoteTab extends ConsumerStatefulWidget {
-  const NoteTab({super.key});
+  /// C 案批1 真机补口（2026-11-07）：原型把四枚操作并入顶栏第一行。
+  /// true＝由外层 `JournalPage` 的 AppBar 托管，页内不再画第二行；
+  /// 存量用例直接 pump `NoteTab()` 时保持 false＝旧第二行形态不变。
+  const NoteTab({
+    super.key,
+    this.toolbarInAppBar = false,
+    this.treeKey,
+  });
+
+  final bool toolbarInAppBar;
+
+  /// 托管形态下与顶栏共用的文件树叠层键；未托管时由本 State 自建。
+  final GlobalKey<NoteTreeOverlayState>? treeKey;
 
   @override
   ConsumerState<NoteTab> createState() => _NoteTabState();
@@ -35,20 +47,11 @@ class _NoteTabState extends ConsumerState<NoteTab> {
   /// 已左滑移除的 id：立即隐藏，避免异步刷新前 Dismissible 重建报错。
   final Set<int> _gone = {};
 
-  /// 轮8④：翻转当前排序项后重开菜单（等效原型的「菜单保持打开」）。
-  final _sortKey = GlobalKey<PopupMenuButtonState<NoteSort>>();
-
   /// 常驻叠层批：树面板的开合动画挂在叠层件上，文件夹钮经这条 key 复用同一开合。
   final GlobalKey<NoteTreeOverlayState> _treeKey =
       GlobalKey<NoteTreeOverlayState>();
 
   static const double _gap = 10;
-
-  static String _sortLabel(NoteSort s, bool asc) => switch (s) {
-        NoteSort.updated => asc ? '最后修改 ↑' : '最后修改 ↓',
-        NoteSort.created => asc ? '创建时间 ↑' : '创建时间 ↓',
-        NoteSort.title => asc ? '标题 Z→A' : '标题 A→Z',
-      };
 
   /// 轮9s：时间三档=今天 时:分 / 今年 MM-DD / 跨年 YYYY-MM-DD（回收站「删于」同规则）。
   static String _timeLabel(DateTime d) {
@@ -100,101 +103,22 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                 )
               : const SizedBox(width: double.infinity),
         ),
-        // V1.29轮6：右侧一行三钮 = 排序 / 文件夹树 / 视图循环（轮9i 行距收紧）
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // 批5⑤（工单 §2 · 2026-10-12）：按来源筛选——兑现卸载弹层
-              //「已导入的 N 条笔记保留在库 · 来源标仍可筛」；激活时图标转 accent。
-              IconButton(
-                key: const ValueKey('note-source'),
-                tooltip: '按来源筛选',
-                onPressed: () => _pickSource(context),
-                icon: Icon(
-                    src.isEmpty ? Icons.filter_alt_outlined : Icons.filter_alt,
-                    size: 22,
-                    color: src.isEmpty ? scheme.onSurfaceVariant : tokens.accent),
-              ),
-              // 轮8④：再点当前项=方向翻转（菜单保持打开·箭头变化可见）；
-              // 选其他项=切换并回默认方向。
-              KeyedSubtree(
-                key: const ValueKey('note-sort'),
-                child: PopupMenuButton<NoteSort>(
-                  key: _sortKey,
-                  tooltip: '排序',
-                  icon: const Icon(Icons.swap_vert, size: 22),
-                  onSelected: (s) {
-                    final cur = ref.read(noteFilterProvider);
-                    final flip = s == cur.sort;
-                    final asc = flip ? !cur.asc : false;
-                    // 批5③：走 helper 写回设置（排序键/方向持久化）。
-                    saveNoteFilter(ref,
-                        (folder: cur.folder, sort: s, asc: asc));
-                    AppToast.show(context, '排序：${_sortLabel(s, asc)}');
-                    if (flip) {
-                      WidgetsBinding.instance.addPostFrameCallback(
-                          (_) => _sortKey.currentState?.showButtonMenu());
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    for (final s in NoteSort.values)
-                      PopupMenuItem(
-                        value: s,
-                        child: Row(
-                          children: [
-                            Text(
-                                _sortLabel(
-                                    s, s == filter.sort ? filter.asc : false),
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    color: s == filter.sort
-                                        ? tokens.accent
-                                        : null)),
-                            if (s == filter.sort) ...[
-                              const Spacer(),
-                              Icon(Icons.check,
-                                  size: 18, color: tokens.accent),
-                            ],
-                          ],
-                        ),
-                      ),
-                  ],
+        // C 案批1 真机补口（2026-11-07）：整排操作已并入 AppBar 第一行。
+        // 独立页（toolbarInAppBar=true）只留列表；存量用例直接 pump NoteTab()
+        // 时保持旧第二行形态，避免把大批存量测试打红。
+        if (!widget.toolbarInAppBar)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                NoteToolbarActions(
+                  onOpenTree: () =>
+                      (widget.treeKey ?? _treeKey).currentState?.open(),
                 ),
-              ),
-              IconButton(
-                key: const ValueKey('note-folder'),
-                tooltip: '文件夹',
-                onPressed: () =>
-                    _treeKey.currentState?.open(), // 常驻叠层：开树＝钉同一条动画
-                icon: Icon(Icons.folder_outlined,
-                    size: 22,
-                    color: filter.folder.isEmpty
-                        ? scheme.onSurfaceVariant
-                        : tokens.accent),
-              ),
-              IconButton(
-                key: const ValueKey('note-view'),
-                // 轮9b：循环收为 列表→2列→3列（4列内容不可读）
-                tooltip: cols == 0
-                    ? '卡片视图 · 每行 2 个'
-                    : cols == 2
-                        ? '卡片视图 · 每行 3 个'
-                        : '列表视图',
-                onPressed: () => saveNoteViewCols(
-                    ref, cols == 0 ? 2 : (cols >= 3 ? 0 : cols + 1)),
-                icon: Icon(
-                    cols == 0
-                        ? Icons.menu
-                        : cols == 2
-                            ? Icons.grid_view
-                            : Icons.view_week,
-                    size: 22),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         Expanded(
           child: notes.isEmpty
               ? EmptyDashRow(
@@ -282,7 +206,9 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     // 批6②（工单 §2 · 2026-10-12）：多选条进出＝160ms AnimatedSize（〇B 微动档）。
     // 为此把「叠层 / 非叠层」两条互斥分支收进**同一个 Column**：底条槽位恒在（非多选态高 0），
     // 才存在可补间的同一实例（挂在两棵互斥子树上就没有所谓「进出」——那只是硬换）。
-    final body = selMode ? list : NoteTreeOverlay(key: _treeKey, child: list);
+    final body = selMode
+        ? list
+        : NoteTreeOverlay(key: widget.treeKey ?? _treeKey, child: list);
     return PopScope(
       canPop: !selMode,
       onPopInvokedWithResult: (didPop, _) {
@@ -568,48 +494,6 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     final cur = {...ref.read(noteSelProvider)};
     cur.contains(id) ? cur.remove(id) : cur.add(id);
     ref.read(noteSelProvider.notifier).state = cur;
-  }
-
-  /// 批5⑤：按来源筛选弹层（走 NoteSheetHeader / NoteSheetRow 单源语言）。
-  Future<void> _pickSource(BuildContext context) async {
-    const opts = <(String, String)>[
-      ('', '全部来源'),
-      ('local', '本地导入'),
-      ('export', '导出目录'),
-      ('open_with', '系统打开'),
-    ];
-    final cur = ref.read(noteSourceProvider);
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      builder: (bc) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const NoteSheetHeader(title: '按来源筛选'),
-              for (final (v, label) in opts)
-                NoteSheetRow(
-                  key: ValueKey('nsrc-$v'),
-                  icon: v == cur
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  label: label,
-                  color: v == cur ? context.tokens.accent : null,
-                  onTap: () => Navigator.of(bc).pop(v),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (picked == null) return;
-    ref.read(noteSourceProvider.notifier).state = picked;
-    if (context.mounted) {
-      AppToast.show(
-          context, '来源：${opts.firstWhere((o) => o.$1 == picked).$2}');
-    }
   }
 
   Future<void> _batch(

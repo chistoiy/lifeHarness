@@ -41,7 +41,7 @@ void main() {
       const f = 'lib/features/dashboard/presentation/dashboard_page.dart';
       final s = src(f);
       // C 案批1（2026-11-07）：记录页退役，阅读格不再带 `?tab=book` 段参，
-      // 直达 /readhub 独立页；日记/笔记两枚仍不回宫格（各有底栏池栏目）。
+      // 直达 /readhub 独立页；日记/笔记两枚随真机反馈补回宫格，见 c2_ui_align_test.dart。
       expect(s, contains("(Icons.menu_book_outlined, '阅读', '/readhub', null),"));
       expect(s, isNot(contains('?tab=')), reason: '旧四段深链已退役，不得复活');
       expect(s, isNot(contains("'笔记', '/journal'")));
