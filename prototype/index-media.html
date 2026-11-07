@@ -635,7 +635,8 @@ tailwind.config = {
       <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mStateChips"></div>
       <div class="relative mb-3"><input class="inp !py-2.5 text-sm" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder="片名 / 艺人 / 工作室 / 导演" oninput="mFilter(this.value)" id="mSearchInput"></div>
       <div id="mShelfBody"></div>
-      <div id="mMultiBar" class="hidden fixed md:absolute bottom-20 left-4 right-4 z-30 p-3 rounded-2xl flex items-center justify-between" style="background:var(--mds-ink);color:var(--mds-hi);box-shadow:var(--mds-shadow-lift)"><span class="text-[11px] mds-mono" id="mMultiCnt">选中 0</span>
+      <!-- C案批6d M4：批量条改贴底通栏平底（实现 bottomNavigationBar 槽位同口径·去悬浮胶囊与投影） -->
+      <div id="mMultiBar" class="hidden fixed md:absolute bottom-0 left-0 right-0 z-30 px-5 py-3 flex items-center justify-between" style="background:var(--mds-ink);color:var(--mds-hi)"><span class="text-[11px] mds-mono" id="mMultiCnt">选中 0</span>
         <div class="flex gap-2 text-[11px]">
           <button class="mds-chip" style="background:rgba(255,255,255,.15);color:var(--mds-hi)" onclick="mBulkState()">改分区</button>
           <button class="mds-chip" style="background:rgba(255,255,255,.15);color:var(--mds-hi)" onclick="mBulkTag()">加标签</button>
@@ -2614,7 +2615,9 @@ const FAB_CFG={
  'p-items':{ico:'📦',act:()=>openSheet('sheetAddItem')},
  'p-days':{ico:'🎂',act:()=>openSheet('sheetAddDay')},
  'p-habits':{ico:'＋',act:()=>openSheet('sheetAddHabit')},
- 'p-health':{ico:'💧',act:()=>{water(1);toast('💧 快捷 +1 杯（FAB 随上下文变化）')}}
+ 'p-health':{ico:'💧',act:()=>{water(1);toast('💧 快捷 +1 杯（FAB 随上下文变化）')}},
+ /* C案批6d M3：架面补常驻 FAB（实现 media_shelf_page GradFab 同款·直开新条目弹层） */
+ 'm-shelf':{ico:'＋',act:()=>openSheet('m-sheet-add')}
  /* 其余页（目标/设置/阅读详情/仪表盘除外…）无添加能力 → 自动隐藏 */};
 /* ================= 习惯打卡（正向/负向） ================= */
 let hsDim='w',hbNewType='pos';

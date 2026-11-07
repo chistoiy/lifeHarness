@@ -1003,6 +1003,8 @@ tailwind.config = {
       <button class="pw-ic-btn nt-ic" title="重命名选中夹" onclick="ntRename()" id="ntBtEdit"></button>
       <button class="pw-ic-btn nt-ic" title="添加文件夹" onclick="ntAdd()" id="ntBtAdd"></button>
       <button class="pw-ic-btn nt-ic" title="全部展开/折叠" onclick="ntExpandAll()" id="ntBtExp"></button>
+      <!-- C案批6d N3：补第 5 枚「导出为本地目录」（实现 note_tree_drawer 五钮同款·原型此前缺） -->
+      <button class="pw-ic-btn nt-ic" title="导出为本地目录" onclick="ntExport()" id="ntBtExport"></button>
       <button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntBtClose"></button>
     </div>
   </div>
@@ -2867,7 +2869,10 @@ function noteExitSel(){noteSelMode=false;noteSel.clear();
   const b=$('#noteSelBar');if(b)b.classList.remove('sel-on');
   const top=$('#noteSelTop');if(top)top.classList.remove('sel-on');renderNotes();}
 function noteBatchPin(){const n=noteSel.size,un=noteAllPinned();D.notes.forEach(x=>{if(noteSel.has(x.t))x.pin=un?0:1;});noteExitSel();toast(un?`已取消置顶 ${n} 篇`:`已置顶 ${n} 篇`);}
-function noteBatchTrash(){const n=noteSel.size;noteExitSel();toast(`已移入回收站 ${n} 篇 · 保留期内可恢复`);}
+/* C案批6d N2：批量删除补二次确认（实现 note_tab AlertDialog 加固同口径，产品裁定保留） */
+/* C案批6d N3：导出为本地目录（实现有真实导出；原型模拟 toast 承载入口） */
+function ntExport(){toast('已导出为本地目录（模拟）');}
+function noteBatchTrash(){if(!confirm('确定把选中的 '+noteSel.size+' 篇移入回收站？'))return;const n=noteSel.size;noteExitSel();toast(`已移入回收站 ${n} 篇 · 保留期内可恢复`);}
 function ntFlat(list,d,out){list=list||NTREE;d=d||0;out=out||[];list.forEach(n=>{out.push({n:n.n,d:d});ntFlat(n.c,d+1,out);});return out;}
 function noteBatchMove(){if(!noteSel.size)return;$('#nmCount').textContent=noteSel.size;
   $('#nmList').innerHTML=ntFlat().map(f=>`<button class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-bold active:bg-slate-100 dark:active:bg-slate-700" style="padding-left:${12+f.d*16}px" onclick="noteMoveTo('${f.n}')"><span class="nt-ic text-slate-400">${NT_IC.folder}</span>${f.n}</button>`).join('');
@@ -2882,6 +2887,7 @@ const NT_IC={
  all:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
  folder:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/></svg>',
  trash:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>',
+ export:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4m0 0L8 8m4-4l4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>',
  add:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
  folderAdd:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M14.5 12.5h5m-2.5-2.5v5"/></svg>',
  edit:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/></svg>',
@@ -2992,7 +2998,8 @@ function nohSim(){const t='新建笔记'+(OF.length+1)+'.md';OF.unshift({f:t,p:'
 function nohGo(i){closeSheet('sheetNoteOpenHist');if(curPage!=='p-records')navTab('p-records');toast('已打开笔记「'+OF[i].f.replace(/\.md$/,'')+'」');}
 
 function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
-(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
+/* C案批6d N3：NT_IC 补 export 键 */
+(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtExport')&&($('#ntBtExport').innerHTML=NT_IC.export);$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
 function newNote(t){t=t||'plain';toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'未归类'}（可改）`);navTo('p-noteEdit');}
 /* 治理批动刀②：账单导入向导已迁记账专版，入口保留、经 navTo 兜底重定向 */
 
