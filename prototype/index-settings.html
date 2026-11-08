@@ -184,6 +184,12 @@ tailwind.config = {
   .witem{height:26px;line-height:26px;scroll-snap-align:center;text-align:center;font-size:12px;color:#94a3b8;font-weight:600;user-select:none;transition:color .15s}
   .witem.on{font-size:19px;font-weight:800;color:var(--accent)}
   .dark .witem.on{color:var(--accent-l)}
+  /* 反馈批3 · 提醒通知就地滚轮（2026-11-08）：卡片内展开，不弹层 */
+  .nf-wheel{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;background:rgb(241 245 249 / .8)}
+  .dark .nf-wheel{background:rgb(30 41 59 / .6)}
+  .nf-wheel.hidden{display:none}
+  .nf-wheel-col{flex:1;min-width:0}
+  .nf-wheel-sep{font-weight:800;color:#94a3b8}
   /* 时间维度自定义区：.exW3 只作三列等宽布局容器，滚动/吸附由内层 .wheelbox 承担 */
   .exW3{flex:1;min-width:0}
   .nav-arrow{width:32px;height:32px;border-radius:50%;font-size:18px;color:#94a3b8;line-height:1}
@@ -563,7 +569,8 @@ tailwind.config = {
       </div>
       <div class="card mt-3">
         <div class="flex justify-between items-center"><div class="row-title">日记复盘</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>晚间复盘提醒时间</span><select class="sel"><option>21:30</option><option>22:00</option><option>自定义</option></select></div>
+        <div class="mt-2 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400"><span>晚间复盘提醒时间</span><button id="nfDiaryVal" class="mini-btn" onclick="nfToggle('diary')">21:30</button></div>
+        <div id="nfDiaryBox" class="nf-wheel hidden mt-2"><div class="nf-wheel-col"><div id="nfDiaryH"></div></div><span class="nf-wheel-sep">:</span><div class="nf-wheel-col"><div id="nfDiaryM"></div></div><button class="mini-btn" onclick="nfApply('diary')">确定</button></div>
         <div class="mt-2 flex justify-between items-center text-xs"><span>含今日概览草稿自动预览</span><span class="toggle on" onclick="tgl(this)"></span></div>
       </div>
       <div class="card mt-3">
@@ -581,7 +588,8 @@ tailwind.config = {
       </div>
       <div class="card mt-3">
         <div class="row-title">免打扰时段</div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>23:00 – 07:00 · 仅逾期紧急项可穿透</span><button class="mini-btn" onclick="toast('编辑时段（模拟）')">设置</button></div>
+        <div class="mt-2 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400"><span id="nfDndVal">23:00 – 07:00 · 仅逾期紧急项可穿透</span><button id="nfDndSet" class="mini-btn" onclick="nfToggle('dnd')">设置</button></div>
+        <div id="nfDndBox" class="nf-wheel hidden mt-2"><div class="nf-wheel-col"><div id="nfDndSH"></div></div><span class="nf-wheel-sep">–</span><div class="nf-wheel-col"><div id="nfDndEH"></div></div><button class="mini-btn" onclick="nfApply('dnd')">确定</button></div>
       </div>
     </section>
 
@@ -1062,6 +1070,35 @@ darkApply();
 renderNav();
 renderThemeRow(); renderSideThemes(); renderDeskMenu(); renderDeskPin(); renderMkt();
 tick(); setInterval(tick,10000);
+/* ===== 反馈批3 · 提醒通知就地滚轮（2026-11-08 · 原型先行） =====
+   复盘时间＝时/分双列可任选；免打扰起止＝整点双列（与排程整点判定同源）；
+   两处都在同一张卡片内就地展开，不做两段式弹层、不留 toast 占位。*/
+const NF_H=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+const NF_M=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
+const NF_W={},NF_IH=26;let nfOpen='';
+function nfReg(id,items,i){const w=NF_W[id]={items:items,i:i||0},el=$('#'+id);if(!el)return;
+  const n=items.length,rep=Math.max(4,Math.ceil(180/n));let h='<div style="height:26px"></div>';
+  for(let k=0;k<rep*n;k++)h+='<div class="witem">'+items[k%n]+'</div>';
+  h+='<div style="height:26px"></div>';el.innerHTML='<div class="wheelbox">'+h+'</div>';
+  const bx=w._bx=el.firstElementChild;w._rep=rep;
+  bx.scrollTop=(Math.floor(rep/2)*n+w.i)*NF_IH;nfSync(id);
+  bx.addEventListener('scroll',()=>{nfSync(id);clearTimeout(w._tm);w._tm=setTimeout(()=>nfCommit(id),120)});}
+function nfAbs(id){const w=NF_W[id];return w._bx?Math.round(w._bx.scrollTop/NF_IH):w.i}
+function nfSync(id){const w=NF_W[id];if(!w._bx)return;const c=nfAbs(id);w._bx.querySelectorAll('.witem').forEach((d,k)=>d.classList.toggle('on',k===c))}
+function nfCommit(id){const w=NF_W[id],n=w.items.length;w.i=((nfAbs(id)%n)+n)%n}
+function nfVal(id){const w=NF_W[id];return w.items[w.i]}
+function nfBox(which){return $('#'+(which==='diary'?'nfDiaryBox':'nfDndBox'))}
+function nfToggle(which){const box=nfBox(which);if(nfOpen&&nfOpen!==which)nfBox(nfOpen).classList.add('hidden');
+  const show=box.classList.contains('hidden');box.classList.toggle('hidden',!show);nfOpen=show?which:'';
+  if(show)requestAnimationFrame(()=>nfInit(which));}
+function nfInit(which){
+  if(which==='diary'){const t=$('#nfDiaryVal').textContent.split(':');nfReg('nfDiaryH',NF_H,NF_H.indexOf(t[0]));nfReg('nfDiaryM',NF_M,NF_M.indexOf(t[1]));}
+  else{const t=$('#nfDndVal').textContent.split(' – ');nfReg('nfDndSH',NF_H,NF_H.indexOf(t[0].slice(0,2)));nfReg('nfDndEH',NF_H,NF_H.indexOf(t[1].slice(0,2)));}}
+function nfApply(which){
+  if(which==='diary')$('#nfDiaryVal').textContent=nfVal('nfDiaryH')+':'+nfVal('nfDiaryM');
+  else $('#nfDndVal').textContent=nfVal('nfDndSH')+':00 – '+nfVal('nfDndEH')+':00 · 仅逾期紧急项可穿透';
+  nfBox(which).classList.add('hidden');nfOpen='';
+  toast(which==='diary'?'复盘提醒时间已更新':'免打扰时段已更新');}
 </script>
 
 <script>

@@ -503,6 +503,48 @@ tailwind.config = {
   .mds-mom-row .mds-mom-add{margin-bottom:0;flex:1}
   .mds-mom-imp{padding:11px 14px;border-radius:14px;border:1.5px solid var(--card-bd);color:var(--mds-ink);font-weight:800;font-size:13px;background:var(--card);box-shadow:var(--card-sh);cursor:pointer;white-space:nowrap}
 </style>
+<style id="mclab-2a">
+/* ===== 2A · 四类实物卡候选视觉语言样张（2026-11-08 · 待产品过门） =====
+   范围只在本屏 #m-cardlab；现行影音架仍是 2026-09-23 定稿的扁平基线，不回灌、不动实现。
+   亚麻/胡桃底与双层阴影按《影音游模块开发计划-20260922》§三 原始规格复现。 */
+.mclab-desk{
+  --mds-desk-bg:#f7f1e6;
+  --mds-shadow-contact:0 2px 4px rgba(0,0,0,.28);
+  --mds-shadow-ambient:8px 20px 36px rgba(0,0,0,.12);
+  --mds-shadow-lift:0 18px 44px rgba(0,0,0,.24);
+  background-color:#f7f1e6;
+  background-image:repeating-linear-gradient(45deg,rgba(120,95,60,.055) 0 1px,transparent 1px 4px),repeating-linear-gradient(-45deg,rgba(120,95,60,.055) 0 1px,transparent 1px 4px);
+  color:#2b2118;padding:14px 16px 18px;min-height:100%
+}
+html.dark .mclab-desk{
+  --mds-desk-bg:#2d1f14;
+  --mds-shadow-contact:0 2px 4px rgba(0,0,0,.55);
+  --mds-shadow-ambient:8px 20px 36px rgba(0,0,0,.42);
+  --mds-shadow-lift:0 18px 44px rgba(0,0,0,.6);
+  background-color:#2d1f14;
+  background-image:repeating-linear-gradient(90deg,rgba(255,235,205,.035) 0 1px,transparent 1px 5px);
+  color:#f3e8d8
+}
+.mclab-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:6px 2px}
+.mclab-head .brand{font-size:15px;font-weight:800;letter-spacing:.5px}
+.mclab-head .tag{font-size:9px;font-family:var(--mds-font-mono);letter-spacing:.5px;color:var(--accent,#6366f1);border:1px solid currentColor;border-radius:99px;padding:2px 8px;white-space:nowrap}
+html.dark .mclab-head .tag{color:var(--accent-l,#818cf8)}
+.mclab-note{font-size:10px;line-height:1.55;opacity:.72;margin:0 2px 14px;font-family:var(--mds-font-mono);letter-spacing:.2px}
+.mclab-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 14px;align-items:start}
+.mclab-cell{min-width:0}
+.mclab-kicker{font-family:var(--mds-font-mono);font-size:9px;font-weight:700;letter-spacing:.8px;color:var(--accent,#6366f1);margin-bottom:8px;white-space:nowrap}
+html.dark .mclab-kicker{color:var(--accent-l,#818cf8)}
+.mclab-cap{font-family:var(--mds-font-mono);font-size:8.5px;line-height:1.45;opacity:.72;margin-top:8px}
+.mclab-foot{margin-top:16px;padding-top:8px;border-top:1px dashed currentColor;font-family:var(--mds-font-mono);font-size:9px;line-height:1.7;opacity:.66}
+/* 四类材质沿用既有 .mds-* 定义；此处只把「双层阴影」钉在本屏 */
+.mclab-desk .mds-card{box-shadow:var(--mds-shadow-contact),var(--mds-shadow-ambient)}
+.mclab-desk .mds-card:hover{box-shadow:var(--mds-shadow-contact),var(--mds-shadow-lift)}
+.mclab-desk .mds-music.slide .vinyl{left:32%}
+.mclab-desk .mds-game .sticker .ttl,.mclab-desk .mds-game .sticker .yr{color:#1f2937}
+/* 样张屏激活时桌面底全出血，避免隐藏底栏留下一截手机框底色 */
+body:has(#m-cardlab.active) #phone{background-color:#f7f1e6!important;background-image:repeating-linear-gradient(45deg,rgba(120,95,60,.055) 0 1px,transparent 1px 4px),repeating-linear-gradient(-45deg,rgba(120,95,60,.055) 0 1px,transparent 1px 4px)!important}
+html.dark body:has(#m-cardlab.active) #phone{background-color:#2d1f14!important;background-image:repeating-linear-gradient(90deg,rgba(255,235,205,.035) 0 1px,transparent 1px 5px)!important}
+</style>
 <style id="lh-float-label">
 /* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
 .fl-field{position:relative;display:flow-root}
@@ -805,6 +847,68 @@ tailwind.config = {
         <button class="mds-chip" onclick="mOpenNoteEdit(mCurDetail?mCurDetail.id:'')">＋ 名场面</button>
         <button class="mds-chip on" style="padding:12px 22px" onclick="mTimerScreenTap()" id="mdsTimerGoBtn">▶ 开始</button>
         <button class="mds-chip" onclick="openSheet('m-sheet-progress')">＋ 进度</button>
+      </div>
+    </section>
+
+    <!-- ===== 2A · M-CARDLAB 四类实物卡候选视觉语言样张（2026-11-08 · 不回灌扁平基线） ===== -->
+    <section id="m-cardlab" class="page no-scrollbar">
+      <div class="mclab-desk">
+        <div class="mclab-head"><div class="brand">四类实物卡 · 样张</div><div class="tag">候选 · 待过门</div></div>
+        <div class="mclab-note">亚麻／胡桃底 ＋ 接触·环境双层阴影；四类材质沿用 2026-09-22 计划 §三 造型。</div>
+        <div class="mclab-grid">
+
+          <div class="mclab-cell" data-k="movie">
+            <div class="mclab-kicker">01 · 电影 / MOVIE</div>
+            <div class="mds-card mds-movie" data-card="movie">
+              <div class="poster" style="background:linear-gradient(165deg,#1b2a4a 0%,#3b2c4f 42%,#8c4a3f 100%)">
+                <div class="grain"></div><div class="mono">花</div>
+                <div class="gen">MOVIE</div><div class="rt">8.7</div>
+                <div class="ttl">花样年华</div><div class="yr">2000 · 王家卫</div>
+              </div>
+            </div>
+            <div class="mclab-cap">2:3 卡纸海报 · 极细卷边 · matte</div>
+          </div>
+
+          <div class="mclab-cell" data-k="series">
+            <div class="mclab-kicker">02 · 剧集 / SERIES</div>
+            <div class="mds-card mds-series" data-card="series" onclick="this.classList.toggle('open')">
+              <div class="spine"><span>SEASON 01</span></div>
+              <div class="lid"></div><div class="depth"></div>
+              <div class="front">
+                <div class="sno">01</div>
+                <div class="ttl">大明王朝 1566</div>
+                <div class="sub">BLU-RAY BOX · 46 EPS</div>
+                <div class="badge">已追完</div>
+              </div>
+              <div class="discs"><div class="disc"></div><div class="disc"></div><div class="disc"></div><div class="disc"></div></div>
+            </div>
+            <div class="mclab-cap">3:2 蓝光 BOX · 左书脊 · 顶盖高光</div>
+          </div>
+
+          <div class="mclab-cell" data-k="music">
+            <div class="mclab-kicker">03 · 音乐 / MUSIC</div>
+            <div class="mds-card mds-music" data-card="music" onclick="this.classList.toggle('slide')">
+              <div class="vinyl"><div class="label">A 面<span class="hole"></span></div></div>
+              <div class="sleeve"><div class="ttl">范特西</div><div class="ar">周杰伦 · 2001</div><div class="mono2">范</div></div>
+            </div>
+            <div class="mclab-cap">1:1 黑胶＋封套 · 径向纹路 · 圆标</div>
+          </div>
+
+          <div class="mclab-cell" data-k="game">
+            <div class="mclab-kicker">04 · 游戏 / GAME</div>
+            <div class="mds-card mds-game" data-card="game">
+              <div class="ridges"></div><div class="plf">NES</div>
+              <div class="sticker">
+                <div class="band">LIFE HARNESS · 1986</div>
+                <div class="body"><div class="ttl">塞尔达传说</div><div class="yr">动作冒险 · 周目 2</div></div>
+              </div>
+              <div class="connector"></div><div class="slot"></div>
+            </div>
+            <div class="mclab-cap">3:2 FC 卡带 · 撕角 · 金手指与卡槽</div>
+          </div>
+
+        </div>
+        <div class="mclab-foot">样张只呈视觉语言候选；现行影音架仍为扁平基线，本屏不回灌、不动实现。听后感流继续挂。</div>
       </div>
     </section>
 

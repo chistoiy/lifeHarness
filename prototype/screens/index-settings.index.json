@@ -1,6 +1,6 @@
 {
  "file": "index-settings.html",
- "total": 103535,
+ "total": 106754,
  "cut": 0,
  "screens": [
   {
@@ -16,8 +16,8 @@
    "kind": "screen",
    "title": "提醒通知",
    "role": "home",
-   "size": 2820,
-   "hash": "35d45e0e"
+   "size": 3412,
+   "hash": "e0345846"
   },
   {
    "id": "p-sub-recmg",
