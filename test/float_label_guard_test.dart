@@ -132,6 +132,14 @@ void main() {
     expect(aiSrc.substring(gapAt, modelAt), contains('const SizedBox(height: 12)'),
         reason: '间距被删：聚焦浮动标签会压住紧贴其上的说明文字');
 
+    // 批6：_inlineDate 拆壳不回退——字段名必须进 labelText，外层 10px 标题壳不得复生
+    final hsSrc = srcs['lib/features/health/presentation/health_sheets.dart']!;
+    final inlAt = hsSrc.indexOf('Widget _inlineDate');
+    expect(inlAt, greaterThanOrEqualTo(0), reason: '_inlineDate 工厂丢失');
+    final inlBody = hsSrc.substring(inlAt, hsSrc.indexOf('Widget _numField', inlAt));
+    expect(inlBody, contains('labelText: label'), reason: '_inlineDate 字段名未收进 labelText');
+    expect(inlBody, isNot(contains("Text(label,")), reason: '_inlineDate 外层标题壳复生：与浮动标签重复');
+
     // E 类豁免：搜索/正文的占位文案不许被当成字段名搬走
     for (final e in _exemptHints.entries) {
       if (!srcs.containsKey(e.key)) continue;

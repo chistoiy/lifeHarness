@@ -319,25 +319,18 @@ Widget _wheel(BuildContext context,
 }
 
 Widget _inlineDate(BuildContext context, TextEditingController c, String label) {
-  final scheme = Theme.of(context).colorScheme;
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
-      TextField(
-        key: const ValueKey('hs-date'),
-        controller: c,
-        style: const TextStyle(fontSize: 12.5),
-        decoration: InputDecoration(
-          labelText: '日期',
-          floatingLabelBehavior: FloatingLabelBehavior.auto,
+  return TextField(
+    key: const ValueKey('hs-date'),
+    controller: c,
+    style: const TextStyle(fontSize: 12.5),
+    decoration: InputDecoration(
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
+      labelText: label,
           isDense: true,
           hintText: 'yyyy-MM-dd',
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(9)),
-        ),
-      ),
-    ],
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(9)),
+    ),
   );
 }
 
