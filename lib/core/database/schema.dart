@@ -82,8 +82,11 @@ class DbSchema {
   // txn_id（事件级记账流水关联·二次付费删记录同删联动流水；纯加列零搬数据）。
   // 52：物品批A（2026-11-06）——migrations[51]（51→52）给 item_profiles 加
   // brand / serial / note 三列（I03 档案三字段；全可空、纯加列）。
+  // 53：物品实物属性批（2026-11-09）——migrations[52]（52→53）给 item_profiles
+  // 加 8 个可空列（I05 位置 / I08 凭证 / I10 条码 / I11 借出 / I13 自定义 /
+  // I14 多图；纯加列零搬数据，见 itemsV53AddColumns 段注）。
   // 同 v49 教训：版本常量与 migrations 最高键必须同批同步。
-  static const int version = 52;
+  static const int version = 53;
  
 
   
@@ -93,6 +96,33 @@ class DbSchema {
   
   
   
+  /// 物品实物属性批 v53 的 8 条 ADD COLUMN（I05/I08/I10/I11/I13/I14）。
+  ///
+  /// 全部列可空、无 DEFAULT、零搬数据 ⇒ 已装用户升级后 8 列一律 NULL，
+  /// `ItemExtras.fromColumns` 把 NULL 回落成空值，老档案语义零损失。
+  ///
+  /// ⚠ 本域本轮只允许改 schema.dart / app_database.dart，`schema/items.dart`
+  /// 的基础 DDL 不可动；而新装库走 `onCreate`→`createStatements`、**不跑**
+  /// `migrations`（缺列即崩）。故同一批 ALTER 同时挂两处：`createStatements`
+  /// 尾部（紧跟 `...itemSchemaStatements` 建表之后，新装路径）与 `migrations[52]`
+  /// （52→53 升级路径）。两条路径互斥，绝不重复执行。
+  static const List<String> itemsV53AddColumns = [
+    // I14 多图：JSON 路径数组（首张作封面）。
+    'ALTER TABLE item_profiles ADD COLUMN photos TEXT',
+    // I05 位置两层树：'一级/二级' 路径。
+    'ALTER TABLE item_profiles ADD COLUMN location_path TEXT',
+    // I08 凭证附件：JSON 数组（发票照片 / 说明书 PDF）。
+    'ALTER TABLE item_profiles ADD COLUMN attachments TEXT',
+    // I10 条码（EAN/UPC 数字串）。
+    'ALTER TABLE item_profiles ADD COLUMN barcode TEXT',
+    // I11 借出归还：借给谁 / 借出日 / 应还日。
+    'ALTER TABLE item_profiles ADD COLUMN loan_to TEXT',
+    'ALTER TABLE item_profiles ADD COLUMN loan_at TEXT',
+    'ALTER TABLE item_profiles ADD COLUMN loan_due TEXT',
+    // I13 自定义字段：JSON 键值对象。
+    'ALTER TABLE item_profiles ADD COLUMN custom_fields TEXT',
+  ];
+
   static final List<String> createStatements = [
     
     '''
@@ -360,6 +390,8 @@ class DbSchema {
     ...careSchemaStatements,
     ...daysSchemaStatements,
     ...itemSchemaStatements,
+    // 新装库 onCreate 路径：建表后立即补齐 v53 八列（不走 migrations，见段注）。
+    ...itemsV53AddColumns,
     ...goalSchemaStatements,
     ...doubanMetaSchemaStatements,
     ...aiCallSchemaStatements,
@@ -507,5 +539,8 @@ class DbSchema {
     ...mm.mig,
     ...nf.mig,
     ...tg.mig,
+    // 52→53 升级路径：物品实物属性批八列（与 createStatements 尾部同源，
+    // 见 itemsV53AddColumns 段注）。版本常量已同步为 53。
+    52: itemsV53AddColumns,
   };
 }

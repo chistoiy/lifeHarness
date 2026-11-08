@@ -9,6 +9,8 @@ import '../providers.dart';
 import 'ai_client.dart';
 import 'ai_service.dart';
 import 'ai_providers.dart';
+import 'local_recall.dart';
+import 'recall_citations.dart';
 import 'token_stats.dart';
 import '../../shared/widgets/ui_kit.dart' show AppToast;
 
@@ -72,6 +74,10 @@ Future<AiCallResult?> aiRunWithReview(
   required String taskId,
   required Map<String, String> vars,
   double? temperature,
+  // C11：本次调用的本地召回命中（可选）。召回源（本地笔记/书摘 → RecallDoc）
+  // 由调用方装配后传入；本批未在 features 侧接全库读（组合根 main 禁改），
+  // 故默认 null＝零行为变化，审阅页引用段仅在显式传入且开关开时出现。
+  List<RecallHit>? recalls,
 }) async {
   final svc = ref.read(aiServiceProvider);
   final task = svc.effectiveTask(taskId);
@@ -87,6 +93,13 @@ Future<AiCallResult?> aiRunWithReview(
   }
   if (!context.mounted) return null;
   final (system, user) = svc.renderForReview(taskId, vars);
+  // C11：本地召回引用只做「审阅页可见」——settings KV 关＝恒空＝不显示，
+  // 命中只投影短片段与来源（recallCitations 丢弃全文），不上传全库。
+  final recallOn = ref.read(aiConfigProvider).localRecallOn;
+  final citations = recallCitations(
+    recalls ?? const <RecallHit>[],
+    enabled: recallOn,
+  );
   final confirmed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -95,6 +108,8 @@ Future<AiCallResult?> aiRunWithReview(
       name: task.name,
       system: system,
       user: user,
+      citations: citations,
+      recallOn: recallOn,
     ),
   );
   if (confirmed != true || !context.mounted) return null;
@@ -233,18 +248,28 @@ Future<AiCallResult?> aiRunWithReview(
 /// 点标题行展开。R7 的「发送前看到发什么」不变——预览行仍给出首行内容，
 /// 展开即全文；审阅→发送/取消的竞速与留痕都在 [aiRunWithReview] 外层完成。
 class _ReviewSheet extends ConsumerStatefulWidget {
-  const _ReviewSheet({required this.name, required this.system, required this.user});
+  const _ReviewSheet({
+    required this.name,
+    required this.system,
+    required this.user,
+    required this.citations,
+    required this.recallOn,
+  });
 
   final String name;
   final String system;
   final String user;
+
+  /// C11：本地召回引用（只含短片段与来源）。
+  final List<RecallCitation> citations;
+  final bool recallOn;
 
   @override
   ConsumerState<_ReviewSheet> createState() => _ReviewSheetState();
 }
 
 class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
-  bool _sysOpen = false, _usrOpen = false;
+  bool _sysOpen = false, _usrOpen = false, _citeOpen = false;
 
   static String _peek(String s) {
     final line = s.split('\n').first.trim();
@@ -287,6 +312,21 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
             onToggle: () => setState(() => _usrOpen = !_usrOpen),
             body: widget.user,
           ),
+          // C11：本地召回引用（settings KV 开且有命中才显；只显短片段与来源，
+          // 正文全库既不进这段也不进请求＝不上传全库）。沿用 _FoldSection
+          // 既有配色（内部取 Theme.colorScheme），零新增色值。
+          if (widget.recallOn && widget.citations.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _FoldSection(
+              key: const ValueKey('ai-review-citations'),
+              title: '本地引用 · 仅短片段与来源',
+              badge: '本地检索',
+              peek: '${widget.citations.length} 条引用 · 不上传全文',
+              open: _citeOpen,
+              onToggle: () => setState(() => _citeOpen = !_citeOpen),
+              body: formatCitationSection(widget.citations),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [

@@ -2511,7 +2511,7 @@ function addMedia(){const v=$('#mdTitle').value.trim();if(!v){toast('先起个�
   const rate=$('#mdRate').value.trim(), len=$('#mdLen').value.trim();
   MEDIA.unshift({n:v,t:t+(rate?' · 豆瓣 '+rate:'')+(len?' · '+len:''),st:st,p:st==='在看'?0:0,info:st==='在看'?'0% · 点 ▶ 开始计时':'',g:t==='游戏'?'from-violet-600 to-fuchsia-800':t==='剧集'?'from-sky-500 to-indigo-700':'from-amber-600 to-orange-800',tm:''});
   $('#mdTitle').value='';$('#mdRate').value='';$('#mdLen').value='';$('#mdNote').value='';
-  closeSheet('sheetAddMedia');renderMedia();
+  renderMedia();
   toast('🎬 已记录「'+v+'」· '+(st==='在看'?'点条目 ▶ 开始观影计时':'已入片单'))}
 function renderMedia(){const el=$('#mediaList');if(!el)return;
   el.innerHTML=MEDIA.map(x=>`<div class="card flex gap-3 items-center"><div class="w-11 h-16 rounded-lg bg-gradient-to-br ${x.g} shrink-0"></div>

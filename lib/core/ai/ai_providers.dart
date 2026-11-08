@@ -90,6 +90,12 @@ class AiConfigNotifier extends Notifier<AiConfig> {
     ref.invalidateSelf();
   }
 
+  /// C11：本地召回引用开关（settings KV 可关闭）。
+  Future<void> setLocalRecall(bool on) async {
+    await _repo.setLocalRecall(on);
+    ref.invalidateSelf();
+  }
+
   Future<void> setEndpoint(String baseUrl, String model,
       {String? protocol}) async {
     await _repo.setEndpoint(baseUrl: baseUrl, model: model, protocol: protocol);

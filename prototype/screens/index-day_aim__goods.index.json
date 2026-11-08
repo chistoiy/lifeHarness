@@ -1,6 +1,6 @@
 {
  "file": "index-day_aim__goods.html",
- "total": 297889,
+ "total": 299875,
  "cut": 0,
  "screens": [
   {
@@ -24,8 +24,8 @@
    "kind": "screen",
    "title": "编辑档案",
    "role": "home",
-   "size": 5854,
-   "hash": "7412c351"
+   "size": 7840,
+   "hash": "e814be55"
   },
   {
    "id": "p-itemStats",

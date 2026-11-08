@@ -10,7 +10,9 @@ import '../../../shared/widgets/image_attach.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/items_repository.dart';
 import '../domain/item_calc.dart';
+import '../domain/item_extras.dart';
 import '../domain/item_models.dart';
+import 'item_extras_sheet.dart';
 import 'items_kit.dart';
 import 'items_providers.dart';
 
@@ -61,6 +63,10 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   /// I01 照片：存本机 note_images 的完整路径；空串＝无照片（可清空）。
   String _photo = '';
 
+  /// 实物属性批（I05/I08/I10/I11/I13/I14）：建档草稿态，保存时随档案写入；
+  /// 编辑态回显原值，弹层不落库（建档时还没有 item_id）。
+  ItemExtras _extras = const ItemExtras();
+
   late DateTime _buy;
   DateTime? _warranty;
   String _cat = '数码';
@@ -98,6 +104,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       _serialCtl.text = o.serial ?? '';
       _noteCtl.text = o.note ?? '';
       _photo = o.photo ?? '';
+      _extras = o.extras;
     } else if (p != null) {
       _nameCtl.text = p.title;
       _priceCtl.text =
@@ -347,6 +354,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          _extrasEntry(),
           const SizedBox(height: 16),
           GradButton(
             key: const ValueKey('i-edit-save'),
@@ -622,6 +631,45 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     );
   }
 
+  /// 实物属性入口卡：建档/编辑页统一打开 `item_extras_sheet`（草稿态不落库，
+  /// 因为建档时尚无 item_id）。保存时随档案一次写入 v53 八列。
+  Widget _extrasEntry() {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      key: const ValueKey('i-edit-extras'),
+      onTap: _openExtras,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: context.cardDecoration,
+        child: Row(
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 18, color: scheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('实物属性（位置 · 凭证 · 条码 · 借出 · 自定义 · 多图）',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(extrasSummary(_extras),
+                      style: TextStyle(
+                          fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExtras() async {
+    final r = await showItemExtrasSheet(context, initial: _extras);
+    if (r != null && mounted) setState(() => _extras = r);
+  }
+
   Future<void> _save() async {
     final name = _nameCtl.text.trim();
     if (name.isEmpty) {
@@ -657,6 +705,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         serial: _serialCtl.text.trim(),
         note: _noteCtl.text.trim(),
         photo: _photo.isEmpty ? null : _photo,
+        extras: _extras,
         source: 'manual',
       );
       final id = await itemCreate(
@@ -693,6 +742,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         serial: _serialCtl.text.trim(),
         note: _noteCtl.text.trim(),
         photo: _photo.isEmpty ? '' : _photo,
+        extras: _extras,
       );
       await ref.read(itemsRepositoryProvider).updateItem(updated);
       if (!mounted) return;

@@ -10,8 +10,10 @@ import '../../../shared/linkage/item_mounts.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/item_calc.dart';
+import '../domain/item_extras.dart';
 import '../domain/item_models.dart';
 import 'item_edit_page.dart';
+import 'item_extras_sheet.dart';
 import 'items_kit.dart';
 import 'items_providers.dart';
 
@@ -77,6 +79,8 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
   Widget _body(ItemProfile it, DateTime now) {
     final scheme = Theme.of(context).colorScheme;
     final billing = it.billing;
+    // I14 多图首张作封面，回落 I01 单图 photo 列（老档案兼容）。
+    final cover = it.extras.photos.isEmpty ? it.photo : it.extras.photos.first;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
       children: [
@@ -92,11 +96,11 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(18),
               ),
-              // I01 详情照片：建档时落在本机的 photo 路径；无图/文件丢失回落分类图标。
-              child: (it.photo != null &&
-                      it.photo!.isNotEmpty &&
-                      File(it.photo!).existsSync())
-                  ? Image.file(File(it.photo!),
+              // I01 详情照片 / I14 多图首张：本机落盘路径；无图/丢失回落分类图标。
+              child: (cover != null &&
+                      cover.isNotEmpty &&
+                      File(cover).existsSync())
+                  ? Image.file(File(cover),
                       width: 92, height: 92, fit: BoxFit.cover)
                   : Icon(itemCatIcon(it.category), size: 40),
             ),
@@ -183,6 +187,8 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         _timelineCard(it),
         const SizedBox(height: 12),
         _linkCard(it),
+        const SizedBox(height: 12),
+        _itemExtrasCard(it),
       ],
     );
   }
@@ -718,6 +724,48 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         ],
       ),
     );
+  }
+
+  /// 实物属性汇总卡（I05/I08/I10/I11/I13/I14）：点击开编辑弹层，写库走
+  /// `updateItemExtras`，`itemsTouch` 全量重算（与本页其它写路径同口径）。
+  Widget _itemExtrasCard(ItemProfile it) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      key: const ValueKey('i-detail-extras'),
+      onTap: () => _openExtrasSheet(it),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: context.cardDecoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('实物属性（位置 · 凭证 · 条码 · 借出 · 自定义 · 多图）',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text(extrasSummary(it.extras),
+                style: TextStyle(
+                    fontSize: 11, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 6),
+            Text('点击管理 · I12 AI 拍照识别为需求门灰位（不接在线服务／零网络目的地）',
+                style: TextStyle(
+                    fontSize: 10, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExtrasSheet(ItemProfile it) async {
+    if (it.id == null) return;
+    final result =
+        await showItemExtrasSheet(context, initial: it.extras);
+    if (result == null || !mounted) return;
+    await ref
+        .read(itemsRepositoryProvider)
+        .updateItemExtras(it.id!, result);
+    if (!mounted) return;
+    itemsTouch(ref);
+    AppToast.show(context, '实物属性已保存');
   }
 
   void _goRemindCenter() {

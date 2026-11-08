@@ -442,7 +442,7 @@ tailwind.config = {
           <button onclick="itemPhotoDel()" class="px-2.5 h-7 rounded-lg bg-black/60 text-white text-[10px] font-extrabold">删除</button>
         </div>
       </div>
-      <div class="mt-1.5 text-center text-[10px] text-slate-400">照片存本机应用目录，随整包备份带走，不进云端</div>
+      <div class="mt-1.5 text-center text-[10px] text-slate-400">照片 / 多图 / 凭证存本机应用目录 · 随整包备份带走，不进云端（I01/I08/I14）</div>
       <input type="file" id="iePhotoCam" accept="image/*" capture="environment" class="hidden" onchange="itemPhotoRead(this)">
       <input type="file" id="iePhotoLib" accept="image/*" class="hidden" onchange="itemPhotoRead(this)">
       <div class="fl-field mt-4"><input id="ieName" class="inp" placeholder="如 MacBook Air M3"><label for="ieName" data-fl>名称 · 品牌型号</label></div>
@@ -480,6 +480,27 @@ tailwind.config = {
         <button class="tag-chip" onclick="ieStPick(this,'闲置')">闲置</button>
         <button class="tag-chip" onclick="ieStPick(this,'已回收(转出)')">已回收</button>
         <button class="tag-chip" onclick="ieStPick(this,'已报废')">已报废</button>
+      </div>
+      <!-- I01~I14 物品实物属性批（2026-11-09）：单屏内补齐，零新增屏 id／不碰注册表与索引卡 -->
+      <div class="mt-4 card text-xs">
+        <div class="row-title">实物属性 · 竞品对标补齐（批B 一次做完）</div>
+        <div class="mt-1 text-[10px] text-slate-400 leading-5">I01 拍照/相册 · I05 位置两层树 · I08 凭证附件 · I10 条码扫码 · I11 借出归还 · I12 AI 识别 · I13 自定义字段 · I14 多图</div>
+        <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
+          <div class="fl-field"><input id="ieLoc1" class="inp" placeholder="如 卧室"><label for="ieLoc1" data-fl>位置 · 一级（房间）</label></div>
+          <div class="fl-field"><input id="ieLoc2" class="inp" placeholder="如 衣柜第二层"><label for="ieLoc2" data-fl>位置 · 二级（收纳位）</label></div>
+          <div class="fl-field"><input id="ieBarcode" class="inp" placeholder="扫码或手输 EAN-13"><label for="ieBarcode" data-fl>条码（I10）</label></div>
+          <div class="fl-field"><input id="ieLoanTo" class="inp" placeholder="借给谁 / 应还日"><label for="ieLoanTo" data-fl>借出登记（I11）</label></div>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <button class="mini-btn" onclick="toast('调用既有一维码扫码通道（flutter_zxing）· 回填条码（模拟）')">扫码填条码</button>
+          <button class="mini-btn" onclick="toast('添加多图 · 复用本机图片选择基建（模拟）')">＋ 多图（I14）</button>
+          <button class="mini-btn" onclick="toast('挂发票/说明书凭证附件 · 与照片共用本地文件基建（模拟）')">＋ 凭证（I08）</button>
+          <button class="mini-btn" onclick="toast('新增自定义字段键值（模拟）')">＋ 自定义字段（I13）</button>
+          <button class="mini-btn" onclick="toast('登记借出 / 归还到期提醒（模拟）')">借出/归还（I11）</button>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+          <span class="tag-chip on">I01 已落</span><span class="tag-chip on">I05 已落</span><span class="tag-chip on">I08 已落</span><span class="tag-chip on">I10 已落</span><span class="tag-chip on">I11 已落</span><span class="tag-chip on">I13 已落</span><span class="tag-chip on">I14 已落</span><span class="tag-chip">I12 AI 识别 · 灰位（需求门·零在线服务）</span>
+        </div>
       </div>
       <div class="mt-4 card !p-0 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
         <label class="flex items-center justify-between px-1 py-3"><span>建档同步生成一条记账流水（联动 L12）</span><span class="toggle on" onclick="tgl(this)"></span></label>

@@ -130,6 +130,7 @@ class AiConfig {
     this.recordBody = true,
     this.summaryOnly = true,
     this.redactIdents = true,
+    this.localRecallOn = true,
     this.callKeepDays = 30,
   });
 
@@ -164,6 +165,10 @@ class AiConfig {
   /// C01 子批B「身份串脱敏」：默认开。手机号/邮箱/证件号/密钥打码后再发送
   /// （`ai_redaction.dart`）；关闭后原样发送（用户知情选择）。
   final bool redactIdents;
+
+  /// C11 本地召回引用：默认开。settings KV 可关闭——关＝审阅页不显示引用、
+  /// 零召回；纯本地、不上传全库（见 `recall_citations.dart`）。
+  final bool localRecallOn;
 
   /// V1.53 使用记录保留天数（0=不限；超期整批丢弃）。
   final int callKeepDays;
@@ -213,6 +218,8 @@ class AiConfigRepository {
   // C01 仅摘要发送（缺省：开）
   static const _kSummaryOnly = 'ai.summary_only';
   static const _kRedactIdents = 'ai.redact_idents';
+  // C11 本地召回引用开关（settings KV，可关闭）。
+  static const _kLocalRecall = 'ai.local_recall';
   static const _kCallKeepDays = 'ai.call_keep_days';
   // 旧版单值键（只读迁移来源，V1.53.1 起不再写入）
   static const _kBaseUrl = 'ai.base_url';
@@ -253,6 +260,7 @@ class AiConfigRepository {
         recordBody: _prefs.getBool(_kRecordBody) ?? true,
         summaryOnly: _prefs.getBool(_kSummaryOnly) ?? true,
         redactIdents: _prefs.getBool(_kRedactIdents) ?? true,
+        localRecallOn: _prefs.getBool(_kLocalRecall) ?? true,
         callKeepDays: _prefs.getInt(_kCallKeepDays) ?? kAiCallDefaultKeepDays,
       );
     }
@@ -297,6 +305,7 @@ class AiConfigRepository {
       recordBody: _prefs.getBool(_kRecordBody) ?? true,
       summaryOnly: _prefs.getBool(_kSummaryOnly) ?? true,
       redactIdents: _prefs.getBool(_kRedactIdents) ?? true,
+      localRecallOn: _prefs.getBool(_kLocalRecall) ?? true,
       callKeepDays: _prefs.getInt(_kCallKeepDays) ?? kAiCallDefaultKeepDays,
     );
   }
@@ -309,6 +318,9 @@ class AiConfigRepository {
   /// C01 子批B：AI 增强页「身份串脱敏」开关。
   Future<void> setRedactIdents(bool on) =>
       _prefs.setBool(_kRedactIdents, on);
+
+  /// C11：AI 增强页「本地召回引用」开关（settings KV，可关闭）。
+  Future<void> setLocalRecall(bool on) => _prefs.setBool(_kLocalRecall, on);
 
   /// 增/改一条服务商（按 id 覆盖；整表落盘即完成 providers 迁移）。
   Future<void> saveProvider(AiProvider p) async {

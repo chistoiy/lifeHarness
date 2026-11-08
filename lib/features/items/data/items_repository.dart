@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/database/schema.dart';
 import '../../../core/logging/app_log.dart';
 import '../domain/item_calc.dart';
+import '../domain/item_extras.dart';
 import '../domain/item_models.dart';
 
 /// 物品价值仓储（仿 care/days 范式）。
@@ -66,6 +67,8 @@ class ItemsRepository {
         'source': it.source,
         'source_txn_id': it.sourceTxnId,
         'deleted_at': it.deletedAt,
+        // 实物属性批（v53 八列）：空值写 NULL，老档案升级零数据风险。
+        ...it.extras.toColumns(),
         'updated_at': ts,
       };
 
@@ -204,6 +207,18 @@ class ItemsRepository {
   Future<void> updateItem(ItemProfile it) => db.update(DbSchema.tItemProfiles,
       _row(it, DateTime.now().millisecondsSinceEpoch),
       where: 'id = ?', whereArgs: [it.id]);
+
+  /// 实物属性批（I05/I08/I10/I11/I13/I14）：只更新 v53 八个可空列，
+  /// 不碰计费/状态/审计口径（与 updateItem 分离，详情页弹层单独调用）。
+  Future<void> updateItemExtras(int id, ItemExtras extras) => db.update(
+        DbSchema.tItemProfiles,
+        {
+          ...extras.toColumns(),
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
 
   // ==================== 生命周期三操作（全部仅追加 + 实时重算在引擎侧） ====
 

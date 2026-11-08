@@ -5,6 +5,8 @@
 /// 审计时间轴仅追加不删改（HG-D2）。
 library;
 
+import 'item_extras.dart';
+
 /// 计费方式（ieCalcPick 三 chip）。
 enum ItemMode {
   day('day', '直线法 · 按天摊薄'),
@@ -116,6 +118,7 @@ class ItemProfile {
     this.source = 'manual',
     this.sourceTxnId,
     this.deletedAt,
+    this.extras = const ItemExtras(),
     this.events = const [],
     this.usages = const [],
   });
@@ -151,6 +154,10 @@ class ItemProfile {
   /// V1.61 软删时刻（epoch ms）；null＝在册。非空＝在回收站，保留期内可恢复。
   final int? deletedAt;
 
+  /// 实物属性批（I05/I08/I10/I11/I13/I14，2026-11-09 · v53 八个可空列）。
+  /// 与计费/审计口径完全解耦：`copyWith` 默认沿用，编辑档案不会清空它。
+  final ItemExtras extras;
+
   final List<ItemEvent> events;
   final List<ItemUsage> usages;
 
@@ -181,6 +188,7 @@ class ItemProfile {
     String? source,
     int? sourceTxnId,
     int? deletedAt,
+    ItemExtras? extras,
     List<ItemEvent>? events,
     List<ItemUsage>? usages,
   }) =>
@@ -208,6 +216,8 @@ class ItemProfile {
         // 漏带 deletedAt 会把回收站里的档案洗成在册态（习惯模块踩过，这里显式带上）；
         // 清空只能走 restoreItem，故沿用 `?? this.` 语义。
         deletedAt: deletedAt ?? this.deletedAt,
+        // 实物属性默认沿用：编辑页只改账务/档案字段时不会把多图/位置/凭证洗掉。
+        extras: extras ?? this.extras,
         events: events ?? this.events,
         usages: usages ?? this.usages,
       );
@@ -234,6 +244,8 @@ class ItemProfile {
         source: r['source'] as String,
         sourceTxnId: r['source_txn_id'] as int?,
         deletedAt: r['deleted_at'] as int?,
+        // 列缺失 / NULL / 损坏 JSON 全在 ItemExtras.fromColumns 内回落空值。
+        extras: ItemExtras.fromColumns(r),
       );
 }
 

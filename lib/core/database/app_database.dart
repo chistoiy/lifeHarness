@@ -72,6 +72,9 @@ class AppDatabase {
 
   Future<void> _runMigrations(Database d, int from, int to) async {
     // 逐级执行 DbSchema.migrations；迁移自检（需求 8.3）留行数核对接入点。
+    // v53 物品实物属性批：八列的 ALTER 同时登记在 createStatements（新装库
+    // onCreate 路径，不跑本函数）与 migrations[52]（52→53 升级路径）——两条
+    // 路径互斥，缺任一处都会导致「新装库缺列/老库升级缺列」，改批时同批核对。
     for (var v = from; v < to; v++) {
       final stmts = DbSchema.migrations[v] ?? const [];
       AppLog.addKey('迁移 v${v + 1} 开始：${stmts.length} 条语句', src: '数据库');
