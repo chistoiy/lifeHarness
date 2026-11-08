@@ -130,6 +130,58 @@ List<ClipboardMeta> parseClipboardBatch(String raw) {
   return List<ClipboardMeta>.unmodifiable(out);
 }
 
+/// 一行是否是 external_id / 站内 URL（用于把「影音游批量粘贴」挡在建书之外）。
+/// 来源集合复用 [kExternalIdSources]，避免两处名单漂移。
+final String _extSrcAlt = kExternalIdSources.map(RegExp.escape).join('|');
+final RegExp _extIdLineRe = RegExp(
+  '^(?:$_extSrcAlt)\\s*[:：=]?\\s*[A-Za-z0-9_]+\$',
+  caseSensitive: false,
+);
+final RegExp _extIdAnywhereRe = RegExp(
+  '\\b(?:$_extSrcAlt)\\s*[:：=]\\s*[A-Za-z0-9_]+',
+  caseSensitive: false,
+);
+final RegExp _urlLineRe = RegExp(
+  r'^(?:https?://|www\.)\S+$',
+  caseSensitive: false,
+);
+
+/// 这行文本是 external_id 映射/URL 而非书名（导入页据此分流预览）。
+bool looksLikeExternalIdLine(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  return _extIdLineRe.hasMatch(s) ||
+      _extIdAnywhereRe.hasMatch(s) ||
+      _urlLineRe.hasMatch(s);
+}
+
+/// 渠道 id → 中文来源名（建书 `source` 列用；空/未知＝「离线粘贴」）。
+String clipboardSourceLabel(String id) => switch (id) {
+      'weread' => '微信读书',
+      'dedao' => '得到',
+      'apple' => 'Apple Books',
+      'kindle' => 'Kindle',
+      'douban' => '豆瓣',
+      _ => '离线粘贴',
+    };
+
+/// 批量粘贴书目元数据 → 建书行（书名 / 作者 / ISBN）。
+///
+/// 导入页「批量粘贴 · 离线解析」的确认写入只吃这三列：章节/页码/位置是
+/// **摘录级**字段，建书阶段无处可落，不塞进书名（不臆造）。
+/// 无书名的块跳过；external_id / URL 行也跳过（它们是影音游映射，不是书）。
+List<({String title, String author, String? isbn})> clipboardBookRows(
+  List<ClipboardMeta> metas,
+) {
+  final out = <({String title, String author, String? isbn})>[];
+  for (final m in metas) {
+    final title = m.book.trim();
+    if (title.isEmpty || looksLikeExternalIdLine(title)) continue;
+    out.add((title: title, author: m.author.trim(), isbn: m.isbn));
+  }
+  return List<({String title, String author, String? isbn})>.unmodifiable(out);
+}
+
 /// 影音游本地 external_id 字典键（纯离线标识，**不据此发起任何请求**）。
 const Set<String> kExternalIdSources = <String>{
   'tmdb', 'igdb', 'imdb', 'douban', 'bangumi', 'steam', 'anilist', 'trakt',

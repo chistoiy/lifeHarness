@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- 通知与定时提醒（M0末A）：Android 13+ 运行时申请；开机重传排程 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.CAMERA"/>
@@ -25,6 +26,13 @@
          既有天气查询（open-meteo）/ISBN 书目查询（豆瓣）；除此之外 App
          零网络请求（离线优先 / 隐私红线·终审修复波 Minor-3 如实登记）。 -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- C06 自动时间采集（2026-11-09）：`UsageStatsManager` 读取前台应用分段。
+         PACKAGE_USAGE_STATS＝「使用情况访问」**特殊权限**（signature|privileged|appop），
+         不弹运行时授权框，须用户在 系统设置 › 特殊应用权限 › 使用情况访问 手动开启；
+         未授予时通道回空分段＋去授予文案（不崩、不反复弹、不重试）。 -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
     <application
         android:label="lifeharness"
         android:name="${applicationName}"

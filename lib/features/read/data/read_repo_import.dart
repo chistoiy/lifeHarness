@@ -162,14 +162,23 @@ mixin _RepoImport on _ReadRepoBase {
   Future<({int created, int skipped})> importBookList(
     String raw, {
     ImportChannel? ch,
+  }) {
+    final rows = ch != null && ch.parser == 'csv'
+        ? parseCsvBookList(ch, raw)
+        : parseBookList(raw);
+    return importBookRows(rows);
+  }
+
+  /// 建书行的直接入口（C09 离线元数据批量粘贴复用同一条去重/建档路径）：
+  /// 一、二级去重命中即跳过；新档＝想读 · 来源「导入清单」。
+  Future<({int created, int skipped})> importBookRows(
+    List<ParsedBookRow> rows, {
+    String source = '导入清单',
   }) async {
     var created = 0, skipped = 0;
     final now = DateTime.now().millisecondsSinceEpoch;
     final made = <Book>[];
     final cache = <String, String>{};
-    final rows = ch != null && ch.parser == 'csv'
-        ? parseCsvBookList(ch, raw)
-        : parseBookList(raw);
     for (final r in rows) {
       final exist = await findBookFor(isbn: r.isbn, title: r.title, author: r.author);
       if (exist != null || cache.containsKey(normTitle(r.title))) {
@@ -181,7 +190,7 @@ mixin _RepoImport on _ReadRepoBase {
         title: r.title,
         author: r.author.isEmpty ? '待补' : r.author,
         isbn: r.isbn,
-        source: '导入清单',
+        source: source,
         state: Book.kStateWant,
         intro: '由书架清单导入，缺少作者与封面 · 点编辑补齐。',
         createdAt: now,

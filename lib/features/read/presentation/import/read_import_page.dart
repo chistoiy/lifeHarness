@@ -1,10 +1,15 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../data/offline_meta.dart';
+import '../../data/plain_book_import.dart';
 import '../../data/read_import.dart';
+import '../../data/text_import.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart';
+import '../reader/epub_state_ui.dart' show brStartPreload;
 
 /// 导入向导（原型 p-readimport · 计划 §5）：五类渠道 chips + 渠道卡 +
 /// 粘贴解析预览（三级去重逐行标 新增/已存在/将建档）+ 整批导入 + 撤销本批 +
@@ -29,6 +34,22 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
   List<int>? _lastBatch; // 撤销本批的摘录 id
   bool _busy = false;
 
+  // ---- C09 离线元数据批量粘贴（纯本地解析，零请求）----
+  final _metaText = TextEditingController();
+  List<({String title, String author, String? isbn})>? _metaRows;
+  List<ExternalIdEntry> _metaExt = const [];
+  String _metaSource = '离线粘贴';
+  bool _metaBusy = false;
+
+  // ---- C12 TXT / FB2 本地文本导入（纯 Dart 解析 → 最小 EPUB）----
+  final _docText = TextEditingController();
+  String _docFmt = 'TXT';
+  String _docName = '';
+  String _docEncoding = 'utf-8';
+  String? _docWarn;
+  TextBookDraft? _docDraft;
+  bool _docBusy = false;
+
   ImportChannel? get _ch => _pack?.byId(_chId);
 
   @override
@@ -42,6 +63,8 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
   @override
   void dispose() {
     _text.dispose();
+    _metaText.dispose();
+    _docText.dispose();
     super.dispose();
   }
 
@@ -126,6 +149,129 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     );
   }
 
+  // ==================== C09 离线元数据（批量粘贴 · 本地解析） ====================
+
+  void _parseMeta() {
+    final raw = _metaText.text;
+    final metas = parseClipboardBatch(raw);
+    final src = metas
+        .map((m) => m.source)
+        .firstWhere((s) => s.isNotEmpty, orElse: () => '');
+    setState(() {
+      _metaRows = clipboardBookRows(metas);
+      _metaExt = parseExternalIdBatch(raw);
+      _metaSource = clipboardSourceLabel(src);
+    });
+  }
+
+  Future<void> _commitMeta() async {
+    final rows = _metaRows;
+    if (rows == null || rows.isEmpty) return;
+    setState(() => _metaBusy = true);
+    final r = await ref.read(readRepositoryProvider).importBookRows(
+      [
+        for (final x in rows)
+          ParsedBookRow(title: x.title, author: x.author, isbn: x.isbn),
+      ],
+      source: _metaSource,
+    );
+    if (!mounted) return;
+    setState(() {
+      _metaBusy = false;
+      _metaRows = null;
+      _metaExt = const [];
+      _metaSource = '离线粘贴';
+      _metaText.clear();
+    });
+    ref.read(readTickProvider.notifier).state++;
+    readToast(
+      context,
+      '离线元数据已写入 · 新建 ${r.created} 本 · 跳过重复 ${r.skipped} 条',
+    );
+  }
+
+  // ==================== C12 TXT / FB2（本地文本 → 可读书籍） ====================
+
+  Future<void> _pickDocFile() async {
+    final r = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['txt', 'fb2'],
+      withData: true,
+    );
+    if (r == null || r.files.isEmpty) return;
+    final f = r.files.first;
+    final bytes = f.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      if (!mounted) return;
+      readToast(context, '文件读取失败或为空，请重新选择');
+      return;
+    }
+    final dec = decodeBookBytes(bytes);
+    if (!mounted) return;
+    setState(() {
+      _docName = f.name;
+      _docFmt = (f.extension ?? '').toLowerCase() == 'fb2' ? 'FB2' : 'TXT';
+      _docText.text = dec.text;
+      _docEncoding = dec.encoding;
+      _docWarn = dec.warning;
+      _docDraft = null;
+    });
+  }
+
+  void _parseDoc() {
+    final raw = _docText.text;
+    if (raw.trim().isEmpty) {
+      setState(() => _docDraft = null);
+      readToast(context, '先粘贴全文或选择 TXT / FB2 文件');
+      return;
+    }
+    final draft = _docFmt == 'FB2'
+        ? parseFb2Draft(
+            raw,
+            fileName: _docName.isEmpty ? null : _docName,
+            encoding: _docEncoding,
+            warnings: [if (_docWarn != null) _docWarn!],
+          )
+        : parseTxtDraft(
+            raw,
+            fileName: _docName.isEmpty ? null : _docName,
+            encoding: _docEncoding,
+            warnings: [if (_docWarn != null) _docWarn!],
+          );
+    setState(() => _docDraft = draft);
+  }
+
+  Future<void> _commitDoc() async {
+    final draft = _docDraft;
+    if (draft == null || draft.isEmpty) return;
+    setState(() => _docBusy = true);
+    try {
+      final b = await PlainBookImportService(
+        ref.read(readRepositoryProvider),
+      ).commit(draft);
+      if (!mounted) return;
+      setState(() {
+        _docBusy = false;
+        _docDraft = null;
+        _docText.clear();
+        _docName = '';
+        _docWarn = null;
+      });
+      ref.read(readTickProvider.notifier).state++;
+      brStartPreload(ref, b, context);
+      readToast(
+        context,
+        '《${b.title}》已由 ${draft.format} 本地转换并加入书架 · '
+        '${draft.chapters.length} 章 · 正在后台预载',
+      );
+    } catch (_) {
+      // catch-ok: 写盘/建书失败已在屏上 toast 明示，导入页不中断（纯本地，无网络）。
+      if (!mounted) return;
+      setState(() => _docBusy = false);
+      readToast(context, '生成书籍失败，请检查文件内容后重试');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -174,6 +320,10 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 10),
+                _metaCard(cs, tokens),
+                const SizedBox(height: 10),
+                _docCard(cs, tokens),
                 const SizedBox(height: 10),
                 if (ch != null && ch.parser == 'none')
                   _card(
@@ -290,10 +440,349 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
                     style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
                   ),
                 ],
+                const SizedBox(height: 10),
+                _unsupportedCard(cs, tokens),
               ],
             ),
     );
   }
+
+  /// C09：批量粘贴 → 本地正则解析 → 预览 → 确认写入书架（不联网）。
+  Widget _metaCard(ColorScheme cs, ThemeTokens tokens) {
+    final rows = _metaRows;
+    return _card(
+      cs,
+      tokens,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _title(cs, tokens, '批量粘贴 · 离线元数据'),
+          const SizedBox(height: 4),
+          Text(
+            '粘贴书目信息（书名 / 作者 / ISBN / 页码）或影音游「来源:id」清单 · '
+            '纯本地解析，零请求',
+            style: TextStyle(fontSize: 10.5, height: 1.5, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            key: const ValueKey('imp-meta-text'),
+            controller: _metaText,
+            maxLines: 5,
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              hintText: '《书名》\n作者：张三\nISBN 9787111000000',
+              hintStyle: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+              filled: true,
+              fillColor: cs.surfaceContainerHighest.withValues(alpha: .35),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('imp-meta-parse'),
+                  onPressed: _metaBusy ? null : _parseMeta,
+                  child: const Text('解析预览'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('imp-meta-commit'),
+                  onPressed: _metaBusy || rows == null || rows.isEmpty
+                      ? null
+                      : _commitMeta,
+                  child: Text(rows == null ? '确认写入' : '写入 ${rows.length} 本'),
+                ),
+              ),
+            ],
+          ),
+          if (rows != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '书目 ${rows.length} 条 · 来源 $_metaSource · '
+              '影音游 external_id ${_metaExt.length} 条',
+              key: const ValueKey('imp-meta-sum'),
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+            for (var i = 0; i < rows.length && i < 20; i++)
+              Container(
+                key: ValueKey('imp-meta-row-$i'),
+                margin: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest.withValues(alpha: .35),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        rows[i].author.isEmpty
+                            ? rows[i].title
+                            : '${rows[i].title} · ${rows[i].author}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (rows[i].isbn != null)
+                      Text(
+                        rows[i].isbn!,
+                        style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                      ),
+                  ],
+                ),
+              ),
+            if (rows.length > 20)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '… 其余 ${rows.length - 20} 条将在确认写入时一并创建',
+                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                ),
+              ),
+            if (_metaExt.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '影音游映射：${_metaExt.take(4).map((e) => '${e.source}:${e.id}').join(' · ')}'
+                  '${_metaExt.length > 4 ? ' …等 ${_metaExt.length} 条' : ''}'
+                  ' · 仅本地预览（媒体库写入侧本轮未开放）',
+                  key: const ValueKey('imp-meta-ext'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1.5,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// C12：TXT / FB2 粘贴或选文件 → 解析预览 → 生成可读书籍（最小 EPUB）。
+  Widget _docCard(ColorScheme cs, ThemeTokens tokens) {
+    final d = _docDraft;
+    return _card(
+      cs,
+      tokens,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _title(cs, tokens, '本地文本 · TXT / FB2'),
+              const Spacer(),
+              TextButton(
+                key: const ValueKey('imp-doc-pick'),
+                onPressed: _docBusy ? null : _pickDocFile,
+                child: Text(
+                  '选择文件',
+                  style: TextStyle(fontSize: 11.5, color: tokens.accent),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '纯 Dart 解析（UTF-8 / GBK 自动识别）· 本地转成可读书籍，不上传、不联网',
+            style: TextStyle(fontSize: 10.5, height: 1.5, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final f in const ['TXT', 'FB2'])
+                _chip(
+                  cs,
+                  tokens,
+                  keyName: 'imp-doc-fmt-$f',
+                  label: f,
+                  on: _docFmt == f,
+                  onTap: () => setState(() {
+                    _docFmt = f;
+                    _docDraft = null;
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            key: const ValueKey('imp-doc-text'),
+            controller: _docText,
+            maxLines: 5,
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              hintText: _docFmt == 'FB2'
+                  ? '粘贴 FB2（XML）全文，或点右上「选择文件」'
+                  : '粘贴 TXT 全文，或点右上「选择文件」',
+              hintStyle: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+              filled: true,
+              fillColor: cs.surfaceContainerHighest.withValues(alpha: .35),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          if (_docName.isNotEmpty || _docWarn != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                [
+                  if (_docName.isNotEmpty) '文件：$_docName · 编码 $_docEncoding',
+                  if (_docWarn != null) _docWarn!,
+                ].join('\n'),
+                key: const ValueKey('imp-doc-warn'),
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1.5,
+                  color: _docWarn == null ? cs.onSurfaceVariant : cs.error,
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('imp-doc-parse'),
+                  onPressed: _docBusy ? null : _parseDoc,
+                  child: const Text('解析预览'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('imp-doc-commit'),
+                  onPressed: _docBusy || d == null || d.isEmpty
+                      ? null
+                      : _commitDoc,
+                  child: Text(_docBusy ? '生成中…' : '生成书籍'),
+                ),
+              ),
+            ],
+          ),
+          if (d != null)
+            Container(
+              key: const ValueKey('imp-doc-preview'),
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withValues(alpha: .35),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '《${d.title}》${d.author.isEmpty ? '' : ' · ${d.author}'}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${d.format} · 章节 ${d.chapters.length} · ${d.charCount} 字 · '
+                    '编码 ${d.encoding}',
+                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                  ),
+                  if (d.chapters.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      d.chapterSummary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                    ),
+                  ],
+                  for (final w in d.warnings)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        w,
+                        style: TextStyle(fontSize: 10, height: 1.4, color: cs.error),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// C13 口径：不支持格式显式列出（不静默降级、不建空书）。
+  Widget _unsupportedCard(ColorScheme cs, ThemeTokens tokens) => _card(
+    cs,
+    tokens,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.block, size: 14, color: cs.onSurfaceVariant),
+            const SizedBox(width: 6),
+            _title(cs, tokens, '不支持的格式（不静默降级）'),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '以下格式本页不解析、不建空书、不冒充成功；请先转成 EPUB / TXT / FB2。',
+          style: TextStyle(fontSize: 10.5, height: 1.5, color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 6),
+        for (final f in kUnsupportedReadFormats)
+          Padding(
+            key: ValueKey('imp-unsup-${f.ext}'),
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '.${f.ext}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${f.name} · ${f.reason}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      height: 1.45,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
 
   Widget _channelCard(ColorScheme cs, ThemeTokens tokens, ImportChannel x) {
     final on = x.id == _chId;

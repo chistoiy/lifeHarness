@@ -124,6 +124,12 @@ class MediaUsageScanner {
     // 物品批A I01（2026-11-06）：建档照片落 `note_images/`。引用列不登记的话，
     // 照片存了等于没存——清理扫描会把在档照片全判成孤儿删掉（health/media 同款坑）。
     ('item_profiles', 'photo'),
+    // 物品实物属性批 v53（2026-11-09）：I14 多图 `photos` 与 I08 凭证附件
+    // `attachments` 都是 **JSON 数组文本**（元素是落盘路径），与上面几列同一条
+    // 判定：路径字符串出现在列文本里 ⇒ basename 命中即算引用（不改判定逻辑）。
+    // 漏登记 ⇒ 用户在档的多图/发票/说明书被当孤儿清掉（「存了就等于没存」）。
+    ('item_profiles', 'photos'),
+    ('item_profiles', 'attachments'),
   ];
 
   /// 引用列全文（一次性拉入内存；R5c 孤儿判定与 R5d 云端清理共用）。

@@ -8,11 +8,27 @@ import '../../../core/database/app_database.dart';
 import '../../../core/providers.dart';
 import '../data/category_dao.dart';
 import '../data/time_block_dao.dart';
+import '../data/usage_pending_sink.dart';
+import '../data/usage_stats_source.dart';
 import '../domain/category.dart';
 import '../domain/time_block.dart';
 
 final timeBlockDaoProvider = Provider<TimeBlockDao>(
     (ref) => TimeBlockDao(AppDatabase.instance.db));
+
+/// C06 自动时间采集通道（`lh/usagestats`）。
+final usageStatsSourceProvider =
+    Provider<UsageStatsSource>((ref) => UsageStatsSource());
+
+/// C06 采集一次（默认今日）→ 建议块 → 习惯「自动达成源待确认队列」。
+///
+/// 只在被 watch 时跑；拒权回 `granted=false`＋「去授予」文案（不抛、不自动弹
+/// 设置页）。**不直接写打卡流水**：确认仍走习惯页既有待确认弹层。
+final usageCollectProvider = FutureProvider<UsageIngestReport>(
+  (ref) => collectUsageIntoPending(
+    source: ref.watch(usageStatsSourceProvider),
+  ),
+);
 
 /// B10 搬移服务的 db 供给口（独立 provider＝测试可注入 ffi 内存库，
 /// 不触 AppDatabase 单例；CalendarPage init 经此触发一次性并入）。

@@ -9,9 +9,9 @@
 /// [parseDdlColumns] 解析，二者都不在 core 层自建第二份定义（避免 core→shared
 /// 反向依赖，R2 同族顾虑；交叉一致性由守护用例负责）。
 ///
-/// 写进可读目录树的 UI 出口在 `shared/linkage/backup_read_export.dart`
-/// （本轮禁改路径），故本层提供 [readableProjectionMembers] 成员 map，
-/// 待该出口接线时并入其投影成员表即可（「UI 出口待接线」）。
+/// 写进可读目录树的出口在 `shared/linkage/backup_read_export.dart`：该处把
+/// [readableProjectionMembers] 的 `FORMAT.md` / `schema.json` 落到目录根
+/// （C05 收尾已接线；逐表 CSV 投影见 `readable_tables.dart`）。
 library;
 
 import 'dart:convert';
@@ -103,15 +103,61 @@ class ReadableTableDoc {
   return (table: table, columns: cols);
 }
 
+/// 从一条 `ALTER TABLE x ADD [COLUMN] y …` 解析「表 ＋ 追加列」（纯函数、容错）。
+///
+/// 纯加列迁移（如 `DbSchema.itemsV53AddColumns`）只以 ALTER 形态存在、不进
+/// CREATE TABLE 文本；只解建表语句会让 FORMAT.md 的「逐表字段」漏列——
+/// `item_profiles.photos` / `item_profiles.attachments` 正是此类。
+({String table, String column})? parseAlterAddColumn(String ddl) {
+  final m = RegExp(
+    r'ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+'
+    r'ADD\s+(?:COLUMN\s+)?["`\[]?([A-Za-z_][A-Za-z0-9_]*)',
+    caseSensitive: false,
+  ).firstMatch(ddl);
+  if (m == null) return null;
+  return (table: m.group(1)!, column: m.group(2)!);
+}
+
 /// 批量把 DDL 语句清单解析成「表 → 列」映射（供 [buildFormatMarkdown] 用）。
+///
+/// 建表语句定基列，`ALTER … ADD COLUMN` 在**全部建表之后**追加（两趟合并：
+/// 若 ALTER 排在 CREATE 之前，单趟会在建表时把已收集的追加列覆盖掉）。
 Map<String, List<String>> parseAllDdlColumns(Iterable<String> statements) {
   final out = <String, List<String>>{};
+  final adds = <({String table, String column})>[];
   for (final s in statements) {
     final parsed = parseDdlColumns(s);
-    if (parsed != null) out[parsed.table] = parsed.columns;
+    if (parsed != null) {
+      out[parsed.table] = parsed.columns;
+      continue;
+    }
+    final added = parseAlterAddColumn(s);
+    if (added != null) adds.add(added);
+  }
+  for (final a in adds) {
+    final cols = out.putIfAbsent(a.table, () => <String>[]);
+    if (!cols.contains(a.column)) cols.add(a.column);
   }
   return out;
 }
+
+/// 组装 FORMAT.md 的逐表字段说明（纯函数：列/时间列/谓词全部由调用方注入，
+/// 本层不查库、不自建第二份 schema 定义）。
+List<ReadableTableDoc> buildReadableTableDocs({
+  required Iterable<String> tables,
+  required Map<String, List<String>> ddlColumns,
+  Map<String, String> timeColumns = const {},
+  Map<String, String> timePredicates = const {},
+}) =>
+    <ReadableTableDoc>[
+      for (final t in tables)
+        ReadableTableDoc(
+          table: t,
+          columns: ddlColumns[t] ?? const <String>[],
+          timeColumn: timeColumns[t],
+          timePredicate: timePredicates[t],
+        ),
+    ];
 
 /// 生成 `FORMAT.md`：schema 版本 ＋ 目录结构 ＋ 逐表字段 ＋ 逐模块投影 ＋
 /// 时间谓词（同源同谓词）＋ 恢复权威性声明。纯字符串序列化，产物可直接落盘。
@@ -137,6 +183,8 @@ String buildFormatMarkdown({
   sb.writeln('- `ledger/`、`health/`：既有领域导出器收编（csv + json）。');
   sb.writeln('- `data/<模块>/<表>.json`：通用投影，`SELECT *`，行键＝数据库列；');
   sb.writeln('  空表也写空数组（`[]`）＝实话形态，不静默缺文件。');
+  sb.writeln('- `data/<模块>/<表>.csv`：物品 / 目标 / 习惯 / 阅读 / 影音游 / 时间');
+  sb.writeln('  六模块逐表 CSV（同一份行集与时间谓词；空表也出表头）。');
   sb.writeln('- `attachments/`：附件拷贝（开关）。');
   sb.writeln('- `FORMAT.md` / `schema.json`：本格式说明（schema 版本＋逐表字段）。');
   sb.writeln();
@@ -174,8 +222,8 @@ String buildSchemaJson({
       'units': <Object?>[for (final u in units) u.toJson()],
     });
 
-/// 可读目录投影成员（成员名 → 文本）：把格式说明并进既有投影成员表即可。
-/// ⚠ UI 出口（`backup_read_export.dart`）本轮禁改，故标注「UI 出口待接线」。
+/// 可读目录投影成员（成员名 → 文本）：把格式说明并进可读目录树的投影成员表。
+/// C05 收尾起由 `backup_read_export.dart` 直接落盘到目录根。
 Map<String, String> readableProjectionMembers({
   required int dbSchemaVersion,
   required List<ReadableUnitDoc> units,

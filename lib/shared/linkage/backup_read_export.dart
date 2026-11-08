@@ -22,6 +22,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../core/database/schema.dart';
 import '../../core/database/schema/health.dart' as healthschema;
+import '../../core/export/readable_format.dart';
+import '../../core/export/readable_tables.dart';
 import '../../core/logging/app_log.dart';
 import '../../features/health/data/health_repository.dart';
 import '../../features/health/domain/health_export.dart'
@@ -94,6 +96,9 @@ Future<ReadableExportReport> exportReadableTree({
   void count(String path) {
     if (File(path).existsSync()) files++;
   }
+  // 逐表真实列（CREATE TABLE ＋ ALTER ADD COLUMN 合并）：CSV 表头与 FORMAT.md
+  // 逐表字段共用同一份，空表也出表头（不猜列序）。
+  final ddlColumns = parseAllDdlColumns(DbSchema.createStatements);
 
   // 1) config/settings.json（口径设置·零凭据，与包内同源）。
   if (settingsMap != null) {
@@ -127,6 +132,9 @@ Future<ReadableExportReport> exportReadableTree({
   final all = moduleIds.isEmpty;
   final wantLedger = all || moduleIds.contains('ledger');
   final wantHealth = all || moduleIds.contains('health');
+  // 时间（日程/时间块）：export_units 无对应单元（time_blocks 属未归属表，
+  // 全量包经差集法整表带入），模块 id 沿用标签作用域 `time`（不另造口径）。
+  final wantTime = readableCsvWanted('time', moduleIds);
 
   // 记账/健康投影的时间日界（`YYYY-MM-DD` 文本日闭区间，与包内 TEXT 日列同口径）。
   final df = timeRange == null ? null : exportDayKey(timeRange.from);
@@ -195,6 +203,8 @@ Future<ReadableExportReport> exportReadableTree({
 
   // 5) 其余所选模块通用投影：data/<表>.json（整表直读；空表也写空数组＝
   // 「导了但没数据」的实话形态，不许静默缺文件）。
+  // C05 扩容：物品/目标/习惯/阅读/影音游另出逐表 CSV（同一份行集＝同源同谓词，
+  // 不重复查库），CSV 表头取逐表真实列（空表也出表头）。
   final units = all
       ? kExportUnits
       : [
@@ -203,6 +213,8 @@ Future<ReadableExportReport> exportReadableTree({
         ];
   for (final u in units) {
     if (u.id == 'ledger' || u.id == 'health') continue; // 走专属投影器
+    final wantCsv = readableCsvWanted(u.id, moduleIds) &&
+        kReadableCsvModuleIds.contains(u.id);
     for (final t in u.tables) {
       try {
         final rows = await readTable(t);
@@ -211,13 +223,40 @@ Future<ReadableExportReport> exportReadableTree({
         await f.writeAsString(
             const JsonEncoder.withIndent('  ').convert(rows));
         count(f.path);
+        if (wantCsv) {
+          final c = File(p.join(outDir, 'data', u.id, '$t.csv'));
+          await c.create(recursive: true);
+          await c.writeAsString(rowsToCsv(rows, columns: ddlColumns[t]));
+          count(c.path);
+        }
       } catch (e) {
         AppLog.add('可读目录通用投影失败（$t）：$e', level: LhLevel.warn);
       }
     }
   }
 
-  // 6) attachments/ 拷贝（开关；子集只拷所选模块映射目录——与打包同口径）。
+  // 6) 时间模块投影（日程/时间块）：同一 readTable 谓词（该表未列时间谓词＝
+  // 恒全量，与包内差集法整表带入同口径），CSV＋JSON 双份。
+  if (wantTime) {
+    for (final t in kReadableTimeTables) {
+      try {
+        final rows = await readTable(t);
+        final j = File(p.join(outDir, 'data', 'time', '$t.json'));
+        await j.create(recursive: true);
+        await j.writeAsString(
+            const JsonEncoder.withIndent('  ').convert(rows));
+        count(j.path);
+        final c = File(p.join(outDir, 'data', 'time', '$t.csv'));
+        await c.create(recursive: true);
+        await c.writeAsString(rowsToCsv(rows, columns: ddlColumns[t]));
+        count(c.path);
+      } catch (e) {
+        AppLog.add('可读目录时间投影失败（$t）：$e', level: LhLevel.warn);
+      }
+    }
+  }
+
+  // 7) attachments/ 拷贝（开关；子集只拷所选模块映射目录——与打包同口径）。
   if (assets) {
     final keepDirs = all ? null : exportAttachDirsForModules(moduleIds);
     for (final dirPath in attachDirs) {
@@ -237,6 +276,64 @@ Future<ReadableExportReport> exportReadableTree({
         AppLog.add('可读目录附件拷贝失败（$base）：$e', level: LhLevel.warn);
       }
     }
+  }
+
+  // 8) FORMAT.md / schema.json：schema 版本＋逐表字段＋逐模块投影＋同源谓词
+  // （C05 格式说明；列取真实 DDL，时间谓词取同一份 exportTimeFilters）。
+  try {
+    final timeCols = <String, String>{
+      for (final u in units)
+        for (final r in u.timeRoots) r.table: r.column,
+    };
+    final tableNames = <String>{};
+    for (final u in units) {
+      tableNames.addAll(u.tables);
+    }
+    if (wantTime) tableNames.addAll(kReadableTimeTables);
+    String projectionOf(String id) {
+      if (id == 'ledger') return 'ledger/<账本>/*.csv + *.json（领域导出器收编）';
+      if (id == 'health') return 'health/*.csv + *.json（领域导出器收编）';
+      return kReadableCsvModuleIds.contains(id)
+          ? 'data/$id/<表>.csv（＋<表>.json）'
+          : 'data/$id/<表>.json';
+    }
+
+    final unitDocs = <ReadableUnitDoc>[
+      for (final u in units)
+        ReadableUnitDoc(
+          id: u.id,
+          label: u.label,
+          tables: u.tables,
+          projection: projectionOf(u.id),
+        ),
+      if (wantTime)
+        const ReadableUnitDoc(
+          id: 'time',
+          label: kReadableTimeModuleLabel,
+          tables: kReadableTimeTables,
+          projection: 'data/time/<表>.csv（＋<表>.json）',
+        ),
+    ];
+    final members = readableProjectionMembers(
+      dbSchemaVersion: DbSchema.version,
+      units: unitDocs,
+      tables: buildReadableTableDocs(
+        tables: tableNames,
+        ddlColumns: ddlColumns,
+        timeColumns: timeCols,
+        timePredicates: <String, String>{
+          for (final e in filters.entries) e.key: e.value.whereSql,
+        },
+      ),
+    );
+    for (final e in members.entries) {
+      final f = File(p.join(outDir, e.key));
+      await f.create(recursive: true);
+      await f.writeAsString(e.value);
+      count(f.path);
+    }
+  } catch (e) {
+    AppLog.add('可读目录格式说明落盘失败：$e', level: LhLevel.warn);
   }
 
   return ReadableExportReport(dir: outDir, files: files);
