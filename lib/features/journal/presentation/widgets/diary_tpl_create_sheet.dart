@@ -68,8 +68,10 @@ Future<void> showDiaryTplCreateSheet(
                               controller: secTitle[i],
                               style: const TextStyle(fontSize: 12.5),
                               decoration: InputDecoration(
+                                  floatingLabelBehavior: FloatingLabelBehavior.auto,
+                                  labelText: '分节 ${i + 1} 标题',
                                   isDense: true,
-                                  hintText: '分节 ${i + 1} 标题，如：今日高光'),
+                                  hintText: '如：今日高光'),
                             ),
                           ),
                           IconButton(

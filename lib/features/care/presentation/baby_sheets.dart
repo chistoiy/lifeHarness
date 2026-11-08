@@ -353,11 +353,12 @@ InputDecoration _inp(BuildContext ctx, String hint, {String? label}) {
   );
 }
 
-Widget _field(BuildContext context, TextEditingController ctl, String hint) =>
+Widget _field(BuildContext context, TextEditingController ctl, String hint,
+        {String? label}) =>
     TextField(
       controller: ctl,
       style: const TextStyle(fontSize: 12),
-      decoration: _inp(context, hint),
+      decoration: _inp(context, hint, label: label),
     );
 
 /// 添加/编辑记录人身份（sheetCarer）。
@@ -444,7 +445,7 @@ class _CarerSheetState extends ConsumerState<_CarerSheet> {
             ],
           ),
           const SizedBox(height: 12),
-          _field(context, _ctl, '身份名称，如：外婆 / 保姆'),
+          _field(context, _ctl, '如：外婆 / 保姆', label: '身份名称'),
           const SizedBox(height: 18),
           Row(
             children: [

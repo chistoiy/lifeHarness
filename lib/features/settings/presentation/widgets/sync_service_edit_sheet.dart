@@ -417,6 +417,7 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
               curve: Curves.easeOut,
             ),
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
               isDense: true,
               hintText: hintWebDav,
               border: const OutlineInputBorder(),

@@ -849,7 +849,7 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
 
   Widget _field(
     TextEditingController c,
-    String hint,
+    String label,
     String key, {
     bool bold = false,
     int maxLines = 1,
@@ -864,8 +864,9 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
         fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
       ),
       decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        labelText: label,
+        labelStyle: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
         filled: true,
         fillColor: cs.surface,
         contentPadding: EdgeInsets.symmetric(

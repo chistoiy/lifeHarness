@@ -450,9 +450,11 @@ class _MeasureSheetState extends ConsumerState<_MeasureSheet> {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
+              labelText: label.split(' ').first,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 9),
-              hintText: label.split(' ').first,
+              hintText: label.split(' ').length > 1 ? label.split(' ').last : null,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(color: tokens.cardBorder)),

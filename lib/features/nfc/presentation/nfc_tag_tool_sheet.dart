@@ -420,6 +420,8 @@ class _NfcTagToolSheetState extends State<_NfcTagToolSheet>
               }
             },
             decoration: InputDecoration(
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
+              labelText: '卡片内容',
               border: const OutlineInputBorder(),
               isDense: true,
               hintText: _editKind == 'uri' ? '要写进卡片的网址' : '要写进卡片的文本',

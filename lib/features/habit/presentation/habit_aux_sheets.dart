@@ -520,7 +520,8 @@ class _MgrSheetState extends ConsumerState<_MgrSheet> {
                   controller: _new,
                   onSubmitted: (_) => _add(),
                   decoration: InputDecoration(
-                    hintText: '新$_noun名称',
+                    floatingLabelBehavior: FloatingLabelBehavior.auto,
+                    labelText: '新$_noun名称',
                     isDense: true,
                   ),
                 ),

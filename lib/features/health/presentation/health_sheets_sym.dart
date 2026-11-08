@@ -433,22 +433,16 @@ class _SymptomSheetState extends ConsumerState<_SymptomSheet> {
 }
 
 Widget _field(BuildContext context, String label, String key, TextEditingController c, String hint) {
-  final scheme = Theme.of(context).colorScheme;
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
-      const SizedBox(height: 4),
-      TextField(
-        key: ValueKey(key),
-        controller: c,
-        style: const TextStyle(fontSize: 12),
-        decoration: InputDecoration(
-            isDense: true,
-            hintText: hint,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-      ),
-    ],
+  return TextField(
+    key: ValueKey(key),
+    controller: c,
+    style: const TextStyle(fontSize: 12),
+    decoration: InputDecoration(
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        labelText: label,
+        isDense: true,
+        hintText: hint,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
   );
 }
