@@ -408,9 +408,21 @@ extension _NoteRich on _NoteEditPageState {
     return Container(
       // 批3③：rich 与 md 条互切时也要播过渡（默认类型相同会被判作同件）。
       key: ValueKey(rich ? 'note-bar-rich' : 'note-bar-md'),
+      // 批7 A4（2026-11-08 · 评估件 A4）：原为贴底通栏 + 只一条上描边，11+ 枚格式图标
+      // 密排压在纸边，与预览态精致度反差明显（真机截图 8/9）。改浮起圆角卡：
+      // 左右留白 12 / 圆角 14 / 四周浅描边 + 极淡投影，底色＝纸色叠 4% 前景。
+      // **按钮集合与顺序零变化**；两态（rich / md）同容器，深浅纸色都随 _fg/_bg 派生。
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       decoration: BoxDecoration(
-        color: _bg,
-        border: Border(top: BorderSide(color: _fg.withValues(alpha: .12))),
+        color: Color.alphaBlend(_fg.withValues(alpha: .04), _bg),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _fg.withValues(alpha: .14)),
+        boxShadow: [
+          BoxShadow(
+              color: _fg.withValues(alpha: .06),
+              blurRadius: 10,
+              offset: const Offset(0, 2)),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -418,8 +430,8 @@ extension _NoteRich on _NoteEditPageState {
           if (_pwSub.isNotEmpty) _pwSubRow(rich),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            // 批3②：尾条左沿与头/体统一到 20（原型 px-5）。
-            padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+            // 批3②：尾条左沿与头/体统一到 20（原型 px-5）；批7 A4 卡内有 12 外边距，内缩到 10 保持视觉齐。
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
             child: Row(
               children: rich
                   ? [

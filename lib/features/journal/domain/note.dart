@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../core/logging/app_log.dart';
+import 'note_preview.dart';
 
 /// 模块3 笔记条目（notes 表；M0 仅收集箱分流写入，M1 批1 开放编辑与管理）。
 class Note {
@@ -106,12 +107,10 @@ class Note {
         return alt.isEmpty ? '图片' : alt;
       });
 
-  /// 列表预览：去标题行与换行，截 40 字。
-  String get preview {
-    final body = displayBody.replaceAll('\r', '').trim();
-    if (body.isEmpty) return '（空白笔记）';
-    return body.length <= 40 ? body : '${body.substring(0, 40)}…';
-  }
+  /// 列表 / 卡片 / 搜索三处共用的摘要：先清 Markdown 结构痕迹，再截 [kNotePreviewMax] 字。
+  /// 清洗口径唯一出处＝`note_preview.dart`（批7 A1；此前直接截正文前 40 字，
+  /// 真机卡片因此裸吐 `## **开篇总纲**`、`- 天子命…`）。
+  String get preview => notePreviewText(displayBody, title: title);
 
   int get wordCount => displayBody.replaceAll(RegExp(r'\s'), '').length;
 

@@ -598,24 +598,34 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
       );
 }
 
+/// 文件夹命名半屏（批7 A2 · 2026-11-08）：新建与重命名共用。
+///
+/// 原来走系统 `AlertDialog`（下划线输入 + 文字按钮 + 纯灰遮罩），与本模块「移动到 / 导出 /
+/// 移除挂载」等自定义半屏是两套语言（真机截图 12）。现收进 LH-S 弹层语言：拖拽条 +
+/// 左对齐标题 + 填充圆角输入 + 取消/主钮（2:1）；空名时主钮置灰，键盘顶起不遮输入。
 Future<String?> _promptName(BuildContext context,
-    {required String title, String? initial}) =>
-    showDialog<String>(
+        {required String title, String? initial, String? sub}) =>
+    showModalBottomSheet<String>(
       context: context,
-      builder: (bc) => _NameDialog(title: title, initial: initial),
+      isScrollControlled: true,
+      builder: (bc) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(bc).bottom),
+        child: _NoteNameSheet(title: title, initial: initial, sub: sub),
+      ),
     );
 
-class _NameDialog extends StatefulWidget {
-  const _NameDialog({required this.title, this.initial});
+class _NoteNameSheet extends StatefulWidget {
+  const _NoteNameSheet({required this.title, this.initial, this.sub});
 
   final String title;
   final String? initial;
+  final String? sub;
 
   @override
-  State<_NameDialog> createState() => _NameDialogState();
+  State<_NoteNameSheet> createState() => _NoteNameSheetState();
 }
 
-class _NameDialogState extends State<_NameDialog> {
+class _NoteNameSheetState extends State<_NoteNameSheet> {
   late final TextEditingController _ctl =
       TextEditingController(text: widget.initial ?? '');
 
@@ -625,24 +635,56 @@ class _NameDialogState extends State<_NameDialog> {
     super.dispose();
   }
 
+  bool get _filled => _ctl.text.trim().isNotEmpty;
+
+  void _commit() {
+    if (!_filled) return;
+    Navigator.pop(context, _ctl.text);
+  }
+
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: Text(widget.title, style: const TextStyle(fontSize: 16)),
-        content: TextField(
-            key: const ValueKey('nt-name-input'),
-            controller: _ctl,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: '文件夹名称')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消')),
-          TextButton(
-              key: const ValueKey('nt-name-ok'),
-              onPressed: () => Navigator.pop(context, _ctl.text),
-              child: const Text('确定')),
-        ],
-      );
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            NoteSheetHeader(title: widget.title, sub: widget.sub ?? '文件夹名称'),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('nt-name-input'),
+              controller: _ctl,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _commit(),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: '输入名称',
+                filled: true,
+                fillColor: scheme.surfaceContainerHighest.withValues(alpha: .55),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 14),
+            NoteSheetActions(
+              onCancel: () => Navigator.pop(context),
+              primaryLabel: '确定',
+              primaryKey: const ValueKey('nt-name-ok'),
+              onPrimary: _filled ? _commit : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// 「移动到」选择弹层（批量操作 · 原型 sheetNoteMove）：返回目标文件夹名。

@@ -1316,8 +1316,8 @@
       "status": "exclusive",
       "files": {
         "index-journal.html": {
-          "size": 4907,
-          "hash": "0c7aade2"
+          "size": 5320,
+          "hash": "7eff097b"
         }
       }
     },
@@ -3237,6 +3237,20 @@
       }
     },
     {
+      "id": "sheetNoteName",
+      "kind": "sheet",
+      "title": "",
+      "home": "index.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index.html": {
+          "size": 1036,
+          "hash": "e08d6f79"
+        }
+      }
+    },
+    {
       "id": "sheetNoteShare",
       "kind": "sheet",
       "title": "",
@@ -3391,8 +3405,8 @@
       "status": "shared",
       "files": {
         "index.html": {
-          "size": 771,
-          "hash": "92d431cf"
+          "size": 1065,
+          "hash": "7f9f26e7"
         }
       }
     },

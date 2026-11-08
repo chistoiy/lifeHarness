@@ -421,6 +421,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('nt-add')));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const ValueKey('nt-name-input')), '灵感');
+      // 批7 A2：确定钮改为「空名置灰」——有字才可点，需一帧让状态生效（真机连续帧无需额外处理）。
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('nt-name-ok')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('nt-灵感')), findsOneWidget);
@@ -437,6 +439,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('nt-add')));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const ValueKey('nt-name-input')), '工作');
+      await tester.pump(); // 同上：空名置灰，需一帧生效
       await tester.tap(find.byKey(const ValueKey('nt-name-ok')));
       await tester.pumpAndSettle();
       final folders = await NoteFolderDao(db).list();
@@ -513,6 +516,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('note-md-bold')), findsOneWidget,
           reason: '源码视图才显示 MD 条');
+      // 批7 A4：工具条由「贴底通栏」改「浮起圆角卡」——得带左右外边距与圆角，不再紧贴屏边
+      //（按钮集合与顺序不变，故只锁外观不锁按钮）。
+      final barC =
+          tester.widget<Container>(find.byKey(const ValueKey('note-bar-md')));
+      final barMargin = barC.margin as EdgeInsets;
+      expect(barMargin.left, greaterThanOrEqualTo(10),
+          reason: 'A4：工具条左沿留白（原贴屏边 0）');
+      expect(barMargin.right, greaterThanOrEqualTo(10), reason: 'A4：右沿留白');
+      final barDeco = barC.decoration as BoxDecoration;
+      expect(barDeco.borderRadius, isNotNull, reason: 'A4：浮起圆角卡');
+      expect((barDeco.border as Border).top.width, greaterThan(0),
+          reason: 'A4：四边描边（原来只有上边一条）');
       await tester.enterText(
           find.byKey(const ValueKey('note-body')), '# 标题');
       // 轮8⑥：H 折叠为 H#，点开后二级行在下方展开 H1~H6+✕

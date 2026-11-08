@@ -876,8 +876,11 @@ tailwind.config = {
         <div class="mt-4 text-[10px] opacity-45">公式渲染：原型为手写 LaTeX 子集演示 · 正式版采用 flutter_math_fork（KaTeX 语法）全量渲染；MD 语法支持：标题/粗斜删/代码块/引用/列表/待办/表格/链接/图片/分割线/行内与块级公式。</div></div>
       <!-- V1.29：原底栏（字号/纸色/统计/聚焦/分类/置顶）整体移入右上角 ⋯ 二级子项 sheetNoteKit -->
       <!-- V1.29轮8②：快捷操作栏移到底部（拇指热区·横向滑动）；H#/Tt/≡ 点开二级行也在底部，滑到尾部或 ✕ 收起 -->
-      <div id="pwSubRow" class="hidden sticky bottom-[46px] z-20 px-5 py-1.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.08)"></div>
-      <div id="pwBottomBar" class="hidden sticky bottom-0 z-20 px-5 py-2.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12)"></div>
+      <!-- 批7 A4（2026-11-08）：源码态工具条浮起——原为贴底通栏 + 只一条上描边，11+ 枚格式图标密排压在纸边，
+           与预览态精致度反差明显（真机截图 8/9）。改为浮起圆角卡：左右留白 12、圆角 14、四周浅描边 + 极淡投影，
+           底色＝纸色叠 4% 前景（不吃硬编码色值）；**按钮集合与顺序零变化**，rich 与 md 两态共用同一容器。 -->
+      <div id="pwSubRow" class="hidden sticky z-20 mx-3 mb-1.5 px-3 py-1.5 overflow-x-auto no-scrollbar items-center gap-1" style="bottom:58px;background:color-mix(in srgb,var(--pw-fg) 4%,var(--pw-bg));border:1px solid rgba(120,110,90,.14);border-radius:14px;box-shadow:0 2px 10px rgba(64,58,49,.06)"></div>
+      <div id="pwBottomBar" class="hidden sticky bottom-0 z-20 mx-3 mb-2 px-3 py-2 overflow-x-auto no-scrollbar items-center gap-1" style="background:color-mix(in srgb,var(--pw-fg) 4%,var(--pw-bg));border:1px solid rgba(120,110,90,.14);border-radius:14px;box-shadow:0 2px 10px rgba(64,58,49,.06)"></div>
     </section>
     
 

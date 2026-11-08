@@ -1095,6 +1095,23 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 批7 A2（2026-11-08）：文件夹命名半屏 =====
+       原新建走系统 prompt、重命名只给 toast，与「移动到」弹层是两套语言（真机截图 12 为系统 AlertDialog：
+       下划线输入 + 文字按钮 + 纯灰遮罩）。新建/重命名共用本半屏；输入为空时确定置灰。
+       颜色只走 --accent；图标沿用线性 SVG；按钮＝取消＋主钮（2:1，与 NoteSheetActions 同口径）。 -->
+  <div id="sheetNoteName" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteName')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold" id="nnTitle">重命名文件夹</div>
+      <div class="text-[11px] text-slate-400 mt-0.5" id="nnSub"></div>
+      <input id="nnInput" oninput="nnSync()" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="文件夹名称">
+      <div class="mt-4 flex gap-2.5">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-[13px] font-bold text-slate-500 dark:text-slate-400" onclick="closeSheet('sheetNoteName')">取消</button>
+        <button id="nnOk" class="flex-[2] py-3 rounded-2xl text-white text-[13px] font-extrabold transition-opacity" style="background:var(--accent);opacity:.4" onclick="nnCommit()">确定</button>
+      </div>
+    </div>
+  </div>
+
   <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
@@ -1113,15 +1130,22 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- ===== 全局搜索弹层 ===== -->
+  <!-- ===== 全局搜索弹层（批7 A3：补标题/副标 · 空态图形化 · 最近搜索 chip） =====
+       真机截图 4 实锤：半屏只有一行空态字、输入框为下划线式偏轻。改法＝填充圆角输入 + 线性空态图形
+       + 一句引导（不写教学性说明文案）；最近搜索只在输入为空时出现，点即搜、可清空。 -->
   <div id="sheetSearch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSearch')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <input id="searchInput" oninput="doSearch(this.value)" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="🔍 搜索…">
+      <div class="font-extrabold">搜索</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">笔记 / 日记 / 导图挂载节点</div>
+      <input id="searchInput" oninput="doSearch(this.value)" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="输入关键词…">
       <!-- V1.29轮6：默认范围标签=从哪个页面出发就搜哪类 -->
       <div class="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1" id="searchScopeChips"></div>
-      <div id="searchResult" class="mt-4 space-y-2 text-sm"></div>
-      <div class="mt-3 text-[10px] text-slate-400">一个入口搜遍全模块 · 结果为模拟数据</div>
+      <div id="searchHist" class="mt-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+        <span class="text-[10px] text-slate-400 shrink-0">最近</span>
+      </div>
+      <div id="searchResult" class="mt-2"></div>
+      <div class="mt-1 text-[10px] text-slate-400">一个入口搜遍全模块 · 结果为模拟数据</div>
     </div>
   </div>
 
@@ -1503,9 +1527,9 @@ const D = {
          {d:'09-17',wd:'周四',wx:'晴 24°',emo:'😄',m:'开心',txt:'跑进 54:01！里程碑。晚上重看了《海街日记》，镰仓的雨路四姐妹，镜头语言比文字克制。',tags:['运动','电影'],img:5,linked:1,tm:'22:40'},
          {d:'09-16',wd:'周三',wx:'多云 22°',emo:'😌',m:'平静',txt:'周复盘：本周「重要不紧急」时间占比 21%，比上周 +6%。继续。把 SPACED 框架整理成了笔记并关联了目标。',tags:['复盘','方法论'],img:0,linked:3,tm:'21:05'}],
   noteTags:['全部','方法论','灵感','工作','关联阅读'],
-  notes:[{t:'SPACED 输出式学习框架',txt:'学习→复述→输出→反馈的闭环。可套用到读书摘录流程，每条摘录要求自己用三句话改写。',folder:'方法论',words:1268,time:'今天 14:20',cre:'09-02',pin:1,md:1},
+  notes:[{t:'SPACED 输出式学习框架',txt:'## **开篇总纲**\n\n- 学习→复述→输出→反馈的闭环。\n- **可套用**到读书摘录流程，每条摘录用三句话改写。',folder:'方法论',words:1268,time:'今天 14:20',cre:'09-02',pin:1,md:1},
          {t:'论写作工具的克制设计',txt:'写作工具的第一要务，是让人忘记工具的存在。自动保存、版本快照、断点续写，应该像地基一样平时看不见。',folder:'灵感',words:312,time:'今天 15:42',cre:'09-15',pin:0,md:0},
-         {t:'App 命名候选清单',txt:'LifeHarness / 日子值 / 每一天 … 商标检索情况与域名可用性对比。',folder:'工作',words:86,time:'09-16',cre:'09-16',pin:0,md:0},
+         {t:'App 命名候选清单',txt:'# App 命名候选清单\n\n1. LifeHarness / 日子值 / 每一天\n2. 商标检索与域名可用性对比\n\n![命名表截图](assets/x.png)',folder:'工作',words:86,time:'09-16',cre:'09-16',pin:0,md:1},
          {t:'周复盘模板（KPT）',txt:'Keep 做对了什么 / Problem 做错了什么 / Try 下季度怎么改，配合季度目标回顾使用。',folder:'方法论',words:420,time:'09-14',cre:'09-07',pin:0,md:1},
          {t:'《海街日记》台词摘抄',txt:'镰仓 rainy road 上的四姐妹…镜头语言比文字克制，适合改编成日记写法。',folder:'关联阅读',words:175,time:'09-12',cre:'09-12',pin:0,md:0},
          {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',cre:'09-10',pin:0,md:1},
@@ -1971,7 +1995,7 @@ function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();$('#searchInput').value='';renderHist();doSearch('');setTimeout(()=>$('#searchInput').focus(),80);} }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -1985,7 +2009,7 @@ function scopeForPage(){const p=curPage;
   if(p==='p-noteEdit')return '笔记';
   return '全部';}
 function renderSearchScope(){$('#searchScopeChips').innerHTML=SEARCH_SCOPES.map(s=>`<button class="chip whitespace-nowrap ${s===searchScope?'chip-on':''}" onclick="pickSearchScope('${s}')">${s==='全部'?'🔍 全部范围':'范围 · '+s}</button>`).join('');
-  $('#searchInput').placeholder=searchScope==='全部'?'🔍 搜索日程 / 待办 / 日记 / 笔记 / 摘录…':'🔍 在「'+searchScope+'」内搜索…';}
+  $('#searchInput').placeholder=searchScope==='全部'?'输入关键词…':'在「'+searchScope+'」内搜索…';}
 function pickSearchScope(s){searchScope=s;renderSearchScope();$('#searchInput').focus();}
 function closeSheet(id){ const s=$('#'+id); if(!s)return; s.classList.remove('sheet-open'); s.classList.add('hidden'); }
 function tgl(el){ el.classList.toggle('on'); }
@@ -2833,6 +2857,24 @@ function renderNoteSortMenu(){const m=$('#noteSortMenu');
 document.addEventListener('pointerdown',e=>{const m=$('#noteSortMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#topHead'))m.classList.add('hidden')},true);
 let noteSelMode=false,noteSel=new Set();
 
+/* 批7 A1（2026-11-08）：卡片摘要清洗 · 唯一纯函数，三视图共用。
+   口径与实现 domain/note_preview.dart 逐条对齐：
+   去围栏块 → 图片语法留 alt（无 alt＝「图片」）→ 链接留文字 → 逐行去标题/引用/列表符/表格首管
+   → 去行内强调符 → 压空白 → 截 40 字。真机截图里卡片直吐 `## **开篇总纲**`、`- 天子命…` 即缺这一步。 */
+function notePrev(n){
+  if(!n)return '（空白笔记）';
+  let s=String(n.txt||'');
+  /* 首行标题与笔记标题相同时直接去掉——否则卡片「标题＋摘要」重复同一句话（真机样本即此形态）。 */
+  const th=String(n.t||'').trim();
+  if(th){const m=s.match(/^\s*#{1,6}\s+([^\n]*)/);
+    if(m&&m[1].replace(/[*_~`|]/g,'').trim()===th)s=s.slice(m[0].length);}
+  s=s.replace(/```[\s\S]*?```/g,' ').replace(/~~~[\s\S]*?~~~/g,' ');
+  s=s.replace(/!\[([^\]]*)\]\([^)]*\)/g,(m,a)=>a||'图片');
+  s=s.replace(/\[([^\]]*)\]\([^)]*\)/g,'$1');
+  s=s.split('\n').filter(l=>!/^[\s|:-]*-[\s|:-]*$/.test(l)).map(l=>l.replace(/^\s*(?:#{1,6}\s*|>\s?|[-*+]\s+|\d+[.)]\s+|\[[ xX]\]\s*)/,'')).join(' ');
+  s=s.replace(/[*_~`]/g,'');s=s.replace(/\|/g,' ');
+  s=s.replace(/\s+/g,' ').trim();
+  return s?s.length<=40?s:s.slice(0,40)+'…':'（空白笔记）';}
 function noteSorted(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);
   list.sort((a,b)=>{if(!!b.pin!==!!a.pin)return (b.pin?1:0)-(a.pin?1:0);
     let r=noteSort==='title'?String(a.t).localeCompare(String(b.t),'en')
@@ -2849,8 +2891,8 @@ function renderNotes(){const L=$('#noteList');syncNoteSrcBtn();
   if(!list.length){L.innerHTML='<div class="py-10 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">'
     +(noteSrcFilter?'该来源下暂无笔记 · 换个来源试试':'这个文件夹还没有笔记 · 点右下角新建')+'</div>';return;}
   L.innerHTML=list.map(n=>{const sel=noteSel.has(n.t);
-    const body=card?`<div class="text-xs text-slate-500 mt-1 overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical">${n.txt}</div>`
-      :`<div class="text-xs text-slate-500 mt-1 truncate">${n.txt}</div>`;
+    const body=card?`<div class="text-xs text-slate-500 mt-1 overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical">${notePrev(n)}</div>`
+      :`<div class="text-xs text-slate-500 mt-1 truncate">${notePrev(n)}</div>`;
     return `<div class="note-sw min-w-0 ${card?'':'mb-2.5'}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
     <div class="note-card card" ${card&&NOTE_PAPER[n.t]?'style="background:'+NOTE_PAPER[n.t].bg+'"':''} onclick="noteTap(this,'${n.t}')" oncontextmenu="event.preventDefault();noteEnterSel('${n.t}')">
     <div class="flex items-center gap-2.5"><div class="flex-1 min-w-0">
@@ -2936,13 +2978,36 @@ function ntFindPath(name,list,path,key){list=list||NTREE;path=path||[];key=key||
     if(n.n===name)return{arr:list,i:i,k:k};
     const r=ntFindPath(name,n.c||[],path.concat([k]),k);if(r)return r;}
   return null;}
-function ntAdd(){const target=ntSel;
-  const n=prompt(target?'新建文件夹名称（将创建在「'+target+'」下）':'新建文件夹名称（创建在顶层）');
-  if(!n)return;
-  let arr=NTREE;
-  if(target){const p=ntFindPath(target);if(!p){toast('未找到目标文件夹');return;}arr=p.arr[p.i].c;ntOpen[p.k]=true;}
-  arr.push({n:n,c:[]});renderNt();toast(target?'已在「'+target+'」下新建「'+n+'」':'已新建顶层文件夹「'+n+'」');}
-function ntRename(){toast(ntSel?'重命名「'+ntSel+'」（模拟）':'先点选树中的文件夹，再按此键');}
+/* 批7 A2（2026-11-08）：新建/重命名共用命名半屏——原 ntAdd 走系统 prompt、ntRename 只给 toast，
+   与「移动到」等自定义弹层是两套语言（真机截图 12 即系统 AlertDialog）。空名时确定置灰。 */
+let nnMode='new';
+function nnOpen(mode){const t=ntSel;nnMode=mode;
+  $('#nnTitle').textContent=mode==='rename'?'重命名文件夹':'新建文件夹';
+  $('#nnSub').textContent=mode==='rename'
+    ?(t?'重命名「'+t+'」· 该夹下笔记归属随新名更新':'先点选树中的文件夹，再按此键')
+    :(t?'将创建在「'+t+'」下':'创建在顶层');
+  $('#nnInput').value=mode==='rename'?(t||''):'';
+  nnSync();openSheet('sheetNoteName');
+  setTimeout(()=>{const i=$('#nnInput');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},240);}
+function nnSync(){const v=$('#nnInput').value.trim();const ok=$('#nnOk');
+  ok.style.opacity=v?1:.4;ok.style.pointerEvents=v?'auto':'none';}
+function nnCommit(){const v=$('#nnInput').value.trim();if(!v)return;closeSheet('sheetNoteName');
+  if(nnMode==='rename'){
+    if(!ntSel)return;const p=ntFindPath(ntSel);if(!p)return;
+    const old=ntSel;
+    if(v!==old&&ntFindPath(v)){toast('同名文件夹已存在');return;}
+    p.arr[p.i].n=v;
+    D.notes.forEach(x=>{if(x.folder===old)x.folder=v;});
+    if(noteFolder===old)noteFolder=v;
+    ntSel=v;renderNt();renderNotes();toast('已重命名为「'+v+'」');return;}
+  const target=ntSel;let arr=NTREE;
+  if(target){const p=ntFindPath(target);if(!p){toast('未找到目标文件夹');return;}
+    if(!p.arr[p.i].c)p.arr[p.i].c=[];arr=p.arr[p.i].c;ntOpen[p.k]=true;}
+  if(arr.some(x=>x.n===v)){toast('同名文件夹已存在');return;}
+  arr.push({n:v,c:[]});renderNt();
+  toast(target?'已在「'+target+'」下新建「'+v+'」':'已新建顶层文件夹「'+v+'」');}
+function ntAdd(){nnOpen('new');}
+function ntRename(){if(!ntSel){toast('先点选树中的文件夹，再按此键');return;}nnOpen('rename');}
 let ntSortMode=0;const NT_SORTS=['名称 A→Z','创建时间 ↓','手动（长按拖动 · 拖入另一夹=子级）'];
 let ntAllOpen=false;
 function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
@@ -3070,7 +3135,24 @@ function setWater(n){ waterN=n; renderHealth(); }
 
 /* ================= 全局搜索 ================= */
 const SEARCH_DB=[['📅','产品评审','日程 · 今天 10:00'],['✅','预约牙医复诊','待办 · 重要不紧急'],['📔','09-17 跑步破 54 分','日记'],['📚','损失厌恶系数约为 2…','阅读摘录 · 思考快与慢'],['📝','SPACED 输出式学习框架','笔记'],['💰','跑鞋 −¥899.00','记账流水 · 已转物品'],['📦','MacBook Air M3','物品 · 日均 ¥1.22'],['🎂','妈妈生日','倒数日 · 农历八月廿七']];
-function doSearch(v){ const rs=v.trim()?SEARCH_DB.filter(r=>r[1].includes(v)||r[2].includes(v)):SEARCH_DB.slice(0,5);
+/* 批7 A3（2026-11-08）：最近搜索 chip + 图形化空态。
+   历史只在输入为空时出现（点即搜 · 可清空）；实现侧走 SharedPreferences 持久化最近 6 条，原型只做形态与交互。
+   空态＝线性放大镜图形 + 一句引导，不写教学性说明文案（禁令）。 */
+let SEARCH_HIST=['奖学金','开篇总纲','跑步 54 分'];
+function renderHist(){const h=$('#searchHist');if(!h)return;
+  const q=($('#searchInput').value||'').trim();
+  h.classList.toggle('hidden',!!q);
+  h.innerHTML='<span class="text-[10px] text-slate-400 shrink-0">最近</span>'
+    +SEARCH_HIST.map(k=>`<button class="shrink-0 h-7 px-3 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" onclick="histTap('${k}')">${k}</button>`).join('')
+    +(SEARCH_HIST.length?`<button class="shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" onclick="histClear()">清空</button>`:'');}
+function histTap(k){$('#searchInput').value=k;doSearch(k);}
+function histClear(){SEARCH_HIST=[];renderHist();toast('已清空最近搜索');}
+function searchEmpty(){return '<div class="py-9 flex flex-col items-center gap-2.5 text-slate-300 dark:text-slate-600">'
+  +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:52px;height:52px"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/><path d="M7.8 10.5h5.4"/></svg>'
+  +'<span class="text-[11px] text-slate-400">搜笔记、日记与导图节点</span></div>';}
+function doSearch(v){ const q=(v||'').trim(); renderHist();
+  if(!q){ $('#searchResult').innerHTML=searchEmpty(); return; }
+  const rs=SEARCH_DB.filter(r=>r[1].includes(q)||r[2].includes(q));
   $('#searchResult').innerHTML=rs.length?rs.map(r=>`<button class="w-full card !py-2.5 flex items-center gap-3 text-left" onclick="closeSheet('sheetSearch');toast('跳转到：${r[1]}（模拟）')"><span>${r[0]}</span><div class="flex-1 min-w-0"><div class="text-sm font-semibold truncate">${r[1]}</div><div class="text-[10px] text-slate-400">${r[2]}</div></div><span class="text-slate-300">›</span></button>`).join(''):'<div class="text-center text-xs text-slate-400 py-8">没有匹配的结果</div>'; }
 
 
