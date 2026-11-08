@@ -4,11 +4,11 @@
 > 体量口径：硬闸＝`python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤6,480 字节·叙事只留「本批／上一批」两级且各 ≤400 字符）；**黄线＝上限 90%（5,832 字节），到线即当轮瘦身，上限随瘦身棘轮只降不升**（细则＝`AGENTS.md`「文档体量治理」）。收尾改本文件一律走 `status_set.py`（`--rotate`→`--set`）。
 
 - **上一批＝** 浮动标签批6·_inlineDate 拆壳收官（11-08）：纯壳型按 health_sym 同款拆壳·字段名进 labelText＋守护不回退（反证红还原绿）；浮动标签整改余项清零·余队列仅内联格 20＋原型侧 JS 动态表单待裁定；波绿·analyze 0 error·未推 1·不出包
-- **本批＝** 存量红消化批1·机械档＋DB fixture（11-08）：26 红逐条单跑取证后分四类·本批清 14（守护钉旧值/旧句·catch-ok 全角冒号·近白底登记·1202 行拆件·13 模块总量一次销账·旧库 fixture 归真 7）＋顺修批次排序缺 id 兜底（撤销钮可能挂错行）；11 文件全绿·analyze 0 error·doclint 全绿·未推 1·不出包
+- **本批＝** 存量红消化批1·机械档＋DB fixture（11-08）：26 红逐条单跑取证后分四类·本批清 14（守护钉旧值/旧句·catch-ok 全角冒号·近白底登记·1202 行拆件·13 模块总量一次销账·旧库 fixture 归真 7）＋顺修批次排序缺 id 兜底（撤销钮可能挂错行）；11 文件全绿·analyze 0 error·doclint 全绿·未推 0（已双端推 `7c14ab2b`）·不出包
 
 ## 基线（八项，其余不写）
 
-**未推＝1**（11-08 十二枚已双端推齐＝头 `d9d42a2d`；待推＝存量红批1 1 枚；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
+**未推＝0**（11-08 十三枚已双端推齐＝头 `7c14ab2b`；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
 - 最新预发布＝`v0.2.15-mm-p7`（装机 8202·arm64 单包）／`-nfc`／`-desktop-b1` 三枚双端挂齐；逐枚钉版/双端 id/md5＝台账§A。⚠ 只挂 arm64 瘦身包·勿卸载＝清库
 - 再前预发布＝`-tree-swipe`／`-tree-follow`／`-note-mount`／`-note-local`（DB v39→v42 首枚）／`-health-media`／`-media`——台账＝同档 §A
 - DB＝`DbSchema.version=52`（v52＝物品批A `item_profiles` 加 brand/serial/note·全可空纯加列；v51＝item_events 加 txn_id；v50＝日记批2b 建 tags+tag_links——**version 与 migrations 必须同批改**；v49~v45 逐版＝沉各归档工单；本行读数由守护二十三与 schema.dart 比对）
