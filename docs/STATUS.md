@@ -8,7 +8,7 @@
 
 ## 基线（八项，其余不写）
 
-**未推＝4**（11-08 2A 批已推；R1（2 枚）与 NFC 批3d（2 枚）按口径不推·待产品令；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
+**未推＝0**（11-08 已推·R1 两枚＋NFC 批3d 两枚＋本校正共 5 枚同批推送；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
 - 最新预发布＝`v0.2.15-mm-p7`（装机 8202·arm64 单包）／`-nfc`／`-desktop-b1` 三枚双端挂齐；逐枚钉版/双端 id/md5＝台账§A。⚠ 只挂 arm64 瘦身包·勿卸载＝清库
 - 再前预发布＝`-tree-swipe`／`-tree-follow`／`-note-mount`／`-note-local`（DB v39→v42 首枚）／`-health-media`／`-media`——台账＝同档 §A
 - DB＝`DbSchema.version=52`（v52＝物品批A `item_profiles` 加 brand/serial/note·全可空纯加列；v51＝item_events 加 txn_id；v50＝日记批2b 建 tags+tag_links——**version 与 migrations 必须同批改**；v49~v45 逐版＝沉各归档工单；本行读数由守护二十三与 schema.dart 比对）
