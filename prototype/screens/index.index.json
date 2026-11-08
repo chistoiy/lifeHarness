@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 315752,
+ "total": 315672,
  "cut": 0,
  "screens": [
   {
@@ -48,8 +48,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 2866,
-   "hash": "3fe1b57b"
+   "size": 2566,
+   "hash": "a09da55d"
   },
   {
    "id": "sheetNfcSet",

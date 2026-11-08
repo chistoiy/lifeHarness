@@ -346,6 +346,9 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // 批3d：写入态决定这一行的语义——未写入＝「写入卡片」，已写入＝「复制到另一张卡」
+    //（同一 cardId 写进任意多张物理卡即共享同一事件·冻结档 §批3d）。
+    final written = _wrote || (widget.card?.isWritten ?? false);
     final nameLen = _name.text.characters.length;
 
     return Padding(
@@ -482,45 +485,18 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
                         dense: true,
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 14),
-                        title: const Text('写入卡片',
-                            style: TextStyle(fontSize: 13)),
+                        title: Text(written ? '复制到另一张卡' : '写入卡片',
+                            style: const TextStyle(fontSize: 13)),
                         trailing: Text(
                           widget.card!.isReadOnlyTag
                               ? '只读卡'
-                              : ((_wrote || widget.card!.isWritten)
-                                  ? '已写入'
-                                  : '未写入'),
+                              : (written ? '所有副本触发同一件事' : '未写入'),
                           style: TextStyle(
                               fontSize: 11.5, color: scheme.onSurfaceVariant),
                         ),
                         onTap: () async {
                           // 写卡层（批2 · 冻结档 §4.3）：挂在本层之上，关掉后本层保留
                           // （B39：用户可能还没填完名称；写完也不自动退出/清空本层）。
-                          final wrote = await showNfcWriteSheet(
-                            context,
-                            card: widget.card!,
-                            repo: _repo,
-                            io: widget.io,
-                          );
-                          if (!mounted || !wrote) return;
-                          setState(() => _wrote = true);
-                        },
-                      ),
-                      Divider(height: 1, color: scheme.outlineVariant),
-                      ListTile(
-                        key: const ValueKey('nfc-edit-copy'),
-                        dense: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 14),
-                        title: const Text('复制到另一张卡',
-                            style: TextStyle(fontSize: 13)),
-                        trailing: Text('所有副本触发同一件事',
-                            style: TextStyle(
-                                fontSize: 11, color: scheme.onSurfaceVariant)),
-                        onTap: () async {
-                          // 批3d（冻结档 §批3d）：同一 cardId 写进任意多张物理卡
-                          // 即共享同一事件——触发链只认 cardId、不区分物理卡，
-                          // 故复用写卡层，不新增写卡通道（防批3c①「改写丢 AAR」复发）。
                           final wrote = await showNfcWriteSheet(
                             context,
                             card: widget.card!,

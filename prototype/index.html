@@ -894,8 +894,7 @@ tailwind.config = {
           <div id="nfcTargetBox"></div>
         </div>
         <div class="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hidden" id="nfcEditOps">
-          <button class="w-full flex items-center justify-between px-3.5 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcGotoWrite()"><span class="text-xs font-bold">写入卡片</span><span class="text-[11px] text-slate-400" id="nfcEditWrote">未写入</span></button>
-          <button class="w-full flex items-center justify-between px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcGotoWrite()"><span class="text-xs font-bold">复制到另一张卡</span><span class="text-[11px] text-slate-400">所有副本触发同一件事</span></button>
+          <button class="w-full flex items-center justify-between px-3.5 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcGotoWrite()"><span class="text-xs font-bold" id="nfcEditWriteLabel">写入卡片</span><span class="text-[11px] text-slate-400" id="nfcEditWrote">未写入</span></button>
           <button class="w-full flex items-center justify-between px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcAskDel()"><span class="text-xs font-bold text-rose-500">删除卡片</span><span class="text-[11px] text-slate-400">原卡片变未绑定</span></button>
         </div>
         <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="nfcSaveEdit()">保存</button>
@@ -1745,7 +1744,7 @@ function nfcRenderEdit(){var mode=nfcEditMode;
  $('#nfcEditOps').classList.toggle('hidden',!(nfcEditId&&mode!=='target'));
  if(nfcEditId){var c=nfcById(nfcEditId);if(c){
    if(showCard){$('#nfcName').value=c.name;$('#nfcDesc').value=c.desc||'';nfcColor=c.color||0;nfcRenderColors();$('#nfcTargetSum').textContent=nfcTargetLabel(c);}
-   if(nfcEditId&&$('#nfcEditWrote'))$('#nfcEditWrote').textContent=c.wrote?'已写入':'未写入';}}
+   if(nfcEditId)nfcSyncWriteRow(!!c.wrote);}}
  if(showCard)nfcRenderColors();
  nfcRenderTargetBox();}
 
@@ -1837,6 +1836,12 @@ function nfcSaveEdit(){var mode=nfcEditMode;var nm=($('#nfcName').value||'').tri
  var id='N'+Math.random().toString(36).slice(2,13).toUpperCase();      /* 12 位编号（真实现＝Crockford Base32） */
  NFC_CARDS.push({id:id,name:nm,desc:ds,color:nfcColor,kind:nfcTarget.kind,ref:nfcTarget.ref,sub:nfcTarget.sub,uses:0,wrote:false,last:'还没用过'});
  nfcEditId=id;renderNfcList();closeSheet('sheetNfcEdit');nfcOpenWrite(id);toast('已保存 · 接着写入卡片');}   /* C16 新建→自动续写卡 */
+/* 批3d：写入态决定这一行的语义——未写入＝「写入卡片」，已写入＝「复制到另一张卡」。
+   同一 cardId 写进任意多张物理卡即共享同一事件（触发链只认 cardId·不区分物理卡）。 */
+function nfcSyncWriteRow(w){var lb=$('#nfcEditWriteLabel'),tr=$('#nfcEditWrote');
+ if(!lb||!tr)return;
+ lb.textContent=w?'复制到另一张卡':'写入卡片';
+ tr.textContent=w?'所有副本触发同一件事':'未写入';}
 function nfcGotoWrite(){if(!nfcEditId)return;closeSheet('sheetNfcEdit');nfcOpenWrite(nfcEditId);}
 function nfcAskDel(){var c=nfcById(nfcEditId);if(!c)return;nfcPendDel=c.id;$('#nfcDelSum').textContent='「'+c.name+'」· '+nfcTargetLabel(c);openSheet('sheetNfcDel');}
 function nfcDelGo(){var n=NFC_CARDS.length;NFC_CARDS=NFC_CARDS.filter(function(c){return c.id!==nfcPendDel;});nfcPendDel=null;
@@ -1858,7 +1863,7 @@ function nfcWriteSim(kind){
  var occBtn=$('#nfcOccupy').querySelector('.bg-rose-500');if(occBtn)occBtn.classList.toggle('hidden',kind==='occupied_own');
  $('#nfcWriteBtns').classList.toggle('hidden',occ);
  var rb=$('#nfcWriteRetry');rb.classList.toggle('hidden',!isErr);if(isErr)rb.textContent=(kind==='err_readonly'?'换卡':'重试');
- if(kind==='done'){var c=nfcById(nfcWriteId);if(c)c.wrote=true;if(nfcEditId||nfcBindId)$('#nfcEditWrote').textContent='已写入';renderNfcList();}
+ if(kind==='done'){var c=nfcById(nfcWriteId);if(c)c.wrote=true;if(nfcEditId||nfcBindId)nfcSyncWriteRow(true);renderNfcList();}
  if(kind==='err_nfc_off'){rb.textContent='去设置';}
  return kind;}
 function nfcPref(k,el){el.classList.toggle('on');nfcPrefs[k]=el.classList.contains('on');
