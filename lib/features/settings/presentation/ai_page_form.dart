@@ -206,6 +206,7 @@ class _AiProviderFormSheetState extends ConsumerState<_AiProviderFormSheet> {
                       '中转站要别的后缀（如 /v1/api）直接写进 Base URL 即可。',
                       style:
                           TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
+                  const SizedBox(height: 12),
                   TextField(
                       key: const ValueKey('ai-prov-f-model'),
                       controller: _model,

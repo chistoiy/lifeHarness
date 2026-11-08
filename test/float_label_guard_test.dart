@@ -92,6 +92,10 @@ void main() {
     } else if (knife == '3') {
       const k = 'lib/features/journal/presentation/note_edit_rich.dart';
       srcs[k] = "${srcs[k]!}\n// knife3\nconst _x = \"labelText: 'https://…'\";\n";
+    } else if (knife == '4') {
+      // 批4：抹掉说明文字与模型名框之间的间距 → 红「间距守护」
+      const k = 'lib/features/settings/presentation/ai_page_form.dart';
+      srcs[k] = srcs[k]!.replaceFirst('const SizedBox(height: 12),', '');
     }
 
     for (final f in _factories) {
@@ -116,6 +120,17 @@ void main() {
             reason: 'D 类外部标题行复活：${e.key} → $title');
       }
     }
+
+    // 批4：说明文字与「模型名」输入框之间必须留间距（真机 8213 实锤）。
+    // 原型 space-y-2 留 8px 且标签留在框内；Flutter 浮标会溢出到框外，故实现补 12px。
+    final aiSrc = srcs['lib/features/settings/presentation/ai_page_form.dart']!;
+    const gapTail = 'TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),';
+    final gapAt = aiSrc.indexOf(gapTail);
+    final modelAt = aiSrc.indexOf("ai-prov-f-model");
+    expect(gapAt, greaterThanOrEqualTo(0), reason: 'AI 表单说明文字锚点丢失');
+    expect(modelAt, greaterThan(gapAt), reason: 'AI 表单模型名输入框锚点丢失');
+    expect(aiSrc.substring(gapAt, modelAt), contains('const SizedBox(height: 12)'),
+        reason: '间距被删：聚焦浮动标签会压住紧贴其上的说明文字');
 
     // E 类豁免：搜索/正文的占位文案不许被当成字段名搬走
     for (final e in _exemptHints.entries) {
