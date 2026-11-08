@@ -17,6 +17,7 @@ import 'ledger_import_batches_sheet.dart';
 import 'ledger_pick_sheets.dart' show showLCatPick, showLAcctPickForImport;
 import 'ledger_providers.dart';
 import 'widgets/ledger_kit.dart';
+import 'widgets/ledger_step_dots.dart';
 
 /// L14 账单导入五步向导（原型 p-billImport · 九·补4/V1.36 修订）。
 /// 步骤：1 选平台 → 2 粘贴 CSV 与解析选项 → 3 账户匹配 → 4 勾选式预览
@@ -333,7 +334,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          _StepDots(step: _step),
+          LedgerStepDots(step: _step),
           const SizedBox(height: 16),
           ...switch (_step) {
             1 => _step1(),
@@ -1146,57 +1147,6 @@ class _StatCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// 五步 imp-dot 进度条（原型 billStep）。
-class _StepDots extends StatelessWidget {
-  const _StepDots({required this.step});
-
-  final int step;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return Row(
-      children: [
-        for (var n = 1; n <= 5; n++) ...[
-          if (n > 1)
-            Expanded(
-              child: Container(
-                height: 1,
-                color: n <= step ? tokens.accent : const Color(0xFFCBD5E1),
-              ),
-            ),
-          Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: n < step
-                  ? tokens.accent
-                  : n == step
-                  ? tokens.accent
-                  : Colors.transparent,
-              border: Border.all(
-                color: n <= step ? tokens.accent : const Color(0xFFCBD5E1),
-              ),
-            ),
-            child: n < step
-                ? const Icon(Icons.check, size: 13, color: Colors.white)
-                : Text(
-                    '$n',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: n == step ? Colors.white : const Color(0xFF94A3B8),
-                    ),
-                  ),
-          ),
-        ],
-      ],
     );
   }
 }

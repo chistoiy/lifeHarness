@@ -6,6 +6,7 @@ import 'package:lifeharness/core/database/schema/mindmap.dart'
 import 'package:lifeharness/features/mindmap/data/mindmap_dao.dart';
 import 'package:lifeharness/features/mindmap/domain/mindmap_models.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'support/legacy_schema.dart';
 
 /// 思维导图批1 · schema 层守护（工单 §4b.3 ①＋§6.2 双写 DDL）。
 ///
@@ -36,6 +37,7 @@ void main() {
       // 1) 手工搭 v44 时代库（随便一张既有表占位）并钉 user_version=44
       final old = await databaseFactory.openDatabase(name);
       await old.execute('CREATE TABLE journal_entries (id INTEGER PRIMARY KEY)');
+      await seedLegacyModuleTables(old);
       await old.execute('PRAGMA user_version = 44');
       await old.close();
       // 2) 按生产口径重开，version 触发 onUpgrade 逐级迁移
@@ -125,6 +127,7 @@ void main() {
       ''');
       await old.execute(
           "INSERT INTO mindmaps (title, created_at, updated_at) VALUES ('老图', 1, 1)");
+      await seedLegacyModuleTables(old);
       await old.execute('PRAGMA user_version = 45');
       await old.close();
       // 2) 按生产口径重开，触发 mig[45]（45→46：建 folders＋ALTER 加列）
@@ -168,6 +171,7 @@ void main() {
       await databaseFactory.deleteDatabase(name);
       final old = await databaseFactory.openDatabase(name);
       await old.execute('CREATE TABLE journal_entries (id INTEGER PRIMARY KEY)');
+      await seedLegacyModuleTables(old);
       await old.execute('PRAGMA user_version = 44');
       await old.close();
       final upgraded = await databaseFactory.openDatabase(name,
@@ -255,6 +259,7 @@ void main() {
         'created_at': 1,
         'updated_at': 1,
       });
+      await seedLegacyModuleTables(old);
       await old.execute('PRAGMA user_version = 46');
       await old.close();
 

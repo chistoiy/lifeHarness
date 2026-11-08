@@ -1393,8 +1393,14 @@ class LedgerRepository {
       });
 
   /// 批次列表（撤销入口在导入完成页与设置页；批3 全量接线）。
-  Future<List<Map<String, Object?>>> importBatches() =>
-      db.query(DbSchema.tLedgerImportBatches, orderBy: 'created_at DESC');
+  ///
+  /// `id DESC` 是**必须的兜底**（存量红消化批1 · 2026-11-08）：`created_at` 是毫秒，但
+  /// Windows 时钟粒度约 15ms（真机也远粗于毫秒），连做两批导入／测试里连续两次 commit
+  /// 都可能撞成同值；只按 `created_at DESC` 排时 SQLite 返回顺序不定，于是「最近一批」
+  /// 会指到旧批——撤销钮挂错行、点下去删的是另一批流水。同毫秒下按 `id` 是单调的。
+  Future<List<Map<String, Object?>>> importBatches() => db.query(
+      DbSchema.tLedgerImportBatches,
+      orderBy: 'created_at DESC, id DESC');
 
   /// 整批撤销：删本批全部流水；可选回收本批新建且已无引用、余额为 0 的账户。
   Future<int> undoImportBatch(int batchId, {bool reclaimAccounts = false}) =>

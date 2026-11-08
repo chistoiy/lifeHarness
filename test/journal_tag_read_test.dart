@@ -121,7 +121,8 @@ void main() {
         .map((r) => r['name'] as String)
         .toSet();
     expect(tables, {DbSchema.tTags, DbSchema.tTagLinks});
-    expect(DbSchema.version, 50);
+    // 标签表在 v50 引入；版本只增不减，钉字面量会随每次升版返工，改钉下限。
+    expect(DbSchema.version, greaterThanOrEqualTo(50));
     expect(kTagScopes, ['diary', 'note', 'time']);
   });
 }

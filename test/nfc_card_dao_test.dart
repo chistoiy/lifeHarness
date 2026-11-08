@@ -4,6 +4,7 @@ import 'package:lifeharness/core/database/schema/nfc.dart';
 import 'package:lifeharness/features/nfc/data/nfc_repo.dart';
 import 'package:lifeharness/features/nfc/domain/nfc_card.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'support/legacy_schema.dart';
 
 /// NFC 卡片批1／批1b · 数据层守护（工单 §2 F1-1 / F1-2 / C31 / C33 / B18 / B28；
 /// 批1b §2 三列与 v48→v49 迁移）。
@@ -30,6 +31,7 @@ void main() {
       await databaseFactory.deleteDatabase(name);
       final old = await databaseFactory.openDatabase(name);
       await old.execute('CREATE TABLE journal_entries (id INTEGER PRIMARY KEY)');
+      await seedLegacyModuleTables(old);
       await old.execute('PRAGMA user_version = 47');
       await old.close();
 
@@ -79,6 +81,7 @@ void main() {
       for (final sql in DbSchema.migrations[47]!) {
         await old.execute(sql);
       }
+      await seedLegacyModuleTables(old);
       await old.execute('PRAGMA user_version = 48');
       await old.close();
 

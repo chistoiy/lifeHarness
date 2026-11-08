@@ -13,7 +13,7 @@ extension _NoteSave on _NoteEditPageState {
       // ignore: invalid_use_of_protected_member
       if (mounted) setState(() => _linkPool = pool);
     } catch (_) {
-      // catch-ok：见上——链接池只是预览增强，挂了不拦正事。
+      // catch-ok: 见上——链接池只是预览增强，挂了不拦正事。
     }
   }
 
@@ -39,7 +39,7 @@ extension _NoteSave on _NoteEditPageState {
         }
       }
     } catch (_) {
-      // catch-ok：改名跟随失败只影响旧引用显示为占位，不反噬保存。
+      // catch-ok: 改名跟随失败只影响旧引用显示为占位，不反噬保存。
     }
   }
   void _onChanged(String _) {

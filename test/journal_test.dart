@@ -39,6 +39,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'support/legacy_schema.dart';
 
 /// 1×1 有效 PNG（批2a 插图链测试真实可解码字节·与 note_test 同款）。
 const _png1x1 =
@@ -1737,6 +1738,7 @@ void main() {
       ''');
       await old.insert('journal_entries',
           {'entry_date': 1, 'content': '升级前的老篇', 'created_at': 1, 'updated_at': 1});
+      await seedLegacyModuleTables(old);
       await old.execute('PRAGMA user_version = 43');
       await old.close();
       // 2) 按生产 openDatabase 口径重开（version 触发 onUpgrade 逐级迁移）

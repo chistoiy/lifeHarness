@@ -71,7 +71,13 @@ const _baseline = <String, int>{
     // 影音游批2：记录页三态 FAB 收成一枚（该文件近白字面 7→6，登记值按实测收紧）。
     // 6→5 棘轮收紧（日记改版批2 · 2026-10-19 跑出「变小」提醒）：批1c 接扇形 FAB 时删掉顶行
     // 三枚图标与「写今天的日记」入口卡，白字面真减 1，按口径调小登记值。
-    'lib/features/journal/presentation/journal_page.dart': 5,
+    // 5→3 棘轮收紧（存量红消化批1 · 2026-11-08 跑出「变小」提醒）：日记批2 系列把顶栏与列表卡
+    // 搬进 part 后剩 3 处，按实测收紧（搬出的两处已在下面两行单独登记）。
+    'lib/features/journal/presentation/journal_page.dart': 3,
+    // 物品批A（2026-11-06）新增的编辑页照片角标：命中是 `Colors.black.withValues(.60)` 遮罩上的
+    // **白字**（照片左上角标签），底面是半透明黑，深浅两态都靠遮罩保证可读性 —— 改令牌色反而
+    // 会让白字落在浅底上读不清。与 media_card / diary_fan_fab 同形态（前景白，非白底面）。
+    'lib/features/items/presentation/item_edit_page.dart': 1,
     // 日记改版批2（2026-10-19）跑出本红两处「新面」，两条都是**存量漏登**、本批一行未动：
     // ① `journal_page_card.dart` 1 处＝篇卡缩略图上的白字（批1 拆 part 时从 journal_page 搬出，
     //    搬迁只搬了文件、没搬登记）；② `diary_fan_fab.dart` 1 处＝扇形 FAB 本体图标（§4c-2 同心
@@ -121,8 +127,15 @@ const _baseline = <String, int>{
     'lib/features/care/presentation/care_kit.dart': 3,
     'lib/features/days/presentation/days_kit.dart': 3,
     'lib/features/items/presentation/items_kit.dart': 3,
-    'lib/features/items/presentation/items_page.dart': 3,
-    'lib/features/ledger/presentation/ledger_import_page.dart': 3,
+    // 3→4（存量红消化批1 · 2026-11-08）：物品批A/批B 两批给物品页加了 hero 读数与
+    // accent FAB 图标，白都在深底/主色底上当**前景**（底面吃 scheme 与渐变），
+    // 与 diary_fan_fab 同形；此前被「新面」那条红挡在闸后，本批一次对齐实测。
+    'lib/features/items/presentation/items_page.dart': 4,
+    // 3→2（存量红消化批1 · 2026-11-08）：页尾五步进度条抽成
+    // `widgets/ledger_step_dots.dart`（size_budget 那条的拆件），白前景随之搬走。
+    'lib/features/ledger/presentation/ledger_import_page.dart': 2,
+    // 抽出件 1 处＝accent 实心圆上的白勾/白序号（前景白，非白底面），与下面同形。
+    'lib/features/ledger/presentation/widgets/ledger_step_dots.dart': 1,
     'lib/features/read/presentation/import/local_import_page.dart': 3,
     'lib/features/settings/presentation/log_page.dart': 3,
     'lib/core/widgets/module_placeholder.dart': 2,

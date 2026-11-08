@@ -17,8 +17,12 @@ void main() {
     final s = File(jp).readAsStringSync();
     expect(s, contains('const JournalPage({super.key, required this.section});'),
         reason: '构造退回可选段＝又有了「默认四段页」这一态');
-    expect(s, contains('title: Text(JournalPage.kRecordLabels[tab] ??'),
-        reason: '标题恒取单段名，不得再拼四段前缀');
+    // 标题恒取单段名，不得再拼四段前缀（如「记录 · 日记」）。
+    // 2026-11-08 重钉：日记段补原型副标题（C 案批6a D1）后标题分两支，两支都仍取单段名。
+    expect(s, contains("Text(JournalPage.kRecordLabels[tab] ?? '笔记')"),
+        reason: '非日记段标题取单段名表');
+    expect(s, contains("const Text('日记')"),
+        reason: '日记段标题写死单段名「日记」（副标题另起一行，不带四段前缀）');
     for (final dead in <String>[
       'standalone',
       'initialTab',

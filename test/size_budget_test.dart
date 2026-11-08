@@ -15,6 +15,11 @@ void main() {
 
   // 治理 G0~G7d⑤ 交付后（2026-09-29）实测登记的基线预算。
   const budget = <String, int>{
+    // 2026-11-08 存量红消化批1：ledger 三件按实测刷登记（repository 1364→1431／
+    // add_page 1276→1278／pick_sheets 1581→1583）。三者增长都是各批真功能新增、
+    // 未随批同步登记值攒下的欠账，与同日 feature_size_budget 一次销账同一裁定；
+    // 语义不变＝从此点起新增才红。另：`ledger_import_page` 1202 行**未豁免**，
+    // 按红线拆出 `widgets/ledger_step_dots.dart`（见工单 §2 刀1-6）。
     // 批P2（2026-10-20）新增登记：`mindmap_canvas_page.dart` 1316 行。
     // 本批往里加了**右缘拖拽连接点**（手势仲裁一支：起手命中/拖动落点/松手挂接/
     // 取消）＋**速录循环**（弹层反复打开直到用户收手），两者都读写画布页私有
@@ -37,7 +42,7 @@ void main() {
     // `import` 一行（记账/读表都在 `mindmap_canvas_ops.dart` 与域件里做）。
     // 真还债仍是上一批留下的「指针三分仲裁整段抽 part」，未在本批动。
     'features/mindmap/presentation/mindmap_canvas_page.dart': 1289,
-    'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
+    'features/ledger/presentation/ledger_pick_sheets.dart': 1583,
     // 1520→1528 存量越线归位（小组件批E · 2026-10-18）：产品令「缺少修改打卡记录」——
     // 流水每行包一层 GestureDetector（key `hd-rec-<日键>`）点开那一天的记录编辑，
     // 净增 8 行（1 注释＋6 包层＋1 收尾）。**已先做压缩**：onTap 六行折成两行、
@@ -60,14 +65,14 @@ void main() {
     // 1352→1364 存量越线归位（高保真批 6a 2026-10-16 跑出本红）：净增 12 行发生在
     // 备份余量批3（6939f3ec·V1.67 按范围自由导出时间维度），该批未带 size 闸，
     // 批 6a 一行未动该文件。按现状登记，之后只许减。
-    'features/ledger/data/ledger_repository.dart': 1364,
+    'features/ledger/data/ledger_repository.dart': 1431,
     // ledger_add_page 1122→1276 越线（小组件批A·真机二次报障三修·2026-10-18）：
     // 「记一笔弹窗是拉长版、跟高保真不一样」⇒ 弹窗版式按原型 `#qpDlg` 收口——
     // 新增 `_dialogShell`/`_dialogBody`/`_amountRow`，并把四段表单抽成
     // `_formSections(compact:)` 一套两用（页面专属 chrome 三处 compact 闸＋尺寸收一档）。
     // 属产品拍板需求增长（同一份表单换容器，**无第二套 UI**），按实测登，此后只许减；
     // 真还债＝弹窗壳与紧凑段拆同库 part（G7c 族·另批做，勿与本次版式修混刀）。
-    'features/ledger/presentation/ledger_add_page.dart': 1276,
+    'features/ledger/presentation/ledger_add_page.dart': 1278,
     // diary_edit_page **已还债·登记项删除**（日记改版批1 收口 · 2026-10-19）：
     // 原登记 1262 行（1370→1262 系阅读模块批2 棘轮收紧，越线本身回溯到更早的日记侧批次）。
     // 本轮按「真还债＝拆 part，另批做」把批2b 富文本群（文档↔Delta JSON／重建监听／

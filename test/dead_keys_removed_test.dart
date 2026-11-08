@@ -56,10 +56,14 @@ void main() {
         isTrue);
   });
 
-  test('DB 兼容层保留：不升版本、不 DROP 表', () {
+  test('DB 兼容层保留：版本只增不减、不 DROP 表', () {
     final schema = _read('lib/core/database/schema.dart');
-    expect(schema.contains('static const int version = 50;'), isTrue,
-        reason: '本批刻意不动 DB 版本，避免不可逆迁移');
+    // 语义：旧表保留期不许**降级**（当初钉死字面量 50＝那批不动版本；此后各批合法升版，
+    // 钉字面量会次次返工，改成「不低于引入兼容层时的 50」这条不动的不变式）。
+    final m = RegExp(r'static const int version = (\d+);').firstMatch(schema);
+    expect(m, isNotNull, reason: 'schema.dart 必须仍有单一版本常量');
+    expect(int.parse(m!.group(1)!), greaterThanOrEqualTo(50),
+        reason: '版本不许回退到引入 finance_txns 兼容层之前的编号');
     expect(schema.contains('DROP TABLE IF EXISTS finance_txns'), isFalse,
         reason: '本批不 DROP 旧表，避免不可逆迁移');
     expect(_read('lib/core/database/schema/ledger.dart').contains('finance_txns'),
