@@ -56,8 +56,8 @@ void main() {
       reason: '壳内可视区下沿应＝屏高−底栏−余量；垫高被摘掉就会顶到 '
           '${h - navH}（＝贴底行压视口下沿的原始形态）。',
     );
-    // 余量本身不许被顺手改成 0（改了上面那条也红，这里给一句直白的归属）
-    expect(shellBottomSlack, 26, reason: '口径＝原型 .safe-pb 96 − 底栏 70');
+    // 余量口径钉死（2026-11-08 产品令移除底栏上方空白 ⇒ 归零，原型 .safe-pb 同步 96→70）
+    expect(shellBottomSlack, 0, reason: '口径＝原型 .safe-pb 70 ＝底栏高度');
     await drainLogTimer(tester);
   });
 }

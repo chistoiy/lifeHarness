@@ -246,12 +246,13 @@ String shellBackAction(
 
 }
 
-/// U1 壳内底部余量（dp）：原型 `.safe-pb` 96 与 70dp 底栏之差（见 HomeShell.body 注释）。
-/// 常驻用例 `test/shell_bottom_slack_test.dart` 按本值钉几何，改这里必须同步原型。
-const double shellBottomSlack = 26;
+/// 壳内底部余量（dp）。2026-11-08 产品指真机截图上「底栏上方一条背景色空白」不合理 ⇒ 归零：
+/// 原型 `.safe-pb` 同步 96→70（＝底栏高度），内容末行直接落在底栏顶边之上。
+/// 常驻用例 `test/u1_shell_bottom_slack_test.dart` 按本值钉几何，改这里必须同步原型。
+const double shellBottomSlack = 0;
 
 /// 底栏**实际占位**高度＝nav 内容 [kShellNavHeight] 70 加 Container 的 1px 上描边。
-/// 收起时要让出的就是这一段（悬浮球补偿量按它算：70＋1＋26−28＝69）。
+/// 收起时要让出的就是这一段（悬浮球补偿量按它算：70＋1＋0−28＝43）。
 const double _navSlotHeight = kShellNavHeight + 1;
 
 /// 底部导航（原型规范：线性图标 + 文字在下 + 选中态主题色 + 顶部小横条；
@@ -479,8 +480,8 @@ class HomeShell extends ConsumerWidget {
       child: Scaffold(
 
         // U1（UX 审计真机批 2026-10-05）：壳内统一垫底部余量＝原型口径。
-        // 口径＝原型 `.safe-pb{padding-bottom:96px}`（prototype/index.html:62）
-        // 减去 Scaffold 已为底栏预留的 70dp＝26dp，一处改覆盖全部壳内屏。
+        // 口径＝原型 `.safe-pb{padding-bottom:70px}`（prototype/index.html:62）
+        // 减去 Scaffold 已为底栏预留的 70dp＝0（2026-11-08 产品令移除底栏上方空白），一处改覆盖全部壳内屏。
         // **注意：垫高不是「贴底行吞点击」的解**——6072 装机实测余量已生效（末行行底距底栏
         // 顶边 27dp），但部分可见的末行仍点不动（外观行节点 2357–2379，点 2368 无效），
         // 「贴视口下沿」这个机理假设被否证，U1 未闭环；判法与否证记录＝工单 §4 真机门结果。
@@ -500,8 +501,8 @@ class HomeShell extends ConsumerWidget {
                 onHide: () => ref.read(navCollapsedProvider.notifier).hide(),
                 onShow: () => ref.read(navCollapsedProvider.notifier).show(),
                 // U1（UX 审计真机批 2026-10-05）：壳内统一垫底部余量＝原型口径。
-                // 口径＝原型 `.safe-pb{padding-bottom:96px}`（prototype/index.html:62）
-                // 减去 Scaffold 已为底栏预留的 70dp＝26dp，一处改覆盖全部壳内屏。
+                // 口径＝原型 `.safe-pb{padding-bottom:70px}`（prototype/index.html:62）
+                // 减去 Scaffold 已为底栏预留的 70dp＝0（2026-11-08 产品令移除底栏上方空白），一处改覆盖全部壳内屏。
                 // **注意：垫高不是「贴底行吞点击」的解**——6072 装机实测余量已生效（末行行底距底栏
                 // 顶边 27dp），但部分可见的末行仍点不动（外观行节点 2357–2379，点 2368 无效），
                 // 「贴视口下沿」这个机理假设被否证，U1 未闭环；判法与否证记录＝工单 §4 真机门结果。
