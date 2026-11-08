@@ -122,6 +122,14 @@ class _OpsSheet extends ConsumerWidget {
               },
             ),
             (
+              '计时明细',
+              () async {
+                Navigator.of(context).pop();
+                if (!context.mounted) return;
+                context.push('/media/item/${item.id}/sessions');
+              },
+            ),
+            (
               '影音轨迹',
               () async {
                 Navigator.of(context).pop();

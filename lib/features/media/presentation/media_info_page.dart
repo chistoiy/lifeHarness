@@ -312,7 +312,8 @@ class _MediaInfoPageState extends ConsumerState<MediaInfoPage> {
         InkWell(
           key: const ValueKey('mds-info-entry-sessions'),
           borderRadius: BorderRadius.circular(12),
-          onTap: null,
+          // 2026-11-08 起接线：此前 `onTap: null` 是死行（点了没反应），整屏建好后接上。
+          onTap: () => context.push('/media/item/${widget.itemId}/sessions'),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(

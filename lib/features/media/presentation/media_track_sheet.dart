@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/media_item.dart';
@@ -88,6 +89,29 @@ class _TrackSheet extends ConsumerWidget {
                     style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                     overflow: TextOverflow.ellipsis),
               ),
+              // 明细入口（批4 拍板①）：弹层只读数，改与删在整屏；此处给一条通往整屏的行。
+              if (rows.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    key: const ValueKey('mds-track-sesslog'),
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/media/item/${item.id}/sessions');
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      child: Row(children: [
+                        const Text('计时明细', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+                        const Spacer(),
+                        Text('${rows.length} 条 · ${mdsHm(total)}',
+                            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                        Icon(Icons.chevron_right, size: 16, color: scheme.onSurfaceVariant),
+                      ]),
+                    ),
+                  ),
+                ),
               if (rows.isEmpty)
                 EmptyDashRow(text: '还没有计时记录')
               else ...[

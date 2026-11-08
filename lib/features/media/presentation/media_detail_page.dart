@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/load_error_state.dart';
 import '../../../shared/widgets/ui_kit.dart';
+import '../data/media_repo_session.dart';
 import '../domain/media_item.dart';
 import '../domain/media_note.dart';
 import '../domain/media_session.dart';
@@ -213,6 +214,27 @@ class MediaDetailPage extends ConsumerWidget {
                 onPressed: () =>
                     showMediaNoteEditSheet(context, ref, initialItemId: x.id),
                 child: const Text('＋ 记笔记'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 原型尾行第四钮（`mTimerTap`）：此前详情页只做了前两钮，计时入口缺失
+            // ⇒ 会话只能由数据层造出来、App 里点不到。起停走既有 `startSession`/`endSession`
+            // （与胶囊、时间块同源，零新仲裁）；在跑时显「■ 结束」。
+            SizedBox(
+              width: 88,
+              child: OutlinedButton(
+                key: const ValueKey('mds-detail-timerbtn'),
+                onPressed: () async {
+                  final repo = ref.read(mediaRepositoryProvider);
+                  if (on) {
+                    await repo.endSession(x.id);
+                  } else {
+                    await repo.startSession(x.id);
+                  }
+                  ref.invalidate(mediaRunningSessionProvider);
+                  ref.invalidate(mediaSessionsProvider(x.id));
+                },
+                child: Text(on ? '■ 结束' : '▶ 计时'),
               ),
             ),
           ],

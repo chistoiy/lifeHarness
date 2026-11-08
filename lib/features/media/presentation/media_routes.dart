@@ -7,6 +7,7 @@ import 'media_lists_page.dart';
 import 'media_mgr_page.dart';
 import 'media_notes_page.dart';
 import 'media_set_page.dart';
+import 'media_sesslog_page.dart';
 import 'media_shelf_page.dart';
 
 /// 影音游 · 全屏栈路由（批2 架面 · 批3 详情/计时 · 批5 笔记库）。
@@ -42,6 +43,11 @@ List<GoRoute> mediaPageRoutes() => [
   GoRoute(
     path: '/media/item/:id/info',
     builder: (_, s) => MediaInfoPage(itemId: s.pathParameters['id']!),
+  ),
+  // 计时明细整屏（原型 m-sesslog）：批4 拍板①「改与删一律在整屏」的落点。
+  GoRoute(
+    path: '/media/item/:id/sessions',
+    builder: (_, s) => MediaSesslogPage(itemId: s.pathParameters['id']!),
   ),
   // 通用管理器（原型 m-mgr）：`?tab=` 指定类，缺省＝来源。
   GoRoute(
