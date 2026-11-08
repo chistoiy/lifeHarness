@@ -14,6 +14,11 @@ import '../../features/calendar/domain/time_block.dart';
 import '../../features/days/domain/day_models.dart';
 import '../../features/todo/domain/todo.dart';
 
+/// 序列化端也从本件放行：导出弹层只该认识「本件 + 一门取数口」，不该自己
+/// 再直连 `features/calendar/**`（R1）。收集器与序列化端同一份口径（`IcsItem`
+/// 就是 [buildIcs] 的入参类型），分成两处出口只会让跨模块面变宽。
+export '../../features/calendar/domain/ics_export.dart' show IcsItem, buildIcs;
+
 bool _inRange(DateTime d, ({DateTime from, DateTime to})? r) =>
     r == null || !d.isBefore(DateTime(r.from.year, r.from.month, r.from.day));
 

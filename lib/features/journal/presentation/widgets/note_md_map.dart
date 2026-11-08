@@ -2,11 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../mindmap/domain/mindmap_layout.dart';
-import '../../../mindmap/domain/mindmap_measure.dart';
-import '../../../mindmap/domain/mindmap_models.dart';
-import '../../../mindmap/domain/mindmap_style.dart';
-import '../../../mindmap/presentation/mindmap_painter.dart';
+import '../../../../shared/linkage/mindmap_api.dart';
 import '../../domain/note_outline.dart';
 
 /// 笔记「导图」视图（md 结构 → 横向树，只读）。

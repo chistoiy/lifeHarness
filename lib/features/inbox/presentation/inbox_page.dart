@@ -9,9 +9,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 // UIUX批（2026-10-12）：搜索钮接全局搜索半屏（守 R1：经 shared/linkage 出口）。
+import '../../../shared/linkage/mindmap_api.dart';
 import '../../../shared/linkage/search_mounts.dart';
-import '../../mindmap/data/mindmap_dao.dart';
-import '../../mindmap/domain/md_parse.dart' show mmOutlineFlat;
 import '../domain/inbox_item.dart';
 import 'inbox_providers.dart';
 
