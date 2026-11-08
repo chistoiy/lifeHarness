@@ -875,6 +875,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
 }
 
 InputDecoration _deco(String? label) => InputDecoration(
+  floatingLabelBehavior: FloatingLabelBehavior.auto,
   labelText: label,
   labelStyle: const TextStyle(fontSize: 12.5),
   filled: true,

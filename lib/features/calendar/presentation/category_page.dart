@@ -386,6 +386,7 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
                 onTap: () => _pickParent(primaries),
                 child: InputDecorator(
                   decoration: const InputDecoration(
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                       labelText: '上级分类', isDense: true),
                   child: Row(
                     children: [
@@ -419,7 +420,9 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _tag,
-              decoration: const InputDecoration(labelText: '默认标签（可选）', isDense: true),
+              decoration: const InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.auto,
+                  labelText: '默认标签（可选）', isDense: true),
               items: const [
                 DropdownMenuItem(value: null, child: Text('无')),
                 DropdownMenuItem(value: '#工作', child: Text('#工作')),
