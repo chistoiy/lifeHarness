@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -86,11 +87,18 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
             Container(
               width: 92,
               height: 92,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Icon(itemCatIcon(it.category), size: 40),
+              // I01 详情照片：建档时落在本机的 photo 路径；无图/文件丢失回落分类图标。
+              child: (it.photo != null &&
+                      it.photo!.isNotEmpty &&
+                      File(it.photo!).existsSync())
+                  ? Image.file(File(it.photo!),
+                      width: 92, height: 92, fit: BoxFit.cover)
+                  : Icon(itemCatIcon(it.category), size: 40),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -376,6 +384,26 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           const Text(
               '双口径并列：按次看「用得值不值」，折算日均看「今天背了多少」· 计划次数与单位在档案中可改',
               style: TextStyle(fontSize: 10, color: kItemMuted)),
+          const SizedBox(height: 10),
+          // I07：接既有 addUsage，按次物品成本随真实次数重算（引擎已支持，纯补 UI）。
+          GestureDetector(
+            key: const ValueKey('i-detail-usage-add'),
+            onTap: () => _openUsageSheet(it),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text('＋ 记一次用量 · 日均随真实次数重算',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.primary)),
+            ),
+          ),
         ],
       ),
     );
@@ -613,6 +641,31 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           const Text(
               '二次付费长按可删（联动流水同删）· 购入/回收/报废仅追加 · 实时重算日均（联动 L12）',
               style: TextStyle(fontSize: 10, color: kItemMuted)),
+          if (it.billing) ...[
+            const SizedBox(height: 10),
+            // I06（部分）：维护事件入审计时间轴，仅追加、不进成本池。
+            GestureDetector(
+              key: const ValueKey('i-detail-maint-add'),
+              onTap: () => _openMaintSheet(it),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text('＋ 记一次保养（写审计时间轴 · 仅追加）',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: Theme.of(context).colorScheme.primary)),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -676,6 +729,110 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
       // 模块外路由未接线（测试/独立壳）：登记差异，不阻塞。
       AppToast.show(context, '保修提醒已汇入提醒中心 · 跳转待路由接线');
     }
+  }
+
+  // ==================== I07 按次用量 / I06 保养记录（写库走 repo，itemsTouch 全量重算） ====================
+
+  /// I07：接既有 addUsage。用量只写 item_usages，不产生记账流水、不改成本池；
+  /// 日均由引擎按「近 30 天真实用量」折算（costPerDay 已支持）。
+  Future<void> _openUsageSheet(ItemProfile it) async {
+    final qtyCtl = TextEditingController(text: '1');
+    await showItemsSheet<void>(
+      context,
+      title: '记一次用量',
+      builder: (bc) => SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+                '档案：${it.name} · 单位「${it.unit}」· 已用 '
+                '${usedTotal(it).toStringAsFixed(0)} ${it.unit}',
+                style: const TextStyle(fontSize: 11)),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('i-usage-qty'),
+              controller: qtyCtl,
+              keyboardType: TextInputType.number,
+              decoration: _inp('如 1', label: '本次用量'),
+            ),
+            const SizedBox(height: 8),
+            const Text('保存后按近 30 天真实次数折算日均 · 用得越多摊得越快',
+                style: TextStyle(fontSize: 10, color: kItemMuted)),
+            const SizedBox(height: 14),
+            GradButton(
+              key: const ValueKey('i-usage-save'),
+              label: '保存用量',
+              onTap: () async {
+                final q = double.tryParse(qtyCtl.text.trim());
+                if (q == null || q <= 0) {
+                  AppToast.show(bc, '先填大于 0 的用量');
+                  return;
+                }
+                Navigator.pop(bc);
+                final day = fmtYmd(ref.read(itemsClockProvider)());
+                await ref.read(itemsRepositoryProvider).addUsage(it.id!, day, q);
+                if (!mounted) return;
+                itemsTouch(ref);
+                AppToast.show(context,
+                    '已记 ${q.toStringAsFixed(0)} ${it.unit} · 日均随真实次数重算');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// I06（部分）：维护事件入成本时间轴（仅追加）。amount 恒 0、不进成本池；
+  /// 周期保养与逾期提示需新列，本批不落（见交付报告）。
+  Future<void> _openMaintSheet(ItemProfile it) async {
+    final labelCtl = TextEditingController();
+    final noteCtl = TextEditingController();
+    await showItemsSheet<void>(
+      context,
+      title: '记一次保养',
+      builder: (bc) => SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+                '维护事件写入审计时间轴（仅追加），不进成本池、不改金额口径；涉及花费请走「二次付费」。',
+                style: TextStyle(fontSize: 11, height: 1.6)),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('i-maint-label'),
+              controller: labelCtl,
+              decoration: _inp('如 深度清洁 / 更换滤芯', label: '保养内容'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('i-maint-note'),
+              controller: noteCtl,
+              decoration: _inp('可选：门店 / 花费 / 下次计划', label: '备注'),
+            ),
+            const SizedBox(height: 14),
+            GradButton(
+              key: const ValueKey('i-maint-save'),
+              label: '写入时间轴',
+              onTap: () async {
+                final label = labelCtl.text.trim();
+                if (label.isEmpty) {
+                  AppToast.show(bc, '先填保养内容');
+                  return;
+                }
+                Navigator.pop(bc);
+                await ref
+                    .read(itemsRepositoryProvider)
+                    .addMaintenance(it.id!, label, note: noteCtl.text.trim());
+                if (!mounted) return;
+                itemsTouch(ref);
+                AppToast.show(context, '保养记录已写入审计时间轴 · 仅追加');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ==================== 生命周期三弹层（写库全走 item_mounts，全联动重算） ====================

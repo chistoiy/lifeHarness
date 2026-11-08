@@ -9,6 +9,7 @@ import '../../../shared/widgets/load_error_state.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/media_item.dart';
 import 'media_add_sheet.dart';
+import 'media_music_view.dart';
 import 'media_providers.dart';
 import 'media_sheets.dart';
 import 'widgets/media_card.dart';
@@ -108,6 +109,7 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final musicView = ref.watch(mediaMusicViewProvider);
     final view = ref.watch(mediaViewProvider);
     final kind = ref.watch(mediaKindProvider);
     final state = ref.watch(mediaStateProvider);
@@ -136,6 +138,16 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
               enabled: !(v == 'spine' && kind == MediaItem.kMovie),
               onTap: () => ref.read(mediaViewProvider.notifier).state = v,
             ),
+          // M5：常规／音乐视图切换（默认常规＝现行扁平架面；音乐＝听后感流＋导入歌单）。
+          // 视图态只在本屏内切换，不新增任何路由/屏、不改扁平卡渲染路径。
+          _ViewBtn(
+            key: const ValueKey('mds-music-view'),
+            icon: Icons.music_note_outlined,
+            label: musicView ? '常规' : '音乐',
+            selected: musicView,
+            onTap: () =>
+                ref.read(mediaMusicViewProvider.notifier).state = !musicView,
+          ),
           // C 案批6e M2：排序改底弹层单选＋当前项标记（原型 m-sheet-sort 同款），
           // 顶栏 PopupMenuButton 退役；补「按发行年/按进度」两键（SQL 批8a/批5 已就绪）。
           IconButton(
@@ -169,13 +181,13 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
       ),
       // 批量条挂 bottomNavigationBar：放 body 末尾会被 FAB 压住右端动作点不到（真机同形）。
       bottomNavigationBar: _selMode ? _multiBar(scheme) : null,
-      floatingActionButton: GradFab(
+      floatingActionButton: musicView ? null : GradFab(
         key: const ValueKey('mds-fab-add'),
         tooltip: '新条目',
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
         onTap: () => showMediaAddSheet(context, ref),
       ),
-      body: Column(
+      body: musicView ? const MediaMusicView() : Column(
         children: [
           // 类型 chip（全部＋四类，角标＝在册条数）
           SizedBox(
@@ -199,7 +211,7 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
               ],
             ),
           ),
-          // 分区 chip（单类＝该类四/五档；全部＝语义归并四档；音乐无分区面）
+          // 分区 chip（单类＝该类四/五档，音乐亦按 states 四档；全部＝语义归并四档）
           SizedBox(
             height: 36,
             child: ListView(

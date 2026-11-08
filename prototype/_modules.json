@@ -1316,8 +1316,8 @@
       "status": "exclusive",
       "files": {
         "index-journal.html": {
-          "size": 5320,
-          "hash": "7eff097b"
+          "size": 5354,
+          "hash": "6682a576"
         }
       }
     },
@@ -1820,8 +1820,8 @@
       "status": "exclusive",
       "files": {
         "index-bookshelf.html": {
-          "size": 4737,
-          "hash": "d9d104f9"
+          "size": 4808,
+          "hash": "8534b89c"
         }
       }
     },

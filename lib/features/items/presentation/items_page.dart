@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/providers.dart';
@@ -10,6 +11,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/items_repository.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
+import '../domain/items_csv.dart';
 import '../domain/items_filter.dart';
 import 'item_edit_page.dart';
 import 'items_kit.dart';
@@ -51,6 +53,17 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
     super.dispose();
   }
 
+  /// I09：物品档案导出 CSV。生成走纯函数 [itemsToCsv]，出口用系统剪贴板
+  /// （禁引新依赖：不落文件、不接分享插件），可粘贴到表格/对账单。
+  Future<void> _exportCsv() async {
+    final d = await ref.read(itemsRepositoryProvider).loadAll();
+    final csv = itemsToCsv(d.items, ref.read(itemsClockProvider)());
+    await Clipboard.setData(ClipboardData(text: csv));
+    if (!mounted) return;
+    AppToast.show(context,
+        '已复制 ${d.items.length} 件档案 CSV · 含品牌/序列号/备注与成本池净值');
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = ref.watch(itemsClockProvider)();
@@ -69,6 +82,15 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
+        actions: [
+          // I09：物品档案导出 CSV（纯函数生成 + 系统剪贴板，禁引新依赖）。
+          IconButton(
+            key: const ValueKey('i-export-csv'),
+            tooltip: '导出 CSV',
+            icon: const Icon(Icons.download_outlined, size: 20),
+            onPressed: _exportCsv,
+          ),
+        ],
       ),
       floatingActionButton: GradFab(
         key: const ValueKey('i-fab'),

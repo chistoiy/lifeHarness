@@ -502,3 +502,16 @@ final mediaAllLiveItemsProvider = FutureProvider<List<MediaItem>>((ref) {
       .watch(mediaRepositoryProvider)
       .items(kind: 'all', stateGroup: 'all', query: '', sort: 'recent');
 });
+
+// ==================== M5 · 音乐特化架面（听后感流＋导入歌单 · 2026-11-08） ====================
+
+/// 架面「常规／音乐」视图切换：默认 `false`＝现行扁平架面（渲染路径逐字不变）。
+/// 视图态是临时的：不落库、不写 settings KV（与 2A `media.cardSkin` 不同），进屏回扁平。
+final mediaMusicViewProvider = StateProvider<bool>((ref) => false);
+
+/// 听后感流：复用 `media_notes` 表在册行（kind=music）与既有 `notes()` DAO，**零 DB 迁移**。
+/// 字段映射＝曲目 `body`／心情 `tag`／短评 `thought`／时间戳 `createdAt`；导入落 `origin=import`。
+final mediaMusicNotesProvider = FutureProvider<List<MediaNote>>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).notes(kind: MediaItem.kMusic);
+});

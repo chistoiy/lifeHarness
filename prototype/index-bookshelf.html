@@ -392,7 +392,7 @@ tailwind.config = {
   <div class="text-lg font-bold text-slate-200">LifeHarness 交互原型</div></div>
   <div class="grid grid-cols-4 gap-1.5 w-[220px] justify-items-center">
     <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_5f9613d2.jpg" alt="主图标"></div><div class="brand-cap">主图标</div></div>
-    <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_4a5c7ccb.jpg" alt=""><img src="assets/lh_img_4a6cf0a2.jpg" style="inset:16%;width:68%;height:68%;object-fit:contain"></div><div class="brand-cap">前景×背景</div></div>
+    <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_4a5c7ccb.jpg" alt=""><img src="assets/lh_img_4a6cf0a2.jpg" alt="" style="inset:16%;width:68%;height:68%;object-fit:contain"></div><div class="brand-cap">前景×背景</div></div>
     <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_4a5c7ccb.jpg" alt="背景"></div><div class="brand-cap">背景</div></div>
     <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_8a5191a9.jpg" alt="单色"></div><div class="brand-cap">单色版</div></div>
   </div>
@@ -768,7 +768,7 @@ tailwind.config = {
         <div class="flex-1 min-w-0"><div class="text-[13px] font-extrabold">X-Ray 中心</div><div class="text-[10px] text-slate-400 mt-0.5" id="xrwSum"></div></div>
         <button class="mini-btn !text-[10px]" onclick="navTo('p-bookshelf')">回书架</button>
       </div>
-      <div class="mt-2.5 flex gap-1.5" id="xrcTabs">
+      <div class="mt-2.5 flex gap-1.5" id="xrcTabs" role="tablist" aria-label="X-Ray 视图">
         <span class="chip !text-[10px] chip-on" id="xrc-t-word" onclick="xrcTab('word')">词条</span>
         <span class="chip !text-[10px]" id="xrc-t-ai" onclick="xrcTab('ai')">AI 精化</span>
         <span class="chip !text-[10px]" id="xrc-t-idx" onclick="xrcTab('idx')">索引与备份</span>
@@ -776,7 +776,7 @@ tailwind.config = {
       <div id="xrcWord">
       <div class="mt-2 card !py-3 flex items-center gap-2.5">
         <div class="flex-1 min-w-0"><b class="text-[12.5px]">启用养成词库</b><div class="text-[10px] text-slate-400 mt-0.5">关＝纯预置视角：隐藏我的词条并恢复被屏蔽词 · 已整理状态不回滚，重开即恢复</div></div>
-        <span class="toggle on" id="xrwToggle" onclick="xrWordsToggle()"><i></i></span>
+        <span class="toggle on" id="xrwToggle" role="switch" aria-label="启用养成词库" onclick="xrWordsToggle()"><i></i></span>
       </div>
       <div class="mt-2 card !py-3">
         <div class="xr-mrow flex items-center gap-2" id="xrwExp" onclick="xrWordsExport()"><b class="text-xs">导出养成词库（.xrwords）</b><span class="ml-auto text-[10px] text-slate-400" id="xrwExpLbl">3 条 · 预置指纹随包</span></div>
@@ -2724,7 +2724,7 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={covFallback:'A 正文首图',wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,sysPill:false,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30,brSelGran:'选字',brSelOps:['复制','划线','写想法','书摘','查询','X-Ray','AI 解读','分享']};
+let BS_SET={covFallback:'A 正文首图',wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'开头',yearSort:'升序',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,sysPill:false,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30,brSelGran:'选字',brSelOps:['复制','划线','写想法','书摘','查询','X-Ray','AI 解读','分享']};
 /* G16/F1-5：死开关的生效镜像。BS_SET 是 let，setPage 等早期路径读它会踩 TDZ ⇒ 需要跨路径读的用 var 镜像（默认开）。 */
 var BS_FLOATBAR=BS_SET.floatBar!==false;
 /* G16：购书费用入账本的本地留痕（书 → {amt,at}）；关掉 feeTxn 时不再写入并从详情页摘掉「已入账本」标记。 */

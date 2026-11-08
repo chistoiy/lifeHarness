@@ -679,7 +679,7 @@ tailwind.config = {
   <div class="text-lg font-bold text-slate-200">LifeHarness 交互原型</div></div>
   <div class="grid grid-cols-4 gap-1.5 w-[220px] justify-items-center">
     <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_5f9613d2.jpg" alt="主图标"></div><div class="brand-cap">主图标</div></div>
-    <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_4a5c7ccb.jpg" alt=""><img src="assets/lh_img_4a6cf0a2.jpg" style="inset:16%;width:68%;height:68%;object-fit:contain"></div><div class="brand-cap">前景×背景</div></div>
+    <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_4a5c7ccb.jpg" alt=""><img src="assets/lh_img_4a6cf0a2.jpg" alt="" style="inset:16%;width:68%;height:68%;object-fit:contain"></div><div class="brand-cap">前景×背景</div></div>
     <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_4a5c7ccb.jpg" alt="背景"></div><div class="brand-cap">背景</div></div>
     <div class="flex flex-col items-center gap-1"><div class="brand-tile"><img src="assets/lh_img_8a5191a9.jpg" alt="单色"></div><div class="brand-cap">单色版</div></div>
   </div>
@@ -835,7 +835,7 @@ tailwind.config = {
     <section id="p-noteEdit" class="page no-scrollbar" style="--pw-bg:#fbf8f1;--pw-fg:#403a31;background:var(--pw-bg);color:var(--pw-fg)">
       <!-- 批3-方案1/2/4：头部左右与体/尾统一 px-5；pwTitle 在写作视图下「滚动浮出」（标题滚出视口后才淡入吸顶），src/预览视图常显；保存态降噪成一个安静的点 -->
       <div id="pwHead" class="px-5 pt-2.5 pb-2 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg);transition:box-shadow .18s">
-        <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl">‹</button>
+        <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl" aria-label="返回">‹</button>
         <div class="flex-1 min-w-0">
           <div id="pwTitle" class="text-[13px] font-bold truncate" style="transition:opacity .18s">论写作工具的克制设计</div>
           <div class="flex items-center gap-1.5 text-[10px] opacity-45"><span class="inline-block w-1.5 h-1.5 rounded-full bg-current"></span><span id="pwSaveState">已保存</span></div>
@@ -847,7 +847,7 @@ tailwind.config = {
           <button class="pw-mode-btn" data-m="view" onclick="pwSetMode(pwMode==='view'?'focus':'view')" title="预览">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
-        <button onclick="openSheet('sheetNoteKit')" class="pw-ic-btn">⋯</button>
+        <button onclick="openSheet('sheetNoteKit')" class="pw-ic-btn" aria-label="更多选项">⋯</button>
       </div>
 
       <!-- 写作视图（默认态·现有段落·无模式钮） -->

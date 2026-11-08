@@ -320,6 +320,24 @@ class ItemsRepository {
         'created_at': DateTime.now().millisecondsSinceEpoch,
       });
 
+  /// 保养/维护记录（I06 部分）：以独立 kind 写入审计时间轴，仅追加。
+  /// amount 恒 0、note 只作文字留痕——刻意不进成本池（extraSum 只认
+  /// kEvExtra），也不生成记账流水，避免与「二次付费」的金额口径重叠。
+  /// 周期与逾期提示需新列，本批不落（见交付报告 I06）。
+  Future<int> addMaintenance(int itemId, String label,
+          {String? note, String? date}) =>
+      _appendEvent(
+          itemId,
+          ItemEvent(
+              itemId: itemId,
+              kind: kEvMaintain,
+              label: '保养：$label',
+              amount: 0,
+              note: note == null || note.isEmpty
+                  ? '维护事件 · 仅追加 · 不进成本池'
+                  : note,
+              date: date ?? fmtYmd(DateTime.now())));
+
   // ==================== 记账流水升级建档（来源徽标） ====================
 
   /// 可升级的大额支出流水（购物类 top N，未升级过的；供录入弹层「从记账流水升级」tab）。

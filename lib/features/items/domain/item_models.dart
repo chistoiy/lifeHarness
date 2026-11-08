@@ -39,6 +39,10 @@ const kEvExtra = 'extra';
 const kEvRecycle = 'recycle';
 const kEvScrap = 'scrap';
 
+/// 保养/维护事件（I06 部分）：仅追加进审计时间轴，amount 恒 0、
+/// 不计入成本池（extraSum 只认 kEvExtra）、不生成记账流水。
+const kEvMaintain = 'maintain';
+
 class ItemEvent {
   const ItemEvent({
     this.id,

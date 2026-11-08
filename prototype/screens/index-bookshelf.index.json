@@ -1,6 +1,6 @@
 {
  "file": "index-bookshelf.html",
- "total": 586388,
+ "total": 586463,
  "cut": 0,
  "screens": [
   {
@@ -160,8 +160,8 @@
    "kind": "screen",
    "title": "",
    "role": "home",
-   "size": 4737,
-   "hash": "d9d104f9"
+   "size": 4808,
+   "hash": "8534b89c"
   },
   {
    "id": "p-booklists",

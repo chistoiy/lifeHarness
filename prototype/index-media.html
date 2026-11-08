@@ -40,6 +40,23 @@ tailwind.config = {
   html[data-theme="neumorph"] .card{border-width:0}
   html[data-theme="neumorph"] .grad{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),6px 6px 14px rgba(91,124,250,.35)}
   html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342}
+  /* ===== M5 · 音乐/常规视图切换派生令牌（4 主题×明暗兼容 · 2026-11-08） =====
+     铁律：派生块置于四套主题变量之后；每条属性先 rgba fallback 再 color-mix；
+     深档换 --accent-l 且加厚一档；新增选中态/淡底一律挂 --accent-NN，禁写死靛紫。 */
+  :root{--accent-06:rgba(99,102,241,.06);--accent-06:color-mix(in srgb,var(--accent) 6%,transparent);--accent-08:rgba(99,102,241,.08);--accent-08:color-mix(in srgb,var(--accent) 8%,transparent);--accent-10:rgba(99,102,241,.10);--accent-10:color-mix(in srgb,var(--accent) 10%,transparent);--accent-12:rgba(99,102,241,.12);--accent-12:color-mix(in srgb,var(--accent) 12%,transparent);--accent-18:rgba(99,102,241,.18);--accent-18:color-mix(in srgb,var(--accent) 18%,transparent);--accent-22:rgba(99,102,241,.22);--accent-22:color-mix(in srgb,var(--accent) 22%,transparent);--accent-28:rgba(99,102,241,.28);--accent-28:color-mix(in srgb,var(--accent) 28%,transparent);--accent-42:rgba(99,102,241,.42);--accent-42:color-mix(in srgb,var(--accent) 42%,transparent);--accent-55:rgba(99,102,241,.55);--accent-55:color-mix(in srgb,var(--accent) 55%,transparent)}
+  html.dark{--accent-06:rgba(129,140,248,.08);--accent-06:color-mix(in srgb,var(--accent-l) 8%,transparent);--accent-08:rgba(129,140,248,.10);--accent-08:color-mix(in srgb,var(--accent-l) 10%,transparent);--accent-10:rgba(129,140,248,.12);--accent-10:color-mix(in srgb,var(--accent-l) 12%,transparent);--accent-12:rgba(129,140,248,.18);--accent-12:color-mix(in srgb,var(--accent-l) 18%,transparent);--accent-18:rgba(129,140,248,.22);--accent-18:color-mix(in srgb,var(--accent-l) 22%,transparent);--accent-22:rgba(129,140,248,.28);--accent-22:color-mix(in srgb,var(--accent-l) 28%,transparent);--accent-28:rgba(129,140,248,.42);--accent-28:color-mix(in srgb,var(--accent-l) 42%,transparent);--accent-42:rgba(129,140,248,.55);--accent-42:color-mix(in srgb,var(--accent-l) 55%,transparent);--accent-55:rgba(129,140,248,.62);--accent-55:color-mix(in srgb,var(--accent-l) 62%,transparent)}
+  /* 音乐/常规场景切换条：选中态淡底/描边一律挂 --accent-NN，不写死靛紫；
+     深档权重陷阱＝浅档 .on 与深档 html.dark .on 同条并列写，避免只写一侧盖不住。 */
+  .mds-scene{display:flex;gap:6px;margin:0 0 10px}
+  .mds-scene-btn{flex:1;text-align:center;padding:7px 10px;border-radius:10px;font-size:11px;font-weight:700;background:var(--card);border:1px solid var(--card-bd);color:var(--mds-ink);cursor:pointer;transition:background .15s,border-color .15s}
+  .mds-scene-btn:hover{background:var(--accent-08)}
+  html.dark .mds-scene-btn.on,.mds-scene-btn.on{background:var(--accent-12);border-color:var(--accent-42);color:var(--accent)}
+  html.dark .mds-scene-btn.on{color:var(--accent-l)}
+  .mds-scene-btn .mds-scene-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--card-bd);margin-right:5px;vertical-align:middle}
+  .mds-scene-btn.on .mds-scene-dot{background:var(--accent-55)}
+  /* 听后感「心情」chip：淡底挂 --accent-10、描边挂 --accent-28，四主题×明暗随令牌走 */
+  .mds-moment .mm-mood{background:var(--accent-10);border:1px solid var(--accent-28);color:var(--accent)}
+  html.dark .mds-moment .mm-mood{color:var(--accent-l)}
   #phone{background-color:var(--page)!important;background-image:var(--page-img,none)!important;font-family:var(--app-font,inherit)}
   nav{background:var(--nav-bg)!important;border-color:var(--nav-bd)!important}
   .no-scrollbar::-webkit-scrollbar{display:none}
@@ -2883,17 +2900,17 @@ const MNOTES=[
 ];
 const MPLISTS=[{name:'通勤循环',src:'网易云',n:42},{name:'加班背景',src:'Spotify',n:60},{name:'写代码',src:'Apple Music',n:35},{name:'一个人的地铁',src:'QQ音乐',n:28}];
 const MMOMENTS=[
-  {id:'mo1',song:'爱在西元前',artist:'周杰伦',list:'通勤循环',when:'2026-09-12 晚',text:'突然听懂了这句的时空感——二十年前就有人把"怀念"写进流行歌。'},
-  {id:'mo2',song:'Get Lucky',artist:'Daft Punk',list:'加班背景',when:'2026-08-30 深夜',text:'贝斯线能把凌晨两点的疲惫托住。'},
-  {id:'mo3',song:'Ripples in the Sand',artist:'Hans Zimmer',list:'写代码',when:'2026-09-18',text:'沙哑合成器一响，工位像挪到了厄拉科斯。'},
-  {id:'mo4',song:'Tank!',artist:'菅野洋子',list:'一个人的地铁',when:'2025-12-03',text:'铜管一响，整节车厢都是我的。'},
-  {id:'mo5',song:'爱在西元前',artist:'周杰伦',list:'通勤循环',when:'2026-07-02',text:'第一次听只觉得快，现在才听出"壁画上"那句的讲究。'}
+  {id:'mo1',mood:'共鸣',song:'爱在西元前',artist:'周杰伦',list:'通勤循环',when:'2026-09-12 晚',text:'突然听懂了这句的时空感——二十年前就有人把"怀念"写进流行歌。'},
+  {id:'mo2',mood:'松弛',song:'Get Lucky',artist:'Daft Punk',list:'加班背景',when:'2026-08-30 深夜',text:'贝斯线能把凌晨两点的疲惫托住。'},
+  {id:'mo3',mood:'专注',song:'Ripples in the Sand',artist:'Hans Zimmer',list:'写代码',when:'2026-09-18',text:'沙哑合成器一响，工位像挪到了厄拉科斯。'},
+  {id:'mo4',mood:'燃',song:'Tank!',artist:'菅野洋子',list:'一个人的地铁',when:'2025-12-03',text:'铜管一响，整节车厢都是我的。'},
+  {id:'mo5',mood:'怅然',song:'爱在西元前',artist:'周杰伦',list:'通勤循环',when:'2026-07-02',text:'第一次听只觉得快，现在才听出"壁画上"那句的讲究。'}
 ];
 const MSTATE_MAP={movie:['未看','在看','看完','搁置'],series:['未看','在追','追完','弃剧','搁置'],music:['未听','在听','循环中','搁置'],game:['未玩','在玩','通关','搁置']};
 const MSRT=['recent','rating','added','year','title','progress'];
 const MTYPE_LABEL={scene:'名场面',line:'台词',lyric:'歌词',shot:'截图',long:'长评'};
 const MTYPE_COLOR={scene:'#dc2626',line:'#f59e0b',lyric:'#059669',shot:'#6366f1',long:'#94a3b8'};
-let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='byitem',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[],mAddCoverImg=null,mAddEditing=false;
+let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='byitem',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[],mAddCoverImg=null,mAddEditing=false,mShelfScene='flat';
 
 function mItems(){let l=MDEMO.filter(x=>(mCurKind==='all'||x.kind===mCurKind)&&(mCurState==='all'||x.state===mCurState));const lastAct=x=>{const ss=mAllSess().filter(s=>s.itemId===x.id).map(mSessDate).sort((a,b)=>b-a);return ss.length?ss[0].getTime():0};
 const cmp={recent:(a,b)=>lastAct(b)-lastAct(a),rating:(a,b)=>(+b.rating||0)-(+a.rating||0),added:(a,b)=>String(b.addedAt||'').localeCompare(String(a.addedAt||'')),year:(a,b)=>(+b.year||0)-(+a.year||0),title:(a,b)=>String(a.title).localeCompare(String(b.title),'zh'),progress:(a,b)=>((+b.pct||+b.mainPct||0)-(+a.pct||+a.mainPct||0))}[mSortKey]||((a,b)=>lastAct(b)-lastAct(a));
@@ -2919,8 +2936,8 @@ function mCardHTML(x){
   const bar=(p===null)?'':`<div class="pbar"><i class="${mProgCls(x)}" style="width:${p}%"></i></div>`;
   return `<div class="${cls}${MSET.cardSkin?' skin':''}" data-skin="${x.kind}" data-id="${x.id}" onclick="${mSelMode?`mToggleSel('${x.id}')`:`mOpen('${x.id}')`}">${cover}${bar}${MSET.cardSkin?'<span class="skin-mat"></span>':''}</div>`;
 }
-function mMomentHTML(m){const c=MD_COV[(parseInt(String(m.id).replace(/\D/g,''))||0)%MD_COV.length];return `<div class="mds-moment" style="--c1:${c[0]};--c2:${c[1]}"><div class="mm-disc"><div class="mm-lbl">${(m.song||'音')[0]}</div></div><div class="mm-main"><div class="mm-song">${m.song}<span class="mm-ar"> · ${m.artist}</span></div><div class="mm-text">${m.text}</div><div class="mm-foot"><span class="mm-when">${m.when}</span>${m.list?`<span class="mds-chip">${m.list}</span>`:''}</div></div></div>`}
-function mSaveMoment(){const s=$('#moSong').value.trim(),a=$('#moArtist').value.trim(),t=$('#moText').value.trim();if(!s&&!t){toast('写点什么吧');return}const list=$('#moList').value.trim();MMOMENTS.unshift({id:'mo'+Date.now(),song:s||'随手记',artist:a,list:list,when:'刚刚',text:t||''});['#moSong','#moArtist','#moText','#moList'].forEach(x=>{$(x).value=''});closeSheet('m-sheet-moment');mRenderShelf();toast('已记下这条听后感')}
+function mMomentHTML(m){const c=MD_COV[(parseInt(String(m.id).replace(/\D/g,''))||0)%MD_COV.length];return `<div class="mds-moment" style="--c1:${c[0]};--c2:${c[1]}"><div class="mm-disc"><div class="mm-lbl">${(m.song||'音')[0]}</div></div><div class="mm-main"><div class="mm-song">${m.song}<span class="mm-ar"> · ${m.artist}</span></div><div class="mm-text">${m.text}</div><div class="mm-foot"><span class="mm-when">${m.when}</span><span class="mds-chip mm-mood">${m.mood||'共鸣'}</span>${m.list?`<span class="mds-chip">${m.list}</span>`:''}</div></div></div>`}
+function mSaveMoment(){const s=$('#moSong').value.trim(),a=$('#moArtist').value.trim(),t=$('#moText').value.trim();if(!s&&!t){toast('写点什么吧');return}const list=$('#moList').value.trim();MMOMENTS.unshift({id:'mo'+Date.now(),song:s||'随手记',artist:a,list:list,when:'刚刚',mood:'',text:t||''});['#moSong','#moArtist','#moText','#moList'].forEach(x=>{$(x).value=''});closeSheet('m-sheet-moment');mRenderShelf();toast('已记下这条听后感')}
 function mImportPlaylist(){miplOpen()}
 function mRenderChips(){
   const kc=mKindCounts();
@@ -2933,16 +2950,19 @@ function mRenderShelf(){
   mRenderChips();
   const list=mItems();
   const body=$('#mShelfBody');if(!body)return;
-  if(mCurKind==='music'){body.innerHTML=`<div class="mds-mom-row"><button class="mds-mom-add" onclick="openSheet('m-sheet-moment')">＋ 记一条听后感</button><button class="mds-mom-imp" onclick="mImportPlaylist()">导入歌单</button></div>`
+  const sceneBar=`<div class="mds-scene"><button class="mds-scene-btn${mShelfScene==='flat'?' on':''}" onclick="mSetScene('flat')"><span class="mds-scene-dot"></span>常规</button><button class="mds-scene-btn${mShelfScene==='music'?' on':''}" onclick="mSetScene('music')"><span class="mds-scene-dot"></span>音乐 · 听后感</button></div>`;
+  if(mShelfScene==='music'){body.innerHTML=sceneBar+`<div class="mds-mom-row"><button class="mds-mom-add" onclick="openSheet('m-sheet-moment')">＋ 记一条听后感</button><button class="mds-mom-imp" onclick="mImportPlaylist()">导入歌单</button></div>`
     +`<div class="mds-pl-strip">${MPLISTS.map(p=>`<div class="mds-pl"><div class="pl-n">${p.name}</div><div class="pl-s">${p.src} · ${p.n} 首</div></div>`).join('')}</div>`
-    +MMOMENTS.map(mMomentHTML).join('');return}
-  if(mCurView==='desk'){body.innerHTML='<div class="mds-grid" style="grid-template-columns:repeat('+MSET.wallCols+',minmax(0,1fr))">'+list.map(mCardHTML).join('')+'</div>'}
-  else if(mCurView==='spine'){const items=list.filter(x=>x.kind!=='movie');body.innerHTML=(items.length?'<div class="mds-spine-row">'+items.map(x=>`<div class="mds-spine ${x.kind}" onclick="mOpen('${x.id}')">${x.title}<span class="sub">${x.kind==='series'?x.seasons+' 季':x.kind==='music'?x.creator:x.plat}</span></div>`).join('')+'</div>':'<div class="text-[11px] mds-mono" style="opacity:.55">电影无侧脊 · 请切桌面或列表视图</div>')}
-  else{body.innerHTML='<div class="space-y-2">'+list.map(x=>`<div class="mds-list-row" onclick="mOpen('${x.id}')"><div class="thumb ${x.kind}" style="${x.coverImg?'background-image:url('+x.coverImg+');background-size:cover;background-position:center':(x.kind==='movie'?'background:'+(x.cover||'#3a2a15'):'')}"></div><div class="flex-1"><div class="ttl">${x.title}</div><div class="meta">${x.kind==='movie'?x.year+' · '+x.dur+'m':x.kind==='series'?x.seasons+'季·'+x.eps+'集 · 看到 '+x.cur:x.kind==='music'?x.tracks+' 曲 · 循环 '+x.loops+' 次':'和 '+(x.withWho||'—')+' · 累计 '+(x.hours||0)+'h'}</div></div><span class="mds-badge ${mStateCls(x.state)}" style="position:static">${x.state}</span></div>`).join('')+'</div>'}
+    +MMOMENTS.map(mMomentHTML).join('');
+    ['desk','spine','list'].forEach(v=>{const el=$('#mdsVbtn'+(v==='desk'?'Desk':v==='spine'?'Spine':'List'));if(el)el.classList.remove('on')});return}
+  if(mCurView==='desk'){body.innerHTML=sceneBar+'<div class="mds-grid" style="grid-template-columns:repeat('+MSET.wallCols+',minmax(0,1fr))">'+list.map(mCardHTML).join('')+'</div>'}
+  else if(mCurView==='spine'){const items=list.filter(x=>x.kind!=='movie');body.innerHTML=sceneBar+(items.length?'<div class="mds-spine-row">'+items.map(x=>`<div class="mds-spine ${x.kind}" onclick="mOpen('${x.id}')">${x.title}<span class="sub">${x.kind==='series'?x.seasons+' 季':x.kind==='music'?x.creator:x.plat}</span></div>`).join('')+'</div>':'<div class="text-[11px] mds-mono" style="opacity:.55">电影无侧脊 · 请切桌面或列表视图</div>')}
+  else{body.innerHTML=sceneBar+'<div class="space-y-2">'+list.map(x=>`<div class="mds-list-row" onclick="mOpen('${x.id}')"><div class="thumb ${x.kind}" style="${x.coverImg?'background-image:url('+x.coverImg+');background-size:cover;background-position:center':(x.kind==='movie'?'background:'+(x.cover||'#3a2a15'):'')}"></div><div class="flex-1"><div class="ttl">${x.title}</div><div class="meta">${x.kind==='movie'?x.year+' · '+x.dur+'m':x.kind==='series'?x.seasons+'季·'+x.eps+'集 · 看到 '+x.cur:x.kind==='music'?x.tracks+' 曲 · 循环 '+x.loops+' 次':'和 '+(x.withWho||'—')+' · 累计 '+(x.hours||0)+'h'}</div></div><span class="mds-badge ${mStateCls(x.state)}" style="position:static">${x.state}</span></div>`).join('')+'</div>'}
   ['desk','spine','list'].forEach(v=>{const el=$('#mdsVbtn'+(v==='desk'?'Desk':v==='spine'?'Spine':'List'));if(el)el.classList.toggle('on',mCurView===v)});
   const spineBtn=$('#mdsVbtnSpine');if(spineBtn){if(mCurKind==='movie'){spineBtn.style.opacity='.3';spineBtn.title='电影无侧脊'}else{spineBtn.style.opacity='';spineBtn.title='脊视图'}}
 }
 function mSetView(v){mCurView=v;mRenderShelf()}
+function mSetScene(v){mShelfScene=v;mRenderShelf()}
 function mPickKind(k){mCurKind=k;mCurState='all';mRenderShelf()}
 function mPickState(s){mCurState=s;mRenderShelf()}
 function mFilter(){}
@@ -3705,7 +3725,7 @@ if(k==='wallCols'||k==='sortDefault')mRenderShelf();
 if(k==='speedFold'){mStatFold=!!MSET.speedFold;mRenderStat()}
 if(k==='floatBar')mTimerBarSync();
 }
-function mOpenShelf(){mCurView=MSET.defaultView;mSortKey=MSET.sortDefault;navTo('m-shelf')}
+function mOpenShelf(){mCurView=MSET.defaultView;mShelfScene='flat';mSortKey=MSET.sortDefault;navTo('m-shelf')}
 function mRenderSet(){const tb=$('#mSetTabs');if(tb)tb.innerHTML=MSET_GROUPS.map(gp=>'<button class="mds-chip mset-tab'+(mSetTab===gp[0]?' on':'')+'" data-t="'+gp[0]+'" onclick="mSetPick(\''+gp[0]+'\')">'+gp[1]+'</button>').join('');
 const b=$('#mSetBody');if(!b)return;const g=MSET_GROUPS.find(x=>x[0]===mSetTab)||MSET_GROUPS[0];
 b.innerHTML=g[2].map(r=>{const k=r[0],lab=r[1],type=r[2],opts=r[3];

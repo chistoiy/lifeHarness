@@ -77,6 +77,8 @@ String itemEvAmountText(ItemEvent e) => switch (e.kind) {
       kEvBuy => fmtY(e.amount),
       kEvExtra => '+${fmtY(e.amount)}',
       kEvRecycle => '−${fmtY(e.amount)}',
+      // I06 保养记录：金额列只标「保养」，amount 恒 0 不参与成本池。
+      kEvMaintain => '保养',
       _ => '报废',
     };
 
@@ -85,6 +87,8 @@ Color itemEvDotColor(ItemEvent e, ThemeTokens tokens) => switch (e.kind) {
       kEvBuy => tokens.accent,
       kEvExtra => kItemSun,
       kEvRecycle => kItemMint,
+      // I06 保养记录：青绿点，与「二次付费」的暖色点区分（零金额事件）。
+      kEvMaintain => kItemMint,
       _ => kItemMuted,
     };
 
