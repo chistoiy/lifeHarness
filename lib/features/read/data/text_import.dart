@@ -3,8 +3,10 @@
 /// 三条口径写在最近处：
 /// · **零新依赖**：UTF-8 走 `dart:convert`，GBK 走仓内既有 `enough_convert`（账单 CSV 同款），
 ///   容器生成走仓内既有 `archive`；不引任何第三方阅读内核；
-/// · **不假装支持**：MOBI / AZW3 / PDF / DRM 等无纯 Dart 内核的格式只登记到
+/// · **不假装支持**：PDF / DRM / CHM / DjVu 等无纯 Dart 内核的格式只登记到
 ///   [kUnsupportedReadFormats] 并在导入页显式列「不支持」，绝不静默降级成乱码或空书；
+///   MOBI / AZW3 已由 `mobi_import.dart` / `azw3_import.dart` 真实解析，
+///   在本清单里标 [UnsupportedReadFormat.experimental]（DRM/HUFF-CDIC 仍拒绝）；
 /// · **解码失败给明确提示**：UTF-8 严格失败 → GBK 兜底 → 仍失败则容错读取并附
 ///   [TextDecodeResult.warning]（UI 原样展示），不抛异常、不吞提示。
 ///
@@ -20,14 +22,23 @@ import 'package:enough_convert/gbk.dart';
 
 // ==================== 不支持格式清单（导入页显式展示） ====================
 
-/// 一种本轮不支持的阅读文件格式（原因写清，供导入页原样展示）。
+/// 一种阅读文件格式的登记项（原因写清，供导入页原样展示）。
 class UnsupportedReadFormat {
-  const UnsupportedReadFormat(this.ext, this.name, this.reason);
+  const UnsupportedReadFormat(
+    this.ext,
+    this.name,
+    this.reason, {
+    this.experimental = false,
+  });
 
   /// 小写扩展名（`epub` 的 DRM 档单独用 `drm` 标识）。
   final String ext;
   final String name;
   final String reason;
+
+  /// true＝已接入真实解析但仍有明确边界（DRM/HUFF-CDIC 拒绝），
+  /// 导入页放在「实验性支持」区，不与真不支持的格式混排。
+  final bool experimental;
 }
 
 /// C13 口径：不静默降级、不假装支持。清单顺序＝导入页展示顺序。
@@ -35,12 +46,15 @@ const List<UnsupportedReadFormat> kUnsupportedReadFormats = <UnsupportedReadForm
   UnsupportedReadFormat(
     'mobi',
     'MOBI',
-    '亚马逊私有容器（PalmDOC/HUFF-CDIC），无纯 Dart 解析内核',
+    '实验性支持：纯 Dart 解析 PalmDOC/MOBI 正文与 EXTH 元数据；'
+        'HUFF/CDIC 压缩与 DRM 加密仍拒绝',
+    experimental: true,
   ),
   UnsupportedReadFormat(
     'azw3',
     'AZW3',
-    'KF8 私有容器，同上；请先转 EPUB',
+    '实验性支持：KF8（ZIP）容器复用 EPUB 解析链；DRM 加密仍拒绝',
+    experimental: true,
   ),
   UnsupportedReadFormat(
     'pdf',
@@ -72,7 +86,25 @@ String? plainBookFormatOf(String fileName) {
   return null;
 }
 
-/// 文件名是否落在「显式不支持」清单（用于导入页提示，不做任何解析尝试）。
+/// 文件名 → 已接入的二进制格式（`AZW3` / `MOBI`）；其它返回 null。
+String? binaryBookFormatOf(String fileName) {
+  final n = fileName.trim().toLowerCase();
+  if (n.endsWith('.azw3')) return 'AZW3';
+  if (n.endsWith('.mobi')) return 'MOBI';
+  return null;
+}
+
+/// 文件名是否属于「实验性支持」（已接入解析，但 DRM/压缩边界仍可能拒绝）。
+bool isExperimentalReadFile(String fileName) {
+  final n = fileName.trim().toLowerCase();
+  for (final f in kUnsupportedReadFormats) {
+    if (f.experimental && n.endsWith('.${f.ext}')) return true;
+  }
+  return false;
+}
+
+/// 文件名是否命中登记清单（含实验性项；真不支持与实验性用
+/// [UnsupportedReadFormat.experimental] / [binaryBookFormatOf] 区分）。
 bool isUnsupportedReadFile(String fileName) {
   final n = fileName.trim().toLowerCase();
   for (final f in kUnsupportedReadFormats) {
@@ -203,7 +235,7 @@ class TextBookDraft {
   final String author;
   final List<TextChapter> chapters;
 
-  /// `TXT` / `FB2`（来源格式，写进书籍简介便于回溯）。
+  /// `TXT` / `FB2` / `AZW3` / `MOBI`（来源格式，写进书籍简介便于回溯）。
   final String format;
   final String fileName;
   final String encoding;

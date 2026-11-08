@@ -12,6 +12,9 @@ import 'ai_redaction.dart';
 import 'ai_summary.dart';
 import 'ai_validate.dart';
 import 'ai_vault.dart';
+import 'local_recall.dart';
+import 'local_recall_source.dart';
+import 'recall_citations.dart';
 
 /// 取消票据：调用方（AI 通道）在用户点「取消」时置位，[AiService.request] 收尾时
 /// 据此把这一行记成「取消」而不是「成功」——应答确实回来了，但用户已经不等了，
@@ -67,16 +70,21 @@ class AiService {
     required AiClient client,
     required AiPromptPack pack,
     AiCallStore? calls,
+    LocalRecallSource? recallSource,
   }) : _repo = configRepo,
        _vault = keyVault,
        _client = client,
        _pack = pack,
-       _calls = calls;
+       _calls = calls,
+       _recallSource = recallSource;
 
   final AiConfigRepository _repo;
   final AiKeyVault _vault;
   final AiClient _client;
   final AiPromptPack _pack;
+
+  /// C11：本地召回源（可空＝无库环境/测试不注入）。只在开关开时读。
+  final LocalRecallSource? _recallSource;
 
   /// V1.53 使用记录（可空＝无库环境，如未开库的 widget 测试）。
   final AiCallStore? _calls;
@@ -169,12 +177,34 @@ class AiService {
 
   List<AiPromptTask> get tasks => _pack.tasks;
 
+  /// C11：按本次变量从本地源召回（开关关＝零召回，连库都不读）。
+  /// 失败只降级为空命中：召回是增强，绝不能把 AI 主链路拖垮。
+  Future<List<RecallHit>> buildRecalls(Map<String, String> vars) async {
+    if (!_repo.load().localRecallOn) return const <RecallHit>[];
+    final src = _recallSource;
+    if (src == null) return const <RecallHit>[];
+    try {
+      final docs = await src.load();
+      return localRecall(
+        query: recallQueryFromVars(vars),
+        docs: docs,
+        enabled: true,
+      );
+    } catch (e) {
+      AppLog.add('本地召回失败（已降级为空命中）：$e', level: LhLevel.warn);
+      return const <RecallHit>[];
+    }
+  }
+
   /// C01：**审阅 / 请求 / 留痕的唯一渲染出口**。
   /// 三者取同一份 [redactForSend] 结果，避免「审阅看到全文、实际发出脱敏文、
   /// 使用记录又记第三份」的口径漂移（需求 §六 原则 4「发送前可审阅」的前提
   /// 是审阅所见即所发）。
+  ///
+  /// C11：本地召回引用段也挂在这条唯一出口上——[recalls] 由 [buildRecalls]
+  /// 统一产出，审阅与请求传同一份；开关关时即使调用方传了命中也不注入。
   (String system, String user) renderForSend(
-      String taskId, Map<String, String> vars) {
+      String taskId, Map<String, String> vars, {List<RecallHit>? recalls}) {
     final t = effectiveTask(taskId);
     // C01：先按策略压缩**变量值**（不动提示词模板，否则会截掉输出格式约定），
     // 再渲染、再脱敏。审阅／请求／留痕三者都取这里的同一份结果。
@@ -182,7 +212,11 @@ class AiService {
     final cfg = _repo.load();
     final sendVars =
         applySummaryPolicy(taskId, vars, enabled: cfg.summaryOnly);
-    final rawUser = renderTemplate(t.user, sendVars);
+    var rawUser = renderTemplate(t.user, sendVars);
+    // C11：开关开才挂引用段；只附短片段与来源，不附正文全库。
+    if (cfg.localRecallOn) {
+      rawUser = attachRecallToUser(rawUser, recalls ?? const <RecallHit>[]);
+    }
     return (
       cfg.redactIdents ? redactForSend(t.system) : t.system,
       cfg.redactIdents ? redactForSend(rawUser) : rawUser,
@@ -191,8 +225,9 @@ class AiService {
 
   /// 渲染审阅文本：(system, user) 两段**实际将发出**的内容。
   (String system, String user) renderForReview(
-      String taskId, Map<String, String> vars) =>
-      renderForSend(taskId, vars);
+          String taskId, Map<String, String> vars,
+          {List<RecallHit>? recalls}) =>
+      renderForSend(taskId, vars, recalls: recalls);
 
   /// 三重门控预检（总开关×能力授权×Key）：返回拒绝原因，null=可发起。
   /// UI 入口在弹「发送审阅」前先调它——未授权即刻 toast，不进审阅流程。
@@ -221,6 +256,7 @@ class AiService {
     Map<String, String> vars, {
     double? temperature,
     AiCancelToken? cancel,
+    List<RecallHit>? recalls,
   }) async {
     final denial = await gate(taskId);
     if (denial != null) {
@@ -231,9 +267,11 @@ class AiService {
     final provider = _repo.load().active;
     final key = (await _vault.read(provider.id))!.trim();
     final t = effectiveTask(taskId);
+    // C11：未显式传入时由本地源现装配；审阅路径会传同一份，保证同源。
+    final hits = recalls ?? await buildRecalls(vars);
     // C01：请求正文与审阅层同源，且只发脱敏后的文本；_record 复用同一份，
     // 使用记录里查到的就是真正发出去的内容。
-    final (systemText, userText) = renderForSend(taskId, vars);
+    final (systemText, userText) = renderForSend(taskId, vars, recalls: hits);
     final sw = Stopwatch()..start();
     final AiReply reply;
     try {

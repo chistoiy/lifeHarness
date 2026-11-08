@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/export/printable_html.dart' show kPrintableHtmlExportHint;
 import '../../../../core/logging/app_log.dart';
 import '../../../../core/providers.dart';
 import '../../../../shared/export/png_encode.dart';
@@ -15,6 +16,7 @@ import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/note.dart';
 import '../journal_providers.dart';
 import '../note_paper.dart';
+import '../note_printable_export.dart';
 import 'note_sheet_lang.dart';
 
 String _snapTimeLabel(int ms) {
@@ -675,6 +677,13 @@ Future<void> showNoteShareSheet(
                     await _writeExport(context, bc, title, body,
                         k == 'share-md' ? 'md' : 'txt');
                   }),
+                _shareRow(bc, context, 'share-html', '导出为可打印 HTML', fg,
+                    () async {
+                  // C08b：零依赖下不做假 PDF——出 A4 可打印 HTML，
+                  // 用户在系统打印里「另存为 PDF」（文案见 hint，不写「已导出 PDF」）。
+                  if (bc.mounted) Navigator.of(bc).pop();
+                  await notePrintableHtmlAction(context, title: title, body: body);
+                }, hint: kPrintableHtmlExportHint),
                 _shareRow(bc, context, 'share-copy', '复制全文', fg, () async {
                   await Clipboard.setData(ClipboardData(
                       text: '${title.isEmpty ? '未命名笔记' : title}\n\n$body'));
@@ -717,7 +726,7 @@ Future<void> showNoteShareSheet(
 }
 
 Widget _shareRow(BuildContext bc, BuildContext pageCtx, String key, String label,
-    Color fg, VoidCallback onTap) {
+    Color fg, VoidCallback onTap, {String hint = ''}) {
   return GestureDetector(
     key: ValueKey(key),
     onTap: onTap,
@@ -732,11 +741,24 @@ Widget _shareRow(BuildContext bc, BuildContext pageCtx, String key, String label
       child: Row(
         children: [
           Expanded(
-              child: Text(label,
+              child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: fg))),
+                      color: fg)),
+              if (hint.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(hint,
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          color: fg.withValues(alpha: .55))),
+                ),
+            ],
+          )),
           Text('›',
               style:
                   TextStyle(fontSize: 14, color: fg.withValues(alpha: .4))),

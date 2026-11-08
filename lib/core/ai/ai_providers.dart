@@ -13,6 +13,7 @@ import 'ai_config.dart';
 import 'ai_prompt_pack.dart';
 import 'ai_service.dart';
 import 'ai_vault.dart';
+import 'local_recall_source.dart';
 
 /// 默认提示词资产（打包进 APK 的事实源；用户覆盖不写回这里）。
 const kAiPromptAssetPath = 'assets/ai_prompts/prompts.json';
@@ -58,6 +59,13 @@ final aiCallStoreProvider = Provider<AiCallStore?>((ref) {
   return AiCallStore(AppDatabase.instance.db);
 });
 
+/// C11：本地召回源（笔记/书摘只读快照）。未开库环境返回 null＝零召回，
+/// 与 aiCallStoreProvider 同口径；不新增索引服务、不碰网络。
+final localRecallSourceProvider = Provider<LocalRecallSource?>((ref) {
+  if (!AppDatabase.instance.isInitialized) return null;
+  return DbLocalRecallSource(AppDatabase.instance.db);
+});
+
 /// 能力编排服务（同步可用：包已在 main 预载 override）。
 final aiServiceProvider = Provider<AiService>((ref) => AiService(
       configRepo: ref.watch(aiConfigRepoProvider),
@@ -65,6 +73,7 @@ final aiServiceProvider = Provider<AiService>((ref) => AiService(
       client: ref.watch(aiClientProvider),
       pack: ref.watch(aiPromptPackProvider),
       calls: ref.watch(aiCallStoreProvider),
+      recallSource: ref.watch(localRecallSourceProvider),
     ));
 
 /// AI 配置响应式快照：所有写操作经本 Notifier（写盘 + 重建 state）。

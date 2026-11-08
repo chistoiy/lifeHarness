@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../data/azw3_import.dart';
+import '../../data/ebook_exception.dart';
+import '../../data/mobi_import.dart';
 import '../../data/offline_meta.dart';
 import '../../data/plain_book_import.dart';
 import '../../data/read_import.dart';
@@ -195,7 +198,7 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
   Future<void> _pickDocFile() async {
     final r = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: const ['txt', 'fb2'],
+      allowedExtensions: const ['txt', 'fb2', 'azw3', 'mobi'],
       withData: true,
     );
     if (r == null || r.files.isEmpty) return;
@@ -206,11 +209,16 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
       readToast(context, '文件读取失败或为空，请重新选择');
       return;
     }
+    final ext = (f.extension ?? '').toLowerCase();
+    if (ext == 'azw3' || ext == 'mobi') {
+      await _openBinaryDoc(f.name, bytes, ext);
+      return;
+    }
     final dec = decodeBookBytes(bytes);
     if (!mounted) return;
     setState(() {
       _docName = f.name;
-      _docFmt = (f.extension ?? '').toLowerCase() == 'fb2' ? 'FB2' : 'TXT';
+      _docFmt = ext == 'fb2' ? 'FB2' : 'TXT';
       _docText.text = dec.text;
       _docEncoding = dec.encoding;
       _docWarn = dec.warning;
@@ -218,7 +226,49 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     });
   }
 
+  /// AZW3 / MOBI：二进制容器，直接解析成草稿（不经过可编辑文本框）。
+  Future<void> _openBinaryDoc(String name, List<int> bytes, String ext) async {
+    setState(() => _docBusy = true);
+    try {
+      final draft = ext == 'azw3'
+          ? parseAzw3Draft(bytes, fileName: name)
+          : parseMobiDraft(bytes, fileName: name);
+      if (!mounted) return;
+      setState(() {
+        _docBusy = false;
+        _docName = name;
+        _docFmt = draft.format;
+        _docText.clear();
+        _docEncoding = draft.encoding;
+        _docWarn = draft.warnings.isEmpty ? null : draft.warnings.join('\n');
+        _docDraft = draft;
+      });
+    } on EbookFormatException catch (e) {
+      // catch-ok: 坏包/DRM/不支持压缩必须把明确原因原样给用户，不静默降级。
+      if (!mounted) return;
+      setState(() {
+        _docBusy = false;
+        _docDraft = null;
+        _docWarn = null;
+      });
+      readToast(context, '无法导入 $name：${e.reason}');
+    } catch (_) {
+      // catch-ok: 兜底防崩，仍给出可操作提示（纯本地解析，无网络副作用）。
+      if (!mounted) return;
+      setState(() {
+        _docBusy = false;
+        _docDraft = null;
+        _docWarn = null;
+      });
+      readToast(context, '解析 $name 失败：文件可能损坏，请换 EPUB / TXT 重试');
+    }
+  }
+
   void _parseDoc() {
+    if (_docFmt == 'AZW3' || _docFmt == 'MOBI') {
+      readToast(context, '$_docFmt 是二进制容器，请点右上「选择文件」导入');
+      return;
+    }
     final raw = _docText.text;
     if (raw.trim().isEmpty) {
       setState(() => _docDraft = null);
@@ -255,6 +305,7 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
         _docDraft = null;
         _docText.clear();
         _docName = '';
+        _docFmt = 'TXT';
         _docWarn = null;
       });
       ref.read(readTickProvider.notifier).state++;
@@ -582,7 +633,7 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
         children: [
           Row(
             children: [
-              _title(cs, tokens, '本地文本 · TXT / FB2'),
+              _title(cs, tokens, '本地书籍 · TXT / FB2 / AZW3 / MOBI'),
               const Spacer(),
               TextButton(
                 key: const ValueKey('imp-doc-pick'),
@@ -596,14 +647,15 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
           ),
           const SizedBox(height: 2),
           Text(
-            '纯 Dart 解析（UTF-8 / GBK 自动识别）· 本地转成可读书籍，不上传、不联网',
+            '纯 Dart 解析（UTF-8 / GBK 自动识别）· AZW3 / MOBI 为实验性支持，'
+            'DRM 加密仍拒绝 · 本地转成可读书籍，不上传、不联网',
             style: TextStyle(fontSize: 10.5, height: 1.5, color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
             children: [
-              for (final f in const ['TXT', 'FB2'])
+              for (final f in const ['TXT', 'FB2', 'AZW3', 'MOBI'])
                 _chip(
                   cs,
                   tokens,
@@ -622,11 +674,15 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
             key: const ValueKey('imp-doc-text'),
             controller: _docText,
             maxLines: 5,
+            enabled: _docFmt != 'AZW3' && _docFmt != 'MOBI',
             style: const TextStyle(fontSize: 12),
             decoration: InputDecoration(
-              hintText: _docFmt == 'FB2'
-                  ? '粘贴 FB2（XML）全文，或点右上「选择文件」'
-                  : '粘贴 TXT 全文，或点右上「选择文件」',
+              hintText: switch (_docFmt) {
+                'FB2' => '粘贴 FB2（XML）全文，或点右上「选择文件」',
+                'AZW3' => 'AZW3 是 ZIP 容器，请点右上「选择文件」',
+                'MOBI' => 'MOBI 是二进制容器，请点右上「选择文件」',
+                _ => '粘贴 TXT 全文，或点右上「选择文件」',
+              },
               hintStyle: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
               filled: true,
               fillColor: cs.surfaceContainerHighest.withValues(alpha: .35),
@@ -724,65 +780,98 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     );
   }
 
-  /// C13 口径：不支持格式显式列出（不静默降级、不建空书）。
-  Widget _unsupportedCard(ColorScheme cs, ThemeTokens tokens) => _card(
-    cs,
-    tokens,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.block, size: 14, color: cs.onSurfaceVariant),
-            const SizedBox(width: 6),
-            _title(cs, tokens, '不支持的格式（不静默降级）'),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '以下格式本页不解析、不建空书、不冒充成功；请先转成 EPUB / TXT / FB2。',
-          style: TextStyle(fontSize: 10.5, height: 1.5, color: cs.onSurfaceVariant),
-        ),
-        const SizedBox(height: 6),
-        for (final f in kUnsupportedReadFormats)
-          Padding(
-            key: ValueKey('imp-unsup-${f.ext}'),
-            padding: const EdgeInsets.only(top: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  /// C13 口径：真不支持与「实验性支持」分列（不静默降级、不建空书）。
+  Widget _unsupportedCard(ColorScheme cs, ThemeTokens tokens) {
+    final unsupported = kUnsupportedReadFormats
+        .where((f) => !f.experimental)
+        .toList(growable: false);
+    final experimental = kUnsupportedReadFormats
+        .where((f) => f.experimental)
+        .toList(growable: false);
+    return _card(
+      cs,
+      tokens,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.block, size: 14, color: cs.onSurfaceVariant),
+              const SizedBox(width: 6),
+              _title(cs, tokens, '不支持的格式（不静默降级）'),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '以下格式本页不解析、不建空书、不冒充成功；请先转成 EPUB / TXT / FB2。',
+            style: TextStyle(fontSize: 10.5, height: 1.5, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 6),
+          for (final f in unsupported)
+            Padding(
+              key: ValueKey('imp-unsup-${f.ext}'),
+              padding: const EdgeInsets.only(top: 4),
+              child: _formatRow(cs, f, tag: '.${f.ext}'),
+            ),
+          if (experimental.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '.${f.ext}',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${f.name} · ${f.reason}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      height: 1.45,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ),
+                Icon(Icons.science_outlined, size: 14, color: tokens.accent),
+                const SizedBox(width: 6),
+                _title(cs, tokens, '实验性支持（已接入解析）'),
               ],
             ),
+            const SizedBox(height: 4),
+            Text(
+              '可尝试导入；遇到 DRM 加密或 HUFF/CDIC 压缩会明确拒绝并说明原因。',
+              style: TextStyle(fontSize: 10.5, height: 1.5, color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 6),
+            for (final f in experimental)
+              Padding(
+                key: ValueKey('imp-exp-${f.ext}'),
+                padding: const EdgeInsets.only(top: 4),
+                child: _formatRow(cs, f, tag: '实验 · ${f.ext}'),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _formatRow(ColorScheme cs, UnsupportedReadFormat f, {required String tag}) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              tag,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
           ),
-      ],
-    ),
-  );
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${f.name} · ${f.reason}',
+              style: TextStyle(
+                fontSize: 10,
+                height: 1.45,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      );
 
   Widget _channelCard(ColorScheme cs, ThemeTokens tokens, ImportChannel x) {
     final on = x.id == _chId;

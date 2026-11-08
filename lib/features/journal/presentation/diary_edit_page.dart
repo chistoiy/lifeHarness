@@ -18,6 +18,7 @@ import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import '../domain/tag.dart';
 import 'journal_providers.dart';
+import 'note_printable_export.dart';
 import 'tag_pick_sheet.dart';
 import 'widgets/diary_mood_rail.dart';
 import 'widgets/diary_tag_row.dart';
@@ -613,6 +614,24 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       ? ''
       : jsonEncode(_richCtl!.document.toDelta().toJson());
 
+  /// C08b：导出「可打印 HTML」（A4 打印样式）。PDF 由系统打印面板
+  /// 「另存为 PDF」得到——零依赖下不做内嵌中文字体的假 PDF。
+  Future<void> _exportPrintableHtml() async {
+    final titles = _secTitles();
+    final body = _secCtrls.isEmpty
+        ? (_richCtl?.document.toPlainText() ?? '')
+        : [
+            for (var i = 0; i < _secCtrls.length; i++)
+              '## ${titles[i]}\n\n${_secCtrls[i].text}',
+          ].join('\n\n');
+    await notePrintableHtmlAction(
+      context,
+      title: '手记 · $_headerDate',
+      body: body,
+      subtitle: _tags.isEmpty ? '' : '#${_tags.join(' #')}',
+    );
+  }
+
   Future<JournalEntry> _persist({bool notify = true}) async {
     final repo = ref.read(journalRepositoryProvider);
     // 批2b 补（真机 6199 实测）：标签变了要让池重算——引用计数在 `tags` 池里，
@@ -885,6 +904,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         ),
         // 轮13：既有篇可删（确认弹层）；新篇未落库不显示
         actions: [
+          // C08b：导出可打印 HTML（系统打印可另存为 PDF）。
+          IconButton(
+            key: const ValueKey('diary-export-html'),
+            tooltip: '导出为可打印 HTML',
+            onPressed: _exportPrintableHtml,
+            icon: const Icon(Icons.ios_share, size: 20),
+          ),
           if (_existing?.id != null)
             IconButton(
               key: const ValueKey('diary-del'),

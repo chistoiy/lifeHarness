@@ -56,12 +56,11 @@ String formatCitationSection(List<RecallCitation> citations) {
   return sb.toString();
 }
 
-/// 域层可选能力：把引用短片段注入 user prompt（同源、只 snippet、可关闭）。
+/// 域层能力：把引用短片段注入 user prompt（同源、只 snippet、可关闭）。
 ///
-/// ⚠ 本批**不接入** `AiService.request`：C01 已把 renderForReview / 请求体 /
-/// 留痕钉成唯一渲染出口 `renderForSend`，在此另接一段会破坏「审阅所见即所发」
-/// 的同源守护（ai_redaction_test / ai_core_test）。留作后续过门接线；
-/// 禁用或空命中时原样返回 [user]＝零行为破坏。
+/// C11b 已接入 `AiService.renderForSend` 这一**唯一渲染出口**：审阅 /
+/// 实际请求 / `ai_calls` 留痕仍取同一份结果，因此「审阅所见即所发」不破。
+/// 开关关或空命中时原样返回 [user]＝零行为变化。
 String attachRecallToUser(
   String user,
   List<RecallHit> hits, {

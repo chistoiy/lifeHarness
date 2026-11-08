@@ -74,9 +74,8 @@ Future<AiCallResult?> aiRunWithReview(
   required String taskId,
   required Map<String, String> vars,
   double? temperature,
-  // C11：本次调用的本地召回命中（可选）。召回源（本地笔记/书摘 → RecallDoc）
-  // 由调用方装配后传入；本批未在 features 侧接全库读（组合根 main 禁改），
-  // 故默认 null＝零行为变化，审阅页引用段仅在显式传入且开关开时出现。
+  // C11：调用方显式传入的召回命中（可选，覆盖自动装配）；默认 null 时
+  // 由 AiService 从本地笔记/书摘现装配，开关关＝零召回、不读库。
   List<RecallHit>? recalls,
 }) async {
   final svc = ref.read(aiServiceProvider);
@@ -92,14 +91,16 @@ Future<AiCallResult?> aiRunWithReview(
     return null;
   }
   if (!context.mounted) return null;
-  final (system, user) = svc.renderForReview(taskId, vars);
-  // C11：本地召回引用只做「审阅页可见」——settings KV 关＝恒空＝不显示，
-  // 命中只投影短片段与来源（recallCitations 丢弃全文），不上传全库。
+  // C11：本地召回一次装配、审阅与请求共用同一份命中；开关关＝恒空且不读库。
+  // 引用段挂在 renderForSend 唯一出口上，审阅所见即实际所发。
   final recallOn = ref.read(aiConfigProvider).localRecallOn;
-  final citations = recallCitations(
-    recalls ?? const <RecallHit>[],
-    enabled: recallOn,
-  );
+  final hits = recallOn
+      ? (recalls ?? await svc.buildRecalls(vars))
+      : const <RecallHit>[];
+  final (system, user) =
+      svc.renderForReview(taskId, vars, recalls: hits);
+  // C11：命中只投影短片段与来源（recallCitations 丢弃全文），不上传全库。
+  final citations = recallCitations(hits, enabled: recallOn);
   final confirmed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -184,7 +185,15 @@ Future<AiCallResult?> aiRunWithReview(
   // 请求侧自己收敛成 'ok'/'err'，好与 cancel.future 一起进 Future.any 竞速；
   // 取消胜出后不再 await 它，异常也已在 onError 里吃掉（无 unhandled error）。
   final settled = Completer<String>();
-  svc.request(taskId, vars, temperature: temperature, cancel: cancelToken).then((r) {
+  svc
+      .request(
+        taskId,
+        vars,
+        temperature: temperature,
+        cancel: cancelToken,
+        recalls: hits,
+      )
+      .then((r) {
     result = r;
     if (!settled.isCompleted) settled.complete('ok');
   }, onError: (Object e, StackTrace _) {
