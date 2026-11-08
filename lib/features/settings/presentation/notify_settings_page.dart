@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/providers.dart';
 import '../../../core/settings/user_settings.dart';
+import '../../../core/widgets/notify_wheel_rows.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/stats_providers.dart';
 
 /// 提醒通知二级页（原型 p-sub-notify）：
-/// 日程与任务提醒 / 日记复盘 / 收集箱清理 为真实排程；习惯提醒与免打扰为存储位。
+/// 日程与任务提醒 / 日记复盘 / 收集箱清理 为真实排程；习惯提醒为存储位。
+/// 免打扰窗口起止可编辑，落库后灌入判据参与提醒顺延（反馈批3）。
 class NotifySettingsPage extends ConsumerWidget {
   const NotifySettingsPage({super.key});
 
@@ -18,6 +20,9 @@ class NotifySettingsPage extends ConsumerWidget {
       await NotificationService.ensurePermission();
     }
     NotificationService.todoEnabled = n.todoEvent;
+    NotificationService.configureDndWindow(
+      startHour: n.dndStartHour,
+      endHour: n.dndEndHour);
     await NotificationService.syncDaily(
         inboxClean: n.inboxClean,
         diaryReview: n.diaryReview,
@@ -66,9 +71,10 @@ class NotifySettingsPage extends ConsumerWidget {
             children: [
               _row(context, '日记复盘', n.diaryReview,
                   (v) => _apply(ref, n.copyWith(diaryReview: v))),
-              _selectRow(context, '晚间复盘提醒时间', n.diaryTime,
-                  const ['21:00', '21:30', '22:00', '22:30'],
-                  (v) => _apply(ref, n.copyWith(diaryTime: v))),
+              DiaryTimeWheelRow(
+                value: n.diaryTime,
+                onApply: (v) => _apply(ref, n.copyWith(diaryTime: v)),
+              ),
             ],
           )),
           const SizedBox(height: 12),
@@ -102,14 +108,17 @@ class NotifySettingsPage extends ConsumerWidget {
             children: [
               _row(context, '⛔ 免打扰时段', n.dnd,
                   (v) => _apply(ref, n.copyWith(dnd: v))),
-              ListTile(
-                contentPadding: const EdgeInsets.only(left: 0),
-                title: Text('23:00 – 07:00 · 仅逾期紧急项可穿透',
-                    style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-                trailing: TextButton(
-                  onPressed: () => _toast(context, '免打扰时段编辑 · 规划 V0.5'),
-                  child: const Text('设置', style: TextStyle(fontSize: 12)),
-                ),
+              DndWindowWheelRow(
+                startHour: n.dndStartHour,
+                endHour: n.dndEndHour,
+                onApply: (s, e) => _apply(
+                    ref, n.copyWith(dndStartHour: s, dndEndHour: e)),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Text('仅逾期紧急项可穿透',
+                    style: TextStyle(
+                        fontSize: 11, color: scheme.onSurfaceVariant)),
               ),
             ],
           )),
@@ -170,12 +179,5 @@ class NotifySettingsPage extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-          content: Text(msg), duration: const Duration(milliseconds: 1500)));
   }
 }

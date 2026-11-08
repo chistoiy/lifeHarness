@@ -254,14 +254,36 @@ class NotificationService {
   static const int ledgerBud100Id = 900012;
   static const int careCheckupId = 900020;
 
-  /// 全局免打扰固定时段 23:00–07:00（NotifySettings.dnd 开启时生效）。
-  static bool inDndWindow(DateTime t) => t.hour >= 23 || t.hour < 7;
+  /// 全局免打扰窗口（整点·半开区间 [start,end)；`dnd` 开启时由调用侧判门）。
+  /// **签名必须是 `bool Function(DateTime)`**：健康页把本函数当指针传给
+  /// `mdDndTx` 按小时采样反推窗口文案，改成带参函数会全盘算错。故窗口做静态可配，
+  /// 启动与设置页落库后各灌一次（反馈批3）。
+  static int dndStartHour = 23;
+  static int dndEndHour = 7;
 
-  /// 落在免打扰窗内的时刻顺延到最近的 07:00（窗内任意时刻同点顺延）。
-  static DateTime deferOutOfDnd(DateTime when) =>
-      when.hour >= 23 ? DateTime(when.year, when.month, when.day + 1, 7)
-      : when.hour < 7 ? DateTime(when.year, when.month, when.day, 7)
-      : when;
+  static void configureDndWindow({
+    required int startHour,
+    required int endHour,
+  }) {
+    dndStartHour = startHour.clamp(0, 23);
+    dndEndHour = endHour.clamp(0, 23);
+  }
+
+  /// 起＝止按「空窗口（未设置）」处理：不吞任何提醒，文案与判据同源。
+  static bool inDndWindow(DateTime t) => dndStartHour == dndEndHour
+      ? false
+      : dndStartHour > dndEndHour
+          ? (t.hour >= dndStartHour || t.hour < dndEndHour)
+          : (t.hour >= dndStartHour && t.hour < dndEndHour);
+
+  /// 落在免打扰窗内的时刻顺延到最近的窗口终点（窗内任意时刻同点顺延）。
+  static DateTime deferOutOfDnd(DateTime when) {
+    if (!inDndWindow(when)) return when;
+    final sameDay = DateTime(when.year, when.month, when.day, dndEndHour);
+    return sameDay.isAfter(when)
+        ? sameDay
+        : DateTime(when.year, when.month, when.day + 1, dndEndHour);
+  }
 
   /// 一次性排程（月度小结/体检节点用：内容在排程时算好，重启后重排刷新）。
   /// 已过的时点不排；ready=false 静默降级。

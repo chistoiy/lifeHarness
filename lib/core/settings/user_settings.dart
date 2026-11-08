@@ -24,6 +24,10 @@ enum ThemeModeOption {
 
 /// 提醒通知设置（原型 p-sub-notify；M0末A：待办提醒/收集箱整理/日记复盘真实排程，
 /// 习惯提醒与免打扰为存储位生效在后续里程碑）。
+/// 免打扰整点读侧收敛：旧包无此键、损坏值一律回落默认，不写盘迁移。
+int dndHourOf(Object? v, int fallback) =>
+    (v is int ? v : fallback).clamp(0, 23);
+
 class NotifySettings {
   const NotifySettings({
     this.todoEvent = true,
@@ -34,6 +38,8 @@ class NotifySettings {
     this.inboxClean = false,
     this.habits = false,
     this.dnd = false,
+    this.dndStartHour = 23,
+    this.dndEndHour = 7,
   });
 
   /// 📅 日程与任务提醒总开关（待办 remind_at 排程随此开关）。
@@ -55,8 +61,13 @@ class NotifySettings {
   /// 🔁 习惯提醒（习惯模块 M1 前为存位）。
   final bool habits;
 
-  /// ⛔ 免打扰时段（23:00–07:00 固定存位，穿透策略 M2）。
+  /// ⛔ 免打扰总开关（穿透策略 M2）。
   final bool dnd;
+
+  /// 免打扰窗口起止（整点·半开区间 [start,end)；跨午夜＝start>end）。
+  /// 起＝止按空窗口处理；判据/顺延/文案都从这两个值推，不再写死 23–7。
+  final int dndStartHour;
+  final int dndEndHour;
 
   bool get anyDailyOn => diaryReview || inboxClean;
 
@@ -75,6 +86,8 @@ class NotifySettings {
     bool? inboxClean,
     bool? habits,
     bool? dnd,
+    int? dndStartHour,
+    int? dndEndHour,
   }) =>
       NotifySettings(
         todoEvent: todoEvent ?? this.todoEvent,
@@ -85,6 +98,8 @@ class NotifySettings {
         inboxClean: inboxClean ?? this.inboxClean,
         habits: habits ?? this.habits,
         dnd: dnd ?? this.dnd,
+        dndStartHour: dndStartHour ?? this.dndStartHour,
+        dndEndHour: dndEndHour ?? this.dndEndHour,
       );
 
   Map<String, Object?> toMap() => {
@@ -96,6 +111,8 @@ class NotifySettings {
         'inboxClean': inboxClean,
         'habits': habits,
         'dnd': dnd,
+        'dndStartHour': dndStartHour,
+        'dndEndHour': dndEndHour,
       };
 
   factory NotifySettings.fromMap(Map<String, Object?> m) => NotifySettings(
@@ -107,6 +124,8 @@ class NotifySettings {
         inboxClean: m['inboxClean'] as bool? ?? false,
         habits: m['habits'] as bool? ?? false,
         dnd: m['dnd'] as bool? ?? false,
+        dndStartHour: dndHourOf(m['dndStartHour'], 23),
+        dndEndHour: dndHourOf(m['dndEndHour'], 7),
       );
 }
 

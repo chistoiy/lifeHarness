@@ -145,6 +145,9 @@ Future<void> main() async {
   await NotificationService.init();
   final settings = SettingsRepository(prefs).load();
   NotificationService.todoEnabled = settings.notify.todoEvent;
+  NotificationService.configureDndWindow(
+    startHour: settings.notify.dndStartHour,
+    endHour: settings.notify.dndEndHour);
   await NotificationService.syncDaily(
     inboxClean: settings.notify.inboxClean,
     diaryReview: settings.notify.diaryReview,

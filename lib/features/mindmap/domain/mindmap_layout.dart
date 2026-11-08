@@ -103,11 +103,13 @@ class TreeLayoutEngine implements LayoutEngine {
     }
     roots.sort((a, b) => a.sort.compareTo(b.sort));
 
+    final depthOf = <int, int>{};
     var cursor = 0.0;
     void visit(MindmapNode n, int depth, Size size) {
       final h = math.max(minRowH, size.height);
       baseline[n.id!] = Offset(depth * indent, cursor);
       sizes[n.id!] = size;
+      depthOf[n.id!] = depth;
       cursor += h + rowGap;
       // 折叠＝整枝跳过：子级不进布局（F1-9），连线收缩由画布按「被跳过」处理。
       if (n.folded) return;
@@ -118,6 +120,21 @@ class TreeLayoutEngine implements LayoutEngine {
 
     for (final r in roots) {
       visit(r, 0, measure(r));
+    }
+    // 导图体检 L2：纵向大纲按「同深度最宽值」拉齐节点盒宽，上限不动。
+    // 本侧度量是纯函数缓存（没有原型 refineBox 的第二趟 DOM 文本宽回填），
+    // 直接落回 sizes 即可让绘制/命中/包围盒/导出同源跟随，不会逐帧抖动。
+    // 横向树与放射两形态不进本分支，保持原样。
+    final byDepth = <int, double>{};
+    for (final e in depthOf.entries) {
+      final w = sizes[e.key]?.width ?? 0;
+      if (w > (byDepth[e.value] ?? 0)) byDepth[e.value] = w;
+    }
+    for (final e in depthOf.entries) {
+      final s = sizes[e.key];
+      if (s == null) continue;
+      final w = math.min(maxNodeWidth, byDepth[e.value] ?? s.width);
+      if (w != s.width) sizes[e.key] = Size(w, s.height);
     }
     return MmLayoutResult(
         baseline: baseline, sizes: sizes, assignedSides: sides);
