@@ -237,7 +237,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('批量模式 · 点选卡片可多选'), findsNothing);
       expect(find.byKey(const ValueKey('note-sel-top')), findsOneWidget);
-      expect(find.text('已选择 1 项'), findsOneWidget);
+      // C 案批6b N5 起计数数字单独成 Text（品牌色高亮），整串不再是一个 Text。
+      expect(find.text('已选择 '), findsOneWidget);
+      expect(find.text('1'), findsWidgets);
+      expect(find.text(' 项'), findsOneWidget);
       expect(find.byKey(const ValueKey('note-sel-bar')), findsOneWidget);
       expect(find.text('置顶'), findsOneWidget); // 未置顶笔记→钮=置顶
 

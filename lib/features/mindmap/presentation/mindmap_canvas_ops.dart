@@ -197,8 +197,12 @@ extension _MmCanvasOps on _MindmapCanvasPageState {
         [
           (key: 'copy', icon: Icons.content_copy, label: '复制（含子级）', enabled: true, inline: false),
           (key: 'cut', icon: Icons.content_cut, label: '剪切（含子级）', enabled: true, inline: false),
-          (key: 'pasteSib', icon: Icons.content_paste, label: '粘贴同级', enabled: true, inline: true),
-          (key: 'pasteChild', icon: Icons.content_paste_go, label: '粘贴子级', enabled: true, inline: true),
+          // 剪贴板空时两枚粘贴置灰（存量红消化批2）：此前写死 enabled: true，点下去走
+          // `_pasteSib` 会命中「剪贴板为空」分支空转——原型口径是「不给人点了才知道」。
+          (key: 'pasteSib', icon: Icons.content_paste, label: '粘贴同级',
+              enabled: MmClipboard.hasContent, inline: true),
+          (key: 'pasteChild', icon: Icons.content_paste_go, label: '粘贴子级',
+              enabled: MmClipboard.hasContent, inline: true),
         ],
         [
           (key: 'del', icon: Icons.delete_outlined, label: '删除节点', enabled: true, inline: false),

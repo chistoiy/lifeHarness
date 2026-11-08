@@ -354,7 +354,8 @@ void main() {
           .height;
       expect(h1, lessThan(890 * 0.72));
       expect(find.text('借出 · 别人欠我'), findsOneWidget);
-      expect(find.text('对方（如：老王）'), findsOneWidget);
+      // 浮动标签整改：示例「如：老王」已删，标签只剩「对方」（labelText 内联）。
+      expect(find.text('对方'), findsOneWidget);
       expect((h1 - h0).abs(), greaterThan(0.0),
           reason: '两种形态同高 ⇒ 说明高度是写死的整页，不是按内容收');
     });

@@ -71,7 +71,8 @@ void main() {
       await tester.tap(find.text('＋ 新建周期账单'));
       await settle5(tester);
       expect(find.text('新建周期账单'), findsOneWidget);
-      expect(find.text('名称 · 如 爱奇艺会员'), findsOneWidget); // hint
+      // 浮动标签整改后示例文案并入 labelText（D 类删外部标题行），标签只剩「名称」。
+      expect(find.text('名称'), findsOneWidget);
       expect(find.text('保存'), findsOneWidget);
       expect(find.text('取消'), findsOneWidget);
       await tester.tap(find.text('保存'));

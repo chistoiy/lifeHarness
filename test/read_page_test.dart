@@ -153,6 +153,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 120));
   }
 
+  /// 切到笔记库指定视图（按 `ql-view` 的 tooltip 判定当前档）。
+  /// 2026-11-08 存量红消化批2：默认档已由产品报障改成「按章节分组」（chap），
+  /// 用例原来按「默认卡片、点 N 次到 X」写，默认一变全错位 —— 改成按名切换。
+  Future<void> toQuotesView(WidgetTester tester, String name) async {
+    for (var i = 0; i < 5; i++) {
+      if (find.byTooltip(name).evaluate().isNotEmpty) return;
+      await tester.tap(find.byKey(const ValueKey('ql-view')));
+      await settle(tester);
+    }
+    expect(find.byTooltip(name), findsOneWidget, reason: '切不到视图 $name');
+  }
+
   /// workbench 聚合含多轮 sqflite 往返，假异步下泵帧不确定完成 → runAsync 轮询。
   Future<void> waitFinder(WidgetTester tester, Finder f,
       {int times = 15}) async {
@@ -919,20 +931,16 @@ void main() {
       expect(find.text('感想'), findsOneWidget);
       expect(find.text('覆盖'), findsOneWidget);
       expect(countByPrefix(tester, 'ql-q-'), 18, reason: '卡片视图');
-      // 循环 行 → 按章节 → 图片墙，四视图计数一致
-      await tester.tap(find.byKey(const ValueKey('ql-view')));
-      await settle(tester);
+      // 四视图计数一致：按名显式切（默认档＝按章节分组，不押循环序）
+      await toQuotesView(tester, '紧凑行视图');
       expect(countByPrefix(tester, 'qlr-'), 18, reason: '行视图');
-      await tester.tap(find.byKey(const ValueKey('ql-view')));
-      await settle(tester);
+      await toQuotesView(tester, '按章节分组');
       expect(countByPrefix(tester, 'ql-q-'), 18, reason: '按章节分组内仍是卡');
       expect(countByPrefix(tester, 'qlg-'), 2, reason: '甲·第一章 / 乙·未分章');
-      await tester.tap(find.byKey(const ValueKey('ql-view')));
-      await settle(tester);
+      await toQuotesView(tester, '图片墙');
       expect(countByPrefix(tester, 'qli-'), 18, reason: '图片墙（无图回退全量）');
       // 标星范围筛选（批D：卡内快捷行也有「标星」钮，限定在分段控件内点选）。
-      await tester.tap(find.byKey(const ValueKey('ql-view'))); // img → card
-      await settle(tester);
+      await toQuotesView(tester, '卡片视图');
       await tester.tap(find.descendant(
           of: find.byKey(const ValueKey('ql-scope')), matching: find.text('标星')));
       await settle(tester);
@@ -1674,12 +1682,7 @@ void main() {
       await clearToasts(tester);
       expect(await db.query('journal_entries'), hasLength(1));
       // 图片墙空态提示行（原型 4876）。
-      await tester.tap(find.byKey(const ValueKey('ql-view'))); // → line
-      await settle(tester);
-      await tester.tap(find.byKey(const ValueKey('ql-view'))); // → chap
-      await settle(tester);
-      await tester.tap(find.byKey(const ValueKey('ql-view'))); // → img
-      await settle(tester);
+      await toQuotesView(tester, '图片墙');
       expect(find.text('还没有带图片的摘录 · 记摘录时点「加图片」'), findsOneWidget);
     });
 
