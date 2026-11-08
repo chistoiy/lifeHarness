@@ -403,6 +403,10 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        // C06 自动时间采集（2026-11-09）：`UsageStatsManager` 只读分段通道。
+        // 权限＝「使用情况访问」特殊权限（系统设置授予，无运行时弹窗）；
+        // 未授予时通道回空分段＋去授予文案，不抛错、不重试。
+        UsageStatsChannel.wire(this, flutterEngine)
     }
 
     /// NFC 卡片模块批2：跳系统 NFC 设置页（B2 的「去设置」）。

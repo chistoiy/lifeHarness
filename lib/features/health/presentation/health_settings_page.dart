@@ -7,6 +7,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/lh_wheel.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/health_calc.dart' show dayKey;
+import '../domain/health_device_import.dart'
+    show deviceImportAvailable, kDeviceImportAuthNote;
 import '../domain/health_export.dart';
 import 'health_goal_row.dart';
 import 'health_providers.dart';
@@ -32,6 +34,7 @@ class HealthSettingsPage extends ConsumerStatefulWidget {
   static const Key kCup = ValueKey('hs-cup');
   static const Key kStage = ValueKey('hs-stage');
   static const Key kNotify = ValueKey('hs-notify');
+  static const Key kDeviceImport = ValueKey('hs-device-import');
   static const Key kDaily = ValueKey('hs-daily');
   static const Key kRemind = ValueKey('hs-remind');
   static const Key kKgUnit = ValueKey('hs-kg-unit');
@@ -153,6 +156,10 @@ class _HealthSettingsPageState extends ConsumerState<HealthSettingsPage> {
               onChanged: (i) => _setSwitch(
                   () => st.setWeightRemindAt(HealthSettingsPage.remindTimeLabels[i])),
             ),
+          ]),
+          const SizedBox(height: 12),
+          _card([
+            _deviceImportRow(),
           ]),
           const SizedBox(height: 12),
           _card([
@@ -396,6 +403,63 @@ class _HealthSettingsPageState extends ConsumerState<HealthSettingsPage> {
             ),
           ),
           Switch(key: key, value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+
+  /// C07 设备导入灰位：不接系统授权、不读真实数据，只说明口径（点击不生效）。
+  Widget _deviceImportRow() {
+    final scheme = Theme.of(context).colorScheme;
+    final grey = scheme.onSurface.withValues(alpha: .38);
+    return Padding(
+      key: HealthSettingsPage.kDeviceImport,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '设备导入（体重 / 睡眠 / 运动 / 心率）',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: grey),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '灰位',
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  deviceImportAvailable
+                      ? '可开启'
+                      : '$kDeviceImportAuthNote · 仅留入口与域层映射，不读取真实数据',
+                  style:
+                      TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.lock_outline, size: 16, color: grey),
         ],
       ),
     );
