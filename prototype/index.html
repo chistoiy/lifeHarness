@@ -895,6 +895,7 @@ tailwind.config = {
         </div>
         <div class="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hidden" id="nfcEditOps">
           <button class="w-full flex items-center justify-between px-3.5 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcGotoWrite()"><span class="text-xs font-bold">写入卡片</span><span class="text-[11px] text-slate-400" id="nfcEditWrote">未写入</span></button>
+          <button class="w-full flex items-center justify-between px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcGotoWrite()"><span class="text-xs font-bold">复制到另一张卡</span><span class="text-[11px] text-slate-400">所有副本触发同一件事</span></button>
           <button class="w-full flex items-center justify-between px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60" onclick="nfcAskDel()"><span class="text-xs font-bold text-rose-500">删除卡片</span><span class="text-[11px] text-slate-400">原卡片变未绑定</span></button>
         </div>
         <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="nfcSaveEdit()">保存</button>

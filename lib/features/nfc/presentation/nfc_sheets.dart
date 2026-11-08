@@ -10,6 +10,7 @@ import '../../../shared/linkage/nfc_mounts.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/nfc_repo.dart';
+import '../data/nfc_tag_io.dart';
 import '../domain/nfc_card.dart';
 import 'nfc_write_sheet.dart';
 
@@ -40,6 +41,7 @@ Future<bool?> showNfcEditSheet(
   String? bindTagKey,
   NfcEditMode mode = NfcEditMode.full,
   NfcRepo? repo,
+  NfcTagIo? io,
   void Function(NfcCard created)? onCreated,
 }) {
   return showModalBottomSheet<bool>(
@@ -50,6 +52,7 @@ Future<bool?> showNfcEditSheet(
       bindTagKey: bindTagKey,
       mode: mode,
       repo: repo,
+      io: io,
       onCreated: onCreated,
     ),
   );
@@ -70,6 +73,7 @@ class _NfcEditSheet extends StatefulWidget {
     this.bindTagKey,
     this.mode = NfcEditMode.full,
     this.repo,
+    this.io,
     this.onCreated,
   });
 
@@ -82,6 +86,9 @@ class _NfcEditSheet extends StatefulWidget {
 
   /// 测试注入缝（widget 用例不碰真磁盘库）。
   final NfcRepo? repo;
+
+  /// 测试注入缝（widget 用例注入假标签 IO，全程不碰真硬件）。
+  final NfcTagIo? io;
 
   /// 新建态保存成功回调（批2：调用方据此续开写卡层 · C16）。
   final void Function(NfcCard created)? onCreated;
@@ -493,6 +500,32 @@ class _NfcEditSheetState extends State<_NfcEditSheet> {
                             context,
                             card: widget.card!,
                             repo: _repo,
+                            io: widget.io,
+                          );
+                          if (!mounted || !wrote) return;
+                          setState(() => _wrote = true);
+                        },
+                      ),
+                      Divider(height: 1, color: scheme.outlineVariant),
+                      ListTile(
+                        key: const ValueKey('nfc-edit-copy'),
+                        dense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 14),
+                        title: const Text('复制到另一张卡',
+                            style: TextStyle(fontSize: 13)),
+                        trailing: Text('所有副本触发同一件事',
+                            style: TextStyle(
+                                fontSize: 11, color: scheme.onSurfaceVariant)),
+                        onTap: () async {
+                          // 批3d（冻结档 §批3d）：同一 cardId 写进任意多张物理卡
+                          // 即共享同一事件——触发链只认 cardId、不区分物理卡，
+                          // 故复用写卡层，不新增写卡通道（防批3c①「改写丢 AAR」复发）。
+                          final wrote = await showNfcWriteSheet(
+                            context,
+                            card: widget.card!,
+                            repo: _repo,
+                            io: widget.io,
                           );
                           if (!mounted || !wrote) return;
                           setState(() => _wrote = true);
