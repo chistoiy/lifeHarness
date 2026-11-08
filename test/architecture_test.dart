@@ -135,20 +135,8 @@ void main() {
     // 2026-10-12 思维导图批1 刀2 变异实锤：旧写法 split('/').first 取到的是
     // 「features」字面量（文件键与 import 键同段），target != mod 永不成立＝守护空转。
     // 修为取第二段（模块名）；本刀红＝守护恢复咬合的证据。
-    // 存量越线登记（R1 修好后首次暴露，均早于思维导图批1；登记=允许现状、
-    // 只许减；真还债＝各自改走 shared/linkage，另批做）：
-    const legacyEdges = <String, Set<String>>{
-      'features/dashboard/presentation/widgets/today_schedule_card.dart': {
-        'calendar',
-      },
-      'features/days/presentation/days_providers.dart': {'todo'},
-      'features/journal/presentation/journal_page.dart': {'read'},
-      // 存量越线登记（阅读模块批2 · 2026-10-14 跑出本红）：日记编辑页直取
-      // `features/calendar`（旧 events 表退役后，日记摘要与计时条切「时间块」单源，
-      // 见时间模块 B10 5700dff9 2026-10-13）。该批门禁未带本闸，故今日现形——
-      // 本批一行未动 journal/calendar。真还债＝改走 shared/linkage 聚合服务，另批做。
-      'features/journal/presentation/diary_edit_page.dart': {'calendar'},
-    };
+    // 2026-11-08 R1 跨模块直连归零后续批：四条存量越线豁免已全部清零
+    //（两条改走 linkage 门面／一条死 import 删除／一条死登记摘除）⇒ 本闸零豁免。
     final violations = <String>[];
     for (final entry in imports.entries) {
       final seg = entry.key.split('/');
@@ -158,8 +146,7 @@ void main() {
         final iseg = imp.split('/');
         if (iseg.first != 'features' || iseg.length < 2) continue;
         final target = iseg[1];
-        if (target != mod &&
-            !(legacyEdges[entry.key]?.contains(target) ?? false)) {
+        if (target != mod) {
           violations.add('${entry.key} → features/$target');
         }
       }

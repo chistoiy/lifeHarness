@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/nav/nav_module.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/linkage/stats_providers.dart';
-import '../../../calendar/domain/time_block.dart';
-import '../../../calendar/presentation/calendar_providers.dart';
 
 /// 今日安排（原型 p-dashboard 的 dashEvents 卡 · R14-14 自 dashboard_page 拆出）。
 ///

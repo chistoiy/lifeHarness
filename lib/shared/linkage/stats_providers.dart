@@ -17,8 +17,8 @@ export '../../features/todo/presentation/todo_providers.dart' show todosProvider
 export '../../features/todo/domain/todo.dart' show Todo, Quadrant;
 export '../../features/todo/domain/todo_insights.dart' show energyCaption;
 export '../../features/calendar/presentation/calendar_providers.dart' show dayBlocksProvider, monthBlockDaysProvider;
-export '../../features/calendar/domain/time_block.dart' show TimeBlock;
-export '../../features/calendar/presentation/calendar_providers.dart' show categoriesProvider;
+export '../../features/calendar/domain/time_block.dart' show TimeBlock, kSrcTiming;
+export '../../features/calendar/presentation/calendar_providers.dart' show categoriesProvider, catColorsByNameProvider;
 export '../../features/calendar/domain/category.dart' show Category;
 export '../../features/journal/presentation/journal_providers.dart' show journalRepositoryProvider, journalsProvider, noteDaoProvider;
 export '../../features/journal/domain/journal_entry.dart' show JournalEntry, kJournalMoods, moodEmoji, moodLabel;

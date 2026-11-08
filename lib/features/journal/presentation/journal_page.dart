@@ -14,9 +14,6 @@ import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/diary_filter_kit.dart';
 import '../domain/journal_entry.dart';
 import '../domain/tag.dart';
-import '../../read/domain/book_quote.dart';
-import '../../read/presentation/read_providers.dart'
-    show readRepositoryProvider, readTickProvider;
 import 'diary_edit_page.dart';
 import 'journal_providers.dart';
 import 'note_edit_page.dart';
