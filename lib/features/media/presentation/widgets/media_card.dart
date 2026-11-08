@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../domain/media_item.dart';
+import 'media_card_skin.dart';
 
 /// 影音游条目卡（LH-C14 · 原型 `index-media.html` `.mds-item` 扁平 V3 卡集）。
 ///
 /// 视觉基线＝**与主框架同一扁平语言**（计划 §三 顶部反转横幅：微拟物已由产品否决，
-/// Flutter 侧不实现卡带/BOX/双层光影/翻盖动效）。三类形态按原型：
+/// 2A 起四类卡面材质与双层阴影只作为 `media.cardSkin` **可选皮肤**（默认关）存在：
+/// 不回灌桌面底／亚麻纹理／配色令牌，默认面与扁平基线逐像素一致。三类形态按原型：
 /// 电影·剧集＝3:4 竖版封面 · 音乐＝封套＋探出的黑胶 · 游戏＝16:10 key-art。
 /// 无封面时按 [MediaItem.paletteIdx] 取色板（与书籍侧 BS_COV 同构机制，§九.3）。
 
@@ -124,6 +126,7 @@ class MediaItemCard extends StatelessWidget {
     this.selectionMode = false,
     this.onTap,
     this.onLongPress,
+    this.cardSkin = false,
   });
 
   final MediaItem item;
@@ -132,13 +135,45 @@ class MediaItemCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
+  /// 2A 可选皮肤（media.cardSkin）：默认 false＝扁平卡零变化。
+  final bool cardSkin;
+
   /// 卡体 key（测试与真机取证锚点：桌面视图数卡就数这个）。
   Key get cardKey => ValueKey('mds-card-${item.id}');
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final dark = scheme.brightness == Brightness.dark;
     final pct = item.progressPercent;
+    final face = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: switch (item.kind) {
+            MediaItem.kMusic => _vinylFace(context),
+            MediaItem.kGame => _gameFace(context),
+            _ => _posterFace(context),
+          },
+        ),
+        if (pct != null)
+          SizedBox(
+            height: 3,
+            child: ColoredBox(
+              color: scheme.outlineVariant,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: (pct / 100).clamp(0.0, 1.0),
+                  child: ColoredBox(
+                    color: mdsProgressColor(context, item.progressTone),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
     return GestureDetector(
       key: cardKey,
       behavior: HitTestBehavior.opaque,
@@ -154,36 +189,24 @@ class MediaItemCard extends StatelessWidget {
                 : scheme.outlineVariant.withValues(alpha: .6),
             width: selectionMode && selected ? 2 : 1,
           ),
+          boxShadow: cardSkin ? mdsSkinShadows(dark) : null,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: switch (item.kind) {
-                MediaItem.kMusic => _vinylFace(context),
-                MediaItem.kGame => _gameFace(context),
-                _ => _posterFace(context),
-              },
-            ),
-            if (pct != null)
-              SizedBox(
-                height: 3,
-                child: ColoredBox(
-                  color: scheme.outlineVariant,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: (pct / 100).clamp(0.0, 1.0),
-                      child: ColoredBox(
-                        color: mdsProgressColor(context, item.progressTone),
-                      ),
+        child: cardSkin
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  face,
+                  Positioned.fill(
+                    child: mdsSkinOverlay(
+                      kind: item.kind,
+                      dark: dark,
+                      surface: scheme.surface,
                     ),
                   ),
-                ),
-              ),
-          ],
-        ),
+                ],
+              )
+            : face,
       ),
     );
   }

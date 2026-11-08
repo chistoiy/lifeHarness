@@ -347,6 +347,7 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
       itemBuilder: (_, i) {
         final x = list[i];
         return MediaItemCard(
+          cardSkin: ref.watch(mediaCardSkinProvider).valueOrNull ?? false,
           item: x,
           selected: _sel.contains(x.id),
           selectionMode: _selMode,

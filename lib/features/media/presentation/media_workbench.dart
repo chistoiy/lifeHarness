@@ -249,6 +249,7 @@ class MediaWorkbench extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.only(right: 10),
                       child: MediaItemCard(
+                        cardSkin: ref.watch(mediaCardSkinProvider).valueOrNull ?? false,
                         item: x,
                         onTap: () {
                           applyMediaShelfPrefs(

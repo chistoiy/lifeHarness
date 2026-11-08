@@ -13,7 +13,8 @@ import 'media_providers.dart';
 /// - 一律走 settings 表 KV `media.*`（铁口径④，不散落 SharedPreferences）；
 /// - 逐行当场生效（铁口径①）：写 KV＋mediaTick 层层重取，speedFold 与统计 chip 双向同源；
 /// - 能力未开放＝灰态点不动、零说明文案（铁口径②：识图/更新提醒三行/导出两枚）；
-/// - 死键四条不铺（deskTexture/cardLiftPx/spineCols/longPress＝工单 §0.5）。
+/// - 死键四条不铺（deskTexture/cardLiftPx/spineCols/longPress＝工单 §0.5）；
+/// - 2A 可选皮肤 `media.cardSkin`（默认关）＝架面组第三行，写库＋tick 当场生效。
 class MediaSetPage extends ConsumerStatefulWidget {
   const MediaSetPage({super.key});
 
@@ -47,6 +48,7 @@ final List<({String id, String label, List<MdsSetRowDef> rows})> kMdsSetGroups =
       _seg(
           'media.defaultView', '默认视图', [('desk', '桌面'), ('spine', '脊'), ('list', '列表')]),
       _seg('media.wallCols', '桌面列数', [('2', '2 列'), ('3', '3 列')]),
+      _bool('media.cardSkin', '实物卡材质'),
     ],
   ),
   (
@@ -107,6 +109,7 @@ final List<({String id, String label, List<MdsSetRowDef> rows})> kMdsSetGroups =
 const Map<String, String> kMdsPreset = {
   'media.defaultView': 'desk',
   'media.wallCols': '2',
+  'media.cardSkin': 'false',
   'media.sortDefault': 'recent',
   'media.newPos': 'head',
   'media.floatBar': 'true',

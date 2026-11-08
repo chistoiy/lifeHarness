@@ -412,6 +412,16 @@ final mediaWallColsProvider = FutureProvider<int>((ref) async {
           2;
 });
 
+/// 2A 可选实物卡材质皮肤（media.cardSkin＝false）：默认关＝扁平卡零变化；
+/// 开＝只换卡面材质与双层阴影，桌面底／配色令牌／卡片结构一律不动。
+/// 与设置页同一枚 settings KV，写库后靠 mediaTick 当场重取。
+final mediaCardSkinProvider = FutureProvider<bool>((ref) async {
+  ref.watch(mediaTickProvider);
+  return (await mediaKvSafe(
+          ref.watch(mediaRepositoryProvider), 'media.cardSkin', 'false')) ==
+      'true';
+});
+
 /// 新增插入位（media.newPos＝head|tail；录入弹层保存时读，tail＝created_at 取全库最小-1）。
 final mediaNewPosProvider = FutureProvider<String>((ref) async {
   ref.watch(mediaTickProvider);
