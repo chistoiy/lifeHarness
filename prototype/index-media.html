@@ -545,6 +545,27 @@ html.dark .mclab-kicker{color:var(--accent-l,#818cf8)}
 body:has(#m-cardlab.active) #phone{background-color:#f7f1e6!important;background-image:repeating-linear-gradient(45deg,rgba(120,95,60,.055) 0 1px,transparent 1px 4px),repeating-linear-gradient(-45deg,rgba(120,95,60,.055) 0 1px,transparent 1px 4px)!important}
 html.dark body:has(#m-cardlab.active) #phone{background-color:#2d1f14!important;background-image:repeating-linear-gradient(90deg,rgba(255,235,205,.035) 0 1px,transparent 1px 5px)!important}
 </style>
+<style id="mclab-skin">
+/* 2A 实现轮 · 实物卡材质皮肤（media.cardSkin · 默认关）
+   边界：只换卡面材质与双层阴影；桌面底仍为 --page、配色仍走 --card/--accent 派生，
+   四类扁平主色/统计色/图标一律不动，零 emoji、零亚麻或胡桃纹理。 */
+:root{--mds-skin-contact:0 2px 4px rgba(15,23,42,.20);--mds-skin-ambient:0 10px 24px rgba(15,23,42,.14);--mds-skin-lift:0 16px 34px rgba(15,23,42,.22)}
+html.dark{--mds-skin-contact:0 2px 4px rgba(0,0,0,.55);--mds-skin-ambient:0 12px 28px rgba(0,0,0,.48);--mds-skin-lift:0 16px 34px rgba(0,0,0,.60)}
+.mds-item.skin{box-shadow:var(--mds-skin-contact),var(--mds-skin-ambient)}
+.mds-item.skin:hover{box-shadow:var(--mds-skin-contact),var(--mds-skin-lift)}
+.mds-item.skin .skin-mat{position:absolute;inset:0;pointer-events:none;z-index:3}
+/* 电影＝卡纸海报·极细卷边＋matte 内框 */
+.mds-item.skin[data-skin="movie"] .skin-mat::before{content:'';position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.mds-item.skin[data-skin="movie"] .skin-mat::after{content:'';position:absolute;top:0;right:0;border-style:solid;border-width:0 15px 15px 0;border-color:transparent var(--card) transparent transparent;filter:drop-shadow(-1px 1px 1px rgba(0,0,0,.30))}
+/* 剧集＝蓝光 BOX·左书脊＋顶盖高光 */
+.mds-item.skin[data-skin="series"] .skin-mat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:8px;background:linear-gradient(90deg,rgba(15,23,42,.65),rgba(15,23,42,.22));border-right:1px solid rgba(255,255,255,.18)}
+.mds-item.skin[data-skin="series"] .skin-mat::after{content:'';position:absolute;left:8px;right:0;top:0;height:9px;background:linear-gradient(180deg,rgba(255,255,255,.20),transparent)}
+/* 音乐＝黑胶径向纹（封套外探的一圈） */
+.mds-item.skin[data-skin="music"] .skin-mat::before{content:'';position:absolute;right:2%;top:16%;width:52%;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle at 50% 50%,rgba(255,255,255,.055) 0 1px,transparent 1px 3px);box-shadow:0 2px 6px rgba(0,0,0,.32)}
+/* 游戏＝FC 卡带·上沿凸棱＋金手指 */
+.mds-item.skin[data-skin="game"] .skin-mat::before{content:'';position:absolute;left:0;right:0;top:0;height:9px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.14) 0 2px,transparent 2px 6px)}
+.mds-item.skin[data-skin="game"] .skin-mat::after{content:'';position:absolute;left:9%;right:9%;bottom:0;height:7px;background:repeating-linear-gradient(90deg,#c9a227 0 3px,rgba(15,23,42,.30) 3px 5px);border-radius:1px 1px 0 0}
+</style>
 <style id="lh-float-label">
 /* LH-FL 浮动标签（2026-11-07 表单规则 P1）：空框 label 居中，聚焦/有值缩到框内上沿永久可见 */
 .fl-field{position:relative;display:flow-root}
@@ -2896,7 +2917,7 @@ function mCardHTML(x){
   else{cover=`<div class="cover" style="background:linear-gradient(160deg,${c[0]},${c[1]})">${mCovImgHTML(x)}${kic}${rt}${sel}${ttl}${yr}</div>`}
   if(mSelMode)cls+=' selmode';
   const bar=(p===null)?'':`<div class="pbar"><i class="${mProgCls(x)}" style="width:${p}%"></i></div>`;
-  return `<div class="${cls}" data-id="${x.id}" onclick="${mSelMode?`mToggleSel('${x.id}')`:`mOpen('${x.id}')`}">${cover}${bar}</div>`;
+  return `<div class="${cls}${MSET.cardSkin?' skin':''}" data-skin="${x.kind}" data-id="${x.id}" onclick="${mSelMode?`mToggleSel('${x.id}')`:`mOpen('${x.id}')`}">${cover}${bar}${MSET.cardSkin?'<span class="skin-mat"></span>':''}</div>`;
 }
 function mMomentHTML(m){const c=MD_COV[(parseInt(String(m.id).replace(/\D/g,''))||0)%MD_COV.length];return `<div class="mds-moment" style="--c1:${c[0]};--c2:${c[1]}"><div class="mm-disc"><div class="mm-lbl">${(m.song||'音')[0]}</div></div><div class="mm-main"><div class="mm-song">${m.song}<span class="mm-ar"> · ${m.artist}</span></div><div class="mm-text">${m.text}</div><div class="mm-foot"><span class="mm-when">${m.when}</span>${m.list?`<span class="mds-chip">${m.list}</span>`:''}</div></div></div>`}
 function mSaveMoment(){const s=$('#moSong').value.trim(),a=$('#moArtist').value.trim(),t=$('#moText').value.trim();if(!s&&!t){toast('写点什么吧');return}const list=$('#moList').value.trim();MMOMENTS.unshift({id:'mo'+Date.now(),song:s||'随手记',artist:a,list:list,when:'刚刚',text:t||''});['#moSong','#moArtist','#moText','#moList'].forEach(x=>{$(x).value=''});closeSheet('m-sheet-moment');mRenderShelf();toast('已记下这条听后感')}
@@ -3665,9 +3686,9 @@ h+='<div id="mgW_'+g.k+'" style="max-width:140px"></div></div>';}
 return h+'</div>'}).join('');
 if(mGoalOpen){const g=MGOALS.find(x=>x.k===mGoalOpen);if(g)wReg('mgW_'+g.k,mGoalItems(g),mGoalIdx(g),function(){const w=WHEELS['mgW_'+g.k];mGoalPick(g.k,+w.items[w.i])})}}
 /* ---- 影音游批8a · 设置屏：media.* 键读写与当场生效（死键 deskTexture/cardLiftPx/spineCols/longPress 已作废＝工单 §0.5） ---- */
-const MSET={defaultView:'desk',wallCols:2,sortDefault:'recent',newPos:'head',ocr:true,autoPos:true,clipAuto:true,floatBar:true,speedFold:false,autoAsk:true,dailyQ:true};
+const MSET={defaultView:'desk',wallCols:2,sortDefault:'recent',newPos:'head',ocr:true,autoPos:true,clipAuto:true,floatBar:true,speedFold:false,autoAsk:true,dailyQ:true,cardSkin:false};
 const MSET_GROUPS=[
-['shelf','架面',[['defaultView','默认视图','seg',[['desk','桌面'],['spine','脊'],['list','列表']]],['wallCols','桌面列数','seg',[['2','2 列'],['3','3 列']]]]],
+['shelf','架面',[['defaultView','默认视图','seg',[['desk','桌面'],['spine','脊'],['list','列表']]],['wallCols','桌面列数','seg',[['2','2 列'],['3','3 列']]],['cardSkin','实物卡材质','bool']]],
 ['sort','排序',[['sortDefault','默认排序','seg',MSRT.map(k=>[k,{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]])],['newPos','新增插入','seg',[['head','置顶'],['tail','置底']]]]],
 ['note','笔记',[['ocr','识图取文','off'],['autoPos','默认带时间点','bool'],['clipAuto','剪贴板识别','bool']]],
 ['timer','计时',[['floatBar','悬浮计时条','bool'],['speedFold','倍速折算','bool'],['autoAsk','结束即弹记进度','bool'],['dailyQ','晚间补记提醒','bool']]],
@@ -3679,6 +3700,7 @@ function mSetPick(t){mSetTab=t;mRenderSet()}
 function mSetChg(k,v){MSET[k]=(k==='wallCols'?+v:v);mApplySetting(k);mRenderSet()}
 function mSetTgl(k){MSET[k]=!MSET[k];mApplySetting(k);mRenderSet()}
 function mApplySetting(k){
+if(k==='cardSkin')mRenderShelf();
 if(k==='wallCols'||k==='sortDefault')mRenderShelf();
 if(k==='speedFold'){mStatFold=!!MSET.speedFold;mRenderStat()}
 if(k==='floatBar')mTimerBarSync();
