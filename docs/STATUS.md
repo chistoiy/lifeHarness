@@ -8,7 +8,7 @@
 
 ## 基线（八项，其余不写）
 
-**未推＝10**（11-09 四批 UI/UX＋导图 SVG＋AI 识别裁定＋8218/8219 装机登记＋校正·待产品令；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
+**未推＝0**（11-09 四批 UI/UX＋导图 SVG＋AI 识别裁定＋8218/8219 装机登记共 11 枚已推 origin 与 gitee；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
 - 最新预发布＝`v0.2.15-mm-p7`（装机 8202·arm64 单包）／`-nfc`／`-desktop-b1` 三枚双端挂齐；逐枚钉版/双端 id/md5＝台账§A。⚠ 只挂 arm64 瘦身包·勿卸载＝清库
 - 再前预发布＝`-tree-swipe`／`-tree-follow`／`-note-mount`／`-note-local`（DB v39→v42 首枚）／`-health-media`／`-media`——台账＝同档 §A
 - DB＝`DbSchema.version=53`（v53＝物品实物属性批 8 条可空 `ADD COLUMN`：多图/位置/凭证/条码/借出三列/自定义字段·零搬数据老行取 NULL；v52＝物品批A brand/serial/note；v51＝item_events 加 txn_id；v50＝日记批2b 建 tags+tag_links——**version 与 migrations 必须同批改**；v49~v45 逐版＝沉各归档工单；本行读数由守护二十三与 schema.dart 比对）
