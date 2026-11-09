@@ -56,33 +56,6 @@ class ItemLocationNode {
   final List<String> children;
 }
 
-/// 功能门：enabled 且不需要在线服务才算「已落」（I12 灰位判据）。
-class FeatureGate {
-  const FeatureGate({
-    required this.label,
-    required this.enabled,
-    required this.requiresOnlineService,
-    this.endpoints = const [],
-  });
-
-  final String label;
-  final bool enabled;
-  final bool requiresOnlineService;
-  /// 在线服务网络目的地；灰位恒为空＝零新增网络目的地。
-  final List<String> endpoints;
-}
-
-/// I12 AI 拍照识别＝需求门灰位：不启用、零在线服务、零网络目的地。
-/// 规格源：拍照→AI 建议→确认入库；本轮只落本地入口占位，不接任何在线服务。
-const kAiPhotoRecognitionGate = FeatureGate(
-  label: 'AI 拍照识别',
-  enabled: false,
-  requiresOnlineService: true,
-  endpoints: [],
-);
-
-bool isFeatureGateLive(FeatureGate g) => g.enabled && !g.requiresOnlineService;
-
 // ==================== 档案实物属性聚合 ====================
 
 /// 全字段 final、默认空值 ⇒ 可 `const ItemExtras()`（`ItemProfile` 默认值用它）。

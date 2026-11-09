@@ -745,10 +745,6 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
             Text(extrasSummary(it.extras),
                 style: TextStyle(
                     fontSize: 11, color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 6),
-            Text('点击管理 · I12 AI 拍照识别为需求门灰位（不接在线服务／零网络目的地）',
-                style: TextStyle(
-                    fontSize: 10, color: scheme.onSurfaceVariant)),
           ],
         ),
       ),

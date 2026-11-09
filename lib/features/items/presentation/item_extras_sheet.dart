@@ -282,9 +282,6 @@ class _ItemExtrasSheetState extends State<ItemExtrasSheet> {
           ),
           const SizedBox(height: 14),
 
-          // —— I12 AI 拍照识别：需求门灰位（零在线服务 / 零网络目的地）——
-          _aiGrayCard(scheme),
-          const SizedBox(height: 16),
           _saveBtn(scheme),
         ],
       ),
@@ -366,42 +363,6 @@ class _ItemExtrasSheetState extends State<ItemExtrasSheet> {
           }
         },
       );
-
-  Widget _aiGrayCard(ColorScheme scheme) {
-    final g = kAiPhotoRecognitionGate;
-    return Container(
-      key: const ValueKey('i-extras-ai-gray'),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.auto_awesome_outlined,
-                  size: 16, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Text('${g.label}（需求门 · 灰位）',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: scheme.onSurfaceVariant)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '拍照→AI 建议名称/品牌/分类→确认入库：本地入口占位，未启用；'
-            '不接任何在线服务、零新增网络目的地。',
-            style:
-                TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _saveBtn(ColorScheme scheme) => GestureDetector(
         key: const ValueKey('i-extras-save'),

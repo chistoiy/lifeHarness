@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lifeharness/features/items/domain/item_extras.dart';
@@ -191,21 +193,27 @@ void main() {
     });
   });
 
-  group('I12 AI 拍照识别（需求门灰位）', () {
-    test('本地功能正档已落 / AI 门负档灰位且零网络目的地', () {
-      expect(
-          isFeatureGateLive(const FeatureGate(
-              label: '本地实物属性',
-              enabled: true,
-              requiresOnlineService: false)),
-          isTrue);
-      expect(isFeatureGateLive(kAiPhotoRecognitionGate), isFalse);
-      expect(kAiPhotoRecognitionGate.enabled, isFalse);
-      expect(kAiPhotoRecognitionGate.endpoints.isEmpty, isTrue);
-      expect(
-          isFeatureGateLive(const FeatureGate(
-              label: '需联网', enabled: true, requiresOnlineService: true)),
-          isFalse);
+  group('I12 AI 拍照识别（产品 2026-11-09 裁定不做）', () {
+    test('物品侧不再有该入口与在线服务门（防复活）', () {
+      // 负档：三处实现位都不许再出现该入口；正档：本地实物属性仍在。
+      final domain = File('lib/features/items/domain/item_extras.dart')
+          .readAsStringSync();
+      final sheet =
+          File('lib/features/items/presentation/item_extras_sheet.dart')
+              .readAsStringSync();
+      final detail =
+          File('lib/features/items/presentation/item_detail_page.dart')
+              .readAsStringSync();
+      expect(domain.contains('kAiPhotoRecognitionGate'), isFalse,
+          reason: '负档：域件不许复活功能门');
+      expect(domain.contains('class FeatureGate'), isFalse,
+          reason: '负档：功能门类应随裁定删除');
+      expect(sheet.contains('i-extras-ai-gray'), isFalse,
+          reason: '负档：编辑弹层不许复活灰位卡');
+      expect(detail.contains('AI 拍照识别'), isFalse,
+          reason: '负档：详情页不许复活灰位文案');
+      expect(domain.contains('class ItemExtras'), isTrue,
+          reason: '正档：实物属性域件本身仍在');
     });
   });
 
