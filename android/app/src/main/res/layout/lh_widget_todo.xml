@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2×2 待办清单小组件（批3· 产品令「待办显示最近一条或多条，点勾圈直接闭环」）。
+  与 2×2 今日概览同尺寸口径：内边距 12dp、标题 9sp、行文 12sp（冻结档 §5.6）。
+  三行固定布局（RemoteViews 动态列表不可靠，见 lh_widget_todo_row.xml 注释），
+  不足三行时由 Provider 把多余行 setVisibility(GONE)。
+  行数据来自 SharedPreferences 快照 `todo_items`（C5·不直读 sqlite）；
+  勾圈点击由 TodoActionReceiver 执行写入（写入类窄例外，见该文件注释）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lh_wg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/lh_wg_card"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/lh_wg_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="@string/lh_widget_todo_name"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="9sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/lh_wg_chk_1"
+                android:layout_width="17dp"
+                android:layout_height="17dp"
+                android:contentDescription="@string/lh_widget_todo_toggle"
+                android:src="@drawable/ic_lh_wg_circle" />
+
+            <TextView
+                android:id="@+id/lh_wg_t_1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/lh_widget_no_data"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/lh_wg_chk_2"
+                android:layout_width="17dp"
+                android:layout_height="17dp"
+                android:contentDescription="@string/lh_widget_todo_toggle"
+                android:src="@drawable/ic_lh_wg_circle" />
+
+            <TextView
+                android:id="@+id/lh_wg_t_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/lh_widget_no_data"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/lh_wg_chk_3"
+                android:layout_width="17dp"
+                android:layout_height="17dp"
+                android:contentDescription="@string/lh_widget_todo_toggle"
+                android:src="@drawable/ic_lh_wg_circle" />
+
+            <TextView
+                android:id="@+id/lh_wg_t_3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/lh_widget_no_data"
+                android:textColor="@color/lh_wg_fg"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!--
+      吸余高的 spacer。⚠ 这里**必须**用 LinearLayout，不能用裸 <View>：
+      RemoteViews 只允许白名单里的类被 inflate，`android.view.View` 不在其中，
+      Launcher 会抛 `InflateException: Class not allowed to be inflated android.view.View`
+      ⇒ 整个小组件显示「载入窗口小部件时出现问题」（2026-10-15 8150 装机实锤）。
+      LinearLayout 在白名单内，0dp+weight=1 的空布局可安全吸余高。
+    -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/lh_wg_todo_more"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/lh_wg_sub"
+        android:textSize="10sp" />
+</LinearLayout>

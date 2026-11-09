@@ -1,0 +1,157 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../nav/nav_collapse.dart' show ShellFabInset, kNavCollapseDuration;
+import '../theme/app_theme.dart';
+
+/// 渐变悬浮球（原型 #fab：56px 圆、grad 渐变、白字 ＋、点击旋转 45°）。
+/// 通用壳层组件，不依赖任何 feature（守 R2）。
+///
+/// **底栏收起态补偿**（V1.65）：悬浮球是页面级 `floatingActionButton`，锚在**页面** Scaffold
+/// 底边；壳层底栏一收，body 变高、页面底边下移，球就会跟着往下掉（产品拍板「不落底」）。
+/// 这里读壳层的 [ShellFabInset] 把这段高度补回去，让球**按屏幕位置钉住**。壳外页面读不到＝0，
+/// 行为与从前完全一致。
+class GradFab extends StatelessWidget {
+  const GradFab({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.onLongPress,
+    this.tooltip,
+    this.rotation = 0,
+    this.size = 56,
+  });
+
+  final Widget icon;
+  final VoidCallback? onTap;
+
+  /// 长按（批1c：日记页长按展开筛选／设置扇形）。
+  ///
+  /// 不传＝零行为变化（InkWell 只在非 null 时注册长按识别器）。
+  /// 注意 InkWell **长按触发后不再补发 onTap**，所以「展开后再点一次收起」由调用方
+  /// 在 onLongPress 之后自行处理态（见 `journal_page.dart` 的 `_DiaryFanFab`）。
+  final VoidCallback? onLongPress;
+  final String? tooltip;
+
+  /// 菜单展开时传 45°（原型 fabTap 的旋转过渡）。
+  final double rotation;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final fab = Transform.rotate(
+      angle: rotation,
+      child: SizedBox(
+        width: size,
+        height: size,
+        // **绝不用 `Material(elevation:)` 画这层阴影**（日记批2d · 真机报障）。
+        // `elevation > 0` 时 Material 走 `PhysicalShape` 的 `Canvas.drawShadow`，
+        // 圆角/圆形路径在部分 Android GPU（Skia fast-shadow 近似）上会退化成
+        // **一块方形阴影**——真机观感就是「右下角加号球底下有个正方形底纹」。
+        // 源码侧此处一直是圆（`CircleBorder` + `BoxShape.circle`），所以肉眼看代码
+        // 找不到「方」从哪来；方的是**阴影**，不是球。阴影统一由下方 `Ink` 的
+        // 圆形 `boxShadow` 负责：那走普通 canvas 圆绘制，跨平台只有一种结果。
+        // 回归保护：`test/fab_shadow_guard_test.dart`。
+        child: Material(
+          type: MaterialType.transparency,
+          child: Ink(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: tokens.gradient,
+              // 原型 `shadow-xl shadow-indigo-500/40`：两层——近距实影给轮廓、
+              // 远距柔光给浮起感。去掉 Material 自带的 elevation 后只留一层会显平，
+              // 这一对是替代品，不是装饰。
+              boxShadow: [
+                BoxShadow(
+                  color: tokens.accent.withValues(alpha: .38),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: tokens.accent.withValues(alpha: .20),
+                  blurRadius: 26,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              onLongPress: onLongPress,
+              child: Center(child: icon),
+            ),
+          ),
+        ),
+      ),
+    );
+    final out = tooltip == null ? fab : Tooltip(message: tooltip!, child: fab);
+    // 底栏收起时把「飘出来的那段高度」补在球下方＝球的**屏幕上位置不动**。
+    // 一律包一层（哪怕是 0）——否则 0↔正数 切换时首帧会跳而不是补间。
+    return AnimatedPadding(
+      duration: kNavCollapseDuration,
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.only(bottom: ShellFabInset.of(context)),
+      child: out,
+    );
+  }
+}
+
+/// 快捷记录菜单卡（原型 .fab-act：白底描边圆角卡 + 阴影）。
+/// UIUX批（2026-10-12）：新增可选线性图标位——原型 FAB 五项已去 emoji 改线性
+/// SVG（对齐「UI 禁 emoji 图标」禁令），实现侧同批把 emoji 标签拆成 icon+文案。
+class FabActionCard extends StatelessWidget {
+  const FabActionCard({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  /// 线性图标位（null=只有文案）。
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final dark = ThemeData.estimateBrightnessForColor(tokens.card) == Brightness.dark;
+    final textStyle = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: dark ? const Color(0xFFE2E8F0) : scheme.onSurface);
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        width: 176,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: tokens.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: tokens.cardBorder),
+          boxShadow: const [
+            BoxShadow(color: Color(0x1E0F172A), blurRadius: 12, offset: Offset(0, 4)),
+          ],
+        ),
+        child: icon == null
+            ? Text(label, style: textStyle)
+            : Row(
+                children: [
+                  Icon(icon, size: 15, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 7),
+                  Expanded(child: Text(label, style: textStyle)),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// 旋转角度工具（0 与 45° 之间过渡用 AnimatedRotation 即可，此处仅暴露常量）。
+const double kFabOpenRotation = math.pi / 4;

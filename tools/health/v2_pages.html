@@ -1,0 +1,98 @@
+
+    <!-- ===== V2 · 健康档案 ===== -->
+    <section id="p-hProfile" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1" id="hpBar"></div>
+      <div class="card mt-2 !p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0" style="background:var(--accent)" id="hpAvatar"></div>
+          <div class="flex-1 min-w-0">
+            <b class="text-[15px] block truncate" id="hpName">—</b>
+            <span class="text-[10px] text-slate-400" id="hpMeta">—</span>
+          </div>
+          <button class="mini-btn" onclick="hpEdit()">编辑</button>
+        </div>
+        <div class="grid grid-cols-4 gap-2 mt-3 text-center">
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block" id="hpAge">—</b><span class="text-[9px] text-slate-400">年龄</span></div>
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block" id="hpH">—</b><span class="text-[9px] text-slate-400">身高 cm</span></div>
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block" id="hpW">—</b><span class="text-[9px] text-slate-400">基础体重</span></div>
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block" id="hpBmi">—</b><span class="text-[9px] text-slate-400">BMI</span></div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-4" id="hpNote"></div>
+      </div>
+      <div class="card mt-3 !p-0 divide-y divide-slate-100 dark:divide-slate-800">
+        <div class="px-4 py-3 flex items-center justify-between"><div><b class="text-[13px]">体征基线</b><div class="text-[9px] text-slate-400 mt-0.5" id="hpBaseSrc">—</div></div><button class="mini-btn" onclick="hpBaseOpen()">设定</button></div>
+        <div class="px-4 py-3 flex items-center gap-2"><span class="text-[10px] text-slate-400 w-14 shrink-0">静息血压</span><b class="text-sm" id="hpBp">—</b><span class="text-[9px] text-slate-400">mmHg</span></div>
+        <div class="px-4 py-3 flex items-center gap-2"><span class="text-[10px] text-slate-400 w-14 shrink-0">静息心率</span><b class="text-sm" id="hpHr">—</b><span class="text-[9px] text-slate-400">次/分</span></div>
+      </div>
+      <div class="card mt-3 !p-4">
+        <div class="flex items-center justify-between"><b class="text-[13px]">病史 · 过敏 · 长期用药</b><button class="mini-btn" onclick="hpHistOpen()">编辑</button></div>
+        <div class="text-[10px] text-slate-400 mt-2.5">基础病史</div><div class="flex flex-wrap gap-1.5 mt-1" id="hpHist"></div>
+        <div class="text-[10px] text-slate-400 mt-2.5">过敏史</div><div class="flex flex-wrap gap-1.5 mt-1" id="hpAllergy"></div>
+        <div class="text-[10px] text-slate-400 mt-2.5">长期服用药物</div><div class="flex flex-wrap gap-1.5 mt-1" id="hpLmeds"></div>
+      </div>
+      <div class="card mt-3 !p-0">
+        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-800"><b class="text-[13px]">本档案数据量</b></div>
+        <div class="grid grid-cols-4 gap-2 p-4 text-center" id="hpCount"></div>
+      </div>
+      <button class="mini-btn w-full mt-3" onclick="hpAdd()">+ 新增家人档案</button>
+      <div class="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-4 pb-2">档案与体征数据仅存本机</div>
+    </section>
+
+    <!-- ===== V2 · 体征记录 ===== -->
+    <section id="p-vitals" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="vtBar"></div>
+      <div class="flex rounded-xl bg-slate-200/70 dark:bg-slate-800 p-1 text-xs font-bold mt-2">
+        <button class="seg-on flex-1 rounded-lg py-1.5" data-v="7" onclick="hseg(this);vtRange(7)">周</button>
+        <button class="flex-1 rounded-lg py-1.5 text-slate-500" data-v="30" onclick="hseg(this);vtRange(30)">月</button>
+        <button class="flex-1 rounded-lg py-1.5 text-slate-500" data-v="90" onclick="hseg(this);vtRange(90)">季</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mt-3" id="vtTiles"></div>
+      <div class="card mt-3 !p-4">
+        <div class="flex items-center justify-between"><b class="text-[13px]">当前指标曲线</b><span class="text-[10px] text-slate-400" id="vtCurTx">—</span></div>
+        <svg id="vtSvg" viewBox="0 0 300 90" class="w-full h-24 mt-1"></svg>
+        <div class="flex items-center justify-between mt-1 text-[9px] text-slate-400"><span id="vtAxisLo">—</span><span id="vtRangeTx">—</span><span id="vtAxisHi">—</span></div>
+        <div class="grid grid-cols-3 gap-2 mt-3 text-center" id="vtStat"></div>
+      </div>
+      <div class="card mt-3 !p-4" id="vtAbnCard">
+        <div class="flex items-center justify-between"><b class="text-[13px]">异常记录汇总</b><span class="text-[10px] text-slate-400" id="vtAbnN">—</span></div>
+        <div class="mt-2 space-y-2" id="vtAbn"></div>
+      </div>
+      <div class="card mt-3 !p-0">
+        <div class="px-4 py-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800"><b class="text-[13px]">记录流水</b><button class="mini-btn" onclick="vtOpen()">＋ 记录</button></div>
+        <div id="vtList"></div>
+      </div>
+    </section>
+
+    <!-- ===== V2 · 症状与不适 ===== -->
+    <section id="p-symptom" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="syBar"></div>
+      <div class="card mt-2 !p-4" id="syLiveCard">
+        <div class="flex items-center justify-between"><b class="text-[13px]">正在发作</b><span class="text-[10px] text-slate-400" id="syLiveN">—</span></div>
+        <div class="mt-2 space-y-2" id="syLive"></div>
+      </div>
+      <div class="card mt-3 !p-4">
+        <div class="flex items-center justify-between"><b class="text-[13px]">疼痛等级分布</b><span class="text-[10px] text-slate-400">0 ~ 10 分</span></div>
+        <div class="flex items-end gap-1 h-16 mt-2" id="syHist"></div>
+        <div class="flex gap-1 mt-1 text-[8px] text-slate-400" id="syHistAx"></div>
+      </div>
+      <div class="mt-3 flex gap-1.5 overflow-x-auto no-scrollbar" id="syPartRow"></div>
+      <div class="card mt-3 !p-4">
+        <div class="flex items-center justify-between"><b class="text-[13px]">高频描述</b><span class="text-[10px] text-slate-400" id="syWcN">—</span></div>
+        <div class="wc mt-2" id="syCloud"></div>
+      </div>
+      <div class="card mt-3 !p-0">
+        <div class="px-4 py-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800"><b class="text-[13px]">症状流水</b><button class="mini-btn" onclick="syOpen()">＋ 记录</button></div>
+        <div id="syList"></div>
+      </div>
+    </section>
+
+    <!-- ===== V2 · 检查报告 ===== -->
+    <section id="p-report" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="rpBar"></div>
+      <div class="card mt-2 !p-4">
+        <div class="grid grid-cols-3 gap-2 text-center" id="rpStat"></div>
+      </div>
+      <div class="mt-3 flex gap-1.5 overflow-x-auto no-scrollbar" id="rpYearRow"></div>
+      <div id="rpGroups" class="mt-2 space-y-3"></div>
+      <div class="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-4 pb-2">报告图片与 PDF 仅存本机 · 随本地备份导出</div>
+    </section>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  1×1 模块瓦片 · 呵护（批C-2/C-3 铺量）。
+
+  **不写 android:configure**（规格 §4.1/§9）：MIUI 桌面实测不跑它，而本批瓦片
+  无参数、无需配置——不写它才是对的。
+  `updatePeriodMillis="0"`：瓦片**永不刷新**（零数据零功耗·规格 §2）。
+  `resizeMode="none"`：1×1 是它的唯一形态（真机实测过改成可缩放，宿主框并不会变大，
+  见下条），拉大只会得到一片空白，故钉死。
+  **宿主框是 MIUI 定的，改声明改不动（2026-10-18 真机实测）**：本机（1200×2670 ·
+  480dpi）格子是 282×285px（94×95dp），而 MIUI 给 1×1 小部件的宿主框只有
+  **177×236px（59×78.7dp）且顶对齐格子**——底部因此固定空出 49px（16dp）。
+  实测两种改法都不动它：① `resizeMode` 由 none 改 horizontal|vertical；② 杀掉
+  桌面进程让它重新读 provider。结论＝这是 MIUI 对 1×1 小部件的固定缩放，属平台
+  上限，布局侧只能把内容排在这个框里（见 `lh_tile.xml` 的几何说明）。
+  **只给 `previewImage` 不给 `previewLayout`**：`previewLayout` 渲染的是
+  `lh_tile.xml` 原样——图标槽为空、只剩一个标签，在 Android 12+ 桌面上比
+  应用图标还难看；而 MIUI 只认 `previewImage`（缺图就回落应用图标 ⇒ 17 枚
+  长得一模一样，2026-10-15 装机实锤）。图由 `tools/gen_widget_previews.py`
+  按本布局生成，浅/深两档（drawable-nodpi ＋ drawable-night-nodpi · C6）。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/lh_tile_care_desc"
+    android:initialLayout="@layout/lh_tile"
+    android:minHeight="40dp"
+    android:minWidth="40dp"
+    android:previewImage="@drawable/lh_tile_care_preview"
+    android:resizeMode="none"
+    android:targetCellHeight="1"
+    android:targetCellWidth="1"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

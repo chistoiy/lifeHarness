@@ -1,0 +1,284 @@
+// 批B（工单 悬浮胶囊增强批-20261014 §7）：app 外系统悬浮窗·dart 侧守护。
+//
+// 覆盖：目标决策纯函数（§7 口径 ①②③⑦）、`lh/pill` 通道在测试/桌面
+// （无原生）下的降级不抛、悬浮窗事件映射、事件消费闭环源码守护
+// （变异刀③）。原生侧（TimerPillService）由 kotlin_check 编译门把关，
+// 真机观感随复测包装机复验。
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lifeharness/core/platform/pill_overlay.dart';
+
+const _channel = MethodChannel('lh/pill');
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('sysPillTarget（纯函数·批B §7 口径）', () {
+    test('功能关 → none', () {
+      expect(
+        sysPillTarget(
+          sysPillOn: false,
+          canDraw: true,
+          appActive: false,
+          readRunning: true,
+          mediaRunning: false,
+        ),
+        SysPillTarget.none,
+      );
+    });
+
+    test('权限缺 → none（即使会话在跑）', () {
+      expect(
+        sysPillTarget(
+          sysPillOn: true,
+          canDraw: false,
+          appActive: false,
+          readRunning: true,
+          mediaRunning: true,
+        ),
+        SysPillTarget.none,
+      );
+    });
+
+    test('app 前台 → none（免与 app 内胶囊重复）', () {
+      expect(
+        sysPillTarget(
+          sysPillOn: true,
+          canDraw: true,
+          appActive: true,
+          readRunning: true,
+          mediaRunning: false,
+        ),
+        SysPillTarget.none,
+      );
+    });
+
+    test('阅读页在栈上但 app 退后台 → 仍 read（6131 热修：阅读器豁免只在 app 内）', () {
+      // 6129 装机实测：在阅读计时页按 HOME，阅读页仍在栈上——若把 readerOpen
+      // 当独立条件，桌面/别的 app 里永不显示（悬浮窗的用武之地恰在 app 外）。
+      expect(
+        sysPillTarget(
+          sysPillOn: true,
+          canDraw: true,
+          appActive: false,
+          readRunning: true,
+          mediaRunning: false,
+        ),
+        SysPillTarget.read,
+      );
+    });
+
+    test('阅读在跑 → read', () {
+      expect(
+        sysPillTarget(
+          sysPillOn: true,
+          canDraw: true,
+          appActive: false,
+          readRunning: true,
+          mediaRunning: false,
+        ),
+        SysPillTarget.read,
+      );
+    });
+
+    test('仅影音在跑 → media', () {
+      expect(
+        sysPillTarget(
+          sysPillOn: true,
+          canDraw: true,
+          appActive: false,
+          readRunning: false,
+          mediaRunning: true,
+        ),
+        SysPillTarget.media,
+      );
+    });
+
+    test('双跑 → read 优先（单浮窗口径）', () {
+      expect(
+        sysPillTarget(
+          sysPillOn: true,
+          canDraw: true,
+          appActive: false,
+          readRunning: true,
+          mediaRunning: true,
+        ),
+        SysPillTarget.read,
+      );
+    });
+
+    test('全闲 → none', () {
+      expect(
+        sysPillTarget(
+          sysPillOn: true,
+          canDraw: true,
+          appActive: false,
+          readRunning: false,
+          mediaRunning: false,
+        ),
+        SysPillTarget.none,
+      );
+    });
+  });
+
+  group('通道回落（无原生·测试/桌面降级不抛）', () {
+    final binding = TestDefaultBinaryMessengerBinding.instance;
+
+    setUp(() => binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, (_) async => null));
+    tearDown(() => binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, null));
+
+    test('canDrawOverlays 无原生 → false（降级仅 app 内）', () async {
+      expect(await sysPillCanDraw(), isFalse);
+    });
+
+    test('requestOverlayPermission 受理即 true（拉起成败由 resumed 复探判定）', () async {
+      // mock 回 null＝原生在场且受理（MainActivity 侧恒 result.success(null)）；
+      // 设置页是否真拉起、用户授没授，由 resumed 后 canDrawOverlays 复探
+      // （设置页流程同口径，调用点不消费本返回值）。
+      expect(await sysPillRequestPermission(), isTrue);
+    });
+
+    test('requestOverlayPermission 通道缺失（MissingPluginException）→ false 不抛', () async {
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(_channel, null);
+      expect(await sysPillRequestPermission(), isFalse);
+    });
+
+    test('sync/stop 无原生 → 静默完成不抛', () async {
+      await sysPillSync(
+          const SysPillState(kind: 'read', title: 't', status: '阅读中', seconds: 65),
+          true);
+      await sysPillStop();
+    });
+
+    test('takePillEvent 无原生 → null', () async {
+      expect(await takePillEvent(), isNull);
+    });
+  });
+
+  group('事件映射（■结束一次性消费）', () {
+    final binding = TestDefaultBinaryMessengerBinding.instance;
+
+    setUp(() => binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, (call) async {
+      if (call.method == 'takePillEvent') {
+        return <String, Object>{'type': 'end', 'kind': 'media'};
+      }
+      return null;
+    }));
+    tearDown(() => binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, null));
+
+    test('end 事件 → SysPillEvent(type/kind)', () async {
+      final ev = await takePillEvent();
+      expect(ev, isNotNull);
+      expect(ev!.type, 'end');
+      expect(ev.kind, 'media');
+    });
+
+    test('空 type → null', () async {
+      binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, (_) async {
+        return <String, Object>{'type': '', 'kind': 'read'};
+      });
+      expect(await takePillEvent(), isNull);
+    });
+  });
+
+  group('源码守护（变异刀③·事件消费闭环）', () {
+    test('消费函数在同步模块：takePillEvent 且结束路径走共用助手', () {
+      final src =
+          File('lib/shared/linkage/sys_pill_sync.dart').readAsStringSync();
+      expect(src, contains('await takePillEvent()'),
+          reason: '■结束 事件无人消费＝悬浮窗结束钮失效');
+      expect(src, contains('endReadPillTimer'));
+      expect(src, contains('endMediaPillTimer'),
+          reason: '结束路径必须与 app 内胶囊钮单源，禁抄第二份');
+      // 6130 热修守护：可见态每 tick 都推＋重断言钩子（ROM 杀服务后自愈）。
+      expect(src, contains('if (visible || sig != _lastSig)'),
+          reason: '可见态被 sig 去重挡住＝服务被 ROM 停掉后永不重推（6129 实伤）');
+      expect(src, contains('void sysPillMarkStale()'));
+    });
+
+    test('组合根 app.dart 必须挂 drainPillEvents 消费点与重断言', () {
+      final src = File('lib/app.dart').readAsStringSync();
+      expect(src, contains('drainPillEvents'),
+          reason: '同步模块只管推状态；消费（WidgetRef 层级）必须挂在组合根');
+      expect(src, contains('sysPillMarkStale()'),
+          reason: '回前台必须清 sig 备忘强制重推（前台起服务不受 Android 14+ 限制）');
+      // 6132 热修：hidden 同 paused 处理＋生命周期事件当场促重算。
+      expect(src, contains('AppLifecycleState.hidden'),
+          reason: 'HyperOS 事件序列可能只有 hidden（无 paused）＝标志滞留 true');
+      expect(src, contains('ref.invalidate(sysPillSyncProvider)'),
+          reason: '退后台瞬间必须当场重算，不等下一 tick（tick 可能被挂起）');
+    });
+
+    test('同步器以前后台以引擎真值为准＋载荷带会话起点（6132）', () {
+      final src =
+          File('lib/shared/linkage/sys_pill_sync.dart').readAsStringSync();
+      expect(src, contains('WidgetsBinding.instance.lifecycleState'),
+          reason: '事件标志会滞留，binding 真值才是准');
+      expect(src, contains('startedAtMs: '),
+          reason: '载荷不带起点＝服务无法自走秒（退后台停表）');
+      final native = File(
+        'android/app/src/main/kotlin/com/lifeharness/lifeharness/'
+        'TimerPillService.kt',
+      ).readAsStringSync();
+      expect(native, contains('EXTRA_STARTED_AT'),
+          reason: '原生侧必须接起点 extra');
+      expect(native, contains('tickHandler'),
+          reason: '原生自走秒 tick 缺失＝ROM 挂起 Dart 后秒显停表');
+    });
+
+    test('悬浮窗显隐改由原生自决＋stop 不以前置备忘为条件（6133 热修）', () {
+      final native = File(
+        'android/app/src/main/kotlin/com/lifeharness/lifeharness/'
+        'TimerPillService.kt',
+      ).readAsStringSync();
+      expect(native, contains('internal object AppVisibility'),
+          reason: 'BACK 退 app 会连 FlutterEngine/Dart 隔离区一起销毁——'
+              '靠 Dart 推的显隐在真机上会永久缺席（真机 BACK 不复现的根因）');
+      expect(native, contains('= !AppVisibility.foreground'),
+          reason: '视图该不该在＝app 在不在前台（原生真值），不看 Dart 推的 visible');
+      final act = File(
+        'android/app/src/main/kotlin/com/lifeharness/lifeharness/'
+        'MainActivity.kt',
+      ).readAsStringSync();
+      expect(act, contains('AppVisibility.registerOnce(application)'),
+          reason: '注册点必须在 onCreate（早于本次 onStart）——晚一步就漏首个计数，'
+              'app 在前台也会被判成后台而多出窗口');
+      final sync =
+          File('lib/shared/linkage/sys_pill_sync.dart').readAsStringSync();
+      expect(sync, contains('Future<void> _stopNative('),
+          reason: 'stop 必须以幂等去重为条件，不能沿用 _serviceOn——冷启动时它是 '
+              'false 而原生服务可能还在跑（BACK 后点悬浮窗「■ 结束」正是这条路径）');
+      expect(sync, contains('_stopSent = false;'),
+          reason: '每次推送后必须允许下一次 stop 再发，否则去重变成永久闭嘴');
+    });
+
+    test('结束助手本体在 timer_bar_overlay 且被两处胶囊钮调用', () {
+      final src = File('lib/shared/linkage/timer_bar_overlay.dart')
+          .readAsStringSync();
+      expect(src, contains('Future<void> endReadPillTimer('));
+      expect(src, contains('Future<void> endMediaPillTimer('));
+      // 批A 两钮改为调用助手（不再是内联 async 块）。
+      expect(src, contains('onTap: () => endReadPillTimer(context, ref, s.bookId)'));
+      expect(src, contains('onTap: () => endMediaPillTimer(context, ref, s.itemId)'));
+    });
+
+    test('Manifest 必须同时声明 FGS 基础权限与 specialUse 子类型（6128 实伤守护）', () {
+      final src =
+          File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      expect(src, contains('android.permission.FOREGROUND_SERVICE"'),
+          reason: 'FGS 基础权限（API 28+）漏声明＝startForeground 即 '
+              'SecurityException 主进程崩，且开关残留导致开 app 即闪退循环');
+      expect(src, contains('android.permission.FOREGROUND_SERVICE_SPECIAL_USE'),
+          reason: 'API 34+ specialUse 子类型权限漏声明＝同族崩溃');
+      expect(src, contains('android:foregroundServiceType="specialUse"'));
+      expect(src, contains('.TimerPillService'));
+    });
+  });
+}

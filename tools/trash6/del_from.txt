@@ -1,0 +1,1 @@
+function delTaskFromSheet(){D.todos.splice(stIdx,1);closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();toast('🗑 已删除（垃圾箱 · 30 天自动清空 · 另批原型）')}

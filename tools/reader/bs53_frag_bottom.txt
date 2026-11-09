@@ -1,0 +1,59 @@
+        <div id="brBottom" class="br-chrome hidden absolute bottom-0 inset-x-0 z-[70] px-3 pt-1.5 pb-2">
+          <!-- V1.53 轮3 · 进度面板（参考图1：统计三格 + 进度滑条 + 阅读明细/自动翻页） -->
+          <div id="brPnlProg" class="hidden px-1 pb-1">
+            <div class="flex items-stretch justify-around text-center py-1.5">
+              <div class="flex-1"><div class="text-base font-black leading-none"><span id="brStPct">0</span><span class="text-[9px]">%</span></div><div class="text-[8px] opacity-55 mt-1" id="brStEta">—</div></div>
+              <div class="w-px bg-white/10"></div>
+              <div class="flex-1"><div class="text-base font-black leading-none"><span id="brStMin">0</span><span class="text-[9px]">分钟</span></div><div class="text-[8px] opacity-55 mt-1">阅读时长</div></div>
+              <div class="w-px bg-white/10"></div>
+              <div class="flex-1"><div class="text-base font-black leading-none"><span id="brStNote">0</span><span class="text-[9px]">条</span></div><div class="text-[8px] opacity-55 mt-1">笔记</div></div>
+            </div>
+            <input type="range" min="0" max="100" value="0" class="br-range" id="brProg" oninput="brSeek(this.value)">
+            <div class="text-center text-[8px] opacity-55 -mt-0.5">上次读到这里</div>
+            <div class="flex gap-2 mt-2">
+              <button class="flex-1 py-2 rounded-xl bg-white/10 text-[10px] font-bold" onclick="bsSessOpen(brV.b)">阅读明细</button>
+              <button class="flex-1 py-2 rounded-xl bg-white/10 text-[10px] font-bold" id="brBtnAuto" onclick="brQuickToggleAuto()">开启自动翻页</button>
+            </div>
+          </div>
+          <!-- 亮度面板（参考图2：亮度滑条 + 颜色4档 + 背景缩略图） -->
+          <div id="brPnlBright" class="hidden px-1 pb-1">
+            <div class="flex items-center gap-2 py-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="shrink-0"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+              <input type="range" min="30" max="100" value="100" class="br-range flex-1" id="brBright" oninput="brBrightSet(this.value)">
+            </div>
+            <div class="text-[8px] opacity-55 mt-1 mb-1">颜色</div>
+            <div class="flex gap-2" id="brBtColors"></div>
+            <div class="text-[8px] opacity-55 mt-2.5 mb-1">背景</div>
+            <div class="flex gap-2" id="brBtBgs"></div>
+          </div>
+          <!-- 字号面板（参考图3：字号滑条 + 边距/行距 + 字体样式/首行缩进/翻页方式） -->
+          <div id="brPnlFont" class="hidden px-1 pb-1">
+            <div class="flex items-center gap-2 py-1.5">
+              <span class="text-[9px] font-black opacity-60 shrink-0">A</span>
+              <input type="range" min="14" max="30" value="19" class="br-range flex-1" id="brFsSl" oninput="brFsSlSet(this.value)">
+              <span id="brFsNum" class="text-[10px] font-black w-5 text-center tabular-nums shrink-0">19</span>
+              <span class="text-[16px] font-black opacity-60 shrink-0">A</span>
+            </div>
+            <div class="flex gap-2 mt-1">
+              <div class="flex-1 flex items-center gap-1 rounded-xl bg-white/10 px-2 py-1.5 text-[9px] font-bold"><span class="opacity-55 shrink-0">小</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brMarNudge(-1)">‹</button><span class="flex-1 text-center">边距</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brMarNudge(1)">›</button><span class="opacity-55 shrink-0">大</span></div>
+              <div class="flex-1 flex items-center gap-1 rounded-xl bg-white/10 px-2 py-1.5 text-[9px] font-bold"><span class="opacity-55 shrink-0">紧</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brLhNudge(-1)">‹</button><span class="flex-1 text-center">行距</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brLhNudge(1)">›</button><span class="opacity-55 shrink-0">松</span></div>
+            </div>
+            <div class="flex gap-2 mt-2 text-[10px] font-bold">
+              <button class="br-fchip" onclick="openSheet('sheetBrAppearance');brApOpen()">字体样式 ›</button>
+              <button class="br-fchip" id="brBtnIndent" onclick="brIndentToggle()">首行缩进 ›</button>
+              <button class="br-fchip" id="brModeBtn" onclick="brModeToggle()">翻页方式 ›</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-[9px] opacity-60 px-1 pb-0.5 pt-1"><span id="brCfi" class="tabular-nums truncate max-w-[52%]">—</span><span class="flex-1"></span><span id="brPgLbl">—</span></div>
+          <!-- 五线性图标底栏（目录/主题/进度/亮度/字号 · 参考图1~3） -->
+          <div class="flex items-center justify-around pt-0.5">
+            <button class="br-ibtn" id="brBtnToc" onclick="brTocOpen()" title="目录"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>目录</span></button>
+            <button class="br-ibtn" id="brBtnTheme" onclick="brThemeCycle()" title="主题"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4C10 4 4 10 4 20c6 0 8-3 10-6 1 2 6 1 6-10z"/><path d="M4 20 13 11"/></svg><span>主题</span></button>
+            <button class="br-ibtn" id="brBtnProg" onclick="brTogglePanel('prog')" title="进度"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h5m8 0h5"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg><span>进度</span></button>
+            <button class="br-ibtn" id="brBtnBright" onclick="brTogglePanel('bright')" title="亮度"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg><span>亮度</span></button>
+            <button class="br-ibtn" id="brBtnFont" onclick="brTogglePanel('font')" title="字号"><span class="text-[16px] font-black leading-none">A<span class="text-[9px] align-middle">A</span></span><span>字号</span></button>
+          </div>
+        </div>
+        <!-- 亮度遮罩（模拟系统亮度）＋ 返回原进度胶囊（参考图4） -->
+        <div id="brLumMask" class="absolute inset-0 bg-black z-[66] pointer-events-none" style="opacity:0"></div>
+        <button id="brBackPos" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 z-[71] br-chrome rounded-full px-3.5 py-2 text-[10px] font-bold" onclick="brGoHome()">‹ 返回原进度</button>

@@ -1,0 +1,2 @@
+  if(p!=='p-records'){const _sb=$('#noteSelBar');if(_sb){_sb.classList.add('hidden');_sb.classList.remove('flex');}
+    const _ds=$('#diarySelBar');if(_ds){_ds.classList.add('hidden');_ds.classList.remove('flex');}}

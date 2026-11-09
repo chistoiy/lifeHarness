@@ -1,0 +1,31 @@
+/* 轮5.1 · 段内第 off 个字符的屏幕矩形：遍历文本节点累计长度，取 1 字宽 range
+   （折叠 range 在多数内核拿不到 rect；旧实现只看 firstChild，选区拆 span 后必错位） */
+function brCharRect(el,off,end){
+  const nodes=[];let total=0;
+  (function walk(n){
+    if(n.nodeType===3){nodes.push({n,from:total,nlen:n.textContent.length});total+=n.textContent.length}
+    else n.childNodes.forEach(walk);
+  })(el);
+  if(!nodes.length||total===0)return null;
+  const want=Math.max(0,Math.min(off,total));
+  const at=end?Math.max(0,want-1):Math.min(want,Math.max(0,total-1));
+  const hit=nodes.find(x=>at>=x.from&&at<x.from+x.nlen)||nodes[nodes.length-1];
+  const lo=Math.min(at-hit.from,hit.nlen);
+  const rg=document.createRange();
+  try{rg.setStart(hit.n,lo);rg.setEnd(hit.n,Math.min(lo+1,hit.nlen))}catch(e){return null}
+  const r=rg.getClientRects()[0];
+  if(!r||!r.height)return null;
+  return {left:end?r.right:r.left,top:r.top,height:r.height};
+}
+function brHandlePlace(){const s=brV.sel;if(!s){brHandleHide();return}
+  const stage=document.getElementById('brStage').getBoundingClientRect();
+  const put=(id,pi,off,end)=>{
+    const el=document.querySelector(`#brBody [data-pi="${pi}"]`);const h=document.getElementById(id);
+    if(!el||!h)return;
+    const r=brCharRect(el,off,end);
+    if(!r){h.style.display='none';return}
+    h.style.display='block';
+    h.style.left=Math.round(r.left-stage.left-5)+'px';
+    h.style.top=Math.round((end?r.top+r.height:r.top)-stage.top-5)+'px';
+  };
+  put('brHStart',s.p0,s.o0,false);put('brHEnd',s.p1,s.o1,true)}

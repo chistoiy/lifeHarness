@@ -1,0 +1,13 @@
+  <!-- ===== 分享长图（G1 #2 · 统计卡/决算卡/倒数日卡/复盘卡共用预览弹层·语言同习惯专版 sheetHabitShare） ===== -->
+  <div id="sheetShareCard" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetShareCard')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="flex items-center gap-2"><div class="font-extrabold text-sm flex-1">分享长图</div>
+        <span class="text-[10px] text-slate-400">预览</span></div>
+      <div class="mt-3 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700" id="scImg"></div>
+      <div class="mt-3 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="scCopy()">复制文字版</button>
+        <button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="scSave()">保存图片</button></div>
+    </div>
+  </div>
+
+  <!-- ===== INS 全屏查看 ===== -->

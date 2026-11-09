@@ -1,0 +1,190 @@
+
+  <!-- ===== V2 弹层组 ===== -->
+  <div id="sheetHProfile" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHProfile')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]" id="hpfTitle">新增档案</div>
+      <div class="mt-3 text-[10px] text-slate-400">姓名 · 称呼</div>
+      <div class="mt-1.5 flex gap-2"><input id="hpfName" class="inp !py-2 text-sm flex-1" placeholder="如 王秀兰"><input id="hpfRel" class="inp !py-2 text-sm w-24" placeholder="妈妈"></div>
+      <div class="mt-3 text-[10px] text-slate-400">性别</div>
+      <div class="mt-1.5 flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold" id="hpfSex">
+        <button class="seg-on flex-1 rounded-lg py-1.5" data-v="女" onclick="hseg(this)">女</button>
+        <button class="flex-1 rounded-lg py-1.5 text-slate-500" data-v="男" onclick="hseg(this)">男</button>
+      </div>
+      <div class="mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
+        <div><div class="hw !h-[68px]" id="hpfBY"></div><span class="text-slate-400">出生年</span></div>
+        <div><div class="hw !h-[68px]" id="hpfBM"></div><span class="text-slate-400">出生月</span></div>
+        <div><div class="hw !h-[68px]" id="hpfBD"></div><span class="text-slate-400">出生日</span></div>
+      </div>
+      <div class="mt-2 grid grid-cols-2 gap-2 text-center text-[10px]">
+        <div><div class="hw !h-[68px]" id="hpfH"></div><span class="text-slate-400">身高 cm</span></div>
+        <div><div class="hw !h-[68px]" id="hpfW"></div><span class="text-slate-400">基础体重 kg</span></div>
+      </div>
+      <div class="mt-3 text-[10px] text-slate-400">备注</div>
+      <input id="hpfNote" class="inp !py-2 text-sm mt-1.5" placeholder="如 左耳听力下降 · 需大声说话">
+      <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHProfile')">取消</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="hpSave()">保存档案</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHProfileMng" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHProfileMng')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]">档案管理</div>
+      <div class="text-[10px] text-slate-400 mt-0.5">各档案数据互相隔离 · 趋势与周报按当前档案计算</div>
+      <div class="mt-3 space-y-2" id="hpmList"></div>
+      <button class="mini-btn w-full mt-3" onclick="closeSheet('sheetHProfileMng');hpAdd()">+ 新增档案</button>
+      <div class="flex gap-2 mt-3"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHProfileMng')">关闭</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHBaseline" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHBaseline')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]">体征基线</div>
+      <div class="mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
+        <div><div class="hw !h-[68px]" id="hbsSys"></div><span class="text-slate-400">收缩压</span></div>
+        <div><div class="hw !h-[68px]" id="hbsDia"></div><span class="text-slate-400">舒张压</span></div>
+        <div><div class="hw !h-[68px]" id="hbsHr"></div><span class="text-slate-400">静息心率</span></div>
+      </div>
+      <div class="mt-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 text-[10px]" id="hbsTip">—</div>
+      <div class="flex gap-2 mt-3"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="hbsAuto()">按近 30 天算</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="hbsSave()">保存基线</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHHistory" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHHistory')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]">病史 · 过敏 · 长期用药</div>
+      <div class="mt-3 text-[10px] text-slate-400">基础病史</div>
+      <div class="mt-1.5 flex flex-wrap gap-1.5" id="hhHist"></div>
+      <div class="mt-2 flex gap-2"><input id="hhHistIn" class="inp !py-2 text-sm flex-1" placeholder="如 高血压 · 2019 确诊"><button class="mini-btn" onclick="hhAdd('hist')">+ 加入</button></div>
+      <div class="mt-3 text-[10px] text-slate-400">过敏史</div>
+      <div class="mt-1.5 flex flex-wrap gap-1.5" id="hhAll"></div>
+      <div class="mt-2 flex gap-2"><input id="hhAllIn" class="inp !py-2 text-sm flex-1" placeholder="如 青霉素"><button class="mini-btn" onclick="hhAdd('allergy')">+ 加入</button></div>
+      <div class="mt-3 text-[10px] text-slate-400">长期服用药物</div>
+      <div class="mt-1.5 flex flex-wrap gap-1.5" id="hhLm"></div>
+      <div class="mt-2 flex gap-2"><input id="hhLmIn" class="inp !py-2 text-sm flex-1" placeholder="如 缬沙坦 80mg · 每日"><button class="mini-btn" onclick="hhAdd('lmeds')">+ 加入</button></div>
+      <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHHistory')">取消</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="hhSave()">保存</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHVital" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHVital')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]" id="vtTitle">记录体征</div>
+      <div class="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar" id="vtTypeRow"></div>
+      <div class="mt-2 flex items-center gap-2">
+        <span class="text-[11px] text-slate-400 w-10 shrink-0">日期</span>
+        <div class="flex-1 overflow-x-auto no-scrollbar flex gap-1.5" id="vtDateRow"></div>
+      </div>
+      <div class="mt-2 flex items-center gap-2">
+        <span class="text-[11px] text-slate-400 w-10 shrink-0">时刻</span>
+        <div class="flex gap-1.5"><div class="hw !h-[68px] w-14" id="vtHH"></div><div class="hw !h-[68px] w-14" id="vtMM"></div></div>
+        <span class="text-[10px] text-slate-400">可手动改</span>
+      </div>
+      <div class="mt-3 grid gap-2 text-center text-[10px]" id="vtFields"></div>
+      <div class="mt-2 text-[10px] text-slate-400" id="vtSlotTx">测量时段</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="vtSlotRow"></div>
+      <div class="mt-3 text-[10px] text-slate-400" id="vtNoteTx">备注</div>
+      <input id="vtNote" class="inp !py-2 text-sm mt-1.5" placeholder="如 服药后 2 小时测">
+      <div class="mt-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 text-[10px]" id="vtPreview">—</div>
+      <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHVital')">取消</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="vtSave()">保存</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHSymptom" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHSymptom')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]" id="syTitle">记录症状</div>
+      <div class="mt-3 text-[10px] text-slate-400">症状</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="syNameRow"></div>
+      <div class="mt-2 flex gap-2"><input id="syNameIn" class="inp !py-2 text-sm flex-1" placeholder="自定义症状名"><button class="mini-btn" onclick="syAddName()">+ 加入</button></div>
+      <div class="mt-3 text-[10px] text-slate-400">疼痛等级</div>
+      <div class="pain mt-1.5" id="syPain"></div>
+      <div class="flex justify-between text-[8px] text-slate-400 mt-1"><span>无痛</span><span id="syPainTx">—</span><span>无法忍受</span></div>
+      <div class="mt-3 text-[10px] text-slate-400">发生部位</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="syPartPick"></div>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <div><div class="text-[10px] text-slate-400 mb-1">开始</div><div class="flex items-center gap-2"><div class="flex-1 overflow-x-auto no-scrollbar flex gap-1.5" id="syDateRow"></div></div><div class="flex gap-1.5 mt-1.5"><div class="hw !h-[68px] flex-1" id="syHH"></div><div class="hw !h-[68px] flex-1" id="syMM"></div></div></div>
+        <div><div class="text-[10px] text-slate-400 mb-1">持续时长</div><div class="hw" id="syDur"></div><span class="text-[10px] text-slate-400">分钟</span></div>
+      </div>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <div><div class="text-[10px] text-slate-400">诱发因素</div><input id="syTrig" class="inp !py-2 text-sm mt-1.5" placeholder="如 熬夜后"></div>
+        <div><div class="text-[10px] text-slate-400">缓解因素</div><input id="syEase" class="inp !py-2 text-sm mt-1.5" placeholder="如 休息后好转"></div>
+      </div>
+      <div class="mt-3 text-[10px] text-slate-400">感受描述</div>
+      <input id="syDesc" class="inp !py-2 text-sm mt-1.5" placeholder="如 右侧太阳穴跳痛">
+      <div class="mt-3 text-[10px] text-slate-400">照片</div>
+      <div class="grid grid-cols-4 gap-2 mt-1.5" id="syPics"></div>
+      <div class="mt-3 flex items-center justify-between"><span class="text-[11px] font-semibold">正在发作</span><span class="toggle" id="syOnTg" onclick="hTg(this)"></span></div>
+      <div class="mt-2 flex items-center justify-between"><span class="text-[11px] font-semibold">与用药相关</span><span class="toggle" id="syDrugTg" onclick="hTg(this)"></span></div>
+      <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHSymptom')">取消</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="sySave()">保存</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHReportAdd" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHReportAdd')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]" id="rpaTitle">上传检查报告</div>
+      <div class="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] text-slate-500 dark:text-slate-400" id="rpaSrc"></div>
+      <div class="grid grid-cols-4 gap-2 mt-2" id="rpaPics"></div>
+      <div class="mt-3 flex items-center gap-2"><span class="text-[11px] text-slate-400 w-10 shrink-0">日期</span><div class="flex-1 overflow-x-auto no-scrollbar flex gap-1.5" id="rpaDateRow"></div></div>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <div><div class="text-[10px] text-slate-400">就诊医院</div><input id="rpaHosp" class="inp !py-2 text-sm mt-1.5" placeholder="如 市一院"></div>
+        <div><div class="text-[10px] text-slate-400">报告名称</div><input id="rpaName" class="inp !py-2 text-sm mt-1.5" placeholder="如 血常规"></div>
+      </div>
+      <div class="mt-3 text-[10px] text-slate-400">医生建议</div>
+      <input id="rpaDoc" class="inp !py-2 text-sm mt-1.5" placeholder="如 一周后复查血脂">
+      <div class="mt-3 flex items-center justify-between"><span class="text-[11px] font-semibold">关联笔记</span><button class="mini-btn" onclick="rpaNote()">写就诊心得 ›</button></div>
+      <div class="mt-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 text-[10px]" id="rpaPreview">—</div>
+      <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHReportAdd')">取消</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="rpaSave()">保存报告</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHMetric" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHMetric')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]">录入检验项目</div>
+      <div class="text-[10px] text-slate-400 mt-0.5" id="hmkSub">—</div>
+      <div class="mt-2 text-[10px] text-slate-400">常用项目库</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="hmkLib"></div>
+      <div class="mt-2 text-[10px] text-slate-400">项目名称</div>
+      <input id="hmkNameIn" class="inp !py-2 text-sm mt-1.5" placeholder="点上方项目库带入 · 或自定义" oninput="hmkTip()">
+      <div class="mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
+        <div><div class="hw !h-[68px]" id="hmkVal"></div><span class="text-slate-400">数值</span></div>
+        <div><div class="hw !h-[68px]" id="hmkLo"></div><span class="text-slate-400">参考下限</span></div>
+        <div><div class="hw !h-[68px]" id="hmkHi"></div><span class="text-slate-400">参考上限</span></div>
+      </div>
+      <div class="mt-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 text-[10px]" id="hmkTip">—</div>
+      <div class="flex gap-2 mt-3"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHMetric')">取消</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="hmkAdd()">加入本报告</button></div>
+      <div class="mt-3 text-[10px] text-slate-400">已录项目</div>
+      <div id="hmkList" class="mt-1.5"></div>
+    </div>
+  </div>
+
+  <div id="sheetHRemind" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHRemind')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-[15px]">健康提醒</div>
+      <div class="text-[10px] text-slate-400 mt-0.5">全部排程到「提醒通知」中心 · 关闭即撤销排程</div>
+      <div class="mt-3 space-y-2" id="hrmList"></div>
+      <div class="mt-3 flex items-center justify-between"><span class="text-[11px] font-semibold">新增测量提醒</span><button class="mini-btn" onclick="hrmAdd()">+ 添加</button></div>
+      <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHRemind')">关闭</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="hrmSave()">保存并排程</button></div>
+    </div>
+  </div>
+
+  <div id="sheetHAiSummary" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHAiSummary')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="flex items-center justify-between"><span class="font-extrabold text-[15px]">AI 健康小结</span><span class="vchip">仅整理文本</span></div>
+      <div class="mt-2 text-[10px] text-slate-400">时间段</div>
+      <div class="mt-1.5 flex gap-1.5" id="aisRangeRow"></div>
+      <div class="mt-3 text-[10px] text-slate-400">纳入指标</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="aisMetricRow"></div>
+      <button class="mini-btn w-full mt-3" onclick="aisPreview()">预览将要发送的内容</button>
+      <div class="mt-2 rounded-xl bg-slate-100 dark:bg-slate-800 p-3 text-[10px] leading-4 hidden" id="aisPayload"></div>
+      <div class="flex gap-2 mt-3"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetHAiSummary')">取消</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="aisRun(this)">生成小结</button></div>
+      <div class="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 p-3 hidden" id="aisOut"></div>
+      <div class="flex gap-2 mt-2 hidden" id="aisActs"><button class="flex-1 mini-btn" onclick="aisCopy()">复制</button><button class="flex-1 mini-btn" onclick="aisToNote()">存入笔记</button></div>
+    </div>
+  </div>

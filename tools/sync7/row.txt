@@ -1,0 +1,6 @@
+      <div id="svcForm"></div>
+      <!-- R7（缺口盘点批 #7）：verifyContent 的用户编辑入口＝服务级开关；三档仍由引擎自动降级 -->
+      <div class="row" style="border-bottom:none;padding:12px 0 0">
+        <span class="r-t">允许严格校验（MD5）<div class="r-s">逐文件下载算 MD5 比对 · 大文件多一轮下载 · 默认关</div></span>
+        <span class="toggle" id="tglVerify" onclick="tglVerify(this)"></span>
+      </div>

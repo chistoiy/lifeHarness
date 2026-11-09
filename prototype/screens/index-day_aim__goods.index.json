@@ -1,0 +1,175 @@
+{
+ "file": "index-day_aim__goods.html",
+ "total": 299875,
+ "cut": 0,
+ "screens": [
+  {
+   "id": "p-items",
+   "kind": "screen",
+   "title": "物品价值",
+   "role": "home",
+   "size": 2745,
+   "hash": "c3686379"
+  },
+  {
+   "id": "p-itemDetail",
+   "kind": "screen",
+   "title": "物品详情",
+   "role": "home",
+   "size": 121,
+   "hash": "da7b88aa"
+  },
+  {
+   "id": "p-itemEdit",
+   "kind": "screen",
+   "title": "编辑档案",
+   "role": "home",
+   "size": 7840,
+   "hash": "e814be55"
+  },
+  {
+   "id": "p-itemStats",
+   "kind": "screen",
+   "title": "持有成本统计",
+   "role": "home",
+   "size": 1811,
+   "hash": "d774bcf9"
+  },
+  {
+   "id": "p-itemSettle",
+   "kind": "screen",
+   "title": "决算报告",
+   "role": "home",
+   "size": 117,
+   "hash": "28fe9b2c"
+  },
+  {
+   "id": "p-days",
+   "kind": "screen",
+   "title": "重要日子",
+   "role": "home",
+   "size": 1661,
+   "hash": "d2d4dc63"
+  },
+  {
+   "id": "p-dayDetail",
+   "kind": "screen",
+   "title": "日子详情",
+   "role": "home",
+   "size": 119,
+   "hash": "51335914"
+  },
+  {
+   "id": "p-dayEdit",
+   "kind": "screen",
+   "title": "编辑日子",
+   "role": "home",
+   "size": 3292,
+   "hash": "7aff6e1e"
+  },
+  {
+   "id": "p-dayRemind",
+   "kind": "screen",
+   "title": "提醒中心",
+   "role": "home",
+   "size": 523,
+   "hash": "8f0767b1"
+  },
+  {
+   "id": "p-goals",
+   "kind": "screen",
+   "title": "目标 OKR",
+   "role": "home",
+   "size": 1405,
+   "hash": "c912b78a"
+  },
+  {
+   "id": "p-goalDetail",
+   "kind": "screen",
+   "title": "目标详情",
+   "role": "home",
+   "size": 121,
+   "hash": "af5f9db0"
+  },
+  {
+   "id": "p-goalEdit",
+   "kind": "screen",
+   "title": "编辑目标",
+   "role": "home",
+   "size": 1430,
+   "hash": "ea29da3e"
+  },
+  {
+   "id": "p-goalReview",
+   "kind": "screen",
+   "title": "季度复盘 · KPT",
+   "role": "home",
+   "size": 196,
+   "hash": "396f44e9"
+  },
+  {
+   "id": "sheetExtra",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1300,
+   "hash": "f93105e5"
+  },
+  {
+   "id": "sheetRecycle",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1318,
+   "hash": "edaf0aab"
+  },
+  {
+   "id": "sheetScrap",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1131,
+   "hash": "455927c2"
+  },
+  {
+   "id": "sheetItemDel",
+   "kind": "sheet",
+   "title": "删除档案",
+   "role": "home",
+   "size": 923,
+   "hash": "005c9d0b"
+  },
+  {
+   "id": "sheetItemFilter",
+   "kind": "sheet",
+   "title": "筛选与排序",
+   "role": "home",
+   "size": 1248,
+   "hash": "79c91e13"
+  },
+  {
+   "id": "sheetAddItem",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 3112,
+   "hash": "f8c6393a"
+  },
+  {
+   "id": "sheetRemindPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 808,
+   "hash": "71a09c17"
+  },
+  {
+   "id": "sheetShareCard",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 876,
+   "hash": "c5febc14"
+  }
+ ]
+}

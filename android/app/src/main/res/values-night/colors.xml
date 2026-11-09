@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面模块批2 · 原生小组件色档（深色档 · 冻结档 §5.4）。
+  跟随系统深色（C6/B9）；与 values/colors.xml 同键名，只换值。
+-->
+<resources>
+    <color name="lh_wg_bg">#1E293B</color>
+    <color name="lh_wg_fg">#F1F5F9</color>
+    <color name="lh_wg_sub">#94A3B8</color>
+    <color name="lh_wg_acc">#818CF8</color>
+
+    <!-- 深色档强调色偏亮（#818CF8），白字仅 2.98:1 不达 AA ⇒ 换深色底文字（约 5.4:1） -->
+    <color name="lh_wg_btn_fg">#1E293B</color>
+
+    <color name="lh_wg_stroke">#1A94A3B8</color>
+    <color name="lh_wg_track">#2E94A3B8</color>
+
+    <!-- 批A · 打卡-单习惯「已打卡」按钮底（深色档：次文本 14% 透明） -->
+    <color name="lh_wg_btn_off">#2494A3B8</color>
+
+    <!-- 批3 · 配置弹窗深色档：底比卡片深一档，卡片底＝小组件卡底同色（深色档卡片浮在更深的底上）。 -->
+    <color name="lh_cfg_bg">#0F172A</color>
+    <color name="lh_cfg_card_bg">#1E293B</color>
+    <!-- 4×1 三区（2026-10-18）：区与区之间的 1dp 分隔线＝次文本 14% 透明
+         （原型 `.wg` 内联分隔线口径；浅/深两档各一值）。 -->
+    <color name="lh_wg_div">#2494A3B8</color>
+</resources>

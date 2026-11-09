@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4×1 快捷记录左半「记一笔」按钮底：强调色，仅左侧跟卡片圆角 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/lh_wg_acc" />
+    <corners
+        android:topLeftRadius="16dp"
+        android:bottomLeftRadius="16dp" />
+</shape>

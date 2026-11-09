@@ -1,0 +1,20 @@
+/* R7（缺口盘点批 #7）：严格 MD5 档由「服务配置 · 允许严格校验」开关放行；未开时只在字节数/强 ETag 间自动降级 */
+var svcVerify=false;
+function pickTier(el){
+  var strict = el.textContent.indexOf('严格 MD5')>-1;
+  if(strict && !svcVerify){ toast('严格校验未开启 · 在「服务配置」里打开「允许严格校验（MD5）」后可选'); return; }
+  el.parentNode.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.remove('on'); });
+  el.classList.add('on');
+  if(strict) toast('严格 MD5 · 逐文件下载比对 · 大文件多一轮下载');
+  computeDiff();
+}
+function tglVerify(el){
+  svcVerify=!svcVerify; el.classList.toggle('on',svcVerify);
+  var seg=document.querySelectorAll('#s-diff .seg-btn');
+  if(!svcVerify && seg[2] && seg[2].classList.contains('on')){
+    seg[2].classList.remove('on'); seg[0].classList.add('on'); computeDiff();
+    toast('已关闭严格校验 · 差异对比退回「按字节数」');
+  } else {
+    toast(svcVerify?'已允许严格校验 · 差异对比可选「严格 MD5」':'已关闭严格校验 · 差异对比按字节数/强 ETag 自动降级');
+  }
+}

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeHarness · V4 主页风格试衣间 · 八款设计语言（侘寂/包豪斯/瑞士/孟菲斯/光晕/酸性/蒸汽波/新粗野）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&family=Archivo+Black&family=Noto+Serif+SC:wght@400;600;900&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ============ 试衣间外框（公共） ============ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#0c0d10;font-family:Inter,'PingFang SC','Microsoft YaHei',sans-serif;color:#ddd;min-height:100vh}
+.intro{max-width:1800px;margin:0 auto;padding:34px 28px 4px}
+.intro h1{font-size:22px;font-weight:900;letter-spacing:-.01em}
+.intro p{font-size:13px;color:#9a9aa2;margin-top:6px;line-height:1.85}
+.intro b{color:#fff}
+.gridwrap{display:grid;grid-template-columns:repeat(4,392px);gap:40px;padding:26px 28px 40px;overflow-x:auto;max-width:1800px;margin:0 auto}
+.stage{width:392px}
+.tag{display:flex;align-items:baseline;gap:8px;margin:0 2px 11px}
+.tag .nm{font-size:15px;font-weight:800;color:#fff;white-space:nowrap}
+.tag .ds{font-size:10.5px;color:#83838c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid #4a4a52;color:#cfcfd6;cursor:pointer;user-select:none;flex:none}
+.pick:hover{border-color:#fff;color:#fff;background:#ffffff14}
+.note{max-width:1800px;margin:0 auto;padding:0 28px 70px;font-size:12px;color:#8a8a92;line-height:2}
+.note b{color:#e8e8ee}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(10px);background:#111;color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:999px;opacity:0;transition:all .18s;pointer-events:none;z-index:99;font-family:Inter}
+.phone{position:relative;width:392px;height:768px;border-radius:38px;overflow:hidden}
+.scr{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none}
+.scr::-webkit-scrollbar{display:none}
+.sts{display:flex;justify-content:space-between;font-size:11px;font-weight:700;padding:13px 20px 2px}
+
+/* ============ 1 · 侘寂 Wabi-sabi ============ */
+.st-w{background:#e9e3d6;color:#3d372f;font-family:'Noto Serif SC',Georgia,serif}
+.st-w .phone{border:1px solid #d5cbb8;box-shadow:0 24px 50px rgba(90,75,50,.3)}
+.st-w .scr{padding:0 0 120px}
+.st-w .wall{position:absolute;inset:0;pointer-events:none;background:radial-gradient(60% 22% at 80% 6%,#dcd2be 0%,transparent 70%),radial-gradient(50% 18% at 10% 52%,#e2d9c7 0%,transparent 70%),radial-gradient(70% 20% at 60% 92%,#d8cdb6 0%,transparent 70%)}
+.st-w .kicker{position:relative;padding:18px 26px 0;font-size:10px;letter-spacing:.5em;color:#8b8171}
+.st-w .title{position:relative;padding:6px 26px 0;font-size:34px;font-weight:600;letter-spacing:.06em}
+.st-w .title em{font-style:normal;font-size:12px;color:#8b8171;letter-spacing:.2em;display:block;margin-top:6px}
+.st-w .seal{position:absolute;right:24px;top:22px;width:44px;height:44px;background:#a63a2b;color:#f3ece0;font-size:11px;line-height:1.15;display:flex;align-items:center;justify-content:center;text-align:center;border-radius:3px;box-shadow:0 2px 0 #7d2b20;cursor:pointer;font-weight:600;transform:rotate(-3deg)}
+.st-w .thread{position:relative;margin:26px 26px 0;padding-left:26px;border-left:1px solid #b9ae99}
+.st-w .tick{position:relative;padding:0 0 26px}
+.st-w .tick::before{content:'';position:absolute;left:-30px;top:6px;width:9px;height:9px;border-radius:50%;background:#b9ae99}
+.st-w .tick.hot::before{background:#a63a2b}
+.st-w .tick .lb{font-size:10px;letter-spacing:.32em;color:#8b8171}
+.st-w .tick .tx{font-size:16px;margin-top:5px;line-height:1.7}
+.st-w .tick .tx b{font-weight:900}
+.st-w .gaps{display:flex;gap:5px;margin-top:9px}
+.st-w .gaps i{width:26px;height:2px;background:#c9bfab}
+.st-w .gaps i.f{background:#3d372f}
+.st-w .hollow{margin:6px 26px 26px;padding:22px 0;border-top:1px solid #c9bfab;border-bottom:1px solid #c9bfab;text-align:center}
+.st-w .hollow .n{font-size:46px;font-weight:600;letter-spacing:.02em}
+.st-w .hollow .u{font-size:11px;color:#8b8171;letter-spacing:.3em;margin-top:4px}
+.st-w .moods{display:flex;justify-content:center;gap:20px;font-size:21px;margin-top:14px;opacity:.75}
+.st-w .moods span{cursor:pointer;filter:grayscale(.85);transition:all .2s}
+.st-w .moods span.sel{filter:none;transform:scale(1.2)}
+.st-w .flow{padding:0 26px;font-size:13.5px;line-height:2.1;color:#5c5449}
+.st-w .flow .h{font-size:10px;letter-spacing:.34em;color:#8b8171;margin-bottom:4px}
+.st-w .ink{width:100%;border:0;border-bottom:1px solid #a4987f;background:transparent;font-family:inherit;font-size:15px;padding:8px 2px;color:#3d372f;outline:none}
+.st-w .nav{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:16px 30px 26px;background:linear-gradient(transparent,#e9e3d6 34%);font-size:13px;letter-spacing:.1em;color:#8b8171}
+.st-w .nav span{cursor:pointer}
+.st-w .nav .on{color:#a63a2b;border-bottom:1px solid #a63a2b;padding-bottom:3px}
+
+/* ============ 2 · 包豪斯 Bauhaus ============ */
+.st-bw{background:#f2efe6;color:#111;font-family:'Space Grotesk',Inter,sans-serif}
+.st-bw .phone{border:1px solid #ddd7c6;box-shadow:0 24px 46px rgba(40,40,60,.24)}
+.st-bw .rail{position:absolute;left:0;top:0;bottom:0;width:56px;background:#111;display:flex;flex-direction:column;align-items:center;padding-top:52px;gap:20px;z-index:6}
+.st-bw .rail i{width:22px;height:22px;cursor:pointer;opacity:.5;transition:opacity .16s}
+.st-bw .rail i.on{opacity:1}
+.st-bw .r-circ{border-radius:50%;background:#e63946}
+.st-bw .r-tri{width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:22px solid #fcbf24;background:none}
+.st-bw .r-sq{background:#1d3557}
+.st-bw .r-half{height:11px;border-radius:22px 22px 0 0;background:#f7f7f7}
+.st-bw .r-cross{background:none;border-left:4px solid #e9ecef;border-right:4px solid #e9ecef;height:22px;width:8px}
+.st-bw .scr{left:56px;right:0;padding:0 18px 96px}
+.st-bw .band{background:#111;color:#f2efe6;margin:0 -18px;padding:12px 18px 14px}
+.st-bw .band .t{font-family:'Archivo Black',Inter;font-size:23px;letter-spacing:-.02em;text-transform:uppercase}
+.st-bw .band .s{font-size:10px;letter-spacing:.3em;color:#fcbf24;margin-top:5px}
+.st-bw .mod{border:2px solid #111;margin-top:14px;position:relative}
+.st-bw .mod .hd{background:#111;color:#fff;font-size:9px;letter-spacing:.2em;padding:5px 9px;display:flex;justify-content:space-between}
+.st-bw .mod .bd{padding:14px;display:flex;gap:14px;align-items:center}
+.st-bw .geo{position:relative;flex:none}
+.st-bw .n{font-family:'Archivo Black',Inter;font-size:34px;line-height:.95;letter-spacing:-.03em}
+.st-bw .k{font-size:10.5px;letter-spacing:.14em;color:#5b5b5b;text-transform:uppercase;font-weight:700}
+.st-bw .kv{font-size:12.5px;font-weight:700;margin-top:3px}
+.st-bw .c3{display:grid;grid-template-columns:1fr 1fr 1fr;border:2px solid #111;border-top:0}
+.st-bw .c3 > div{padding:12px 10px;border-left:2px solid #111;text-align:center}
+.st-bw .c3 > div:first-child{border-left:0}
+.st-bw .sq4{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:#111;border:2px solid #111;margin-top:14px}
+.st-bw .sq4 div{aspect-ratio:1;background:#f2efe6;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;cursor:pointer;gap:4px}
+.st-bw .sq4 div b{width:16px;height:16px;display:block}
+.st-bw .bar12{display:flex;height:20px;border:2px solid #111;margin-top:10px}
+.st-bw .bar12 i{display:block;height:100%}
+.st-bw .lst{padding:2px 14px 12px}
+.st-bw .lst div{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;padding:8px 0;border-bottom:1px dashed #b3ad9c}
+.st-bw .lst div:last-child{border-bottom:0}
+.st-bw .lst .tm{font-family:'Space Mono',monospace;font-size:10.5px;width:66px;color:#5b5b5b}
+.st-bw .inpf{display:flex;border:2px solid #111;margin-top:14px}
+.st-bw .inpf input{flex:1;border:0;padding:12px;font-family:inherit;font-size:13px;outline:none;background:#fff;color:#111}
+.st-bw .inpf b{background:#e63946;color:#fff;padding:0 16px;display:flex;align-items:center;font-size:20px;cursor:pointer}
+
+/* ============ 3 · 瑞士国际主义 Swiss ============ */
+.st-sw{background:#fff;color:#0a0a0a;font-family:Inter,'Helvetica Neue',Arial,sans-serif}
+.st-sw .phone{border:1px solid #dedede;box-shadow:0 22px 44px rgba(0,0,0,.16)}
+.st-sw .scr{padding:0 20px 96px}
+.st-sw .topnav{display:flex;border-bottom:1px solid #0a0a0a;margin:0 -20px 0;padding:0 20px 8px;gap:0}
+.st-sw .topnav span{flex:1;font-size:9px;letter-spacing:.14em;color:#8f8f8f;cursor:pointer;padding-bottom:6px;border-bottom:2px solid transparent;font-weight:600}
+.st-sw .topnav .on{color:#0a0a0a;border-bottom-color:#e63329}
+.st-sw .h1{font-size:52px;font-weight:900;letter-spacing:-.045em;line-height:.92;margin-top:16px}
+.st-sw .h1sub{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.1em;color:#6b6b6b;margin-top:8px;padding-bottom:14px;border-bottom:1px solid #0a0a0a;text-transform:uppercase}
+.st-sw .row{display:grid;grid-template-columns:34px 1fr auto;gap:12px;padding:13px 0;border-bottom:1px solid #e2e2e2;align-items:baseline}
+.st-sw .row .no{font-size:10px;color:#e63329;font-weight:700;font-variant-numeric:tabular-nums}
+.st-sw .row .lb{font-size:9.5px;letter-spacing:.16em;color:#8f8f8f;text-transform:uppercase;display:block;margin-bottom:4px}
+.st-sw .row .v{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.st-sw .row .r{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.st-sw .row .r.g{color:#8f8f8f;font-weight:500}
+.st-sw .big{font-size:78px;font-weight:900;letter-spacing:-.06em;line-height:1;font-variant-numeric:tabular-nums}
+.st-sw .rulebar{height:10px;display:flex;margin:16px 0 0;border:1px solid #0a0a0a}
+.st-sw .rulebar i{display:block;height:100%}
+.st-sw .sec{font-size:9px;letter-spacing:.3em;color:#8f8f8f;margin:22px 0 0;padding-bottom:6px;border-bottom:1px solid #0a0a0a;text-transform:uppercase}
+.st-sw .twocol{column-count:2;column-gap:18px;font-size:12px;line-height:1.75;color:#333;margin-top:12px}
+.st-sw .twocol p{margin:0 0 8px;break-inside:avoid}
+.st-sw .twocol b{display:block;font-size:9px;letter-spacing:.14em;color:#0a0a0a;margin-bottom:2px}
+.st-sw .idx{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#e2e2e2;border:1px solid #e2e2e2;margin-top:12px}
+.st-sw .idx div{background:#fff;padding:11px 8px;font-size:10.5px;font-weight:700;cursor:pointer}
+.st-sw .idx div span{display:block;font-size:8.5px;color:#a3a3a3;letter-spacing:.1em;margin-bottom:5px;font-variant-numeric:tabular-nums}
+.st-sw .fin{width:100%;border:0;border-bottom:1.5px solid #0a0a0a;padding:9px 2px;font-family:inherit;font-size:13.5px;outline:none;background:transparent;color:#0a0a0a;margin-top:12px}
+.st-sw .foot{position:absolute;left:0;right:0;bottom:0;border-top:1px solid #0a0a0a;padding:9px 20px 14px;display:flex;justify-content:space-between;font-size:9px;letter-spacing:.1em;color:#8f8f8f;text-transform:uppercase;background:#fff}
+
+/* ============ 4 · 孟菲斯 Memphis ============ */
+.st-me{background:#fdf3e7;color:#1b1b1b;font-family:'Space Grotesk',Inter,sans-serif;font-weight:600}
+.st-me .phone{border:2px solid #1b1b1b;box-shadow:8px 8px 0 #ef5da8}
+.st-me .deco{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.st-me .deco .zg{position:absolute;width:70px;height:20px;background:repeating-linear-gradient(135deg,#2ec4b6 0 4px,transparent 4px 9px);border-radius:2px}
+.st-me .deco .dotg{position:absolute;width:64px;height:64px;background-image:radial-gradient(#ffd23f 2.4px,transparent 2.4px);background-size:14px 14px}
+.st-me .deco .rng{position:absolute;width:44px;height:44px;border:5px solid #ff6b6b;border-radius:50%}
+.st-me .deco .tri{position:absolute;width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-bottom:28px solid #a06bd8}
+.st-me .scr{padding:0 18px 130px}
+.st-me .head{margin:14px 0 20px;position:relative;display:inline-block;background:#1b1b1b;color:#fdf3e7;padding:9px 18px 11px;border-radius:26px 4px 26px 4px;transform:rotate(-2deg)}
+.st-me .head .t{font-family:'Archivo Black',Inter;font-size:22px;letter-spacing:-.01em}
+.st-me .head .s{font-size:10px;letter-spacing:.18em;color:#ffd23f}
+.st-me .ov{position:relative;margin-bottom:22px}
+.st-me .card{border:2.5px solid #1b1b1b;padding:15px;position:relative;background:#fff}
+.st-me .a{border-radius:30px 6px 30px 6px;transform:rotate(1.1deg);box-shadow:6px 6px 0 #2ec4b6}
+.st-me .b{border-radius:6px 30px 6px 30px;transform:rotate(-1.4deg);box-shadow:6px 6px 0 #ffd23f;background:#eafaf7}
+.st-me .c{border-radius:22px;transform:rotate(.7deg);box-shadow:6px 6px 0 #ef5da8;background:#fff0f6}
+.st-me .shift{margin-left:34px;margin-top:-8px}
+.st-me .taglb{position:absolute;top:-13px;left:14px;background:#ff6b6b;border:2.5px solid #1b1b1b;border-radius:99px;padding:2px 12px;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.st-me .n{font-family:'Archivo Black',Inter;font-size:32px;letter-spacing:-.03em;line-height:1}
+.st-me .n small{font-family:'Space Grotesk';font-size:12px;font-weight:700}
+.st-me .pill{display:inline-flex;align-items:center;gap:6px;border:2.5px solid #1b1b1b;border-radius:99px;padding:5px 12px;font-size:11.5px;font-weight:800;background:#ffd23f;cursor:pointer}
+.st-me .pill.teal{background:#2ec4b6;color:#04352f}
+.st-me .pill.vio{background:#a06bd8;color:#fff}
+.st-me .pillrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.st-me .moods{display:flex;gap:12px;margin-top:10px}
+.st-me .moods span{width:44px;height:44px;border:2.5px solid #1b1b1b;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;background:#fff;transition:all .14s}
+.st-me .moods span.sel{background:#ffd23f;transform:scale(1.16) rotate(-8deg);box-shadow:4px 4px 0 #1b1b1b}
+.st-me .barz{height:15px;border:2.5px solid #1b1b1b;border-radius:99px;overflow:hidden;background:#fff;margin-top:9px}
+.st-me .barz i{display:block;height:100%;background:repeating-linear-gradient(90deg,#ef5da8 0 12px,#a06bd8 12px 24px)}
+.st-me .lst div{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:2px dotted #b8ad9c;font-size:12.5px;font-weight:700}
+.st-me .inpw{display:flex;margin-top:11px}
+.st-me .inpw input{flex:1;border:2.5px solid #1b1b1b;border-right:0;border-radius:99px 0 0 99px;padding:11px 14px;font-family:inherit;font-size:13px;outline:none;background:#fff;color:#1b1b1b}
+.st-me .inpw b{border:2.5px solid #1b1b1b;border-radius:0 99px 99px 0;background:#2ec4b6;color:#04352f;padding:0 16px;display:flex;align-items:center;cursor:pointer;font-size:17px}
+.st-me .nav{position:absolute;left:14px;right:14px;bottom:14px;display:flex;gap:9px;align-items:center;justify-content:space-between;background:#fff;border:2.5px solid #1b1b1b;border-radius:99px;padding:8px 12px;box-shadow:5px 5px 0 #1b1b1b;z-index:7}
+.st-me .nav span{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:8.5px;font-weight:800;letter-spacing:.06em;cursor:pointer;color:#6b6255}
+.st-me .nav span em{font-style:normal;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;border:2.5px solid #1b1b1b}
+.st-me .nav span:nth-child(1) em{border-radius:50%;background:#ffd23f}
+.st-me .nav span:nth-child(2) em{border-radius:6px;background:#2ec4b6}
+.st-me .nav span:nth-child(3) em{border-radius:50% 50% 6px 50%;background:#ef5da8}
+.st-me .nav span:nth-child(4) em{border-radius:99px;background:#a06bd8}
+.st-me .nav span:nth-child(5) em{border-radius:6px 50% 6px 50%;background:#ff6b6b}
+.st-me .nav span.on{color:#1b1b1b}
+.st-me .nav span.on em{box-shadow:0 0 0 3px #fff,0 0 0 5.5px #1b1b1b}
+/* ============ 5 · 光晕 Aura ============ */
+.st-au{background:#07070d;color:#f0f0ff;font-family:Inter,'PingFang SC',sans-serif}
+.st-au .phone{border:1px solid #ffffff1f;box-shadow:0 30px 70px rgba(0,0,0,.7)}
+.st-au .aura{position:absolute;inset:-25%;pointer-events:none;z-index:0;filter:blur(60px)}
+.st-au .aura b{position:absolute;border-radius:50%;display:block;animation:breathe 7s ease-in-out infinite alternate}
+.st-au .a1{width:230px;height:230px;left:-6%;top:2%;background:radial-gradient(circle,#7c5cffcc,transparent 62%)}
+.st-au .a2{width:200px;height:200px;right:-8%;top:20%;background:radial-gradient(circle,#00e5ff99,transparent 62%);animation-delay:-2s}
+.st-au .a3{width:260px;height:260px;left:10%;top:52%;background:radial-gradient(circle,#ff4ecd88,transparent 62%);animation-delay:-4s}
+.st-au .a4{width:190px;height:190px;right:-4%;bottom:6%;background:radial-gradient(circle,#5cffb188,transparent 62%);animation-delay:-1s}
+@keyframes breathe{from{transform:scale(1);opacity:.72}to{transform:scale(1.18);opacity:1}}
+.st-au .scr{padding:0 24px 130px;z-index:2}
+.st-au .greet{text-align:center;margin-top:14px}
+.st-au .greet .t{font-size:12px;letter-spacing:.42em;color:#a8a3d8;text-transform:uppercase}
+.st-au .greet .n{font-size:42px;font-weight:200;letter-spacing:.02em;margin-top:8px;text-shadow:0 0 34px #7c5cff99}
+.st-au .greet .s{font-size:11px;color:#8c88b8;margin-top:8px;letter-spacing:.16em}
+.st-au .orb{text-align:center;margin-top:26px}
+.st-au .orb .num{font-size:70px;font-weight:200;letter-spacing:-.03em;line-height:1;text-shadow:0 0 40px #00e5ff88}
+.st-au .orb .cap{font-size:10px;letter-spacing:.34em;color:#9d97d4;margin-top:6px}
+.st-au .halo{width:210px;height:210px;margin:-118px auto 0;border-radius:50%;border:1px solid #ffffff1a;position:relative}
+.st-au .halo::after{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(#7c5cff 0 62%,#ffffff0f 62% 100%);-webkit-mask:radial-gradient(circle,transparent 61%,#000 62%);mask:radial-gradient(circle,transparent 61%,#000 62%)}
+.st-au .float{margin-top:24px;padding:22px 20px;border-radius:32px;background:linear-gradient(160deg,#ffffff14,#ffffff05);border:1px solid #ffffff1a;box-shadow:0 20px 50px rgba(0,0,0,.4),inset 0 1px 0 #ffffff2e}
+.st-au .float .h{font-size:10px;letter-spacing:.28em;color:#9d97d4;text-transform:uppercase}
+.st-au .float .b{font-size:30px;font-weight:300;margin-top:6px;letter-spacing:-.01em}
+.st-au .float .b em{font-style:normal;font-size:12px;color:#8c88b8;font-weight:400}
+.st-au .spectrum{margin-top:10px;height:12px;border-radius:99px;overflow:hidden;display:flex;box-shadow:0 0 26px #7c5cff4d}
+.st-au .spectrum i{display:block;height:100%}
+.st-au .rows{margin-top:8px}
+.st-au .r{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid #ffffff12;font-size:13.5px;font-weight:300}
+.st-au .r:last-child{border-bottom:0}
+.st-au .r .tm{font-size:10.5px;color:#8c88b8;letter-spacing:.08em;width:70px}
+.st-au .r .live{margin-left:auto;font-size:9.5px;letter-spacing:.18em;color:#00e5ff;text-shadow:0 0 12px #00e5ff99}
+.st-au .glowinp{margin-top:22px;width:100%;border:1px solid #ffffff22;border-radius:99px;background:#ffffff0d;padding:15px 20px;color:#f0f0ff;font-family:inherit;font-size:13.5px;font-weight:300;letter-spacing:.05em;outline:none;box-shadow:inset 0 0 24px #7c5cff22}
+.st-au .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px;justify-content:center}
+.st-au .chips span{font-size:11px;letter-spacing:.1em;padding:8px 14px;border-radius:99px;border:1px solid #ffffff1f;background:#ffffff0a;cursor:pointer;color:#cfcae8}
+.st-au .chips span:hover{border-color:#00e5ff88;color:#fff;box-shadow:0 0 20px #00e5ff33}
+.st-au .dock{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;z-index:6;display:flex;gap:6px;padding:8px 10px;border-radius:99px;background:#0b0b1acc;border:1px solid #ffffff1f;backdrop-filter:blur(22px);box-shadow:0 0 40px #7c5cff40}
+.st-au .dock span{width:56px;text-align:center;font-size:8.5px;letter-spacing:.1em;color:#8c88b8;cursor:pointer;padding:7px 0;border-radius:99px}
+.st-au .dock span em{display:block;font-style:normal;font-size:16px;margin-bottom:2px}
+.st-au .dock .on{color:#fff;background:radial-gradient(circle at 50% 20%,#7c5cff66,#00e5ff22);box-shadow:0 0 22px #7c5cff55}
+
+/* ============ 6 · 酸性 Acid ============ */
+.st-ac{background:#0a0014;color:#eaeaea;font-family:'Space Grotesk',Inter,sans-serif}
+.st-ac .phone{border:1px solid #ff00ea55;box-shadow:0 0 0 1px #00ffc855,0 26px 60px rgba(255,0,234,.28)}
+.st-ac .grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#ff00ea14 1px,transparent 1px),linear-gradient(90deg,#ff00ea14 1px,transparent 1px);background-size:32px 32px}
+.st-ac .marq{position:relative;background:#00ffc8;color:#000;font-size:10px;font-weight:700;letter-spacing:.14em;padding:5px 0;overflow:hidden;white-space:nowrap;border-bottom:1px solid #000;transform:rotate(-1.2deg);margin:0 -8px}
+.st-ac .marq span{display:inline-block;padding-left:100%;animation:acrun 18s linear infinite}
+.st-ac .marq2{background:#ff00ea;color:#fff;border-top:1px solid #000;transform:rotate(1deg);margin:14px -8px 0;position:absolute;bottom:74px;z-index:6}
+@keyframes acrun{to{transform:translateX(-100%)}}
+.st-ac .scr{padding:0 16px 108px;z-index:2}
+.st-ac .chrome{background:linear-gradient(100deg,#fff 0%,#a7f 18%,#0ff 38%,#fff 52%,#f0a 70%,#ff0 88%,#fff);-webkit-background-clip:text;background-clip:text;color:transparent;font-family:'Archivo Black',Inter;font-size:38px;line-height:.95;letter-spacing:-.03em;margin-top:12px}
+.st-ac .sub{font-size:10px;letter-spacing:.3em;color:#00ffc8;margin-top:8px;font-weight:700}
+.st-ac .skew{transform:skewX(-6deg);border:1px solid #ff00ea66;background:linear-gradient(120deg,#ff00ea1f,#00ffc814);padding:14px;margin-top:16px;position:relative;box-shadow:5px 5px 0 #000,5px 5px 0 1px #ff00ea}
+.st-ac .skew .lab{position:absolute;top:-9px;left:10px;background:#fffe00;color:#000;font-size:8.5px;font-weight:800;letter-spacing:.18em;padding:2px 8px;transform:skewX(6deg)}
+.st-ac .skew .n{font-family:'Archivo Black',Inter;font-size:44px;letter-spacing:-.04em;line-height:1;transform:skewX(6deg)}
+.st-ac .skew .k{font-size:10px;letter-spacing:.2em;color:#8fe;font-weight:700;margin-top:6px;transform:skewX(6deg)}
+.st-ac .eq{display:flex;align-items:flex-end;gap:4px;height:66px;margin-top:12px;transform:skewX(6deg)}
+.st-ac .eq i{flex:1;background:linear-gradient(#00ffc8,#ff00ea);border-radius:2px 2px 0 0;position:relative}
+.st-ac .eq i b{position:absolute;bottom:-15px;left:0;right:0;text-align:center;font-size:7.5px;letter-spacing:.06em;color:#9aa}
+.st-ac .strip{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.st-ac .tag{border:1px dashed #00ffc888;padding:6px 10px;font-size:10.5px;letter-spacing:.1em;font-weight:700;color:#0ff;cursor:pointer;background:#0008}
+.st-ac .tag.p{border-color:#ff00ea88;color:#f9f}
+.st-ac .lst{margin-top:18px;border-left:2px solid #ff00ea}
+.st-ac .lst div{display:flex;gap:9px;align-items:center;padding:10px 0 10px 12px;font-size:12.5px;font-weight:600;border-bottom:1px dotted #ffffff1f;position:relative}
+.st-ac .lst div::before{content:'';position:absolute;left:-5px;top:18px;width:8px;height:8px;background:#fffe00;border-radius:50%}
+.st-ac .lst .tm{font-family:'Space Mono',monospace;font-size:10.5px;color:#00ffc8;width:62px}
+.st-ac .glitchinp{display:flex;margin-top:20px;border:1px solid #00ffc866;background:#000a}
+.st-ac .glitchinp input{flex:1;background:transparent;border:0;color:#fff;padding:12px;font-family:inherit;font-size:12.5px;letter-spacing:.06em;outline:none}
+.st-ac .glitchinp b{background:#ff00ea;color:#000;padding:0 14px;display:flex;align-items:center;font-size:11px;letter-spacing:.12em;cursor:pointer}
+.st-ac .nav{position:absolute;left:12px;right:12px;bottom:26px;z-index:7;display:flex;gap:6px}
+.st-ac .nav span{flex:1;text-align:center;font-size:9px;letter-spacing:.12em;font-weight:800;padding:9px 0;background:linear-gradient(180deg,#ffffffe0,#8f9fb3);color:#000;clip-path:polygon(10% 0,100% 0,90% 100%,0 100%);cursor:pointer}
+.st-ac .nav .on{background:linear-gradient(180deg,#fffe00,#ff8a00)}
+
+/* ============ 7 · 蒸汽波 Vaporwave ============ */
+.st-vw{background:linear-gradient(#2b0a4d 0%,#5c1a7a 38%,#ff6ec7 74%,#ffb86b 100%);color:#fff;font-family:'Space Grotesk',Inter,sans-serif}
+.st-vw .phone{border:1px solid #ff6ec777;box-shadow:0 0 40px #ff6ec74d,0 26px 60px rgba(0,0,0,.5)}
+.st-vw .sun{position:absolute;left:50%;transform:translateX(-50%);top:64px;width:190px;height:190px;border-radius:50%;background:linear-gradient(#ffe14d,#ff5fa2);z-index:0;box-shadow:0 0 60px #ff6ec788}
+.st-vw .sun::after{content:'';position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(transparent 0 12px,#2b0a4dcc 12px 18px)}
+.st-vw .floor{position:absolute;left:-40%;right:-40%;bottom:0;height:330px;z-index:1;background-image:repeating-linear-gradient(#00e7ff77 0 1.5px,transparent 1.5px 30px),repeating-linear-gradient(90deg,#ff6ec766 0 1.5px,transparent 1.5px 44px);transform:perspective(280px) rotateX(64deg);transform-origin:top center}
+.st-vw .scr{padding:0 18px 116px;z-index:3}
+.st-vw .kai{position:absolute;right:16px;top:74px;z-index:4;writing-mode:vertical-rl;font-size:12px;letter-spacing:.4em;color:#ffe14d;text-shadow:0 0 12px #ff6ec7}
+.st-vw .top{text-align:center;padding-top:14px}
+.st-vw .top .e{font-size:9px;letter-spacing:.4em;color:#00e7ff}
+.st-vw .top .h{font-family:'DM Serif Display',Georgia,serif;font-size:40px;font-style:italic;letter-spacing:.02em;margin-top:6px;text-shadow:3px 3px 0 #ff5fa2,-2px -2px 0 #00e7ff88}
+.st-vw .top .jp{font-size:10px;letter-spacing:.32em;color:#ffd6f0;margin-top:4px}
+.st-vw .panel{margin-top:22px;border:1.5px solid #00e7ff;background:#2b0a4d9c;backdrop-filter:blur(6px);padding:15px;box-shadow:0 0 22px #00e7ff3d,inset 0 0 30px #ff6ec722;transform:perspective(500px) rotateX(3deg)}
+.st-vw .panel .h{font-size:9px;letter-spacing:.28em;color:#ffe14d;text-transform:uppercase}
+.st-vw .panel .n{font-size:36px;font-weight:700;letter-spacing:-.02em;margin-top:5px;text-shadow:2px 2px 0 #ff5fa2}
+.st-vw .panel .n small{font-size:11px;font-weight:400;color:#ffd6f0}
+.st-vw .scanbar{height:16px;border:1.5px solid #00e7ff;margin-top:11px;background:#12042a;overflow:hidden}
+.st-vw .scanbar i{display:block;height:100%;background:repeating-linear-gradient(90deg,#ff6ec7 0 8px,#00e7ff 8px 16px)}
+.st-vw .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.st-vw .neon{border:1.5px solid #ff6ec7;padding:13px;background:#1a0533a8;box-shadow:0 0 16px #ff6ec744}
+.st-vw .neon.c{border-color:#00e7ff;box-shadow:0 0 16px #00e7ff44}
+.st-vw .neon .k{font-size:8.5px;letter-spacing:.22em;color:#00e7ff}
+.st-vw .neon.c .k{color:#ff6ec7}
+.st-vw .neon .v{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.01em}
+.st-vw .rows div{display:flex;gap:9px;align-items:center;font-size:12.5px;padding:10px 0;border-bottom:1px dashed #ff6ec755}
+.st-vw .rows div:last-child{border-bottom:0}
+.st-vw .rows .tm{font-family:'Space Mono',monospace;font-size:10.5px;color:#ffe14d;width:64px}
+.st-vw .moods{display:flex;gap:12px;justify-content:center;margin-top:10px}
+.st-vw .moods span{width:40px;height:40px;border:1.5px solid #00e7ff;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;background:#0000004d}
+.st-vw .moods span.sel{border-color:#ffe14d;box-shadow:0 0 18px #ffe14d88;transform:translateY(-3px)}
+.st-vw .wininp{margin-top:18px;border:1.5px solid #00e7ff;background:#12042ae8}
+.st-vw .wininp .bar{background:repeating-linear-gradient(90deg,#ff6ec7 0 6px,#5c1a7a 6px 12px);height:14px;display:flex;align-items:center;padding:0 5px;font-size:7.5px;letter-spacing:.2em;color:#fff}
+.st-vw .wininp input{width:100%;border:0;background:transparent;color:#fff;padding:11px;font-family:inherit;font-size:12.5px;outline:none}
+.st-vw .nav{position:absolute;left:0;right:0;bottom:0;z-index:8;display:flex;background:#12042ae8;border-top:1.5px solid #ff6ec7;padding:9px 6px 16px}
+.st-vw .nav span{flex:1;text-align:center;font-size:8.5px;letter-spacing:.16em;color:#c9a6df;cursor:pointer;padding:5px 0;border:1px solid transparent}
+.st-vw .nav span em{display:block;font-style:normal;font-size:14px}
+.st-vw .nav .on{color:#ffe14d;border-color:#ff6ec7;box-shadow:0 0 14px #ff6ec766}
+
+/* ============ 8 · 新粗野 Neo-brutalism ============ */
+.st-nb{background:#fffdf2;color:#000;font-family:Inter,'PingFang SC',sans-serif;font-weight:700}
+.st-nb .phone{border:3px solid #000;box-shadow:9px 9px 0 #000;border-radius:14px}
+.st-nb .topbar{position:sticky;top:0;z-index:8;background:#000;color:#fff;display:flex;border-bottom:3px solid #000}
+.st-nb .topbar span{flex:1;text-align:center;font-size:11px;letter-spacing:.06em;padding:12px 0;cursor:pointer;border-right:2px solid #ffffff33}
+.st-nb .topbar span:last-child{border-right:0}
+.st-nb .topbar .on{background:#ffe800;color:#000}
+.st-nb .scr{padding-bottom:78px}
+.st-nb .blk{border-bottom:3px solid #000;padding:16px 16px 18px;position:relative}
+.st-nb .hero{background:#ff5c39;color:#000;display:flex;align-items:flex-end;gap:12px}
+.st-nb .hero .n{font-size:76px;font-weight:900;letter-spacing:-.05em;line-height:.82}
+.st-nb .hero .side{flex:1}
+.st-nb .field{font-size:9px;letter-spacing:.2em;text-transform:uppercase;opacity:.7;border:1.5px solid currentColor;display:inline-block;padding:2px 6px}
+.st-nb .big{font-size:40px;font-weight:900;letter-spacing:-.03em;line-height:1;margin-top:8px}
+.st-nb .kv{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:3px solid #000}
+.st-nb .kv > div{padding:13px 14px;border-right:3px solid #000;border-bottom:3px solid #000}
+.st-nb .kv > div:nth-child(2n){border-right:0}
+.st-nb .kv .v{font-size:23px;font-weight:900;letter-spacing:-.02em;margin-top:5px}
+.st-nb .blue{background:#5cc8ff}.st-nb .yel{background:#ffe800}.st-nb .pin{background:#ff9ec4}.st-nb .grn{background:#4ade80}.st-nb .vio{background:#c4b5fd}.st-nb .wht{background:#fff}
+.st-nb .prog{height:24px;border:3px solid #000;background:#fff;display:flex;overflow:hidden;margin-top:9px}
+.st-nb .prog i{display:block;height:100%;border-right:3px solid #000}
+.st-nb .prog i:last-child{border-right:0}
+.st-nb .lst{margin-top:4px}
+.st-nb .lst > div{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:2px dashed #000;font-size:13.5px}
+.st-nb .lst > div:last-child{border-bottom:2px dashed #000}
+.st-nb .lst .tm{font-size:11px;font-weight:900;width:70px;font-variant-numeric:tabular-nums}
+.st-nb .btn{border:3px solid #000;background:#ffe800;box-shadow:4px 4px 0 #000;padding:7px 11px;font-size:10.5px;font-weight:900;letter-spacing:.06em;cursor:pointer;user-select:none}
+.st-nb .btn:active{box-shadow:0 0 0 #000;transform:translate(4px,4px)}
+.st-nb .btn.red{background:#ff5c39;color:#fff}
+.st-nb .btn.gr{background:#4ade80}
+.st-nb .moods{display:flex;gap:9px;margin-top:11px}
+.st-nb .moods span{flex:1;aspect-ratio:1;border:3px solid #000;background:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;cursor:pointer}
+.st-nb .moods span.sel{background:#ffe800;box-shadow:4px 4px 0 #000}
+.st-nb .inpline{display:flex;border:3px solid #000;margin-top:12px;background:#fff}
+.st-nb .inpline input{flex:1;border:0;padding:13px;font-family:inherit;font-size:13.5px;font-weight:700;outline:none;background:transparent;color:#000}
+.st-nb .inpline b{background:#000;color:#fff;padding:0 18px;display:flex;align-items:center;font-size:15px;cursor:pointer}
+.st-nb .tiles{display:grid;grid-template-columns:repeat(4,1fr);border-top:3px solid #000}
+.st-nb .tiles div{padding:12px 8px;border-right:3px solid #000;border-bottom:3px solid #000;font-size:11px;display:flex;flex-direction:column;gap:5px;cursor:pointer;min-height:66px;justify-content:space-between}
+.st-nb .tiles div:nth-child(4n){border-right:0}
+.st-nb .tiles em{font-style:normal;font-size:18px}
+.st-nb .marq{background:#000;color:#ffe800;font-size:11px;letter-spacing:.1em;padding:9px 12px;border-bottom:3px solid #000}
+.st-nb .fab{position:absolute;right:14px;bottom:14px;z-index:9;width:58px;height:58px;background:#ff5c39;border:3px solid #000;box-shadow:5px 5px 0 #000;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>LifeHarness · V4 主页风格试衣间 · 八款设计语言</h1>
+  <p>同一份「今日仪表盘」（需求 V1.27 · 模块 6），八种<b>结构级</b>设计语言。每款的布局骨架、导航形态、数据表达方式都不同，不是换配色。<br>
+  <b>侘寂</b>＝竖墨线时间流 + 缺线进度 + 朱印，无卡片；<b>包豪斯</b>＝左侧几何形状导轨导航 + 原色模块框 + 12 分色条；<b>瑞士</b>＝顶部编号导航 + 严格栅格行 + 巨号负字距数字，无底部栏；<b>孟菲斯</b>＝重叠旋转卡 + 散落装饰（锯齿/波点/圆环/三角）+ 异形按钮导航；<b>光晕</b>＝全屏光斑浮层 + 无边界容器；<b>酸性</b>＝斜向错层 + 铬合金渐变字 + 跑马标签带；<b>蒸汽波</b>＝落日透视地平线横幅 + 霓虹描边斜卡；<b>新粗野</b>＝满宽色条堆叠 + 裸露字段名 + 硬偏移影。</p>
+</div>
+<div class="gridwrap" id="row"></div>
+<div class="note"><b>怎么试：</b>八款均可点——切导航、选心情、记一笔收集箱都是真交互演示。<b>选一个字母/名字</b>（或混搭，如「瑞士的栅格 + 侘寂的留白」），我就把该风格做成全量 14 模块原型。数据为占位，正式版按需求接入仪表盘长按编排、周月报与今日小结分享卡。</div>
+<div id="toast"></div>
+
+<script>
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;t.style.transform='translateX(-50%) translateY(0)';clearTimeout(toast._x);toast._x=setTimeout(()=>{t.style.opacity=0;t.style.transform='translateX(-50%) translateY(10px)'},1900)}
+const MOOD=['😮','🙂','😊','😌','😪'];
+
+/* ---------- 1 · 侘寂 ---------- */
+function hW(){const gaps=[1,1,1,0,0,0,0,0].map(x=>'<i class="'+(x?'f':'')+'"></i>').join('');
+ return '<div class="wall"></div><div class="scr"><div style="height:1px"></div>'+
+ '<div class="sts" style="position:relative;color:#8b8171"><span>廿三时五十九分</span><span>日曜</span><span>▮</span></div>'+
+ '<div class="kicker">今日の余白</div>'+
+ '<div class="title">晚上好<em>九月二十日 · 共你第一千二百二十八昼夜</em></div>'+
+ '<div class="seal" data-seal>今日<br>既记</div>'+
+ '<div class="hollow"><div class="n">六二</div><div class="u">今日已成 · 百分比</div></div>'+
+ '<div class="thread">'+
+  '<div class="tick"><div class="lb">待 办</div><div class="tx">八事之中<b>三事已毕</b>，其二逾期</div><div class="gaps">'+gaps+'</div></div>'+
+  '<div class="tick hot"><div class="lb">此 刻</div><div class="tx">十九时 撰写周报 · <b>犹在途中</b></div></div>'+
+  '<div class="tick"><div class="lb">心 境</div><div class="moods" data-mood>'+MOOD.map((m,i)=>'<span class="'+(i===2?'sel':'')+'">'+m+'</span>').join('')+'</div></div>'+
+  '<div class="tick"><div class="lb">时 间 去 向</div><div class="tx">工作 <b>三八</b> · 睡眠 <b>三一</b><br>学习 一七 · 娱乐 一四</div></div>'+
+  '<div class="tick"><div class="lb">身 边 之 物</div><div class="tx">今日持有成本 <b>十二元四角七分</b><br>MacBook 占四点六一</div></div>'+
+  '<div class="tick"><div class="lb">即 将 来 到</div><div class="tx">六日后 · <b>母亲生辰</b>（农历）</div></div>'+
+  '<div class="tick" style="padding-bottom:6px"><div class="lb">拾 遗</div><div class="tx">三事未归位<br><input class="ink" data-qadd placeholder="随手记一句…" value=""></div></div>'+
+ '</div>'+
+ '<div class="flow" style="margin-top:2px"><div class="h">习 惯</div>早睡廿一夜未断 · 戒糖昨夜一次<br><span style="color:#8b8171;font-size:11px">长按任意段落可移其序</span></div></div>'+
+ '<div class="nav" data-nav>'+['今日','待办','时间','记录','我的'].map((x,i)=>'<span class="'+(i===0?'on':'')+'">'+x+'</span>').join('')+'</div>'}
+
+/* ---------- 2 · 包豪斯 ---------- */
+function hBW(){const bar=[['#e63946',38],['#1d3557',31],['#fcbf24',17],['#111',14]].map(x=>'<i style="width:'+x[1]+'%;background:'+x[0]+'"></i>').join('');
+ const geo=(t)=>{const s={circ:'<circle cx="30" cy="30" r="26" fill="#e63946"/><circle cx="30" cy="30" r="26" fill="none" stroke="#111" stroke-width="2.5" stroke-dasharray="'+(163*0.62).toFixed(1)+' 163" stroke-dashoffset="0" transform="rotate(-90 30 30)"/><circle cx="30" cy="30" r="14" fill="#f2efe6" stroke="#111" stroke-width="2.5"/>',
+   tri:'<polygon points="30,4 56,56 4,56" fill="#fcbf24" stroke="#111" stroke-width="2.5"/>',
+   sq:'<rect x="6" y="6" width="48" height="48" fill="#1d3557"/><rect x="6" y="6" width="48" height="48" fill="none" stroke="#111" stroke-width="2.5"/>'}[t];
+   return '<svg class="geo" width="60" height="60" viewBox="0 0 60 60">'+s+'</svg>'};
+ return '<div class="rail" data-nav>'+['circ','tri','sq','half','cross'].map((x,i)=>'<i class="r-'+x+' '+(i===0?'on':'')+'"></i>').join('')+'</div>'+
+ '<div class="sts" style="position:relative;color:#8a8a8a"><span>23:59</span><span>FORM FOLLOWS LIFE</span><span>5G</span></div>'+
+ '<div class="band"><div class="t">Sonntag<br>20.09</div><div class="s">连续记录 128 · 完成度 62%</div></div>'+
+ '<div class="scr">'+
+ '<div class="mod"><div class="hd"><span>MODUL 01 · HEUTE</span><span>62%</span></div><div class="bd">'+geo('circ')+'<div><div class="n">62%</div><div class="k">Fortschritt / 今日进度</div><div class="bar12" style="width:150px">'+bar+'</div></div></div></div>'+
+ '<div class="c3"><div><div class="n" style="font-size:26px">3/8</div><div class="k">TODO</div></div><div><div class="n" style="font-size:26px;color:#e63946">2</div><div class="k">ÜBERFALL</div></div><div><div class="n" style="font-size:26px">1</div><div class="k">POMODORO</div></div></div>'+
+ '<div class="mod" style="margin-top:14px"><div class="hd"><span>MODUL 02 · ZEIT</span><span>31 H/WO</span></div><div class="bd" style="flex-direction:column;align-items:stretch;gap:0">'+
+  '<div class="bar12">'+bar+'</div><div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;font-weight:700;margin-top:10px">'+[['睡眠','#1d3557','31'],['工作','#e63946','38'],['学习','#fcbf24','17'],['娱乐','#111','14']].map(x=>'<span><i style="display:inline-block;width:10px;height:10px;background:'+x[1]+';margin-right:5px"></i>'+x[0]+' '+x[2]+'%</span>').join('')+'</div></div></div>'+
+ '<div class="mod"><div class="hd"><span>MODUL 03 · PLAN</span><span>HEUTE</span></div><div class="lst" style="width:100%">'+
+  '<div><span class="tm">10:00</span>产品评审会<b style="margin-left:auto;font-size:10px">ERLEDIGT</b></div>'+
+  '<div><span class="tm">14:00</span>午间健身房<b style="margin-left:auto;font-size:10px">ERLEDIGT</b></div>'+
+  '<div><span class="tm">19:00</span>写周报<b style="margin-left:auto;font-size:10px;color:#e63946">● LÄUFT</b></div></div></div>'+
+ '<div class="c3" style="margin-top:14px"><div><div class="k">KOSTEN</div><div class="kv">¥12.47/日</div></div><div><div class="k">COUNTDOWN</div><div class="kv">6 天 · 母亲生辰</div></div><div><div class="k">RHYTHMUS</div><div class="kv">早睡 21 天</div></div></div>'+
+ '<div class="sq4">'+[['⚡','收集箱'],['💰','记账'],['📦','物品'],['🎂','日子'],['💧','健康'],['🎯','目标'],['👶','母婴'],['🧰','工具'],['🧩','插件'],['📚','阅读'],['✎','笔记'],['☰','全部']].map(x=>'<div data-cell="'+x[1]+'"><b style="background:#e63946;border-radius:'+(x[1].length%2?'50%':'3px')+'"></b>'+x[1]+'</div>').join('')+'</div>'+
+ '<div class="inpf"><input data-qadd placeholder="SAMMELBEHÄLTER · 想到什么记什么…" value=""><b>+</b></div>'+
+ '<div class="moods" data-mood style="display:flex;gap:9px;margin-top:14px;font-size:20px">'+MOOD.map((m,i)=>'<span class="'+(i===2?'on':'')+'" style="cursor:pointer;border:2px solid #111;width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:'+(i===2?'#fcbf24':'#f2efe6')+'">'+m+'</span>').join('')+'</div>'+
+ '</div>'}
+
+/* ---------- 3 · 瑞士 ---------- */
+function hSW(){const seg=[['工作',38,'#0a0a0a'],['睡眠',31,'#8f8f8f'],['学习',17,'#c9c9c9'],['娱乐',14,'#e63329']];
+ const bar=seg.map(x=>'<i style="width:'+x[1]+'%;background:'+x[2]+'"></i>').join('');
+ return '<div class="scr">'+
+ '<div class="topnav" data-nav style="margin-top:30px">'+[['01','今天'],['02','待办'],['03','时间'],['04','记录'],['05','我的']].map((x,i)=>'<span class="'+(i===0?'on':'')+'">'+x[0]+' &nbsp;'+x[1]+'</span>').join('')+'</div>'+
+ '<div class="h1">Sonntag<br>20.09</div>'+
+ '<div class="h1sub"><span>LifeHarness / Dashboard</span><span>128 Tage</span></div>'+
+ '<div class="row" style="grid-template-columns:34px 1fr auto"><span class="no">01</span><div><span class="lb">Fortschritt · 今日进度</span><span class="big">62<span style="font-size:34px">%</span></span></div><span class="r">3/8&nbsp;已完成</span></div>'+
+ '<div class="rulebar">'+bar+'</div>'+
+ '<div class="row"><span class="no">02</span><div><span class="lb">Aufgaben · 待办</span><span class="v">清单 8 项 · 完成 3 · 逾期 2 · 番茄 1</span></div><span class="r">37%</span></div>'+
+ '<div class="row"><span class="no">03</span><div><span class="lb">Zeit · 时间去向（本周 31h）</span><span class="v">'+seg.map(x=>x[0]+' '+x[1]+'%').join(' · ')+'</span></div><span class="r g">L4 账本</span></div>'+
+ '<div class="row"><span class="no">04</span><div><span class="lb">Plan · 今日日程</span><span class="v">10:00 产品评审会 / 14:00 健身房 / 19:00 写周报</span></div><span class="r" style="color:#e63329">▶ 进行中</span></div>'+
+ '<div class="row"><span class="no">05</span><div><span class="lb">Kosten · 持有成本</span><span class="v">¥12.47 / 日 · MacBook ¥4.61</span></div><span class="r g">摊薄 412d</span></div>'+
+ '<div class="row"><span class="no">06</span><div><span class="lb">Countdown · 倒数日</span><span class="v">母亲生辰（农历八月初十）</span></div><span class="r">6 天</span></div>'+
+ '<div class="sec">Sammelbehalter · 收集箱</div>'+
+ '<input class="fin" data-qadd placeholder="想到什么记什么 · 3 秒入库" value="">'+
+ '<div class="row" style="border-bottom:0;padding-bottom:2px"><span class="no">07</span><div><span class="lb">Status</span><span class="v">3 条待分流 · 习惯「早睡」连续 21 天 · 心情 😌</span></div><span class="r g">→ 分流</span></div>'+
+ '<div class="sec">Module · 全部模块</div>'+
+ '<div class="idx">'+[['⚡','收集箱'],['💰','记账'],['📦','物品'],['🎂','日子'],['💧','健康'],['🎯','目标'],['🔁','习惯'],['👶','母婴'],['🧰','工具'],['🧩','插件']].map((x,i)=>'<div data-cell="'+x[1]+'"><span>'+(i<9?'0':'')+(i+1)+'</span>'+x[0]+' '+x[1]+'</div>').join('')+'</div>'+
+ '<div class="sec">Notiz des Tages · 今日小结</div>'+
+ '<div class="twocol"><p><b>记录</b>一个番茄在写周报里跑完，25 分钟自动进入时间账本；两项逾期已顺延至明日象限。</p><p><b>提醒</b>6 天后母亲生辰，提醒已设提前三日；保险续费在收集箱待分流。</p><p><b>编排</b>长按任意行可拖拽排序，顺序即时保存。</p></div>'+
+ '</div>'+
+ '<div class="foot"><span>Lebenserfassung · 本地优先</span><span>V4 / 瑞士国际主义</span></div></div>'}
+
+/* ---------- 4 · 孟菲斯 ---------- */
+function hME(){return '<div class="deco"><div class="zg" style="top:8px;right:18px;transform:rotate(14deg)"></div><div class="dotg" style="top:150px;left:-14px"></div><div class="rng" style="top:262px;right:-12px"></div><div class="tri" style="top:410px;left:-6px;transform:rotate(-18deg)"></div><div class="zg" style="top:520px;right:24px;transform:rotate(-9deg)"></div><div class="dotg" style="top:640px;right:-10px;width:52px;height:52px"></div></div>'+
+ '<div class="sts" style="position:relative"><span>23:59</span><span>✦ 128 天啦 ✦</span><span>5G ▮</span></div>'+
+ '<div class="scr">'+
+ '<div class="head"><div class="t">周日晚上好</div><div class="s">09 · 20 · HEUTE</div></div>'+
+ '<div class="ov"><div class="card a"><span class="taglb">今日进度</span><div style="display:flex;gap:14px;align-items:center"><div class="n">62%</div><div style="flex:1"><div class="barz"><i style="width:62%"></i></div><div style="font-size:11px;font-weight:800;color:#6b6255;margin-top:7px">待办 3/8 · 逾期 2 · 番茄 1 🍅</div></div></div></div></div>'+
+ '<div class="ov shift"><div class="card b"><span class="taglb" style="background:#2ec4b6">时间都去哪</span><div class="barz" style="height:22px"><i style="width:38%;background:#2ec4b6"></i></div><div class="pillrow"><span class="pill">工作 38%</span><span class="pill teal">睡眠 31%</span><span class="pill vio">学习 17%</span><span class="pill" style="background:#ff6b6b;color:#fff">娱乐 14%</span></div></div></div>'+
+ '<div class="ov"><div class="card c"><span class="taglb" style="background:#ffd23f;color:#1b1b1b">今天心情</span><div class="moods" data-mood>'+MOOD.map((m,i)=>'<span class="'+(i===2?'sel':'')+'">'+m+'</span>').join('')+'</div></div></div>'+
+ '<div class="ov shift"><div class="card a" style="box-shadow:6px 6px 0 #ff6b6b;background:#fffbe9"><span class="taglb" style="background:#a06bd8;color:#fff">接下来</span><div class="lst"><div><span style="font-size:11px;width:62px;color:#6b6255;font-weight:800">14:00</span>🏋️ 午间健身房 · 已完成</div><div><span style="font-size:11px;width:62px;color:#6b6255;font-weight:800">19:00</span>✍️ 写周报 · <b style="color:#ef5da8">进行中</b></div><div><span style="font-size:11px;width:62px;color:#6b6255;font-weight:800">明 09:30</span>🦷 牙医复诊</div></div></div></div>'+
+ '<div class="ov"><div class="card b" style="box-shadow:6px 6px 0 #a06bd8"><span class="taglb" style="background:#ffd23f;color:#1b1b1b">数字小卡</span><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px"><div><div class="n" style="font-size:24px">¥12.47</div><div style="font-size:10px;font-weight:800;color:#6b6255">今日持有成本</div></div><div><div class="n" style="font-size:24px">6<small>天</small></div><div style="font-size:10px;font-weight:800;color:#6b6255">母亲生辰</div></div><div><div class="n" style="font-size:24px">21</div><div style="font-size:10px;font-weight:800;color:#6b6255">早睡连击</div></div></div></div></div>'+
+ '<div class="ov shift"><div class="card c" style="box-shadow:6px 6px 0 #2ec4b6;background:#f1fff9"><span class="taglb">收集箱 · 3 条待分流</span><div class="inpw"><input data-qadd placeholder="想到什么记什么…" value=""><b>＋</b></div></div></div>'+
+ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:24px">'+['⚡ 记账','📦 物品','🎂 日子','💧 健康','🎯 目标','👶 母婴','🧰 工具','🧩 插件'].map((x,i)=>'<span class="pill" data-cell="'+x+'" style="background:'+['#ffd23f','#2ec4b6','#ef5da8','#a06bd8','#ff6b6b','#c9f24d','#ffd23f','#2ec4b6'][i]+';color:'+(i===3||i===4?'#fff':'#1b1b1b')+'">'+x+'</span>').join('')+'</div>'+
+ '<div style="text-align:center;font-size:10.5px;font-weight:800;color:#8b8172;margin-top:18px;letter-spacing:.1em">长按卡片可拖着玩（重排即存）</div>'+
+ '</div>'+
+ '<div class="nav" data-nav>'+['今天','待办','时间','记录','我的'].map((x,i)=>'<span class="'+(i===0?'on':'')+'"><em>'+(i===0?'☀':i===1?'☑':i===2?'◔':i===3?'✎':'◍')+'</em>'+x+'</span>').join('')+'</div>'}
+
+/* ---------- 5 · 光晕 ---------- */
+function hAU(){const seg=[['工作',38,'#7c5cff'],['睡眠',31,'#00e5ff'],['学习',17,'#ff4ecd'],['娱乐',14,'#5cffb1']];
+ const sp=seg.map(x=>'<i style="width:'+x[1]+'%;background:'+x[2]+'"></i>').join('');
+ return '<div class="aura"><b class="a1"></b><b class="a2"></b><b class="a3"></b><b class="a4"></b></div>'+
+ '<div class="sts" style="position:relative;z-index:2;color:#8c88b8"><span>23:59</span><span>· · ·</span><span>5G</span></div>'+
+ '<div class="scr">'+
+ '<div class="greet"><div class="t">Sunday · 20 Sept</div><div class="n">晚上好</div><div class="s">连续记录 128 天 · 呼吸一下</div></div>'+
+ '<div class="halo"></div>'+
+ '<div class="orb"><div class="num">62<span style="font-size:26px">%</span></div><div class="cap">今日已成</div></div>'+
+ '<div class="float"><div class="h">Zeit · 时间去向</div><div class="b">31<em> 小时 · 本周</em></div><div class="spectrum">'+sp+'</div>'+
+  '<div style="display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:11px;font-size:10.5px;letter-spacing:.1em;color:#a8a3d8">'+seg.map(x=>'<span>'+x[0]+' '+x[1]+'%</span>').join('')+'</div></div>'+
+ '<div class="float"><div class="h">Aufgaben · 待办</div><div class="b">3<em> / 8 已完成</em></div>'+
+  '<div style="display:flex;gap:14px;margin-top:9px;font-size:11px;letter-spacing:.1em;color:#a8a3d8"><span style="color:#ff9ad6">逾期 2</span><span style="color:#00e5ff">番茄 ×1</span><span>习惯 2/3</span></div></div>'+
+ '<div class="float"><div class="h">Agenda · 接下来</div><div class="rows">'+
+  '<div class="r"><span class="tm">10:00—11:00</span>产品评审会</div>'+
+  '<div class="r"><span class="tm">14:00—15:00</span>午间健身房</div>'+
+  '<div class="r"><span class="tm">19:00—20:00</span>写周报<span class="live">● LIVE</span></div></div></div>'+
+ '<div class="float" style="text-align:center"><div class="h">Stimmung · 今日心情</div><div class="moods" data-mood style="display:flex;justify-content:center;gap:16px;font-size:23px;margin-top:12px">'+MOOD.map((m,i)=>'<span class="'+(i===2?'sel':'')+'" style="cursor:pointer;filter:grayscale('+(i===2?0:1)+');opacity:'+(i===2?1:.45)+'">'+m+'</span>').join('')+'</div></div>'+
+ '<div class="float" style="padding:18px 20px"><div class="h">Kosten · 持有成本 &amp; 倒数</div><div style="display:flex;justify-content:space-between;margin-top:9px;font-size:13px;font-weight:300"><span>¥12.47 <em style="font-style:normal;color:#8c88b8;font-size:11px">/ 日</em></span><span>母亲生辰 <em style="font-style:normal;color:#8c88b8;font-size:11px">6 天后</em></span></div></div>'+
+ '<input class="glowinp" data-qadd placeholder="想到什么记什么 · 收集箱 3 条待分流" value="">'+
+ '<div class="chips">'+[['⚡ 收集箱'],['💰 记账'],['📦 物品'],['🎂 日子'],['💧 健康'],['🎯 目标'],['🔁 习惯'],['👶 母婴'],['🧰 工具'],['🧩 插件']].map(x=>'<span data-cell="'+x[0]+'">'+x[0]+'</span>').join('')+'</div>'+
+ '<div style="text-align:center;font-size:10px;letter-spacing:.2em;color:#6d6894;margin-top:20px">长按光晕可重排</div>'+
+ '</div>'+
+ '<div class="dock" data-nav>'+[['☀','今天'],['☑','待办'],['◔','时间'],['✎','记录']].map((x,i)=>'<span class="'+(i===0?'on':'')+'"><em>'+x[0]+'</em>'+x[1]+'</span>').join('')+'</div>'}
+
+/* ---------- 6 · 酸性 ---------- */
+function hAC(){const eq=[['工作',38],['睡眠',31],['学习',17],['娱乐',14],['待办',37],['习惯',21],['成本',12]].map(x=>'<i style="height:'+Math.max(10,x[1]*2.1)+'%"><b>'+x[0]+'</b></i>').join('');
+ return '<div class="grid"></div>'+
+ '<div class="marq"><span>ACID DAILY // 2026.09.20 SUN // 完成度 62% // 番茄 ×1 已入账 // 收集箱 3 条待分流 // 早睡连 21 天 // 母亲生辰 T-6 //&nbsp;&nbsp;</span></div>'+
+ '<div class="sts" style="color:#00ffc8"><span>23:59</span><span>LIFE//OS v4</span><span>5G</span></div>'+
+ '<div class="scr">'+
+ '<div class="chrome">SUN<br>20.09</div>'+
+ '<div class="sub">晚上好 · 连 128 天在线</div>'+
+ '<div class="skew"><span class="lab">TODAY PROGRESS</span><div class="n">62%</div><div class="k">待办 3/8 · 逾期 2 · 番茄 1</div>'+
+  '<div style="height:14px;border:1px solid #0ff;margin-top:11px;transform:skewX(6deg);background:#000"><i style="display:block;width:62%;height:100%;background:linear-gradient(90deg,#ff00ea,#fffe00,#00ffc8)"></i></div></div>'+
+ '<div class="strip"><span class="tag">¥12.47 / 日持有成本</span><span class="tag p">倒数 6 天 · 母亲生辰</span><span class="tag">早睡 ×21</span><span class="tag p">心情 😌</span></div>'+
+ '<div class="skew" style="border-color:#00ffc866;background:linear-gradient(120deg,#00ffc81a,#ff00ea14)"><span class="lab" style="background:#00ffc8">TIME SPECTRUM</span>'+
+  '<div style="transform:skewX(6deg)"><div style="font-size:11px;letter-spacing:.16em;color:#9aa;margin-top:4px">本周 31H · 分布</div><div class="eq">'+eq+'</div></div></div>'+
+ '<div class="lst">'+
+  '<div><span class="tm">10:00</span>产品评审会<span class="tag" style="margin-left:auto;border:0;padding:0;color:#6b7">DONE</span></div>'+
+  '<div><span class="tm">14:00</span>午间健身房<span class="tag" style="margin-left:auto;border:0;padding:0;color:#6b7">DONE</span></div>'+
+  '<div><span class="tm">19:00</span>写周报<span class="tag p" style="margin-left:auto;border:0;padding:0">● RUNNING</span></div>'+
+  '<div><span class="tm">09:30</span>牙医复诊 <span style="color:#667;font-size:10px">明日</span></div></div>'+
+ '<div class="strip">'+['⚡ 收集箱','💰 记账','📦 物品','🎂 日子','💧 健康','🎯 目标','🔁 习惯','👶 母婴','🧰 工具','🧩 插件'].map(x=>'<span class="tag" data-cell="'+x+'">'+x+'</span>').join('')+'</div>'+
+ '<div class="glitchinp"><input data-qadd placeholder=">> INGEST 想到什么记什么…" value=""><b>ADD</b></div>'+
+ '<div style="margin-top:18px;font-size:9.5px;letter-spacing:.2em;color:#6b7a8f;text-align:center">长按任意模块重排 // 数据全本地</div>'+
+ '</div>'+
+ '<div class="marq marq2"><span>NO CLOUD // NO ACCOUNT // NO TRACKING // 本地优先 // 你的数据在你的机器上 //&nbsp;&nbsp;</span></div>'+
+ '<div class="nav" data-nav>'+['今天','待办','时间','记录','我的'].map((x,i)=>'<span class="'+(i===0?'on':'')+'">'+x+'</span>').join('')+'</div>'}
+
+/* ---------- 7 · 蒸汽波 ---------- */
+function hVW(){const seg=[['工作',38],['睡眠',31],['学习',17],['娱乐',14]];
+ return '<div class="sun"></div><div class="floor"></div><div class="kai">日曜日・記録</div>'+
+ '<div class="sts" style="color:#ffe14d;position:relative;z-index:4"><span>23:59</span><span>ROMANTIC</span><span>5G</span></div>'+
+ '<div class="scr">'+
+ '<div class="top"><div class="e">SUNDAY / 九月二十日</div><div class="h">晚上好</div><div class="jp">こんばんは · 連帯記録 128 日</div></div>'+
+ '<div class="panel"><div class="h">Today Progress / 今日进度</div><div class="n">62<small>%</small></div><div class="scanbar"><i style="width:62%"></i></div>'+
+  '<div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:.14em;color:#ffd6f0;margin-top:9px"><span>待办 3/8</span><span style="color:#ff6ec7">逾期 2</span><span>番茄 ×1</span></div></div>'+
+ '<div class="split">'+
+  '<div class="neon"><div class="k">KOSTEN · 持有成本</div><div class="v">¥12.47</div><div style="font-size:9.5px;color:#c9a6df;letter-spacing:.1em">MacBook 摊薄 412 天</div></div>'+
+  '<div class="neon c"><div class="k">COUNTDOWN · 倒数</div><div class="v">6 天</div><div style="font-size:9.5px;color:#c9a6df;letter-spacing:.1em">母亲生辰 · 农历</div></div>'+
+ '</div>'+
+ '<div class="panel" style="margin-top:14px"><div class="h">Time Flow / 时间去向 · 本周 31h</div><div class="rows" style="margin-top:8px">'+
+  seg.map(x=>'<div><span class="tm">'+x[0]+'</span><span style="flex:1"><span class="scanbar" style="height:9px;margin:0"><i style="width:'+x[1]+'%"></i></span></span><span style="font-size:11px;width:30px;text-align:right">'+x[1]+'%</span></div>').join('')+'</div></div>'+
+ '<div class="panel" style="margin-top:14px"><div class="h">Agenda / 接下来的安排</div><div class="rows" style="margin-top:8px">'+
+  '<div><span class="tm">14:00</span>🏋️ 午间健身房 <span style="margin-left:auto;font-size:9px;color:#0ff">DONE</span></div>'+
+  '<div><span class="tm">19:00</span>✍️ 写周报 <span style="margin-left:auto;font-size:9px;color:#ffe14d">● RUNNING</span></div>'+
+  '<div><span class="tm">09:30</span>🦷 牙医复诊 <span style="margin-left:auto;font-size:9px;color:#c9a6df">TOMORROW</span></div></div></div>'+
+ '<div class="panel" style="margin-top:14px"><div class="h">Mood / 今日心情</div><div class="moods" data-mood>'+MOOD.map((m,i)=>'<span class="'+(i===2?'sel':'')+'">'+m+'</span>').join('')+'</div></div>'+
+ '<div class="wininp"><div class="bar">SAMMELBEHÄLTER.EXE — 收集箱 · 3 条待分流</div><input data-qadd placeholder="C:\\> 想到什么记什么…" value=""></div>'+
+ '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;justify-content:center">'+['⚡ 收集箱','💰 记账','📦 物品','🎂 日子','💧 健康','🎯 目标','🧰 工具','🧩 插件'].map(x=>'<span class="neon" data-cell="'+x+'" style="padding:7px 11px;font-size:11px;cursor:pointer">'+x+'</span>').join('')+'</div>'+
+ '<div style="text-align:center;font-size:9px;letter-spacing:.28em;color:#ffd6f0;margin-top:18px">长按卡片可重排</div>'+
+ '</div>'+
+ '<div class="nav" data-nav>'+[['☀','今日'],['☑','待办'],['◔','时间'],['✎','记录'],['◍','我的']].map((x,i)=>'<span class="'+(i===0?'on':'')+'"><em>'+x[0]+'</em>'+x[1]+'</span>').join('')+'</div>'}
+
+/* ---------- 8 · 新粗野 ---------- */
+function hNB(){const tiles=[['⚡','收集箱','yel'],['💰','记账','pin'],['📦','物品','grn'],['🎂','日子','vio'],['💧','健康','blue'],['🎯','目标','wht'],['🔁','习惯','yel'],['🧩','插件','pin']];
+ return '<div class="sts" style="background:#ffe800;border-bottom:3px solid #000;font-weight:900"><span>23:59</span><span>NO.128</span><span>5G ▮</span></div>'+
+ '<div class="scr">'+
+ '<div class="topbar" data-nav>'+['今天','待办','时间','记录','我的'].map((x,i)=>'<span class="'+(i===0?'on':'')+'">'+(i+1)+'·'+x+'</span>').join('')+'</div>'+
+ '<div class="blk hero"><div class="n">62<span style="font-size:32px">%</span></div><div class="side"><span class="field">Field: 今日完成度</span><div style="font-size:12px;margin-top:9px">待办 3/8 · 逾期 2 · 番茄 1 个</div><div class="prog" style="background:#fff"><i style="width:37%;background:#000"></i><i style="width:25%;background:#ff5c39"></i><i style="width:38%;background:#ffe800"></i></div></div></div>'+
+ '<div class="marq">长按任意块拖动排序 → 顺序即时保存 · 全本地 · 无账号 · 无追踪</div>'+
+ '<div class="kv">'+
+  '<div class="blue"><span class="field">Field: 时间去向</span><div class="v">31h</div><div style="font-size:11px;margin-top:4px">工作38 · 睡眠31 · 学习17 · 娱乐14</div><div class="prog"><i style="width:38%;background:#000"></i><i style="width:31%;background:#5cc8ff"></i><i style="width:17%;background:#ffe800"></i><i style="width:14%;background:#ff9ec4"></i></div></div>'+
+  '<div class="yel"><span class="field">Field: 持有成本</span><div class="v">¥12.47</div><div style="font-size:11px;margin-top:4px">MacBook 已摊 412 天 · 相机本周入账</div><div class="btn gr" style="margin-top:9px;display:inline-block" data-cell="物品明细">看明细 →</div></div>'+
+ '</div>'+
+ '<div class="blk"><span class="field">Field: 今日日程</span><div class="lst">'+
+  '<div><span class="tm">10:00</span>产品评审会<span class="btn gr" style="margin-left:auto" data-cell="已完成">DONE</span></div>'+
+  '<div><span class="tm">14:00</span>午间健身房<span class="btn gr" style="margin-left:auto" data-cell="已完成">DONE</span></div>'+
+  '<div><span class="tm">19:00</span>写周报<span class="btn red" style="margin-left:auto" data-cell="进行中的番茄">● 25:00</span></div>'+
+  '<div><span class="tm">明 09:30</span>牙医复诊<span class="btn" style="margin-left:auto" data-cell="提醒设置">提醒</span></div></div></div>'+
+ '<div class="blk pin"><span class="field">Field: 今日心情</span><div class="moods" data-mood>'+MOOD.map((m,i)=>'<span class="'+(i===2?'sel':'')+'">'+m+'</span>').join('')+'</div></div>'+
+ '<div class="kv" style="border-top:3px solid #000">'+
+  '<div class="grn"><span class="field">Field: 倒数日</span><div class="v">6 天</div><div style="font-size:11px;margin-top:4px">母亲生辰 · 农历八月初十 · 提前 3 日提醒</div></div>'+
+  '<div class="vio"><span class="field">Field: 习惯</span><div class="v">×21</div><div style="font-size:11px;margin-top:4px">早睡连 21 天 · 戒糖昨夜破 1 次（明早补确认）</div></div>'+
+ '</div>'+
+ '<div class="blk"><span class="field">Field: 收集箱（3 条待分流）</span>'+
+  '<div class="inpline"><input data-qadd placeholder="想到什么记什么…" value=""><b>＋</b></div>'+
+  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px"><span class="btn" data-cell="分流到待办">给新书拟章节目录</span><span class="btn wht" data-cell="分流到记账">周末买菜清单</span></div></div>'+
+ '<div class="tiles">'+tiles.map(x=>'<div class="'+x[2]+'" data-cell="'+x[1]+'"><em>'+x[0]+'</em>'+x[1]+'</div>').join('')+'</div>'+
+ '<div class="blk" style="border-bottom:0"><span class="field">Field: 装饰 / 外观 · 4 主题 ×2 模式</span><div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap"><span class="btn" data-cell="主题">换肤</span><span class="btn wht" data-cell="深浅">深色</span><span class="btn gr" data-cell="导出">导出 JSON</span></div></div>'+
+ '</div>'+
+ '<div class="fab">＋</div>'}
+
+/* ---------- 组装 ---------- */
+const STAGES=[['w','侘寂 Wabi-sabi','竖墨线时间流 · 缺线进度 · 朱印 · 无卡片',hW],
+ ['bw','包豪斯 Bauhaus','左侧几何导轨 · 原色模块框 · 12 分色条',hBW],
+ ['sw','瑞士国际主义','顶部编号导航 · 严格栅格行 · 巨号数字',hSW],
+ ['me','孟菲斯 Memphis','重叠旋转卡 · 散落装饰 · 异形按钮导航',hME],
+ ['au','光晕 Aura','全屏呼吸光斑 · 无边界浮层 · 悬浮 dock',hAU],
+ ['ac','酸性 Acid','斜向错层 · 铬渐变字 · 双向跑马带 · 削角导航',hAC],
+ ['vw','蒸汽波 Vaporwave','落日+透视地平线 · 霓虹描边斜卡 · 窗口条',hVW],
+ ['nb','新粗野 Neo-brutalism','满宽色条堆叠 · 裸露字段名 · 硬偏移影 FAB',hNB]];
+const row=document.getElementById('row');
+function build(){row.innerHTML='';STAGES.forEach(s=>{const sec=document.createElement('section');sec.className='stage st-'+s[0];sec.id='s'+s[0];
+ sec.innerHTML='<div class="tag"><span class="nm">'+s[1]+'</span><span class="ds">'+s[2]+'</span><span class="pick" data-pick="'+s[0]+'">选这个</span></div><div class="phone">'+s[3]()+'</div>';
+ row.appendChild(sec)})}
+build();
+document.addEventListener('click',e=>{
+ const p=e.target.closest('[data-pick]');if(p){toast('已记录选择：'+p.closest('.stage').querySelector('.nm').textContent+' —— 告诉我即做全量 14 模块');return}
+ const m=e.target.closest('[data-mood] span, .moods span');if(m){const g=m.parentNode;
+   const au=m.closest('.st-au'),bw=m.closest('.st-bw');
+   g.querySelectorAll('span').forEach(x=>{x.classList.remove('sel');if(au){x.style.filter='grayscale(1)';x.style.opacity='.45'}if(bw){x.style.background='#f2efe6'}});
+   m.classList.add('sel');if(au){m.style.filter='none';m.style.opacity='1'}if(bw){m.style.background='#fcbf24'}
+   toast('今日心情 '+m.textContent+' 已记录');return}
+ const nv=e.target.closest('[data-nav] > *');if(nv){const g=nv.parentNode;g.querySelectorAll(':scope > *').forEach(x=>x.classList.remove('on'));nv.classList.add('on');
+   const ix=[...g.children].indexOf(nv);toast(['今日','待办','时间','记录','我的'][ix]||'切换'+' · V4 仅主页演示');return}
+ const qi=e.target.closest('[data-qadd]');if(qi&&qi.value.trim()){toast('已收入收集箱（演示）');qi.value='';return}
+ const pl=e.target.closest('.inpw b, .inpf b, .glitchinp b, .inpline b');if(pl){const inp=pl.parentNode.querySelector('input');if(inp&&inp.value.trim()){toast('已收入收集箱（演示）');inp.value=''}else{toast('写点什么再记')}return}
+
+ const se=e.target.closest('[data-seal]');if(se){se.textContent='心情<br>已盖';toast('朱印已盖 · 连续记录 128 天');return}
+ const fb=e.target.closest('.st-nb .fab');if(fb){toast('＋ 新增：待办 / 记录二选一');return}
+  const cl=e.target.closest('[data-cell]');if(cl){toast(cl.getAttribute('data-cell')+' · 选定风格后在全量原型展开');return}
+});
+
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('[data-qadd]')){if(e.target.value.trim()){toast('已收入收集箱（演示）');e.target.value=''}else{toast('写点什么再记')}}});
+</script>
+</body>
+</html>

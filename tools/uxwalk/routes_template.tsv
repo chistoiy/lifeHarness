@@ -1,0 +1,57 @@
+# id	arrive_regex(可空)	steps(;分隔)
+dashboard	今日心情|全部功能	tab:今天
+todo	四象限|添加待办	tab:待办
+calendar	粒度	tab:时间
+journal	记录	tab:记录
+profile	数据与同步	tab:我的
+inbox	收集箱	tile:收集箱
+pomo	番茄	tab:待办;row:番茄计时
+habits	新建习惯|今日	tile:习惯
+habit-stat	统计	tile:习惯;row:统计
+habit-set	打卡设置	tile:习惯;row:打卡设置
+time-stats		tab:时间;row:统计
+categories	分类	tab:我的;row:分类管理
+ledger	报表|快速记	tile:记账
+ledger-report	统计报表	tile:记账;row:报表
+ledger-budget	预算	tile:记账;row:预算
+ledger-assets	资产	tile:记账;row:资产
+ledger-recur	周期	tile:记账;row:周期
+ledger-more		tile:记账;row:更多
+ledger-search	搜索	tile:记账;row:搜索
+ledger-yearly	年度	tile:记账;row:更多;row:年度
+ledger-wish	愿望	tile:记账;row:更多;row:愿望
+ledger-debt	债务	tile:记账;row:更多;row:债务
+ledger-cats	分类	tile:记账;row:更多;row:分类
+ledger-set	设置	tile:记账;row:更多;row:设置
+ledger-export	导出	tile:记账;row:更多;row:导出
+ledger-import	导入	tile:记账;row:更多;row:导入
+ledger-add		tile:记账;row:记一笔
+read	书架	tile:阅读
+read-quotes	书摘	tile:阅读;row:书摘
+read-stat	统计	tile:阅读;row:统计
+read-set	设置	tile:阅读;row:设置
+read-lists	书单	tile:阅读;row:书单
+read-mgr	管理	tile:阅读;row:管理
+read-xray	词库|X-Ray	tile:阅读;row:词库
+read-import	导入	tile:阅读;row:导入
+care	呵护	tile:呵护
+care-babies	宝宝	tile:呵护;row:宝宝
+care-remind	提醒	tile:呵护;row:提醒
+care-cyclestats	统计	tile:呵护;row:统计
+items	物品价值	tile:物品
+items-stats	成本统计	tile:物品;row:成本统计
+items-detail	持有	tile:物品;row:小米手机14
+days	日子	tile:日子
+goals	目标	tile:目标
+settings	外观|设置	tile:设置
+settings-appearance	外观	tile:我的;row:外观
+settings-notify	提醒通知	tile:我的;row:提醒通知
+settings-ai	AI	tile:我的;row:AI 增强
+ai-verify	验证	tile:AI 验证
+sync	数据与同步	tab:我的;row:数据与同步
+sync-history	同步历史	tab:我的;row:数据与同步;row:同步历史
+db-overview	数据库概览	tab:我的;row:数据与同步;row:数据库概览
+media-clean	图片	tile:我的;row:图片存储清理
+recmg	记录管理	tab:我的;scroll2;row:记录管理
+trash	回收站	tab:我的;row:回收站
+log	运行日志	tab:我的;row:运行日志

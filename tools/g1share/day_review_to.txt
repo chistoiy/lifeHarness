@@ -1,0 +1,4 @@
+  <div class="mt-3 flex gap-2">
+    ${archived
+      ?'<button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="toast(\'已归档复盘为只读 · 点「2026 Q3 撰写中」编辑\')">已归档</button><button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="scOpen(\'review\')">⤴ 分享复盘卡</button>'
+      :'<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="grSave()">保存复盘</button><button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="grDraft()">Try → 下季草稿</button>'}

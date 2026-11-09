@@ -1,0 +1,21 @@
+[
+  { "n": "晨间喝水", "ic": "water", "type": "pos", "cat": "健康", "cycle": "day", "unit": "杯", "goal": 1, "remind": "07:30" },
+  { "n": "冥想", "ic": "med", "type": "pos", "cat": "健康", "cycle": "day", "unit": "分钟", "goal": 10, "remind": "22:00" },
+  { "n": "跑步", "ic": "run", "type": "pos", "cat": "健康", "cycle": "week", "days": ["二", "四", "六"], "unit": "公里", "goal": 3, "remind": "06:30" },
+  { "n": "阅读", "ic": "book", "type": "pos", "cat": "学习", "cycle": "day", "unit": "页", "goal": 20, "remind": "21:30" },
+  { "n": "背单词", "ic": "plan", "type": "pos", "cat": "成长", "cycle": "day", "unit": "词", "goal": 50, "remind": "08:00" },
+  { "n": "写日记", "ic": "write", "type": "pos", "cat": "成长", "cycle": "day", "unit": "字", "goal": 100, "remind": "22:30" },
+  { "n": "早睡", "ic": "sleep", "type": "pos", "cat": "健康", "cycle": "day", "unit": "点前", "goal": 23, "remind": "22:30" },
+  { "n": "记账", "ic": "list", "type": "pos", "cat": "生活", "cycle": "day", "unit": "笔", "goal": 1, "remind": "21:00" },
+  { "n": "整理桌面", "ic": "code", "type": "pos", "cat": "工作", "cycle": "week", "days": ["五"], "unit": "项", "goal": 1, "remind": "" },
+  {
+    "n": "运动组合", "ic": "run", "type": "pos", "cat": "健康", "cycle": "day", "group": true, "rule": "all", "remind": "07:00",
+    "subs": [
+      { "n": "深蹲", "unit": "个", "goal": 20 },
+      { "n": "平板支撑", "unit": "秒", "goal": 60 },
+      { "n": "拉伸", "unit": "分钟", "goal": 5 }
+    ]
+  },
+  { "n": "少喝含糖饮料", "ic": "food", "type": "neg", "cat": "生活", "cycle": "week", "unit": "杯", "goal": 1, "target": 3, "remind": "20:00" },
+  { "n": "少刷手机", "ic": "phone", "type": "neg", "cat": "生活", "cycle": "week", "unit": "分钟", "goal": 30, "target": 3, "remind": "23:00" }
+]
