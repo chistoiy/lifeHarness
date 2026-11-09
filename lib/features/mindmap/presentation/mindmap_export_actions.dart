@@ -20,6 +20,8 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/export/export_save.dart';
+import '../../../core/export/multi_format.dart' show SvgNode;
 import '../../../core/logging/app_log.dart';
 import '../../../core/platform/saf.dart';
 import '../../../shared/widgets/ui_kit.dart';
@@ -40,7 +42,7 @@ class MmExportChoice {
     required this.landscape,
   });
 
-  final String format; // 'html' | 'md' | 'opml' | 'png'
+  final String format; // 'html' | 'md' | 'opml' | 'png' | 'xmind' | 'svg'
   final bool includeBody;
   final bool landscape;
 }
@@ -76,6 +78,8 @@ class _MmExportSheetState extends State<_MmExportSheet> {
     ('png', 'PNG 图片', Icons.image_outlined),
     // 批5 F4-9 解禁：原型第五枚一直是可点的（`.xmind` 只出不进）。
     ('xmind', '.xmind（只出不进）', Icons.extension_outlined),
+    // 零依赖矢量导出：看图/设计软件可开，中文不缺字、无外链资源。
+    ('svg', 'SVG 矢量图', Icons.polyline_outlined),
   ];
 
   /// PNG 与 `.xmind` 都**不含「挂载正文」语义**（前者是像素、后者只带结构
@@ -83,7 +87,9 @@ class _MmExportSheetState extends State<_MmExportSheet> {
   /// `hasBodyOpt` 同款口径。
   bool get _isPng => _fmt == 'png';
   bool get _isXmind => _fmt == 'xmind';
-  bool get _noBodySemantics => _isPng || _isXmind;
+  bool get _isSvg => _fmt == 'svg';
+  // SVG 只带结构（标题＋父子关系），不含挂载正文。
+  bool get _noBodySemantics => _isPng || _isXmind || _isSvg;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +104,7 @@ class _MmExportSheetState extends State<_MmExportSheet> {
           children: [
             const Text('导出',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             for (final (key, label, icon) in _formats)
               ListTile(
                 key: ValueKey('mm-export-fmt-$key'),
@@ -120,7 +126,7 @@ class _MmExportSheetState extends State<_MmExportSheet> {
                       fontSize: 11.5,
                       color: cs.onSurfaceVariant.withValues(alpha: .7))),
             ),
-            const Divider(height: 16),
+            const Divider(height: 12),
             // PNG 是画布像素快照，.xmind 只带结构 ⇒ 两开关置灰
             SwitchListTile(
               key: const ValueKey('mm-export-body-sw'),
@@ -217,6 +223,23 @@ Future<void> mmRunExport(
         final f = File('$base.xmind')
           ..writeAsBytesSync(mmExportXmindBytes(mapTitle: mapTitle, rows: rows));
         savedName = await safSaveAs(f.path);
+      case 'svg':
+        // 零依赖矢量导出：把节点树扁平化交给既有序列化层（中文不缺字、
+        // 无外链资源），落盘走同一条 safSaveAs，零新增原生通道。
+        final svgNodes = <SvgNode>[
+          for (final n in rows)
+            SvgNode(
+              id: '${n.id ?? 0}',
+              text: n.title,
+              parentId: n.parentId == null ? null : '${n.parentId}',
+            ),
+        ];
+        savedName = await saveMindmapSvgAs(
+          title: mapTitle,
+          nodes: svgNodes,
+          width: choice.landscape ? 1280 : 960,
+          height: choice.landscape ? 720 : 640,
+        );
       case 'html':
         // 挂载快照预取（async 出口 → 先收齐再组装）。
         final titles = <int, String?>{};

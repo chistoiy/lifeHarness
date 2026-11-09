@@ -3,12 +3,12 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径：硬闸＝`python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤6,480 字节·叙事只留「本批／上一批」两级且各 ≤400 字符）；**黄线＝上限 90%（5,832 字节），到线即当轮瘦身，上限随瘦身棘轮只降不升**（细则＝`AGENTS.md`「文档体量治理」）。收尾改本文件一律走 `status_set.py`（`--rotate`→`--set`）。
 
-- **本批＝** UI/UX 收尾·第四批（11-09）：AZW3/MOBI 解析（实验性支持·DRM 明确拒绝不静默降级）、AI 引用注入接线（开关门控·审阅与实发同源·不上传全库）、可打印 HTML 导出（系统打印可另存 PDF）；7 件测试绿·体量四次销账·攒 6219
+- **本批＝** UI/UX 收尾·第四批（11-09）：AZW3/MOBI 解析（实验性支持·DRM 明确拒绝不静默降级）、AI 引用注入接线（开关门控·审阅与实发同源·不上传全库）、可打印 HTML 导出（系统打印可另存 PDF）＋导图 SVG 导出入口；8 件测试绿·体量五次销账·攒 6219
 - **上一批＝** UI/UX 全量收尾·第三批（11-09）：自动时间采集（使用情况分段→建议块→待确认队列·拒权降级）、阅读多格式解析（TXT/FB2＋不支持清单）、健康设备导入域层与灰位、可读目录扩六模块＋格式说明、图片清理补新照片列；原生权限＋Kotlin 通道·10 件全绿·体量三次销账·攒 6219
 
 ## 基线（八项，其余不写）
 
-**未推＝7**（11-09 四批 UI/UX＋8218 装机登记＋校正·待产品令；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
+**未推＝8**（11-09 四批 UI/UX＋导图 SVG 入口＋8218 装机登记＋校正·待产品令；对账＝`git rev-list --count origin/feat/m0-skeleton..HEAD`；推送口径＝**批内闸全绿＋全量红面已证存量**）。⚠ 发版须先取得产品同意；Gitee/GitHub 姿势与回读禁忌见 `AGENTS.md`「环境事实」段。
 - 最新预发布＝`v0.2.15-mm-p7`（装机 8202·arm64 单包）／`-nfc`／`-desktop-b1` 三枚双端挂齐；逐枚钉版/双端 id/md5＝台账§A。⚠ 只挂 arm64 瘦身包·勿卸载＝清库
 - 再前预发布＝`-tree-swipe`／`-tree-follow`／`-note-mount`／`-note-local`（DB v39→v42 首枚）／`-health-media`／`-media`——台账＝同档 §A
 - DB＝`DbSchema.version=53`（v53＝物品实物属性批 8 条可空 `ADD COLUMN`：多图/位置/凭证/条码/借出三列/自定义字段·零搬数据老行取 NULL；v52＝物品批A brand/serial/note；v51＝item_events 加 txn_id；v50＝日记批2b 建 tags+tag_links——**version 与 migrations 必须同批改**；v49~v45 逐版＝沉各归档工单；本行读数由守护二十三与 schema.dart 比对）
